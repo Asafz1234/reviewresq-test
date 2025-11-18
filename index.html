@@ -7,17 +7,14 @@
   <style>
     :root {
       --bg: #020617;
-      --bg-alt: #020617;
       --card: #020617;
-      --card-border: rgba(148,163,184,0.45);
+      --card-border: rgba(148,163,184,0.55);
       --accent: #38bdf8;
-      --accent-soft: rgba(56,189,248,0.18);
+      --accent-soft: rgba(56,189,248,0.2);
       --accent-strong: #0ea5e9;
       --danger: #f97373;
       --text-main: #f9fafb;
       --text-sub: #9ca3af;
-      --radius-xl: 22px;
-      --radius-lg: 14px;
       --shadow-soft: 0 26px 60px rgba(15,23,42,0.95);
     }
 
@@ -50,22 +47,22 @@
       position: absolute;
       inset: -40%;
       background:
-        radial-gradient(circle at 0% 0%, rgba(56,189,248,0.12), transparent 60%),
-        radial-gradient(circle at 100% 100%, rgba(56,189,248,0.12), transparent 60%);
+        radial-gradient(circle at 0% 0%, rgba(56,189,248,0.16), transparent 60%),
+        radial-gradient(circle at 100% 100%, rgba(56,189,248,0.16), transparent 60%);
       opacity: 1;
       pointer-events: none;
-      filter: blur(1px);
+      filter: blur(2px);
     }
 
     .card {
       position: relative;
       z-index: 1;
       width: 100%;
-      border-radius: 26px;
-      padding: 24px 22px 22px;
+      border-radius: 28px;
+      padding: 22px 20px 20px;
       background:
-        linear-gradient(145deg, rgba(15,23,42,0.96), rgba(2,6,23,0.98));
-      border: 1px solid rgba(148,163,184,0.55);
+        linear-gradient(145deg, rgba(15,23,42,0.98), rgba(2,6,23,0.98));
+      border: 1px solid var(--card-border);
       box-shadow:
         0 0 0 1px rgba(15,23,42,0.9),
         var(--shadow-soft);
@@ -77,7 +74,7 @@
       position: absolute;
       inset: -40%;
       background:
-        radial-gradient(circle at 0 0, rgba(56,189,248,0.24), transparent 55%),
+        radial-gradient(circle at 0 0, rgba(56,189,248,0.26), transparent 55%),
         radial-gradient(circle at 100% 0, rgba(59,130,246,0.18), transparent 60%);
       opacity: 0.35;
       pointer-events: none;
@@ -93,7 +90,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .brand {
@@ -102,20 +99,42 @@
       gap: 10px;
     }
 
+    .brand-logo-wrap {
+      position: relative;
+    }
+
+    .brand-logo-ring {
+      position: absolute;
+      inset: -4px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.5);
+      opacity: 0.6;
+    }
+
     .brand-logo {
-      width: 32px;
-      height: 32px;
-      border-radius: 12px;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
       background:
-        radial-gradient(circle at 0 0, rgba(56,189,248,0.6), transparent 55%),
-        radial-gradient(circle at 100% 100%, rgba(8,47,73,0.9), #020617);
+        conic-gradient(from 180deg at 50% 50%, #38bdf8, #0ea5e9, #22c55e, #38bdf8);
       display: flex;
       align-items: center;
       justify-content: center;
       box-shadow:
-        0 10px 24px rgba(15,23,42,0.9),
+        0 12px 26px rgba(15,23,42,0.9),
         0 0 0 1px rgba(15,23,42,1);
-      font-size: 17px;
+      position: relative;
+    }
+
+    .brand-logo-inner {
+      width: 80%;
+      height: 80%;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 0, #e0f2fe, #0b1120);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
       font-weight: 700;
       color: #e5f5ff;
     }
@@ -129,7 +148,7 @@
     .brand-name {
       font-size: 14px;
       font-weight: 600;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       color: #e5f6ff;
     }
@@ -143,7 +162,7 @@
       padding: 4px 10px;
       border-radius: 999px;
       border: 1px solid rgba(148,163,184,0.55);
-      background: rgba(15,23,42,0.85);
+      background: rgba(15,23,42,0.92);
       font-size: 11px;
       color: var(--text-sub);
       display: inline-flex;
@@ -167,7 +186,7 @@
     }
 
     .subtitle {
-      margin: 0 0 18px;
+      margin: 0 0 16px;
       font-size: 13px;
       color: var(--text-sub);
     }
@@ -181,12 +200,12 @@
     }
 
     .pill {
-      padding: 2px 8px;
+      padding: 2px 9px;
       border-radius: 999px;
-      border: 1px solid rgba(148,163,184,0.45);
+      border: 1px solid rgba(148,163,184,0.55);
       font-size: 10px;
       color: var(--text-sub);
-      background: rgba(15,23,42,0.9);
+      background: rgba(15,23,42,0.92);
     }
 
     .stars-row {
@@ -200,8 +219,8 @@
       flex: 1;
       border-radius: 999px;
       padding: 9px 0;
-      background: rgba(15,23,42,0.92);
-      border: 1px solid rgba(148,163,184,0.55);
+      background: rgba(15,23,42,0.96);
+      border: 1px solid rgba(148,163,184,0.7);
       color: var(--text-sub);
       font-size: 13px;
       display: flex;
@@ -218,7 +237,7 @@
     }
 
     .star-btn span.star {
-      font-size: 14px;
+      font-size: 16px;
     }
 
     .star-btn:hover {
@@ -227,22 +246,19 @@
     }
 
     .star-btn.selected {
-      background: linear-gradient(
-        135deg,
-        rgba(56,189,248,0.2),
-        rgba(15,118,110,0.14)
-      );
+      background: radial-gradient(circle at 0 0,
+        rgba(56,189,248,0.32), rgba(15,23,42,0.98));
       border-color: var(--accent-strong);
       color: #e0f2fe;
       box-shadow:
-        0 0 0 1px rgba(56,189,248,0.4),
-        0 16px 32px rgba(15,23,42,0.9);
+        0 0 0 1px rgba(56,189,248,0.45),
+        0 16px 32px rgba(15,23,42,0.95);
       transform: translateY(-1px);
     }
 
     .section {
       border-radius: 18px;
-      background: rgba(15,23,42,0.96);
+      background: rgba(15,23,42,0.97);
       border: 1px solid rgba(148,163,184,0.5);
       padding: 14px 13px 14px;
       margin-top: 4px;
@@ -279,8 +295,8 @@
     input[type="text"] {
       width: 100%;
       border-radius: 12px;
-      border: 1px solid rgba(148,163,184,0.55);
-      background: rgba(15,23,42,0.96);
+      border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.98);
       color: var(--text-main);
       font-size: 13px;
       padding: 8px 10px;
@@ -366,7 +382,7 @@
     }
 
     .success-note {
-      margin-top: 10px;
+      margin-top: 8px;
       font-size: 12px;
       color: var(--text-sub);
     }
@@ -375,9 +391,9 @@
       margin-top: 10px;
       padding: 8px 10px;
       border-radius: 12px;
-      border: 1px dashed rgba(148,163,184,0.7);
+      border: 1px dashed rgba(148,163,184,0.85);
       background: radial-gradient(circle at 0 0,
-        rgba(56,189,248,0.18), transparent 60%);
+        rgba(56,189,248,0.24), rgba(15,23,42,0.98));
       font-size: 12px;
     }
 
@@ -412,6 +428,10 @@
       font-weight: 600;
     }
 
+    #discountHighBox {
+      display: none;
+    }
+
     @media (max-width: 480px) {
       .card {
         padding: 20px 16px 20px;
@@ -436,7 +456,12 @@
       <div class="card-inner">
         <div class="top-row">
           <div class="brand">
-            <div class="brand-logo">RR</div>
+            <div class="brand-logo-wrap">
+              <div class="brand-logo-ring"></div>
+              <div class="brand-logo">
+                <div class="brand-logo-inner">RR</div>
+              </div>
+            </div>
             <div class="brand-text">
               <div class="brand-name">ReviewResq</div>
               <div class="brand-tag">Private feedback & 5★ public reviews</div>
@@ -450,8 +475,8 @@
 
         <h1>How was your experience?</h1>
         <p class="subtitle">
-          Please rate your recent service from 1–5 stars. Low scores stay private and go
-          directly to the business owner. High scores may be invited to leave a public review.
+          Please rate your recent service from 1–5 stars. Lower scores stay private
+          with the business owner. Higher scores may be invited to leave a public review.
         </p>
 
         <div class="pill-row">
@@ -501,6 +526,13 @@
               name="_subject"
               value="New private review from ReviewResq portal"
             />
+            <!-- אחרי שליחה – יעבור לדף תודה עם הקופון -->
+            <input
+              type="hidden"
+              name="_next"
+              value="https://asafz1234.github.io/reviewresq-test/thanks.html"
+            />
+
             <input type="hidden" name="Business" value="Demo Business" />
             <input type="hidden" name="Rating" id="hiddenRating" value="" />
 
@@ -521,24 +553,16 @@
               placeholder="Please tell us what happened and how we can improve."
             ></textarea>
 
+            <div class="success-note">
+              After you send this form you’ll land on a short thank-you page with a
+              discount code for returning customers.
+            </div>
+
             <div class="btn-row">
               <button type="submit" class="btn-primary">
                 <span class="icon">📩</span>
                 <span>Send feedback privately</span>
               </button>
-            </div>
-
-            <div class="discount-box">
-              <div class="discount-label">
-                As a thank-you for taking the time to share your experience, you can use
-                this code on your next visit:
-              </div>
-              <div class="discount-code">RETURN10</div>
-              <div class="discount-label">Valid for returning customers only.</div>
-            </div>
-
-            <div class="success-note">
-              Our team reads every message. Someone may reach out if we need more details.
             </div>
           </form>
         </div>
@@ -554,25 +578,26 @@
             discover this business and support local service providers.
           </p>
 
-          <div class="discount-box">
-            <div class="discount-label">
-              As a small thank-you for taking a moment to share your experience, you can
-              use this code on your next visit:
-            </div>
-            <div class="discount-code">RETURN10</div>
-            <div class="discount-label">Show this code at checkout for returning customers.</div>
-          </div>
-
-          <div class="btn-row" style="margin-top: 14px;">
+          <div class="btn-row" style="margin-top: 6px;">
             <button type="button" class="btn-primary" id="googleBtn">
               <span class="icon">⭐️</span>
               <span>Leave a public Google review</span>
             </button>
           </div>
 
+          <div class="discount-box" id="discountHighBox">
+            <div class="discount-label">
+              Once you’ve posted your review, you can use this code on your next visit:
+            </div>
+            <div class="discount-code">RETURN10</div>
+            <div class="discount-label">
+              Show this code at checkout. Valid for returning customers only.
+            </div>
+          </div>
+
           <div class="success-note">
-            Your review will open in a new window on Google. It only takes a few seconds
-            and means a lot to the business.
+            The review will open in a new window. When you’re done, simply come back to
+            this page – your thank-you code will already be waiting here.
           </div>
         </div>
 
@@ -591,8 +616,9 @@
       const highSection = document.getElementById("highSection");
       const hiddenRating = document.getElementById("hiddenRating");
       const googleBtn = document.getElementById("googleBtn");
+      const discountHighBox = document.getElementById("discountHighBox");
 
-      const googleReviewUrl = "https://share.google/a1rsbBzijjZtKOcyc"; // demo link
+      const googleReviewUrl = "https://share.google/a1rsbBzijjZtKOcyc"; // Google link
 
       stars.forEach(btn => {
         btn.addEventListener("click", () => {
@@ -618,6 +644,9 @@
       if (googleBtn) {
         googleBtn.addEventListener("click", () => {
           window.open(googleReviewUrl, "_blank", "noopener");
+          if (discountHighBox) {
+            discountHighBox.style.display = "block";
+          }
         });
       }
     })();
