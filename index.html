@@ -1,59 +1,81 @@
-
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ReviewResq • Feedback Portal</title>
+  <title>ReviewResq • Feedback & Reviews Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
-      --bg: #050816;
-      --card: #050816;
-      --card-border: rgba(148,163,184,0.55);
+      --bg: #020617;
+      --card: #02081b;
+      --card-border: rgba(148, 163, 184, 0.35);
       --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.18);
       --accent-strong: #0ea5e9;
       --danger: #f97373;
+      --danger-soft: rgba(248, 113, 113, 0.18);
       --text-main: #f9fafb;
       --text-sub: #9ca3af;
-      --shadow-soft: 0 24px 60px rgba(15,23,42,0.92);
-      --gold: #facc15;
-      --gold-strong: #fde68a;
+      --radius-xl: 24px;
+      --radius-lg: 16px;
+      --shadow-soft: 0 26px 60px rgba(15, 23, 42, 0.7);
     }
 
     * {
       box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont,
-        "SF Pro Text", "Segoe UI", sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
     }
 
     body {
       margin: 0;
       min-height: 100vh;
-      background-color: var(--bg);
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 16px;
+      background: radial-gradient(circle at top left, #1e293b 0, #020617 45%, #000 100%);
       color: var(--text-main);
+      padding: 24px 16px;
+    }
+
+    .wrapper {
+      max-width: 460px;
+      width: 100%;
     }
 
     .card {
-      width: 100%;
-      max-width: 520px;
-      border-radius: 26px;
-      padding: 20px 18px 18px;
-      background:
-        radial-gradient(circle at 0 0, rgba(56,189,248,0.16), #020617 52%),
-        radial-gradient(circle at 100% 100%, rgba(15,118,110,0.22), #020617 70%);
+      background: radial-gradient(circle at top, #020b1e 0, #020617 45%, #000 100%);
+      border-radius: var(--radius-xl);
+      padding: 24px 20px 22px;
       border: 1px solid var(--card-border);
       box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(32px);
+      position: relative;
+      overflow: hidden;
     }
 
-    .header-row {
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -120px;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(56, 189, 248, 0.14), transparent 58%),
+        radial-gradient(circle at 90% 10%, rgba(59, 130, 246, 0.2), transparent 55%);
+      opacity: 0.9;
+      pointer-events: none;
+    }
+
+    .card-inner {
+      position: relative;
+      z-index: 2;
+    }
+
+    .card-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 18px;
+      gap: 8px;
     }
 
     .brand {
@@ -62,39 +84,25 @@
       gap: 10px;
     }
 
-    .logo-shell {
-      width: 34px;
-      height: 34px;
+    /* ===== AVATAR חדש – כחול נקי בלי צבעי גייז ===== */
+    .brand-avatar {
+      width: 44px;
+      height: 44px;
       border-radius: 999px;
-      padding: 2px;
-      background: conic-gradient(
-        from 220deg,
-        #38bdf8,
-        #a855f7,
-        #f97316,
-        #22c55e,
-        #38bdf8
-      );
-      box-shadow:
-        0 12px 28px rgba(15,23,42,0.95),
-        0 0 0 1px rgba(15,23,42,1);
+      background: radial-gradient(circle at 30% 30%, #38bdf8 0, #0f172a 70%);
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow:
+        0 0 0 2px rgba(15, 23, 42, 0.9),
+        0 14px 30px rgba(15, 23, 42, 0.9);
     }
 
-    .logo {
-      width: 100%;
-      height: 100%;
-      border-radius: inherit;
-      background: radial-gradient(circle at 30% 0, #e0f2fe, #020617);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #e5f5ff;
-      font-weight: 700;
-      font-size: 15px;
-      letter-spacing: 0.08em;
+    .brand-avatar span {
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: 1.4px;
+      color: #e5f2ff;
     }
 
     .brand-text {
@@ -104,51 +112,57 @@
     }
 
     .brand-name {
-      font-size: 14px;
-      font-weight: 650;
-      letter-spacing: 0.14em;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      font-size: 11px;
       text-transform: uppercase;
     }
 
-    .brand-tag {
+    .brand-sub {
       font-size: 11px;
       color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .brand-sub .star {
+      color: #facc15;
+      font-size: 12px;
     }
 
     .status-pill {
-      padding: 4px 10px;
+      padding: 7px 11px;
       border-radius: 999px;
-      border: 1px solid rgba(148,163,184,0.6);
-      background: rgba(15,23,42,0.9);
-      font-size: 11px;
-      color: var(--text-sub);
+      background: rgba(22, 163, 74, 0.16);
+      border: 1px solid rgba(34, 197, 94, 0.45);
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
+      font-size: 11px;
+      color: #bbf7d0;
       white-space: nowrap;
     }
 
     .status-dot {
-      width: 7px;
-      height: 7px;
+      width: 9px;
+      height: 9px;
       border-radius: 999px;
-      background: #22c55e;
-      box-shadow: 0 0 0 3px rgba(34,197,94,0.22);
+      background: radial-gradient(circle at 30% 30%, #bbf7d0, #22c55e);
+      box-shadow: 0 0 12px rgba(22, 163, 74, 0.9);
     }
 
-    h1 {
-      margin: 4px 0 4px;
+    .headline {
       font-size: 22px;
+      font-weight: 700;
       letter-spacing: 0.01em;
+      margin: 0 0 6px;
     }
 
     .subtitle {
-      margin: 0 0 14px;
       font-size: 13px;
       color: var(--text-sub);
-    }
-
-    .intro-block {
+      line-height: 1.5;
       margin-bottom: 14px;
     }
 
@@ -160,524 +174,456 @@
     }
 
     .pill {
-      padding: 2px 9px;
+      font-size: 11px;
+      padding: 6px 10px;
       border-radius: 999px;
-      border: 1px solid rgba(148,163,184,0.55);
-      font-size: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
       color: var(--text-sub);
-      background: rgba(15,23,42,0.95);
+      background: rgba(15, 23, 42, 0.8);
+    }
+
+    .pill-primary {
+      border-color: rgba(56, 189, 248, 0.9);
+      color: #e0f2fe;
+      background: rgba(15, 23, 42, 0.9);
     }
 
     .stars-row {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 6px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
     }
 
-    .star-btn {
+    .star-pill {
+      flex: 1;
       border-radius: 999px;
-      padding: 8px 0;
-      background: rgba(15,23,42,0.98);
-      border: 1px solid rgba(148,163,184,0.7);
+      padding: 9px 4px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      background: rgba(15, 23, 42, 0.95);
       color: var(--text-sub);
-      font-size: 13px;
+      font-size: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 4px;
+      gap: 6px;
       cursor: pointer;
-      transition:
-        background 0.15s ease,
-        border-color 0.15s ease,
-        box-shadow 0.15s ease,
-        color 0.15s ease,
-        transform 0.08s ease;
+      transition: all 0.18s ease-out;
     }
 
-    .star-btn span.star {
-      font-size: 16px;
-      color: var(--gold);
+    .star-pill span.star-icon {
+      font-size: 15px;
+      color: #facc15;
     }
 
-    .star-btn:hover {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(56,189,248,0.35);
-    }
-
-    .star-btn.selected {
-      background: radial-gradient(circle at 30% 0, #020617, #0b1120);
-      border-color: var(--gold-strong);
-      color: #e0f2fe;
+    .star-pill.active {
+      border-color: rgba(250, 204, 21, 0.9);
+      background: radial-gradient(circle at 30% 0%, rgba(250, 204, 21, 0.12), rgba(15, 23, 42, 0.96));
+      color: #fefce8;
       box-shadow:
-        0 0 0 1px rgba(250,204,21,0.7),
-        0 14px 28px rgba(15,23,42,0.95);
+        0 0 0 1px rgba(250, 204, 21, 0.45),
+        0 18px 40px rgba(15, 23, 42, 0.9);
       transform: translateY(-1px);
     }
 
-    .star-btn.selected span.star {
-      color: var(--gold-strong);
+    .star-pill.active span.star-icon {
+      color: #facc15;
     }
 
-    .rating-info-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+    .current-rating-row {
       font-size: 11px;
       color: var(--text-sub);
-      min-height: 20px;
-      margin: 10px 0 6px;
-    }
-
-    .rating-label strong {
-      color: #e5f5ff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
     }
 
     .change-rating {
-      border: none;
-      background: none;
       color: var(--accent);
-      font-size: 11px;
       text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
       cursor: pointer;
-      padding: 0;
     }
 
-    .change-rating:active {
-      opacity: 0.7;
+    .feedback-panel {
+      border-radius: var(--radius-lg);
+      padding: 14px 12px 12px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      box-shadow: 0 13px 35px rgba(15, 23, 42, 0.95);
+      margin-bottom: 14px;
     }
 
-    .section {
-      border-radius: 18px;
-      background: rgba(15,23,42,0.98);
-      border: 1px solid rgba(148,163,184,0.55);
-      padding: 14px 13px 12px;
-      margin-top: 2px;
-      display: none;
-    }
-
-    .section.visible {
-      display: block;
-    }
-
-    .section-title {
+    .feedback-header {
       display: flex;
       align-items: center;
       gap: 8px;
+      margin-bottom: 6px;
       font-size: 13px;
-      margin-bottom: 4px;
+      font-weight: 600;
+      color: #fecaca;
     }
 
-    .section-dot {
-      width: 8px;
-      height: 8px;
+    .feedback-header-dot {
+      width: 9px;
+      height: 9px;
       border-radius: 999px;
-      background: var(--danger);
-      box-shadow: 0 0 0 4px rgba(248,113,113,0.18);
+      background: radial-gradient(circle at 30% 30%, #fecaca, #f97373);
+      box-shadow: 0 0 14px rgba(239, 68, 68, 0.9);
     }
 
-    .section-title.good .section-dot {
-      background: #22c55e;
-      box-shadow: 0 0 0 4px rgba(34,197,94,0.2);
+    .feedback-copy {
+      font-size: 12px;
+      color: #fee2e2;
+      margin-bottom: 12px;
+      line-height: 1.5;
     }
 
-    .section-sub {
-      margin: 0 0 10px;
+    .field-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
       font-size: 12px;
       color: var(--text-sub);
     }
 
-    textarea,
-    input[type="text"] {
-      width: 100%;
+    .field label {
+      font-size: 11px;
+    }
+
+    .field input,
+    .field textarea {
       border-radius: 12px;
-      border: 1px solid rgba(148,163,184,0.6);
-      background: rgba(15,23,42,0.98);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(15, 23, 42, 0.96);
       color: var(--text-main);
       font-size: 13px;
       padding: 8px 10px;
       outline: none;
+      transition: all 0.16s ease-out;
+    }
+
+    .field input:focus,
+    .field textarea:focus {
+      border-color: var(--accent-strong);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.7);
+    }
+
+    .field textarea {
+      min-height: 72px;
       resize: vertical;
-      min-height: 80px;
     }
 
-    textarea::placeholder,
-    input::placeholder {
-      color: #6b7280;
-    }
-
-    textarea:focus,
-    input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(56,189,248,0.4);
-    }
-
-    .inputs-inline {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
-
-    .inputs-inline > div {
-      flex: 1;
-      min-width: 130px;
-    }
-
-    label {
-      display: block;
-      font-size: 11px;
+    .note {
+      font-size: 10px;
       color: var(--text-sub);
-      margin-bottom: 4px;
+      margin-bottom: 2px;
+    }
+
+    .coupon {
+      margin-top: 6px;
+      padding: 10px 12px 10px;
+      border-radius: 14px;
+      border: 1px dashed rgba(148, 163, 184, 0.7);
+      background: radial-gradient(circle at top, rgba(56, 189, 248, 0.2), rgba(15, 23, 42, 0.96));
+      font-size: 11px;
+      color: #e5e7eb;
+      margin-bottom: 10px;
+    }
+
+    .coupon strong.code {
+      display: inline-block;
+      margin-top: 2px;
+      font-size: 14px;
+      letter-spacing: 0.24em;
     }
 
     .btn-row {
       display: flex;
       justify-content: flex-end;
-      margin-top: 10px;
+      margin-top: 4px;
     }
 
     .btn-primary {
-      border-radius: 999px;
-      padding: 7px 15px;
       border: none;
-      font-size: 13px;
-      cursor: pointer;
-      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
-      color: #0b1120;
-      font-weight: 600;
-      box-shadow:
-        0 16px 32px rgba(56,189,248,0.45),
-        0 0 0 1px rgba(15,23,42,1);
+      border-radius: 999px;
+      padding: 10px 18px;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      transition:
-        transform 0.08s ease,
-        box-shadow 0.18s ease,
-        filter 0.16s ease;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      background: radial-gradient(circle at 20% 0%, #38bdf8, #0ea5e9);
+      color: #0b1120;
+      cursor: pointer;
+      box-shadow:
+        0 12px 25px rgba(15, 23, 42, 0.9),
+        0 0 0 1px rgba(15, 23, 42, 0.9);
+      transition: all 0.18s ease-out;
     }
 
     .btn-primary:hover {
-      filter: brightness(1.05);
       transform: translateY(-1px);
       box-shadow:
-        0 20px 44px rgba(56,189,248,0.6),
-        0 0 0 1px rgba(15,23,42,0.9);
+        0 16px 38px rgba(15, 23, 42, 0.95),
+        0 0 0 1px rgba(15, 23, 42, 0.9);
     }
 
     .btn-primary:active {
       transform: translateY(0);
-      box-shadow:
-        0 10px 24px rgba(15,23,42,0.98),
-        0 0 0 1px rgba(15,23,42,1);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.95);
     }
 
-    .btn-primary span.icon {
-      font-size: 14px;
+    .btn-primary-icon {
+      font-size: 15px;
     }
 
-    .discount-box {
+    .footer {
       margin-top: 10px;
-      padding: 8px 10px;
-      border-radius: 12px;
-      border: 1px dashed rgba(148,163,184,0.9);
-      background: radial-gradient(circle at 0 0,
-        rgba(56,189,248,0.18), rgba(15,23,42,0.98));
-      font-size: 12px;
-    }
-
-    .discount-code {
-      margin-top: 4px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      font-size: 12px;
-      text-transform: uppercase;
-      color: #e0f2fe;
-    }
-
-    .discount-label {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-sub);
-    }
-
-    .success-note {
-      margin-top: 6px;
-      font-size: 11px;
-      color: var(--text-sub);
-    }
-
-    .footnote {
-      margin-top: 16px;
       text-align: center;
     }
 
-    .footnote-line {
-      font-size: 10px;
-      color: var(--text-sub);
+    .footer-brand {
+      display: block;
+      margin-top: 3px;
+      font-size: 11px;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
-      letter-spacing: 0.16em;
-      margin-bottom: 2px;
-    }
-
-    .footnote-brand {
-      font-size: 13px;
+      color: #38bdf8;
       font-weight: 600;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 2px;
     }
 
-    .footnote-sub {
-      font-size: 10px;
-      color: var(--text-sub);
-    }
-
-    /* כשיש רייטינג – מסתירים את החלק העליון עם הכוכבים */
-    .card.rated .intro-block {
-      display: none;
+    .footer small {
+      display: block;
+      margin-top: 4px;
     }
 
     @media (max-width: 480px) {
       .card {
-        padding: 18px 14px 16px;
+        padding: 20px 16px 18px;
       }
-      h1 { font-size: 20px; }
+      .headline {
+        font-size: 20px;
+      }
     }
   </style>
 </head>
 <body>
-  <main class="card">
-    <header class="header-row">
-      <div class="brand">
-        <div class="logo-shell">
-          <div class="logo">RR</div>
-        </div>
-        <div class="brand-text">
-          <div class="brand-name">REVIEWRESQ</div>
-          <div class="brand-tag">Private feedback & 5★ public reviews</div>
-        </div>
-      </div>
-      <div class="status-pill">
-        <span class="status-dot"></span>
-        Feedback portal is online
-      </div>
-    </header>
+  <main class="wrapper">
+    <section class="card">
+      <div class="card-inner">
+        <header class="card-header">
+          <div class="brand">
+            <div class="brand-avatar">
+              <span>RR</span>
+            </div>
+            <div class="brand-text">
+              <div class="brand-name">REVIEWRESQ</div>
+              <div class="brand-sub">
+                Private feedback &nbsp;
+                <span class="star">★</span> &nbsp;
+                5★ public reviews
+              </div>
+            </div>
+          </div>
+          <div class="status-pill">
+            <span class="status-dot"></span>
+            <span>Feedback portal is online</span>
+          </div>
+        </header>
 
-    <section>
-      <div class="intro-block" id="introBlock">
-        <h1>How was your experience?</h1>
+        <h1 class="headline">How was your experience?</h1>
         <p class="subtitle">
-          Please rate your recent service from 1–5 stars. Lower scores stay private with
-          the business owner. Higher scores may be invited to leave a public review.
+          Please rate your recent service from 1–5 stars. Lower scores stay private with the business owner.
+          Higher scores may be invited to leave a public review.
         </p>
 
         <div class="pill-row">
-          <div class="pill">Takes 10 seconds</div>
-          <div class="pill">No sign-in required</div>
-          <div class="pill">Used for quality only</div>
+          <span class="pill pill-primary">Takes 10 seconds</span>
+          <span class="pill">No sign-in required</span>
+          <span class="pill">Used for quality only</span>
         </div>
 
-        <div class="stars-row" id="starsRow">
-          <button class="star-btn" data-rating="1">
-            <span class="star">★</span><span>1</span>
+        <div class="stars-row" id="starRow">
+          <button class="star-pill" data-rating="1">
+            <span class="star-icon">★</span>
+            <span>1</span>
           </button>
-          <button class="star-btn" data-rating="2">
-            <span class="star">★</span><span>2</span>
+          <button class="star-pill" data-rating="2">
+            <span class="star-icon">★</span>
+            <span>2</span>
           </button>
-          <button class="star-btn" data-rating="3">
-            <span class="star">★</span><span>3</span>
+          <button class="star-pill" data-rating="3">
+            <span class="star-icon">★</span>
+            <span>3</span>
           </button>
-          <button class="star-btn" data-rating="4">
-            <span class="star">★</span><span>4</span>
+          <button class="star-pill" data-rating="4">
+            <span class="star-icon">★</span>
+            <span>4</span>
           </button>
-          <button class="star-btn" data-rating="5">
-            <span class="star">★</span><span>5</span>
+          <button class="star-pill" data-rating="5">
+            <span class="star-icon">★</span>
+            <span>5</span>
           </button>
         </div>
-      </div>
 
-      <div class="rating-info-row">
-        <div class="rating-label" id="ratingLabel"></div>
-        <button type="button" id="changeRating" class="change-rating" style="display:none;">
-          Change rating
-        </button>
-      </div>
-
-      <!-- Low rating section 1–3 -->
-      <div class="section" id="lowSection">
-        <div class="section-title">
-          <div class="section-dot"></div>
-          <span>Help us make this right</span>
+        <div class="current-rating-row" id="currentRatingRow" style="display:none;">
+          <span>Current rating: <strong id="currentRatingLabel">1 star</strong></span>
+          <span class="change-rating" id="changeRatingLink">Change rating</span>
         </div>
-        <p class="section-sub">
-          We’re sorry your experience wasn’t perfect. Your feedback goes directly and
-          privately to the business owner – it will not be posted publicly.
-        </p>
 
-        <form
-          id="feedbackForm"
-          action="https://formsubmit.co/Asaf.zevi@gmail.com"
-          method="POST"
-        >
-          <!-- FormSubmit options -->
-          <input type="hidden" name="_captcha" value="false" />
-          <input
-            type="hidden"
-            name="_subject"
-            value="New private review from ReviewResq portal"
-          />
-          <input
-            type="hidden"
-            name="_next"
-            value="https://asafz1234.github.io/reviewresq-test/"
-          />
+        <!-- LOW SCORES PANEL -->
+        <section class="feedback-panel" id="lowScorePanel" style="display:none;">
+          <div class="feedback-header">
+            <div class="feedback-header-dot"></div>
+            <span>Help us make this right</span>
+          </div>
+          <p class="feedback-copy">
+            We’re sorry your experience wasn’t perfect. Your feedback goes directly and privately to the business owner –
+            it will not be posted publicly.
+          </p>
 
-          <input type="hidden" name="Business" value="Demo Business" />
-          <input type="hidden" name="Rating" id="hiddenRating" value="" />
-
-          <div class="inputs-inline">
-            <div>
+          <div class="field-row">
+            <div class="field">
               <label>Your name (optional)</label>
-              <input type="text" name="name" placeholder="John Doe" />
+              <input id="name" type="text" placeholder="John Doe" autocomplete="name" />
             </div>
-            <div>
+            <div class="field">
               <label>Best contact (optional)</label>
-              <input type="text" name="contact" placeholder="Phone or email" />
+              <input id="contact" type="text" placeholder="Phone or email" autocomplete="email" />
             </div>
           </div>
 
-          <label>Your feedback</label>
-          <textarea
-            name="feedback"
-            placeholder="Please tell us what happened and how we can improve."
-          ></textarea>
+          <div class="field">
+            <label>Your feedback</label>
+            <textarea id="feedback" placeholder="Please tell us what happened and how we can improve."></textarea>
+          </div>
 
-          <div class="discount-box">
-            <div class="discount-label">
-              As a thank-you for taking the time, you can use this code on your next visit:
-            </div>
-            <div class="discount-code">RETURN10</div>
-            <div class="discount-label">
-              Show this code at checkout. Valid for returning customers only.
-            </div>
+          <p class="note">
+            After you submit, this page will reload and your message will already be with the business owner.
+          </p>
+
+          <div class="coupon">
+            As a thank-you for taking the time, you can use this code on your next visit:
+            <br />
+            <strong class="code">RETURN10</strong>
+            <br />
+            Show this code at checkout. Valid for returning customers only.
           </div>
 
           <div class="btn-row">
-            <button type="submit" class="btn-primary">
-              <span class="icon">📩</span>
+            <button id="sendPrivateBtn" class="btn-primary" type="button">
+              <span class="btn-primary-icon">✉️</span>
               <span>Send feedback privately</span>
             </button>
           </div>
+        </section>
 
-          <p class="success-note">
-            After you submit, this page will reload and your message will already be with
-            the business owner.
-          </p>
-        </form>
-      </div>
-
-      <!-- High rating section 4–5 -->
-      <div class="section" id="highSection">
-        <div class="section-title good">
-          <div class="section-dot"></div>
-          <span>Thank you for your rating!</span>
-        </div>
-        <p class="section-sub">
-          We’re glad you had a great experience. Public reviews help other customers
-          discover this business and support local service providers.
-        </p>
-
-        <div class="btn-row" style="margin-top: 6px;">
-          <button type="button" class="btn-primary" id="googleBtn">
-            <span class="icon">⭐️</span>
-            <span>Leave a public Google review</span>
-          </button>
-        </div>
-
-        <div class="discount-box" id="discountHighBox">
-          <div class="discount-label">
-            Once you’ve posted your review, you can use this code on your next visit:
-          </div>
-          <div class="discount-code">RETURN10</div>
-          <div class="discount-label">
-            Show this code at checkout. Valid for returning customers only.
-          </div>
-        </div>
-
-        <p class="success-note">
-          The review opens in a new window. You can come back to this page at any time –
-          your thank-you code will stay right here.
-        </p>
+        <footer class="footer">
+          Powered by
+          <span class="footer-brand">REVIEWRESQ</span>
+          <small>Private feedback is never published without your consent.</small>
+        </footer>
       </div>
     </section>
-
-    <footer class="footnote">
-      <div class="footnote-line">Powered by</div>
-      <div class="footnote-brand">ReviewResq</div>
-      <div class="footnote-sub">
-        Private feedback is never published without your consent.
-      </div>
-    </footer>
   </main>
 
   <script>
-    (function () {
-      const card = document.querySelector(".card");
-      const stars = document.querySelectorAll(".star-btn");
-      const lowSection = document.getElementById("lowSection");
-      const highSection = document.getElementById("highSection");
-      const ratingLabel = document.getElementById("ratingLabel");
-      const changeRatingBtn = document.getElementById("changeRating");
-      const hiddenRating = document.getElementById("hiddenRating");
-      const googleBtn = document.getElementById("googleBtn");
-      const googleReviewUrl = "https://share.google/a1rsbBzijjZtKOcyc";
+    const emailTo = "Asaf.zevi@gmail.com"; // כאן כתובת המייל שלך
 
-      function resetRating() {
-        stars.forEach(b => b.classList.remove("selected"));
-        lowSection.classList.remove("visible");
-        highSection.classList.remove("visible");
-        ratingLabel.textContent = "";
-        changeRatingBtn.style.display = "none";
-        hiddenRating.value = "";
-        card.classList.remove("rated");
-      }
+    const starButtons = Array.from(document.querySelectorAll(".star-pill"));
+    const lowScorePanel = document.getElementById("lowScorePanel");
+    const currentRatingRow = document.getElementById("currentRatingRow");
+    const currentRatingLabel = document.getElementById("currentRatingLabel");
+    const changeRatingLink = document.getElementById("changeRatingLink");
+    const sendPrivateBtn = document.getElementById("sendPrivateBtn");
 
-      stars.forEach(btn => {
-        btn.addEventListener("click", () => {
-          const rating = Number(btn.dataset.rating);
+    let selectedRating = null;
 
-          stars.forEach(b => b.classList.remove("selected"));
-          btn.classList.add("selected");
+    function setRating(rating) {
+      selectedRating = rating;
 
-          ratingLabel.innerHTML =
-            'Current rating: <strong>' + rating + ' star' + (rating === 1 ? "" : "s") + "</strong>";
-          changeRatingBtn.style.display = "inline";
-
-          if (rating <= 3) {
-            lowSection.classList.add("visible");
-            highSection.classList.remove("visible");
-          } else {
-            highSection.classList.add("visible");
-            lowSection.classList.remove("visible");
-          }
-
-          hiddenRating.value = String(rating);
-          card.classList.add("rated");
-        });
+      starButtons.forEach((btn) => {
+        const value = Number(btn.getAttribute("data-rating"));
+        btn.classList.toggle("active", value === rating);
       });
 
-      changeRatingBtn.addEventListener("click", () => {
-        resetRating();
-      });
-
-      if (googleBtn) {
-        googleBtn.addEventListener("click", () => {
-          window.open(googleReviewUrl, "_blank", "noopener");
-        });
+      if (rating <= 3) {
+        lowScorePanel.style.display = "block";
+      } else {
+        lowScorePanel.style.display = "none";
       }
-    })();
+
+      if (rating !== null) {
+        currentRatingRow.style.display = "flex";
+        currentRatingLabel.textContent = rating + (rating === 1 ? " star" : " stars");
+      } else {
+        currentRatingRow.style.display = "none";
+      }
+    }
+
+    starButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rating = Number(btn.getAttribute("data-rating"));
+        setRating(rating);
+      });
+    });
+
+    if (changeRatingLink) {
+      changeRatingLink.addEventListener("click", () => {
+        selectedRating = null;
+        starButtons.forEach((btn) => btn.classList.remove("active"));
+        lowScorePanel.style.display = "none";
+        currentRatingRow.style.display = "none";
+      });
+    }
+
+    if (sendPrivateBtn) {
+      sendPrivateBtn.addEventListener("click", () => {
+        const name = (document.getElementById("name").value || "").trim();
+        const contact = (document.getElementById("contact").value || "").trim();
+        const feedback = (document.getElementById("feedback").value || "").trim();
+
+        const ratingPart = selectedRating
+          ? `Rating: ${selectedRating} star(s)%0D%0A`
+          : "";
+
+        const namePart = name ? `Name: ${encodeURIComponent(name)}%0D%0A` : "";
+        const contactPart = contact ? `Best contact: ${encodeURIComponent(contact)}%0D%0A` : "";
+        const feedbackPart = feedback
+          ? `%0D%0AFeedback:%0D%0A${encodeURIComponent(feedback)}`
+          : "";
+
+        const subject = encodeURIComponent("New private feedback from ReviewResq");
+        const body =
+          ratingPart +
+          namePart +
+          contactPart +
+          feedbackPart +
+          "%0D%0A%0D%0A— Sent via ReviewResq portal";
+
+        // 1) פותח את אפליקציית המייל
+        window.location.href = `mailto:${encodeURIComponent(
+          emailTo
+        )}?subject=${subject}&body=${body}`;
+
+        // 2) אחרי רגע – שולח את המשתמש לעמוד תודה
+        setTimeout(() => {
+          window.location.href = "thanks.html";
+        }, 800);
+      });
+    }
   </script>
 </body>
 </html>
