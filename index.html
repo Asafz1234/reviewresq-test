@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,7 +56,7 @@
       border-radius: var(--radius-xl);
       box-shadow: var(--shadow-soft);
       border: 1px solid var(--card-border);
-      padding: 22px 22px 20px;
+      padding: 24px 22px 20px;
       position: relative;
       overflow: hidden;
     }
@@ -86,8 +87,35 @@
       margin-bottom: 18px;
     }
 
+    .business-identity {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .business-logo {
+      flex-shrink: 0;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 0%, #eff6ff 0, #bfdbfe 40%, #60a5fa 100%);
+      border: 1px solid rgba(37, 99, 235, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+    }
+
+    .business-meta {
+      min-width: 0;
+    }
+
     .business-title {
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -95,6 +123,13 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .business-subtitle {
+      font-size: 11px;
+      color: var(--text-soft);
+      text-transform: none;
+      margin-top: 1px;
     }
 
     .status-pill {
@@ -152,7 +187,7 @@
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.45);
       color: #475569;
-      background: rgba(248, 250, 252, 0.9);
+      background: rgba(248, 250, 252, 0.95);
       backdrop-filter: blur(10px);
     }
 
@@ -180,7 +215,7 @@
       height: 44px;
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.6);
-      background: radial-gradient(circle at 30% 0%, #f9fafb 0, #e5edf9 60%, #dde7f7 100%);
+      background: radial-gradient(circle at 30% 0%, #fefce8 0, #fef9c3 40%, #e5edf9 100%);
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -193,34 +228,40 @@
     }
 
     .rating-button .star-icon {
-      font-size: 18px;
-      color: #cbd5f5;
-      text-shadow: 0 0 0 transparent;
+      font-size: 19px;
+      color: #facc15;
+      text-shadow: 0 0 6px rgba(250, 204, 21, 0.55);
       transition: color var(--transition-fast),
         text-shadow var(--transition-fast),
-        transform var(--transition-fast);
+        transform var(--transition-fast),
+        opacity var(--transition-fast);
+      opacity: 0.85;
     }
 
     .rating-button:hover {
-      transform: translateY(-1px) scale(1.03);
-      border-color: rgba(37, 99, 235, 0.55);
-      box-shadow: 0 10px 26px rgba(37, 99, 235, 0.18);
+      transform: translateY(-1px) scale(1.05);
+      border-color: rgba(245, 158, 11, 0.9);
+      box-shadow: 0 10px 26px rgba(245, 158, 11, 0.35);
+      background: radial-gradient(circle at 30% 0%, #fffbeb 0, #fef3c7 40%, #fed7aa 100%);
     }
 
     .rating-button:hover .star-icon {
-      color: #e6b341;
+      opacity: 1;
+      text-shadow: 0 0 10px rgba(250, 204, 21, 0.85);
+      transform: scale(1.08);
     }
 
     .rating-button.selected {
-      border-color: rgba(245, 158, 11, 0.9);
+      border-color: rgba(245, 158, 11, 1);
       background: radial-gradient(circle at 30% 0%, #fff7ed 0, #ffedd5 42%, #fed7aa 100%);
-      box-shadow: 0 10px 32px rgba(245, 158, 11, 0.35);
+      box-shadow: 0 12px 32px rgba(245, 158, 11, 0.45);
     }
 
     .rating-button.selected .star-icon {
       color: var(--star-gold);
-      text-shadow: 0 0 14px rgba(250, 204, 21, 0.75);
-      transform: scale(1.08);
+      text-shadow: 0 0 14px rgba(250, 204, 21, 0.9);
+      transform: scale(1.1);
+      opacity: 1;
     }
 
     .current-rating-line {
@@ -289,11 +330,13 @@
       outline: none;
       margin-bottom: 8px;
       font-family: inherit;
+      background: #f9fafb;
     }
 
     .feedback-textarea:focus {
       border-color: var(--accent-strong);
       box-shadow: var(--focus-ring);
+      background: #ffffff;
     }
 
     .field-row {
@@ -374,6 +417,8 @@
       font-size: 11px;
       text-align: center;
       color: var(--text-soft);
+      padding-top: 10px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.35);
     }
 
     .powered-by span {
@@ -439,8 +484,18 @@
     <section class="portal" id="portal">
       <div class="portal-inner">
         <header class="portal-header">
-          <div class="business-title">
-            YOUR BUSINESS NAME
+          <div class="business-identity">
+            <div class="business-logo">
+              YB
+            </div>
+            <div class="business-meta">
+              <div class="business-title">
+                YOUR BUSINESS NAME
+              </div>
+              <div class="business-subtitle">
+                Private Feedback Portal
+              </div>
+            </div>
           </div>
           <div class="status-pill">
             <span class="status-dot"></span>
@@ -508,7 +563,7 @@
               <span>Send feedback</span>
             </button>
 
-            <p class="disclaimer">We read every message and use it to improve.</p>
+            <p class="disclaimer">We read every message and use it to improve. We won’t share your details with anyone.</p>
           </form>
 
           <p class="thankyou-copy">
@@ -521,7 +576,7 @@
         <section class="panel panel-high" id="highPanel">
           <h2>Thank you for the great rating! <span>⭐</span></h2>
           <p>
-            We’re glad you had a good experience. Would you mind sharing it publicly?  
+            We’re glad you had a good experience. Would you mind sharing it publicly?
             It only takes a moment and really helps us reach more customers.
           </p>
 
