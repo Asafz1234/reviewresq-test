@@ -2,503 +2,497 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ReviewResq – Feedback</title>
+  <title>ReviewResq • Private Feedback Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
-      --bg: #f3f4f6;
-      --card: #ffffff;
-      --primary: #0a2540;
-      --accent: #1b73e8;
-      --muted: #6b7280;
-      --border: #e5e7eb;
-      --gold: #f5b000;
+      --bg: #e8f0ff;
+      --card-bg: #ffffff;
+      --accent: #0057ff;
+      --accent-soft: #e0ebff;
+      --accent-dark: #0137a8;
+      --danger: #ff4b4b;
+      --text-main: #111827;
+      --text-sub: #6b7280;
+      --border-soft: #d1d5db;
+      --radius-lg: 24px;
+      --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.18);
+      --star-gold: #ffbf00;
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
     }
 
     body {
-      background: radial-gradient(circle at top, #e0edff, #f3f4f6);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 16px;
-      color: var(--primary);
+      background: radial-gradient(circle at top, #f6fbff 0, #e5efff 45%, #dde7ff 100%);
+      padding: 20px 12px;
+      color: var(--text-main);
     }
 
     .card {
       width: 100%;
       max-width: 420px;
-      background: var(--card);
-      border-radius: 18px;
-      box-shadow:
-        0 18px 40px rgba(15, 23, 42, 0.12),
-        0 0 0 1px rgba(148, 163, 184, 0.15);
-      padding: 22px 22px 18px;
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      padding: 22px 20px 18px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
     }
 
-    .brand-row {
+    .card-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 18px;
     }
 
-    .business-name {
-      font-weight: 600;
-      font-size: 15px;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    .rr-badge {
-      display: inline-flex;
+    .brand-left {
+      display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: #9ca3af;
+      gap: 10px;
     }
 
-    .rr-logo {
-      width: 22px;
-      height: 22px;
+    .brand-icon {
+      width: 40px;
+      height: 40px;
       border-radius: 999px;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
+      background: radial-gradient(circle at 30% 20%, #ffffff 0, #0072ff 40%, #002f8f 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
-      font-size: 12px;
+      color: #ffffff;
       font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 0.03em;
     }
 
-    .title {
-      font-size: 20px;
-      font-weight: 650;
-      margin-bottom: 4px;
-    }
-
-    .subtitle {
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 16px;
-    }
-
-    .pill-row {
+    .brand-text {
       display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 2px;
     }
 
-    .pill {
+    .brand-text .name {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+    }
+
+    .brand-text .subline {
       font-size: 11px;
-      padding: 4px 9px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.6);
-      color: #4b5563;
-      background: #f9fafb;
-      display: inline-flex;
+      color: var(--text-sub);
+      display: flex;
       align-items: center;
       gap: 4px;
     }
 
-    .pill-dot {
-      width: 6px;
-      height: 6px;
+    .brand-text .subline span.star {
+      color: var(--star-gold);
+      font-size: 12px;
+    }
+
+    .status-pill {
+      padding: 4px 10px;
       border-radius: 999px;
-      background: var(--accent);
+      font-size: 11px;
+      background: rgba(22, 163, 74, 0.08);
+      color: #047857;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
     }
 
-    .rating-section {
-      text-align: center;
-      padding: 14px 0 10px;
-      border-radius: 14px;
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      margin-bottom: 12px;
+    .status-pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.35);
     }
 
-    .rating-label {
-      font-size: 13px;
+    .title {
+      font-size: 20px;
+      font-weight: 700;
       margin-bottom: 6px;
-      color: var(--muted);
     }
 
-    .stars {
+    .subtitle {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-bottom: 14px;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .pill {
+      font-size: 11px;
+      padding: 6px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--text-sub);
+      background: #f9fafb;
+    }
+
+    .tap-label {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 10px;
+    }
+
+    .star-row {
       display: flex;
       justify-content: center;
-      gap: 6px;
-      margin-bottom: 4px;
+      gap: 10px;
+      margin-bottom: 8px;
     }
 
-    .star {
-      font-size: 26px;
+    .star-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: #f3f4ff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      transition: transform 0.1s ease, filter 0.1s ease;
-      filter: grayscale(0.2);
+      transition: all 0.18s ease;
+      font-size: 18px;
+      color: #9ca3af;
     }
 
-    .star.selected {
-      color: var(--gold);
-      filter: none;
+    .star-btn:hover {
       transform: translateY(-1px);
+      box-shadow: 0 9px 18px rgba(148, 163, 184, 0.45);
+    }
+
+    .star-btn.filled {
+      background: #fff7e0;
+      border-color: #facc15;
+      color: var(--star-gold);
+      box-shadow: 0 9px 18px rgba(250, 204, 21, 0.35);
     }
 
     .current-rating {
-      font-size: 11px;
-      color: var(--muted);
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 4px;
     }
 
-    .view {
-      display: none;
-      margin-top: 8px;
-    }
-
-    .view.active {
-      display: block;
-    }
-
-    .view-title {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-
-    .view-text {
-      font-size: 13px;
-      color: var(--muted);
+    .link-small {
+      font-size: 12px;
+      color: var(--accent-dark);
+      text-decoration: underline;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
       margin-bottom: 12px;
+    }
+
+    .section {
+      margin-top: 6px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.5);
+    }
+
+    .section h2 {
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .section p {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 10px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     textarea {
       width: 100%;
-      min-height: 80px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      padding: 8px 9px;
-      font-size: 13px;
+      min-height: 90px;
       resize: vertical;
-      margin-bottom: 8px;
+      border-radius: 14px;
+      border: 1px solid var(--border-soft);
+      padding: 10px 11px;
+      font-size: 13px;
+      outline: none;
     }
 
     textarea:focus {
-      outline: 2px solid var(--accent);
-      outline-offset: 1px;
-      border-color: transparent;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.35);
     }
 
     .field-row {
       display: flex;
+      flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 8px;
     }
 
     .field-row input {
-      flex: 1;
+      flex: 1 1 0;
+      min-width: 0;
       border-radius: 999px;
-      border: 1px solid var(--border);
-      padding: 7px 10px;
+      border: 1px solid var(--border-soft);
+      padding: 8px 11px;
       font-size: 13px;
+      outline: none;
     }
 
     .field-row input:focus {
-      outline: 2px solid var(--accent);
-      outline-offset: 1px;
-      border-color: transparent;
-    }
-
-    .btn {
-      width: 100%;
-      border-radius: 999px;
-      border: none;
-      padding: 9px 0;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.08s ease;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.35);
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent), #2563eb);
-      color: white;
-      box-shadow: 0 9px 18px rgba(37, 99, 235, 0.3);
-      margin-bottom: 8px;
+      margin-top: 4px;
+      border-radius: 999px;
+      border: none;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      color: #ffffff;
+      cursor: pointer;
+      box-shadow: 0 14px 30px rgba(37, 99, 235, 0.45);
     }
 
     .btn-primary:hover {
       transform: translateY(-1px);
-      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.38);
+      box-shadow: 0 18px 40px rgba(37, 99, 235, 0.6);
     }
 
-    .btn-outline {
-      background: white;
-      border: 1px solid var(--border);
-      color: var(--primary);
-      font-size: 12px;
-      padding: 7px 0;
-    }
-
-    .change-rating {
-      margin-top: 10px;
-      text-align: center;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .change-rating button {
-      border: none;
-      background: none;
-      color: var(--accent);
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      text-decoration: underline;
-      padding: 0;
-    }
-
-    .footer {
-      margin-top: 14px;
-      text-align: center;
-      font-size: 10px;
-      color: #9ca3af;
-    }
-
-    .code-pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: #e0f2fe;
-      color: #0369a1;
+    .disclaimer {
       font-size: 11px;
+      color: var(--text-sub);
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    .powered {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    .powered span {
       font-weight: 600;
-      margin-top: 4px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent-dark);
     }
 
-    a.btn-link {
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      text-decoration: none;
+    .hidden {
+      display: none;
     }
 
-    @media (max-width: 400px) {
+    @media (max-width: 380px) {
       .card {
-        padding: 18px 16px 16px;
+        padding: 18px 14px 16px;
+      }
+      .title {
+        font-size: 18px;
       }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="brand-row">
-      <div class="business-name" id="businessName">Your Business Name</div>
-      <div class="rr-badge">
-        <span class="rr-logo">RR</span>
-        <span>ReviewResq</span>
+  <main class="card">
+    <header class="card-header">
+      <div class="brand-left">
+        <div class="brand-icon">RR</div>
+        <div class="brand-text">
+          <div class="name">REVIEWRESQ</div>
+          <div class="subline">
+            Private feedback
+            <span class="star">★</span>
+            5★ public reviews
+          </div>
+        </div>
       </div>
-    </div>
+      <div class="status-pill">
+        <span class="status-pill-dot"></span>
+        Feedback portal is online
+      </div>
+    </header>
 
-    <div id="introSection">
-      <div class="title">How was your experience today?</div>
-      <div class="subtitle">Your feedback helps us improve and keeps our team on point.</div>
+    <section id="introSection">
+      <h1 class="title">How was your experience with us?</h1>
+      <p class="subtitle">
+        Your feedback helps us improve and keeps our team on point.
+      </p>
+
       <div class="pill-row">
-        <div class="pill"><span class="pill-dot"></span> Takes ~10 seconds</div>
-        <div class="pill"><span class="pill-dot"></span> No sign-in required</div>
-        <div class="pill"><span class="pill-dot"></span> For quality improvement</div>
+        <span class="pill">Takes ~10 seconds</span>
+        <span class="pill">No sign-in required</span>
+        <span class="pill">For quality improvement</span>
       </div>
-    </div>
+    </section>
 
-    <!-- Rating Area -->
-    <div class="rating-section">
-      <div class="rating-label">Tap a rating to continue</div>
-      <div class="stars" id="stars">
-        <span class="star" data-value="1">★</span>
-        <span class="star" data-value="2">★</span>
-        <span class="star" data-value="3">★</span>
-        <span class="star" data-value="4">★</span>
-        <span class="star" data-value="5">★</span>
+    <section id="ratingSection">
+      <p id="tapLabel" class="tap-label">Tap a rating to continue</p>
+      <div id="starRow" class="star-row">
+        <button class="star-btn" data-value="1" aria-label="1 star">★</button>
+        <button class="star-btn" data-value="2" aria-label="2 stars">★</button>
+        <button class="star-btn" data-value="3" aria-label="3 stars">★</button>
+        <button class="star-btn" data-value="4" aria-label="4 stars">★</button>
+        <button class="star-btn" data-value="5" aria-label="5 stars">★</button>
       </div>
-      <div class="current-rating" id="currentRating">No rating selected yet</div>
-    </div>
+    </section>
 
-    <!-- Negative feedback view (1–3) -->
-    <div id="negativeView" class="view">
-      <div class="view-title">Help us make this better</div>
-      <div class="view-text">
-        Something wasn’t perfect? Tell us what happened so we can fix it for next time.
-      </div>
-      <textarea id="negMessage" placeholder="Tell us what we could have done better..."></textarea>
-      <div class="field-row">
-        <input id="negName" type="text" placeholder="Name (optional)" />
-        <input id="negEmail" type="email" placeholder="Email (optional)" />
-      </div>
-      <button class="btn btn-primary" id="sendNegBtn">Send feedback</button>
-      <div class="view-text" style="margin-top:6px;font-size:11px;">
+    <p id="currentRating" class="current-rating hidden">
+      Current rating: <span id="currentRatingValue"></span> ★
+    </p>
+    <button id="changeRating" class="link-small hidden" type="button">
+      Change rating
+    </button>
+
+    <!-- LOW RATINGS SECTION (1–3) -->
+    <section id="lowSection" class="section hidden">
+      <h2>Help us make this better</h2>
+      <p>
+        Something wasn’t perfect? Tell us what happened so we can fix it for
+        next time. We read every response carefully.
+      </p>
+
+      <form
+        id="feedbackForm"
+        action="https://formspree.io/f/xkgyopoj"
+        method="POST"
+      >
+        <textarea
+          name="message"
+          placeholder="Tell us what we could have done better..."
+          required
+        ></textarea>
+
+        <!-- Hidden technical fields -->
+        <input type="hidden" name="rating" id="ratingInput" />
+        <input type="hidden" name="source" value="ReviewResq portal" />
+
+        <div class="field-row">
+          <input
+            type="text"
+            name="name"
+            placeholder="Name (optional)"
+          />
+          <input
+            type="email"
+            name="email"
+            placeholder="Email (optional)"
+          />
+        </div>
+
+        <button class="btn-primary" type="submit">Send feedback</button>
+      </form>
+
+      <p class="disclaimer">
         We read every message and use it to improve.
-      </div>
-    </div>
+      </p>
+    </section>
 
-    <!-- Positive feedback view (4–5) -->
-    <div id="positiveView" class="view">
-      <div class="view-title">Thank you for the great rating!</div>
-      <div class="view-text">
-        A quick public review really helps other people discover this business.
-      </div>
-      <a class="btn-link" id="googleLink" target="_blank" rel="noopener">
-        <button class="btn btn-primary">Leave a Google review</button>
-      </a>
-      <div class="view-text" style="margin-top:8px;">
-        As a thank-you, show this code on your next visit:
-      </div>
-      <div class="code-pill">RETURN10</div>
-    </div>
+    <!-- HIGH RATINGS SECTION (4–5) -->
+    <section id="highSection" class="section hidden">
+      <h2>Thank you for your great rating!</h2>
+      <p>
+        We’re happy you had a great experience. On the next step, you may be
+        invited to share a public review on Google or another platform.
+      </p>
+      <p class="disclaimer">
+        It only takes a moment and helps local customers find this business.
+      </p>
+    </section>
 
-    <!-- Thank-you view after negative feedback sent -->
-    <div id="thanksView" class="view">
-      <div class="view-title">Thank you for your feedback</div>
-      <div class="view-text">
-        We appreciate you taking the time to share this with us. It really helps us improve.
-      </div>
-      <div class="view-text">
-        If you'd like to speak with someone directly, just reply to the message you received this link from.
-      </div>
-    </div>
-
-    <div class="change-rating" id="changeRatingContainer" style="display:none;">
-      Not the right rating?
-      <button id="changeRatingBtn" type="button">Change rating</button>
-    </div>
-
-    <div class="footer">
-      Powered by ReviewResq
-    </div>
-  </div>
+    <p class="powered">
+      Powered by <span>REVIEWRESQ</span>
+    </p>
+  </main>
 
   <script>
-    // ===== CONFIG =====
-    const BUSINESS_NAME = "Your Business Name"; // לשנות לשם העסק
-    const GOOGLE_REVIEW_URL = "https://g.page/r/YOURPLACEID/review"; // קישור אמיתי לדף הביקורות בגוגל
-    const FORM_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID"; // להחליף ל-URL מ-Formspree
-
-    document.getElementById("businessName").innerText = BUSINESS_NAME;
-    document.getElementById("googleLink").href = GOOGLE_REVIEW_URL;
-
-    // ===== STATE =====
-    let selectedRating = null;
-
-    const stars = document.querySelectorAll(".star");
-    const currentRatingEl = document.getElementById("currentRating");
+    const starButtons = document.querySelectorAll(".star-btn");
+    const ratingSection = document.getElementById("ratingSection");
     const introSection = document.getElementById("introSection");
-    const negativeView = document.getElementById("negativeView");
-    const positiveView = document.getElementById("positiveView");
-    const thanksView = document.getElementById("thanksView");
-    const changeRatingContainer = document.getElementById("changeRatingContainer");
-    const changeRatingBtn = document.getElementById("changeRatingBtn");
-    const sendNegBtn = document.getElementById("sendNegBtn");
+    const lowSection = document.getElementById("lowSection");
+    const highSection = document.getElementById("highSection");
+    const currentRatingEl = document.getElementById("currentRating");
+    const currentRatingValueEl = document.getElementById("currentRatingValue");
+    const changeRatingBtn = document.getElementById("changeRating");
+    const ratingInput = document.getElementById("ratingInput");
 
-    function setView(viewName) {
-      negativeView.classList.remove("active");
-      positiveView.classList.remove("active");
-      thanksView.classList.remove("active");
+    let selectedRating = 0;
 
-      if (viewName === "negative") negativeView.classList.add("active");
-      if (viewName === "positive") positiveView.classList.add("active");
-      if (viewName === "thanks") thanksView.classList.add("active");
+    function resetStars() {
+      starButtons.forEach((btn) => btn.classList.remove("filled"));
     }
 
-    function resetAll() {
-      selectedRating = null;
-      stars.forEach(s => s.classList.remove("selected"));
-      currentRatingEl.textContent = "No rating selected yet";
-      introSection.style.display = "block";
-      setView(null);
-      changeRatingContainer.style.display = "none";
-      document.getElementById("negMessage").value = "";
-      document.getElementById("negName").value = "";
-      document.getElementById("negEmail").value = "";
+    function showInitialScreen() {
+      selectedRating = 0;
+      resetStars();
+      ratingSection.classList.remove("hidden");
+      introSection.classList.remove("hidden");
+      lowSection.classList.add("hidden");
+      highSection.classList.add("hidden");
+      currentRatingEl.classList.add("hidden");
+      changeRatingBtn.classList.add("hidden");
+      currentRatingValueEl.textContent = "";
+      ratingInput.value = "";
     }
 
-    stars.forEach(star => {
-      star.addEventListener("click", () => {
-        selectedRating = parseInt(star.dataset.value, 10);
+    starButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedRating = Number(btn.dataset.value);
+        ratingInput.value = selectedRating;
+        currentRatingValueEl.textContent = selectedRating;
 
-        // Visual selection
-        stars.forEach(s => {
-          const value = parseInt(s.dataset.value, 10);
-          if (value <= selectedRating) {
-            s.classList.add("selected");
-          } else {
-            s.classList.remove("selected");
-          }
-        });
+        // מעדכנים סטייט – כוכבים נעלמים אחרי בחירה
+        resetStars();
+        btn.classList.add("filled");
+        ratingSection.classList.add("hidden");
+        introSection.classList.add("hidden");
 
-        currentRatingEl.textContent = "Current rating: " + selectedRating + " ★";
+        currentRatingEl.classList.remove("hidden");
+        changeRatingBtn.classList.remove("hidden");
 
-        // Hide intro once a rating is chosen
-        introSection.style.display = "none";
-        changeRatingContainer.style.display = "block";
+        // מציגים את החלק המתאים
+        lowSection.classList.add("hidden");
+        highSection.classList.add("hidden");
 
         if (selectedRating <= 3) {
-          setView("negative");
+          lowSection.classList.remove("hidden");
         } else {
-          setView("positive");
+          highSection.classList.remove("hidden");
         }
       });
     });
 
     changeRatingBtn.addEventListener("click", () => {
-      resetAll();
+      showInitialScreen();
     });
 
-    // שליחת פידבק שלילי דרך Formspree
-    sendNegBtn.addEventListener("click", async () => {
-      if (!selectedRating || selectedRating > 3) return;
-
-      const msg   = document.getElementById("negMessage").value.trim();
-      const name  = document.getElementById("negName").value.trim();
-      const email = document.getElementById("negEmail").value.trim();
-
-      if (!msg) {
-        alert("Please share a few words so we know what to improve.");
-        return;
-      }
-
-      const payload = {
-        business: BUSINESS_NAME,
-        rating: selectedRating,
-        message: msg,
-        name: name || "Not provided",
-        email: email || "Not provided"
-      };
-
-      try {
-        await fetch(FORM_ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-
-        // הצליח – מראים תודה נקייה במסך
-        setView("thanks");
-      } catch (err) {
-        console.error(err);
-        alert("Something went wrong. Please try again in a moment.");
-      }
-    });
+    // מצב התחלתי
+    showInitialScreen();
   </script>
 </body>
 </html>
