@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -319,18 +320,26 @@
       transform: translateY(1px);
     }
 
-    .btn-secondary {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 9px 14px;
-      border-radius: var(--radius-pill);
-      border: 1px solid #d1d5db;
-      background: #ffffff;
-      color: var(--text-sub);
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
+      .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid #d0d7e2;
+  background: #f0f4ff;
+  color: #1e3a8a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  transition: 160ms ease-out;
+}
+
+    .btn-secondary:hover {
+      background: #eff6ff;
+      transform: translateY(-1px);
+      box-shadow: 0 14px 32px rgba(37, 99, 235, 0.28);
     }
 
     .hero-footnote {
@@ -361,6 +370,7 @@
       gap: 10px;
     }
 
+    
     .demo-header {
       display: flex;
       align-items: center;
@@ -914,6 +924,12 @@
               <p class="hero-hint">
                 Perfect for home services, contractors, auto shops, barbers, beauty, dentists, restaurants, and more.
               </p>
+              <div class="demo-cta-inline" style="text-align:center; margin:24px 0;">
+  <a class="btn-secondary" href="https://reviewresq.com/demo" style="font-size:16px; padding:12px 22px; display:inline-block;">
+    <span>See the live demo</span>
+    <span style="margin-left:4px;">↗</span>
+  </a>
+</div>
             </div>
 
             <!-- DEMO PREVIEW CARD -->
@@ -976,6 +992,7 @@
         <section id="how-it-works">
           <h2>How it works</h2>
           <p class="lead">
+        
             We set everything up for you. Your team only needs to send customers to your link or QR code.
           </p>
 
@@ -1008,6 +1025,12 @@
             </article>
           </div>
         </section>
+        <div class="cta-after-steps">
+  <a class="btn-secondary" href="https://reviewresq.com/demo">
+    <span>See the live demo</span>
+    <span>↗</span>
+  </a>
+</div>
 
         <!-- WHAT YOU GET -->
         <section id="what-you-get">
