@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -313,6 +312,7 @@
       font-size: 14px;
       font-weight: 600;
       box-shadow: var(--shadow-soft);
+      transition: transform 140ms ease-out, box-shadow 140ms ease-out, filter 140ms ease-out;
     }
 
     .btn-primary span.arrow {
@@ -320,26 +320,48 @@
       transform: translateY(1px);
     }
 
-      .btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: var(--radius-pill);
-  border: 1px solid #d0d7e2;
-  background: #f0f4ff;
-  color: #1e3a8a;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-  transition: 160ms ease-out;
-}
-
-    .btn-secondary:hover {
-      background: #eff6ff;
+    .btn-primary:hover {
       transform: translateY(-1px);
-      box-shadow: 0 14px 32px rgba(37, 99, 235, 0.28);
+      filter: brightness(1.05);
+      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.45);
+    }
+
+    /* SEE LIVE DEMO – MAIN BUTTON (גדול) */
+    .demo-cta-inline {
+      text-align: center;
+      margin: 24px 0 4px;
+    }
+
+    .btn-demo-main {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 13px 26px;
+      border-radius: var(--radius-pill);
+      border: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #eef2ff, #dbeafe);
+      color: #1e40af;
+      box-shadow:
+        0 0 0 1px rgba(129, 140, 248, 0.5),
+        0 16px 40px rgba(59, 130, 246, 0.45);
+      transition: transform 150ms ease-out, box-shadow 150ms ease-out, background 150ms ease-out;
+    }
+
+    .btn-demo-main span.icon {
+      font-size: 16px;
+      transform: translateY(1px);
+    }
+
+    .btn-demo-main:hover {
+      transform: translateY(-2px) scale(1.01);
+      background: linear-gradient(135deg, #e0ecff, #bfdbfe);
+      box-shadow:
+        0 0 0 1px rgba(129, 140, 248, 0.6),
+        0 22px 55px rgba(37, 99, 235, 0.55);
     }
 
     .hero-footnote {
@@ -370,7 +392,6 @@
       gap: 10px;
     }
 
-    
     .demo-header {
       display: flex;
       align-items: center;
@@ -434,64 +455,95 @@
       border: 1px solid #e5e7eb;
     }
 
-    .demo-question {
+    .demo-rating-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .demo-score {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .demo-score-value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .demo-score-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .demo-stars {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+    }
+
+    .demo-stars-icons {
       font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 3px;
+      letter-spacing: 1px;
+      color: var(--accent-gold);
+    }
+
+    .demo-stars-text {
+      font-size: 11px;
+      color: var(--text-soft);
     }
 
     .demo-text {
       font-size: 12px;
       color: var(--text-soft);
-      margin-bottom: 8px;
-    }
-
-    .demo-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
       margin-bottom: 10px;
     }
 
-    .demo-tag {
-      padding: 3px 8px;
-      border-radius: var(--radius-pill);
-      background: #f3f4f6;
-      border: 1px solid #e5e7eb;
-      font-size: 11px;
-      color: var(--text-muted);
+    .demo-flow {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
     }
 
-    .demo-route-block {
-      border-radius: 14px;
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      padding: 8px 9px;
-      margin-bottom: 6px;
+    .demo-flow-item {
+      border-radius: 12px;
+      padding: 7px 8px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .demo-flow-item.good {
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+    }
+
+    .demo-flow-item.bad {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+
+    .demo-flow-label {
+      font-weight: 600;
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 12px;
+      gap: 4px;
     }
 
-    .demo-route-badge {
-      padding: 3px 8px;
-      border-radius: var(--radius-pill);
-      font-size: 11px;
-      font-weight: 600;
+    .demo-flow-label span.badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.06);
     }
 
-    .demo-route-badge.gold {
-      background: #fef9c3;
-      color: #92400e;
-    }
-
-    .demo-route-badge.red {
-      background: #fee2e2;
-      color: #b91c1c;
-    }
-
-    .demo-route-text {
+    .demo-flow-copy {
       color: var(--text-sub);
     }
 
@@ -909,12 +961,6 @@
                   <span>Get your free demo setup</span>
                   <span class="arrow">→</span>
                 </a>
-
-                <!-- TODO: החלף DEMO_LINK_HERE ללינק הדמו שלך -->
-                <a class="btn-secondary" href="https://reviewresq.com/demo" target="_blank" rel="noopener noreferrer">
-                  <span>See the live demo</span>
-                  <span>↗</span>
-                </a>
               </div>
 
               <p class="hero-footnote">
@@ -924,12 +970,13 @@
               <p class="hero-hint">
                 Perfect for home services, contractors, auto shops, barbers, beauty, dentists, restaurants, and more.
               </p>
-              <div class="demo-cta-inline" style="text-align:center; margin:24px 0;">
-  <a class="btn-secondary" href="https://reviewresq.com/demo" style="font-size:16px; padding:12px 22px; display:inline-block;">
-    <span>See the live demo</span>
-    <span style="margin-left:4px;">↗</span>
-  </a>
-</div>
+
+              <div class="demo-cta-inline">
+                <a class="btn-demo-main" href="https://reviewresq.com/demo" target="_blank" rel="noopener noreferrer">
+                  <span>See the live demo</span>
+                  <span class="icon">↗</span>
+                </a>
+              </div>
             </div>
 
             <!-- DEMO PREVIEW CARD -->
@@ -949,35 +996,46 @@
               </div>
 
               <div class="demo-body">
-                <div class="demo-question">How was your experience today?</div>
-                <div class="demo-text">
-                  Your customer taps a star rating. ReviewResq sends them to the right place based
-                  on their score.
-                </div>
-
-                <div class="demo-tags">
-                  <span class="demo-tag">Takes ~10 seconds</span>
-                  <span class="demo-tag">No sign-in required</span>
-                  <span class="demo-tag">For quality improvement</span>
-                </div>
-
-                <div class="demo-route-block">
-                  <div class="demo-route-badge gold">4–5 ★</div>
-                  <div class="demo-route-text">
-                    Sent straight to your Google page for a public review.
+                <div class="demo-rating-row">
+                  <div class="demo-score">
+                    <div class="demo-score-value">4.8</div>
+                    <div class="demo-score-label">Average rating from recent customers</div>
+                  </div>
+                  <div class="demo-stars">
+                    <div class="demo-stars-icons">★★★★★</div>
+                    <div class="demo-stars-text">on Google</div>
                   </div>
                 </div>
 
-                <div class="demo-route-block">
-                  <div class="demo-route-badge red">1–3 ★</div>
-                  <div class="demo-route-text">
-                    Sent to a private feedback form that goes only to you by email.
+                <div class="demo-text">
+                  Your customer taps a star rating. ReviewResq sends them to the right place based on their score.
+                </div>
+
+                <div class="demo-flow">
+                  <div class="demo-flow-item good">
+                    <div class="demo-flow-label">
+                      <span>4–5 ★</span>
+                      <span class="badge">Happy</span>
+                    </div>
+                    <div class="demo-flow-copy">
+                      Sent straight to your Google page to leave a public review.
+                    </div>
+                  </div>
+
+                  <div class="demo-flow-item bad">
+                    <div class="demo-flow-label">
+                      <span>1–3 ★</span>
+                      <span class="badge">Private</span>
+                    </div>
+                    <div class="demo-flow-copy">
+                      Sent to a private feedback form that goes only to you by email.
+                    </div>
                   </div>
                 </div>
 
                 <div class="demo-footnote">
-                  Happy customers help you rank higher on Google. Upset customers talk to you
-                  privately first, so you can fix issues before they hit your public rating.
+                  Happy customers help you rank higher on Google. Upset customers talk to you privately first,
+                  so you can fix issues before they hit your public rating.
                 </div>
               </div>
 
@@ -992,7 +1050,6 @@
         <section id="how-it-works">
           <h2>How it works</h2>
           <p class="lead">
-        
             We set everything up for you. Your team only needs to send customers to your link or QR code.
           </p>
 
@@ -1025,12 +1082,6 @@
             </article>
           </div>
         </section>
-        <div class="cta-after-steps">
-  <a class="btn-secondary" href="https://reviewresq.com/demo">
-    <span>See the live demo</span>
-    <span>↗</span>
-  </a>
-</div>
 
         <!-- WHAT YOU GET -->
         <section id="what-you-get">
