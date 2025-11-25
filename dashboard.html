@@ -73,18 +73,46 @@
 
   console.log("Dashboard connected to Firestore");
 
-  async function loadReviews() {
-    console.log("Loading reviews from Firestore...");
+  async function loadDashboard() {
+    console.log("Loading dashboard...");
 
-    // כרגע רק בדיקה פשוטה – קורא את כל המסמכים מקולקציה businesses
-    const querySnapshot = await getDocs(collection(db, "businesses"));
+    const id = localStorage.getItem("businessId");
+    if (!id) return console.error("No Business ID found!");
 
-    querySnapshot.forEach((doc) => {
-      console.log(doc.id, " => ", doc.data());
+    // טוען את הדוקומנט של העסק לפי ה-ID שהמשתמש הכניס
+    const docRef = doc(db, "businesses", id);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+        console.error("Business not found!");
+        document.getElementById("businessName").innerText = "Business not found!";
+        return;
+    }
+
+    const data = docSnap.data();
+
+    // מציג שם עסק
+    document.getElementById("businessName").innerText = data.businessName || "Unknown";
+
+    // מציג ביקורות
+    const reviews = data.reviews || [];
+
+    const reviewsDiv = document.getElementById("reviews");
+    reviewsDiv.innerHTML = "";
+
+    reviews.forEach((r) => {
+        const item = document.createElement("div");
+        item.className = "reviewItem";
+        item.innerHTML =
+            `<strong>${r.reviewerName}</strong> ⭐ ${r.rating}<br>
+            <p>${r.comment}</p>
+            <small>${r.date}</small>`;
+
+        reviewsDiv.appendChild(item);
     });
-  }
+}
 
-  loadReviews();
+loadDashboard();
 </script>
 
 </body>
