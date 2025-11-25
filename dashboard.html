@@ -60,12 +60,10 @@
     <section class="reviews-panel">
       <div class="panel-header">
         <h2>Customer Reviews</h2>
-        <!-- כפתור לעתיד, כרגע דקורטיבי בלבד -->
-        <!-- <button class="primary-btn">Add Review</button> -->
       </div>
 
       <div id="reviews" class="reviews-list">
-        <!-- הביקורות ייכנסו לפה בדינמיות -->
+        <!-- reviews injected here -->
       </div>
     </section>
   </main>
@@ -98,25 +96,22 @@
 
       const data = snap.data();
 
-      // שם עסק
+      // business name
       document.getElementById("businessName").innerText =
         data.businessName || "Unknown";
 
-      // ביקורות (array של אובייקטים: {comment, date, rating, reviewerName})
       const reviews = data.reviews || [];
 
-      // סטטיסטיקות בסיסיות
+      // basic stats
       const total = reviews.length;
       const bad = reviews.filter(r => Number(r.rating) <= 3).length;
 
       document.getElementById("totalReviews").innerText = total;
       document.getElementById("badRescued").innerText = bad;
-
-      // בינתיים פלייסהולדרים – נחשב אותם בשלבים מתקדמים
       document.getElementById("monthlyGrowth").innerText = "0%";
       document.getElementById("reviewInvites").innerText = "0";
 
-      // הצגת ביקורות
+      // render reviews
       const reviewsDiv = document.getElementById("reviews");
       reviewsDiv.innerHTML = "";
 
