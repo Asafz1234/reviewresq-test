@@ -16,7 +16,7 @@
     <div id="reviews"></div>
   </div>
 
-  <script type="module">
+ <script type="module">
   import { db } from "./firebase.js";
   import {
     doc,
@@ -49,8 +49,8 @@
     document.getElementById("businessName").innerText =
       "Business: " + (data.businessName || "Unknown");
 
-    // מציג ביקורות
-    const reviews = data.reviews?.reviews || [];
+    // מציג ביקורות - עכשיו לוקח ישירות את המערך
+    const reviews = data.reviews || [];
 
     const reviewsDiv = document.getElementById("reviews");
     reviewsDiv.innerHTML = "";
@@ -74,6 +74,5 @@
 
   loadDashboard();
 </script>
-
 </body>
 </html>
