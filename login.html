@@ -9,33 +9,48 @@
 <body>
 
   <div class="container">
-      <h2>Login to Your Dashboard</h2>
-      <input id="businessId" type="text" placeholder="Enter Business ID" />
-      <button onclick="login()">Login</button>
+    <h2>Login to Your Dashboard</h2>
+
+    <input id="businessId" type="text" placeholder="Enter Business ID" />
+
+    <button onclick="login()">Login</button>
   </div>
 
-  <!-- פונקציית LOGIN חייבת להיות בסקריפט רגיל ולא במודול -->
-  <script>
-    function login() {
-      const id = document.getElementById("businessId").value.trim();
-
-      if (!id) return alert("Please enter your Business ID");
-
-      console.log("Saving Business ID:", id);
-
-      // שומר את ה-ID של העסק לזיכרון כדי שהדשבורד יוכל להשתמש בו
-      localStorage.setItem("businessId", id);
-
-      // מעביר לדשבורד
-      window.location.href = "dashboard.html";
-    }
-  </script>
-
-  <!-- מודול שמחבר לפיירבייס -->
+  <!-- Script for Firestore -->
   <script type="module">
     import { db } from "./firebase.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
     console.log("Login page connected to Firestore");
+
+    // 🟢 הפונקציה שחסרה אצלך
+    window.login = async function () {
+      console.log("Login() triggered");
+
+      const id = document.getElementById("businessId").value.trim();
+      if (!id) return alert("Please enter your Business ID");
+
+      const ref = doc(db, "businesses", id);
+      const snapshot = await getDoc(ref);
+
+      if (!snapshot.exists()) {
+        alert("Business ID not found");
+        return;
+      }
+
+      // אם קיים — שמור בלוקאל סטורג'
+      localStorage.setItem("businessId", id);
+
+      // עבור לדשבורד
+      window.location.href = "dashboard.html";
+    };
   </script>
+
+  <script type="module" src="firebase.js"></script>
 
 </body>
 </html>
