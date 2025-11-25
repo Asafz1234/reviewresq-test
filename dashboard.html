@@ -1,59 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>Dashboard - ReviewResQ</title>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="dashboard.css" />
+  <meta charset="UTF-8" />
+  <title>Dashboard - ReviewResQ</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 
-<body>
-
-<!-- TOP NAV BAR -->
-<header class="topbar">
+<body class="dashboard-page">
+  <!-- TOP NAV BAR -->
+  <header class="topbar">
     <div class="logo-area">
-        <img src="logo.png" class="logo">
-        <span class="brand">ReviewResQ</span>
+      <img src="logo.png" alt="ReviewResQ logo" class="logo" />
+      <span class="brand">ReviewResQ</span>
     </div>
 
-    <button class="logout" onclick="logout()">Logout</button>
-</header>
+    <button
+      class="logout-btn"
+      onclick="localStorage.removeItem('businessId'); window.location.href='login.html';"
+    >
+      Logout
+    </button>
+  </header>
 
-<!-- MAIN CONTAINER -->
-<div class="container">
+  <!-- MAIN LAYOUT -->
+  <main class="dashboard-layout">
+    <!-- SUMMARY PANEL -->
+    <section class="summary-panel">
+      <div class="summary-header">
+        <h1>Your Reviews Dashboard</h1>
+        <p class="business-name">
+          Business: <span id="businessName">Loading...</span>
+        </p>
+      </div>
 
-    <h2>Your Reviews Dashboard</h2>
-    <p id="businessName" class="subtitle">Business: Loading...</p>
-
-    <!-- STATS CARDS -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <h3 id="totalReviews">0</h3>
-            <p>Total Reviews</p>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <span class="metric-label">Total Reviews</span>
+          <span class="metric-value" id="totalReviews">0</span>
         </div>
 
-        <div class="stat-card">
-            <h3 id="savedReviews">0</h3>
-            <p>Bad Reviews Rescued</p>
+        <div class="metric-card">
+          <span class="metric-label">Bad Reviews Rescued</span>
+          <span class="metric-value" id="badRescued">0</span>
         </div>
 
-        <div class="stat-card">
-            <h3 id="monthlyGrowth">0%</h3>
-            <p>Monthly Growth</p>
+        <div class="metric-card">
+          <span class="metric-label">Monthly Growth</span>
+          <span class="metric-value" id="monthlyGrowth">0%</span>
         </div>
 
-        <div class="stat-card">
-            <h3 id="invitesSent">0</h3>
-            <p>Review Invites Sent</p>
+        <div class="metric-card">
+          <span class="metric-label">Review Invites Sent</span>
+          <span class="metric-value" id="reviewInvites">0</span>
         </div>
-    </div>
+      </div>
+    </section>
 
-    <h3>Customer Reviews</h3>
+    <!-- REVIEWS PANEL -->
+    <section class="reviews-panel">
+      <div class="panel-header">
+        <h2>Customer Reviews</h2>
+        <!-- כפתור לעתיד, כרגע דקורטיבי בלבד -->
+        <!-- <button class="primary-btn">Add Review</button> -->
+      </div>
 
-    <div id="reviews" class="reviews-list"></div>
+      <div id="reviews" class="reviews-list">
+        <!-- הביקורות ייכנסו לפה בדינמיות -->
+      </div>
+    </section>
+  </main>
 
-</div>
+  <script type="module">
+    import { db } from "./firebase.js";
+    import {
+      doc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-<script type="module" src="dashboard.js"></script>
+    console.log("Dashboard connected to Firestore");
+
+    async function loadDashboard() {
+      console.log("Loading dashboard...");
+
+      const businessId = localStorage.getItem("businessId");
+      if (!businessId) {
+        window.location.href = "login.html";
+        return;
+      }
+
+      const ref = doc(db, "businesses", businessId);
+      const snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        document.getElementById("businessName").innerText = "Not found";
+        return;
+      }
+
+      const data = snap.data();
+
+      // שם עסק
+      document.getElementById("businessName").innerText =
+        data.businessName || "Unknown";
+
+      // ביקורות (array של אובייקטים: {comment, date, rating, reviewerName})
+      const reviews = data.reviews || [];
+
+      // סטטיסטיקות בסיסיות
+      const total = reviews.length;
+      const bad = reviews.filter(r => Number(r.rating) <= 3).length;
+
+      document.getElementById("totalReviews").innerText = total;
+      document.getElementById("badRescued").innerText = bad;
+
+      // בינתיים פלייסהולדרים – נחשב אותם בשלבים מתקדמים
+      document.getElementById("monthlyGrowth").innerText = "0%";
+      document.getElementById("reviewInvites").innerText = "0";
+
+      // הצגת ביקורות
+      const reviewsDiv = document.getElementById("reviews");
+      reviewsDiv.innerHTML = "";
+
+      if (!Array.isArray(reviews) || reviews.length === 0) {
+        reviewsDiv.innerHTML = "<p class='empty-state'>No reviews yet.</p>";
+        return;
+      }
+
+      reviews.forEach((r) => {
+        const item = document.createElement("article");
+        item.className = "reviewItem";
+        item.innerHTML = `
+          <div class="review-header">
+            <div>
+              <div class="reviewer-name">${r.reviewerName || "Customer"}</div>
+              <div class="review-date">${r.date || ""}</div>
+            </div>
+            <div class="review-rating">⭐ ${r.rating || "-"}</div>
+          </div>
+          <p class="review-comment">${r.comment || ""}</p>
+        `;
+        reviewsDiv.appendChild(item);
+      });
+    }
+
+    loadDashboard();
+  </script>
 </body>
 </html>
