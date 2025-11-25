@@ -61,53 +61,7 @@
       });
     }
 
-  async function loadDashboard() {
-  console.log("Loading dashboard...");
 
-  const id = localStorage.getItem("businessId");
-  if (!id) return console.error("No Business ID found!");
-
-  // קבלת הדוקומנט
-  const docRef = doc(db, "businesses", id);
-  const docSnap = await getDoc(docRef);
-
-  if (!docSnap.exists()) {
-    console.error("Business not found!");
-    document.getElementById("businessName").innerText = "Business not found!";
-    return;
-  }
-
-  // מוציאים את המידע
-  const data = docSnap.data();
-
-  // מציגים שם עסק
-  document.getElementById("businessName").innerText = data.businessName || "Unknown";
-
-  // המבנה בפיירסטור שלך:
-  // reviews → reviews → { comment, date, rating }
-  const reviews = data.reviews?.reviews || [];
-
-  const reviewsDiv = document.getElementById("reviews");
-  reviewsDiv.innerHTML = "";
-
-  if (!Array.isArray(reviews) || reviews.length === 0) {
-    reviewsDiv.innerHTML = "<p>No reviews yet.</p>";
-    return;
-  }
-
-  reviews.forEach((r) => {
-    const item = document.createElement("div");
-    item.className = "reviewItem";
-
-    item.innerHTML = `
-      <strong>${r.reviewerName || "Anonymous"}</strong> - ⭐ ${r.rating}<br/>
-      <p>${r.comment}</p>
-      <small>${r.date}</small>
-    `;
-
-    reviewsDiv.appendChild(item);
-  });
-}
     const data = docSnap.data();
 
     // מציג שם עסק
