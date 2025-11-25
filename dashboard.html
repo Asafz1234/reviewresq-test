@@ -17,75 +17,63 @@
   </div>
 
   <script type="module">
-    import { db } from "./firebase.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { db } from "./firebase.js";
+  import {
+    doc,
+    getDoc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    async function loadDashboard() {
-      const businessId = localStorage.getItem("businessId");
-      if (!businessId) {
-        window.location.href = "login.html";
-        return;
-      }
+  console.log("Dashboard connected to Firestore");
 
-      const ref = doc(db, "businesses", businessId);
-      const snap = await getDoc(ref);
+  async function loadDashboard() {
+    console.log("Loading dashboard...");
 
-      if (!snap.exists()) {
-        document.getElementById("businessName").innerText =
-          "Business not found.";
-        return;
-      }
-
-      const data = snap.data();
-      document.getElementById("businessName").innerText =
-        "Business: " + data.businessName;
-
-      // Reviews
-      const reviewsDiv = document.getElementById("reviewsList");
-      const reviews = data.reviews || [];
-
-      if (reviews.length === 0) {
-        reviewsDiv.innerHTML = "<p>No reviews yet.</p>";
-        return;
-      }
-
-      reviews.forEach((r) => {
-        const item = document.createElement("div");
-        item.className = "reviewItem";
-        item.innerHTML = `
-          <strong>${r.reviewerName}</strong> - ⭐ ${r.rating}<br/>
-          <p>${r.comment}</p>
-          <small>${r.date}</small>
-        `;
-        reviewsDiv.appendChild(item);
-      });
+    const businessId = localStorage.getItem("businessId");
+    if (!businessId) {
+      window.location.href = "login.html";
+      return;
     }
 
+    const ref = doc(db, "businesses", businessId);
+    const snap = await getDoc(ref);
 
-    const data = docSnap.data();
+    if (!snap.exists()) {
+      document.getElementById("businessName").innerText =
+        "Business not found.";
+      return;
+    }
+
+    const data = snap.data();
 
     // מציג שם עסק
-    document.getElementById("businessName").innerText = data.businessName || "Unknown";
+    document.getElementById("businessName").innerText =
+      "Business: " + (data.businessName || "Unknown");
 
     // מציג ביקורות
-    const reviews = data.reviews || [];
+    const reviews = data.reviews?.reviews || [];
 
     const reviewsDiv = document.getElementById("reviews");
     reviewsDiv.innerHTML = "";
 
+    if (!Array.isArray(reviews) || reviews.length === 0) {
+      reviewsDiv.innerHTML = "<p>No reviews yet.</p>";
+      return;
+    }
+
     reviews.forEach((r) => {
-        const item = document.createElement("div");
-        item.className = "reviewItem";
-        item.innerHTML =
-            `<strong>${r.reviewerName}</strong> ⭐ ${r.rating}<br>
-            <p>${r.comment}</p>
-            <small>${r.date}</small>`;
-
-        reviewsDiv.appendChild(item);
+      const item = document.createElement("div");
+      item.className = "reviewItem";
+      item.innerHTML = `
+        <strong>${r.reviewerName}</strong> - ⭐ ${r.rating}<br/>
+        <p>${r.comment}</p>
+        <small>${r.date}</small>
+      `;
+      reviewsDiv.appendChild(item);
     });
-}
+  }
 
-loadDashboard();
+  loadDashboard();
+</script>
 </script>
 
 </body>
