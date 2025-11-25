@@ -13,15 +13,34 @@
     <button onclick="login()">Login</button>
   </div>
 
-  <script>
-    function login() {
-      const id = document.getElementById("businessId").value.trim();
-      if (!id) return alert("Please enter your Business ID");
+  <script type="module">
+import { db } from "./firebase.js";
+import {
+  getFirestore,
+  doc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-      localStorage.setItem("businessId", id);
-      window.location.href = "dashboard.html";
-    }
-  </script>
+console.log("Login page connected to Firestore");
+
+async function login() {
+  const id = document.getElementById("businessId").value.trim();
+  if (!id) return alert("Please enter your Business ID");
+
+  // בדיקה אם העסק באמת קיים בפיירסטור
+  const ref = doc(db, "businesses", id);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    alert("Business ID not found. Please check again.");
+    return;
+  }
+
+  // אם קיים → שומר ועובר לדשבורד
+  localStorage.setItem("businessId", id);
+  window.location.href = "dashboard.html";
+}
+</script>
   <script type="module" src="firebase.js"></script>
 </body>
 </html>
