@@ -1,78 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Dashboard - ReviewResQ</title>
-  <link rel="stylesheet" href="styles.css" />
+    <meta charset="UTF-8" />
+    <title>Dashboard - ReviewResQ</title>
+    <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
-  <div class="container">
-    <h2>Your Reviews Dashboard</h2>
 
-    <p id="businessName"></p>
+<!-- TOP NAV BAR -->
+<header class="topbar">
+    <div class="logo-area">
+        <img src="logo.png" class="logo">
+        <span class="brand">ReviewResQ</span>
+    </div>
+
+    <button class="logout" onclick="logout()">Logout</button>
+</header>
+
+<!-- MAIN CONTAINER -->
+<div class="container">
+
+    <h2>Your Reviews Dashboard</h2>
+    <p id="businessName" class="subtitle">Business: Loading...</p>
+
+    <!-- STATS CARDS -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3 id="totalReviews">0</h3>
+            <p>Total Reviews</p>
+        </div>
+
+        <div class="stat-card">
+            <h3 id="savedReviews">0</h3>
+            <p>Bad Reviews Rescued</p>
+        </div>
+
+        <div class="stat-card">
+            <h3 id="monthlyGrowth">0%</h3>
+            <p>Monthly Growth</p>
+        </div>
+
+        <div class="stat-card">
+            <h3 id="invitesSent">0</h3>
+            <p>Review Invites Sent</p>
+        </div>
+    </div>
 
     <h3>Customer Reviews</h3>
-    <div id="reviews"></div>
-  </div>
 
- <script type="module">
-  import { db } from "./firebase.js";
-  import {
-    doc,
-    getDoc
-  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    <div id="reviews" class="reviews-list"></div>
 
-  console.log("Dashboard connected to Firestore");
+</div>
 
-  async function loadDashboard() {
-    console.log("Loading dashboard...");
-
-    const businessId = localStorage.getItem("businessId");
-    if (!businessId) {
-      window.location.href = "login.html";
-      return;
-    }
-
-    const ref = doc(db, "businesses", businessId);
-    const snap = await getDoc(ref);
-
-    if (!snap.exists()) {
-      document.getElementById("businessName").innerText =
-        "Business not found.";
-      return;
-    }
-
-    const data = snap.data();
-
-    // מציג שם עסק
-    document.getElementById("businessName").innerText =
-      "Business: " + (data.businessName || "Unknown");
-
-    // מציג ביקורות - עכשיו לוקח ישירות את המערך
-    const reviews = data.reviews || [];
-
-    const reviewsDiv = document.getElementById("reviews");
-    reviewsDiv.innerHTML = "";
-
-    if (!Array.isArray(reviews) || reviews.length === 0) {
-      reviewsDiv.innerHTML = "<p>No reviews yet.</p>";
-      return;
-    }
-
-    reviews.forEach((r) => {
-      const item = document.createElement("div");
-      item.className = "reviewItem";
-      item.innerHTML = `
-        <strong>${r.reviewerName}</strong> - ⭐ ${r.rating}<br/>
-        <p>${r.comment}</p>
-        <small>${r.date}</small>
-      `;
-      reviewsDiv.appendChild(item);
-    });
-  }
-
-  loadDashboard();
-</script>
+<script type="module" src="dashboard.js"></script>
 </body>
 </html>
