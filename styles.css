@@ -33,3 +33,220 @@ button {
   margin-top: 10px;
   border-left: 4px solid #ff3b3b;
 }
+/* =======================
+   DASHBOARD PAGE (SAAS STYLE)
+   ======================= */
+
+.dashboard-page {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: radial-gradient(circle at top left, #e3edff 0, #f4f5fb 45%, #f6f7fb 100%);
+  color: #0f172a;
+}
+
+/* TOP BAR */
+
+.dashboard-page .topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 32px;
+  background: #1455ff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
+}
+
+.dashboard-page .logo-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard-page .logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.dashboard-page .brand {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.dashboard-page .logout-btn {
+  border: none;
+  padding: 8px 20px;
+  border-radius: 999px;
+  background: #f97316;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(248, 148, 58, 0.55);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.dashboard-page .logout-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(248, 148, 58, 0.65);
+  opacity: 0.95;
+}
+
+/* MAIN LAYOUT */
+
+.dashboard-page .dashboard-layout {
+  max-width: 1120px;
+  margin: 36px auto 60px;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* SUMMARY PANEL */
+
+.dashboard-page .summary-panel {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 22px 26px 26px;
+  box-shadow: 0 24px 45px rgba(15, 23, 42, 0.08);
+}
+
+.dashboard-page .summary-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dashboard-page .business-name {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.dashboard-page .business-name span {
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-page .metrics-grid {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 16px;
+}
+
+.dashboard-page .metric-card {
+  background: linear-gradient(135deg, #f9fafb, #eef3ff);
+  border-radius: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-page .metric-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+}
+
+.dashboard-page .metric-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* REVIEWS PANEL */
+
+.dashboard-page .reviews-panel {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 20px 24px 26px;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.07);
+}
+
+.dashboard-page .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.dashboard-page .panel-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* רשימת ביקורות */
+
+.dashboard-page .reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dashboard-page .reviewItem {
+  border-radius: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  background: linear-gradient(120deg, #ffffff, #f9fafb);
+}
+
+.dashboard-page .review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.dashboard-page .reviewer-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+}
+
+.dashboard-page .review-date {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.dashboard-page .review-rating {
+  font-weight: 600;
+  color: #f97316;
+}
+
+.dashboard-page .review-comment {
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+}
+
+.dashboard-page .empty-state {
+  margin: 0;
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+/* MOBILE */
+
+@media (max-width: 768px) {
+  .dashboard-page .topbar {
+    padding: 10px 16px;
+  }
+
+  .dashboard-page .dashboard-layout {
+    margin-top: 24px;
+  }
+
+  .dashboard-page .summary-panel,
+  .dashboard-page .reviews-panel {
+    padding: 18px 16px 20px;
+  }
+}
