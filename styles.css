@@ -1,0 +1,35 @@
+body {
+  font-family: Arial;
+  background: #f4f4f4;
+}
+
+.container {
+  background: white;
+  width: 400px;
+  margin: 40px auto;
+  padding: 30px;
+  border-radius: 10px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background: #ff3b3b;
+  color: white;
+  border: none;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.reviewItem {
+  background: #fafafa;
+  padding: 10px;
+  margin-top: 10px;
+  border-left: 4px solid #ff3b3b;
+}
