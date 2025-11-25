@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login - ReviewResQ</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="container">
+    <h2>Login to Your Dashboard</h2>
+    <input id="businessId" type="text" placeholder="Enter Business ID" />
+    <button onclick="login()">Login</button>
+  </div>
+
+  <script>
+    function login() {
+      const id = document.getElementById("businessId").value.trim();
+      if (!id) return alert("Please enter your Business ID");
+
+      localStorage.setItem("businessId", id);
+      window.location.href = "dashboard.html";
+    }
+  </script>
+</body>
+</html>
