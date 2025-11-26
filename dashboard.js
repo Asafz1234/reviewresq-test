@@ -118,3 +118,35 @@ function loadCharts(reviews) {
 }
 
 feather.replace();
+
+import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js";
+
+window.copyLink = function () {
+  const link = document.getElementById("reviewLink");
+  link.select();
+  navigator.clipboard.writeText(link.value);
+  alert("Link copied!");
+};
+
+window.showQR = function () {
+  document.getElementById("qrModal").style.display = "block";
+
+  const canvas = document.getElementById("qrCanvas");
+  const link = document.getElementById("reviewLink").value;
+
+  QRCode.toCanvas(canvas, link, { width: 250 });
+};
+
+window.closeQR = function () {
+  document.getElementById("qrModal").style.display = "none";
+};
+
+window.shareWhatsapp = function () {
+  const link = document.getElementById("reviewLink").value;
+  window.open("https://wa.me/?text=" + encodeURIComponent(link));
+};
+
+window.shareSMS = function () {
+  const link = document.getElementById("reviewLink").value;
+  window.location.href = "sms:?body=" + encodeURIComponent(link);
+};
