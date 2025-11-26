@@ -17,134 +17,177 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="logo">ReviewResQ</div>
+<body class="dashboard-body">
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-dot"></span>
+        <span class="logo-text">ReviewResQ</span>
+      </div>
 
-  <a class="nav-item active" href="#">
-    <i data-feather="home"></i> Home
-  </a>
+      <nav class="sidebar-nav">
+        <a href="#home" class="nav-link active">Home</a>
+        <a href="#analytics" class="nav-link">Analytics</a>
+        <a href="#reviews" class="nav-link">Reviews</a>
+        <a href="#send-link" class="nav-link">Send Review Link</a>
+        <a href="#settings" class="nav-link">Settings</a>
+      </nav>
 
-  <a class="nav-item" id="analyticsBtn">
-    <i data-feather="bar-chart"></i> Analytics
-  </a>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </aside>
 
-  <a class="nav-item" id="reviewsBtn">
-    <i data-feather="message-square"></i> Reviews
-  </a>
+    <!-- Main content -->
+    <main class="content">
+      <!-- Top bar -->
+      <header class="topbar" id="home">
+        <div class="topbar-text">
+          <h1 id="welcomeTitle">Welcome back</h1>
+          <p>Here’s a live overview of how your customers feel about your business.</p>
+        </div>
+      </header>
 
-  <a class="nav-item" id="sendLinkBtn">
-    <i data-feather="send"></i> Send Review Link
-  </a>
+      <!-- KPI cards -->
+      <section class="card-grid kpi-grid">
+        <div class="card kpi-card">
+          <p class="kpi-label">Total Reviews</p>
+          <p class="kpi-value" id="kpiTotal">0</p>
+        </div>
+        <div class="card kpi-card kpi-danger">
+          <p class="kpi-label">Bad Reviews Rescued</p>
+          <p class="kpi-value" id="kpiBad">0</p>
+        </div>
+        <div class="card kpi-card kpi-success">
+          <p class="kpi-label">Positive Rate</p>
+          <p class="kpi-value" id="kpiPositive">0%</p>
+        </div>
+        <div class="card kpi-card">
+          <p class="kpi-label">30-Day Growth</p>
+          <p class="kpi-value" id="kpiGrowth">+0%</p>
+        </div>
+      </section>
 
-  <a class="nav-item" id="settingsBtn">
-    <i data-feather="settings"></i> Settings
-  </a>
+      <!-- Send review link + branding -->
+      <section class="card-grid two-column" id="send-link">
+        <!-- Send link -->
+        <div class="card">
+          <h2 class="card-title">Send Review Link</h2>
+          <p class="card-subtitle">Share your private feedback portal with customers.</p>
 
-  <a class="nav-item logout" onclick="logout()">
-    <i data-feather="log-out"></i> Logout
-  </a>
-</div>
+          <div class="field-group">
+            <label>Your personal review link:</label>
+            <div class="input-row">
+              <input id="reviewLink" readonly />
+              <button class="btn secondary" onclick="copyLink()">Copy</button>
+            </div>
+          </div>
 
-<div class="main">
-  
-  <div class="send-box">
-  <h2>Send Review Link</h2>
-  <p>Your personal review link:</p>
+          <div class="btn-row">
+            <button class="btn ghost" onclick="downloadQR()">Download PNG</button>
+            <button class="btn ghost" onclick="downloadPDF()">Download PDF</button>
+            <button class="btn ghost" onclick="showQR()">Show QR Code</button>
+            <button class="btn ghost" onclick="shareWhatsapp()">WhatsApp</button>
+            <button class="btn ghost" onclick="shareSMS()">SMS</button>
+          </div>
+        </div>
 
-  <div class="send-row">
-    <input id="reviewLink" readonly />
-    <button onclick="copyLink()">Copy</button>
+        <!-- Branding settings -->
+        <div class="card" id="settings">
+          <h2 class="card-title">Branding Settings</h2>
+          <p class="card-subtitle">Match the feedback portal to your brand.</p>
+
+          <div class="field-group">
+            <label for="logoInput">Upload Logo</label>
+            <input type="file" id="logoInput" accept="image/*" />
+            <p class="helper-text">Recommended: square PNG, at least 200×200px.</p>
+          </div>
+
+          <div class="field-group color-row">
+            <div>
+              <label for="primaryColor">Primary Color</label>
+              <input type="color" id="primaryColor" />
+            </div>
+            <div>
+              <label for="buttonColor">Button Color</label>
+              <input type="color" id="buttonColor" />
+            </div>
+            <div>
+              <label for="backgroundColor">Background Color</label>
+              <input type="color" id="backgroundColor" />
+            </div>
+          </div>
+
+          <button class="btn primary full-width" onclick="saveBranding()">Save Branding</button>
+        </div>
+      </section>
+
+      <!-- Analytics / charts -->
+      <section class="card" id="analytics">
+        <div class="card-header-row">
+          <div>
+            <h2 class="card-title">Analytics</h2>
+            <p class="card-subtitle">Track distribution of ratings and review trends.</p>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h3>Rating distribution</h3>
+            <canvas id="starChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Positive vs negative</h3>
+            <canvas id="pieChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card full-width">
+          <h3>Monthly reviews (demo)</h3>
+          <canvas id="lineChart"></canvas>
+        </div>
+
+        <div class="empty-hint">
+          <p>New here? Once your first reviews arrive, these charts will show live data.</p>
+        </div>
+      </section>
+
+      <!-- Reviews table -->
+      <section class="card" id="reviews">
+        <h2 class="card-title">Customer Reviews</h2>
+        <p class="card-subtitle">
+          All feedback collected through your private portal appears here.
+        </p>
+
+        <div class="table-wrapper">
+          <table class="reviews-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Rating</th>
+                <th>Comment</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="reviewsTableBody">
+              <!-- Rows are filled by dashboard.js -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
   </div>
 
-  <div class="send-actions">
-    <button onclick="downloadQR()">Download PNG</button>
-<button onclick="downloadPDF()">Download PDF</button>
-    <button onclick="showQR()">Show QR Code</button>
-    <button onclick="shareWhatsapp()">WhatsApp</button>
-    <button onclick="shareSMS()">SMS</button>
-  </div>
-
+  <!-- QR modal -->
   <div id="qrModal" class="qr-modal">
-    <div class="qr-content">
-      <span class="close" onclick="closeQR()">&times;</span>
-      <h3>Scan to Leave a Review</h3>
+    <div class="qr-modal-backdrop" onclick="closeQR()"></div>
+    <div class="qr-modal-content">
+      <button class="qr-close-btn" onclick="closeQR()">✕</button>
+      <h3>Scan to leave a review</h3>
       <canvas id="qrCanvas"></canvas>
+      <p class="qr-hint">Show this code to customers after each job.</p>
     </div>
   </div>
-</div>
-<!-- 🔹 Branding Settings Card -->
-<div class="branding-box">
-    <h2>Branding Settings</h2>
-
-    <label>Upload Logo</label>
-    <input type="file" id="logoInput" accept="image/*">
-
-    <label>Primary Color</label>
-    <input type="color" id="primaryColor">
-
-    <label>Button Color</label>
-    <input type="color" id="buttonColor">
-
-    <label>Background Color</label>
-    <input type="color" id="backgroundColor">
-
-    <button onclick="saveBranding()">Save Branding</button>
-</div>
-  
-  <div class="topbar">
-    <h1 id="welcomeTitle">Welcome back</h1>
-  </div>
-
-  <!-- KPIs -->
-  <div class="kpi-container">
-    <div class="kpi-box kpi-blue">
-      <div class="kpi-label">Total Reviews</div>
-      <div class="kpi-value" id="kpiTotal">0</div>
-    </div>
-
-    <div class="kpi-box kpi-red">
-      <div class="kpi-label">Bad Reviews Rescued</div>
-      <div class="kpi-value" id="kpiBad">0</div>
-    </div>
-
-    <div class="kpi-box kpi-green">
-      <div class="kpi-label">Positive Rate</div>
-      <div class="kpi-value" id="kpiPositive">0%</div>
-    </div>
-
-    <div class="kpi-box kpi-yellow">
-      <div class="kpi-label">30-Day Growth</div>
-      <div class="kpi-value" id="kpiGrowth">+0%</div>
-    </div>
-  </div>
-
-  <!-- Charts -->
-  <div class="charts">
-    <canvas id="lineChart"></canvas>
-    <canvas id="starChart"></canvas>
-    <canvas id="pieChart"></canvas>
-  </div>
-
-  <!-- Reviews Table -->
-  <div class="review-table">
-    <h2>Customer Reviews</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Rating</th>
-          <th>Comment</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-      <tbody id="reviewsTableBody"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- JS -->
-<script src="dashboard.js" type="module"></script>
-
+</body>
 </body>
 </html>
