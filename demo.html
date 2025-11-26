@@ -690,5 +690,61 @@
       }
     })();
   </script>
+
+<script type="module">
+  import { db } from "./firebase.js";
+  import {
+    doc,
+    updateDoc,
+    arrayUnion
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  // כפתור שליחת ביקורת שלילית
+  const sendBtn = document.getElementById("sendFeedback");
+
+  if (sendBtn) {
+    sendBtn.addEventListener("click", async (e) => {
+      e.preventDefault(); // שלא ינסה לשלוח טופס רגיל
+
+      // לוקחים מהשדות של הפידבק
+      const name = document.getElementById("name")?.value || "Anonymous";
+      const comment = document.getElementById("feedback")?.value || "";
+      const rating = window.currentRating || 1;
+
+      // מזהים את הלקוח מתוך הקישור - דוגמה:
+      // demo.html?id=BUSINESS_ID
+      const params = new URLSearchParams(window.location.search);
+      const businessId = params.get("id");
+
+      if (!businessId) {
+        console.error("❌ No business ID found in URL!");
+        alert("Business ID missing in URL");
+        return;
+      }
+
+      // קישור למסמך בפיירסטור
+      const ref = doc(db, "businesses", businessId);
+
+      try {
+        await updateDoc(ref, {
+          reviews: arrayUnion({
+            reviewerName: name,
+            comment: comment,
+            rating: rating,
+            date: new Date().toISOString().split("T")[0]
+          })
+        });
+
+        console.log("✅ Bad review saved to Firestore");
+        alert("Your feedback was sent successfully!");
+
+      } catch (err) {
+        console.error("Firestore update error:", err);
+        alert("Error saving review.");
+      }
+    });
+  }
+</script>
+  
 </body>
 </html>
