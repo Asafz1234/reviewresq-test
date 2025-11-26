@@ -2,152 +2,103 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard - ReviewResQ</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard • ReviewResQ</title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="dashboard.css">
+
+  <!-- Feather Icons -->
+  <script src="https://unpkg.com/feather-icons"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <!-- TOP BAR -->
-  <header class="topbar">
-    <div class="topbar-left">
-      <!-- שים בקובץ הלוגו שלך בשם logo.png בתיקייה הראשית -->
-      <img src="logo.png" alt="ReviewResQ logo" class="topbar-logo" />
-      <span class="topbar-brand">ReviewResQ</span>
+
+<div class="sidebar">
+  <div class="logo">ReviewResQ</div>
+
+  <a class="nav-item active" href="#">
+    <i data-feather="home"></i> Home
+  </a>
+
+  <a class="nav-item" id="analyticsBtn">
+    <i data-feather="bar-chart"></i> Analytics
+  </a>
+
+  <a class="nav-item" id="reviewsBtn">
+    <i data-feather="message-square"></i> Reviews
+  </a>
+
+  <a class="nav-item" id="sendLinkBtn">
+    <i data-feather="send"></i> Send Review Link
+  </a>
+
+  <a class="nav-item" id="settingsBtn">
+    <i data-feather="settings"></i> Settings
+  </a>
+
+  <a class="nav-item logout" onclick="logout()">
+    <i data-feather="log-out"></i> Logout
+  </a>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1 id="welcomeTitle">Welcome back</h1>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-container">
+    <div class="kpi-box kpi-blue">
+      <div class="kpi-label">Total Reviews</div>
+      <div class="kpi-value" id="kpiTotal">0</div>
     </div>
-    <button class="btn btn-ghost" onclick="logout()">Logout</button>
-  </header>
 
-  <!-- MAIN DASHBOARD SHELL -->
-  <main class="dashboard-shell">
-    <section class="dashboard-header">
-      <div>
-        <h1 class="page-title">Your Reviews Dashboard</h1>
-        <p class="page-subtitle">
-          Business:
-          <span id="businessName">Loading…</span>
-        </p>
-      </div>
-    </section>
+    <div class="kpi-box kpi-red">
+      <div class="kpi-label">Bad Reviews Rescued</div>
+      <div class="kpi-value" id="kpiBad">0</div>
+    </div>
 
-    <!-- METRICS CARDS -->
-    <section class="card card-metrics">
-      <div class="metrics-grid">
-        <div class="metric">
-          <p class="metric-label">Total Reviews</p>
-          <p class="metric-value" id="totalReviews">0</p>
-        </div>
+    <div class="kpi-box kpi-green">
+      <div class="kpi-label">Positive Rate</div>
+      <div class="kpi-value" id="kpiPositive">0%</div>
+    </div>
 
-        <div class="metric">
-          <p class="metric-label">Bad Reviews Rescued</p>
-          <p class="metric-value metric-danger" id="badReviews">0</p>
-        </div>
+    <div class="kpi-box kpi-yellow">
+      <div class="kpi-label">30-Day Growth</div>
+      <div class="kpi-value" id="kpiGrowth">+0%</div>
+    </div>
+  </div>
 
-        <div class="metric">
-          <p class="metric-label">Monthly Growth</p>
-          <p class="metric-value metric-success" id="monthlyGrowth">0%</p>
-        </div>
+  <!-- Charts -->
+  <div class="charts">
+    <canvas id="lineChart"></canvas>
+    <canvas id="starChart"></canvas>
+    <canvas id="pieChart"></canvas>
+  </div>
 
-        <div class="metric">
-          <p class="metric-label">Review Invites Sent</p>
-          <p class="metric-value" id="reviewInvites">0</p>
-        </div>
-      </div>
-    </section>
+  <!-- Reviews Table -->
+  <div class="review-table">
+    <h2>Customer Reviews</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Rating</th>
+          <th>Comment</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="reviewsTableBody"></tbody>
+    </table>
+  </div>
+</div>
 
-    <!-- REVIEWS LIST -->
-    <section class="card card-reviews">
-      <div class="card-header">
-        <h2 class="card-title">Customer Reviews</h2>
-        <p class="card-subtitle">Live feedback from your customers</p>
-      </div>
+<!-- JS -->
+<script src="dashboard.js" type="module"></script>
 
-      <div id="reviews" class="reviews-list">
-        <!-- JS ימלא פה את הביקורות -->
-        <p class="empty-state">No reviews yet.</p>
-      </div>
-    </section>
-  </main>
-
-  <!-- JS -->
-  <script type="module">
-    import { db } from "./firebase.js";
-    import {
-      doc,
-      getDoc
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    console.log("Dashboard connected to Firestore");
-
-    async function loadDashboard() {
-      console.log("Loading dashboard...");
-
-      const businessId = localStorage.getItem("businessId");
-      if (!businessId) {
-        window.location.href = "login.html";
-        return;
-      }
-
-      const ref = doc(db, "businesses", businessId);
-      const snap = await getDoc(ref);
-
-      if (!snap.exists()) {
-        document.getElementById("businessName").innerText =
-          "Business not found.";
-        return;
-      }
-
-      const data = snap.data();
-
-      // שם עסק
-      document.getElementById("businessName").innerText =
-        data.businessName || "Unknown";
-
-      // סטטיסטיקות בסיסיות
-      const reviews = data.reviews || [];
-      const total = reviews.length;
-      const badRescued = 0; // placeholder לעתיד
-      const invites = 0;    // placeholder לעתיד
-
-      document.getElementById("totalReviews").innerText = total;
-      document.getElementById("badReviews").innerText = badRescued;
-      document.getElementById("monthlyGrowth").innerText = "0%";
-      document.getElementById("reviewInvites").innerText = invites;
-
-      // הצגת ביקורות
-      const reviewsDiv = document.getElementById("reviews");
-      reviewsDiv.innerHTML = "";
-
-      if (!Array.isArray(reviews) || reviews.length === 0) {
-        reviewsDiv.innerHTML = "<p class='empty-state'>No reviews yet.</p>";
-        return;
-      }
-
-      reviews.forEach((r) => {
-        const item = document.createElement("article");
-        item.className = "review-item";
-        item.innerHTML = `
-          <div class="review-header">
-            <div class="review-main">
-              <div class="reviewer-name">${r.reviewerName || "Customer"}</div>
-              <div class="review-date">${r.date || ""}</div>
-            </div>
-            <div class="review-rating">
-              <span class="star">★</span>
-              <span class="rating-value">${r.rating || "-"}</span>
-            </div>
-          </div>
-          <p class="review-comment">${r.comment || ""}</p>
-        `;
-        reviewsDiv.appendChild(item);
-      });
-    }
-
-    // כפתור יציאה
-    window.logout = function () {
-      localStorage.removeItem("businessId");
-      window.location.href = "login.html";
-    };
-
-    loadDashboard();
-  </script>
 </body>
 </html>
