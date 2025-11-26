@@ -29,7 +29,9 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const uid = user.uid;
-
+// Set the user's personal review link in the dashboard
+document.getElementById("reviewLink").value =
+  `https://reviewresq.com/review/?id=${uid}`;
   const docRef = doc(db, "businesses", uid);
   const snap = await getDoc(docRef);
 
