@@ -732,35 +732,37 @@ if (sendBtn && feedbackForm) {
     const comment = document.getElementById("feedback")?.value || "";
     const rating = window.currentRating || 1;
 
-    // מוציא Business ID מהקישור
-    const params = new URLSearchParams(window.location.search);
-    const businessId = params.get("id");
+const params = new URLSearchParams(window.location.search);
+const businessId = params.get("id");
 
-    if (!businessId) {
-      alert("Business ID missing in URL");
-      return;
-    }
+if (!businessId) {
+  // Basic — שולח למייל בלבד
+  console.log("Basic plan detected — sending by email only");
+  feedbackForm.submit();
+  return;
+}
 
-    try {
-      const ref = doc(db, "businesses", businessId);
+console.log("Advanced plan detected — saving to Firestore");
 
-      await updateDoc(ref, {
-        reviews: arrayUnion({
-          reviewerName: name,
-          comment: comment,
-          rating: rating,
-          date: new Date().toISOString().split("T")[0]
-        })
-      });
+const ref = doc(db, "businesses", businessId);
 
-      console.log("✔ Review saved to Firestore");
+try {
+  await updateDoc(ref, {
+    reviews: arrayUnion({
+      reviewerName: name,
+      comment: comment,
+      rating: rating,
+      date: new Date().toISOString().split("T")[0],
+    }),
+  });
 
-      // אחרי השמירה לפיירסטור – שולח את המייל
-      feedbackForm.submit();
-    } catch (err) {
-      console.error("Firestore error:", err);
-      alert("Error saving review, try again.");
-    }
+  console.log("✅ Bad review saved to Firestore");
+  alert("Your feedback was sent successfully!");
+
+} catch (err) {
+  console.error("❌ Firestore update error:", err);
+  alert("Error saving review.");
+}
   });
 }
 </script>
