@@ -41,6 +41,17 @@ document.getElementById("reviewLink").value =
   }
 
   const data = snap.data();
+  // Load branding settings into the form (if exists)
+  if (data.branding) {
+    document.getElementById("primaryColor").value =
+      data.branding.primaryColor || "#2563eb";
+
+    document.getElementById("buttonColor").value =
+      data.branding.buttonColor || "#2563eb";
+
+    document.getElementById("backgroundColor").value =
+      data.branding.backgroundColor || "#ffffff";
+  }
   document.getElementById("welcomeTitle").innerHTML = `Welcome back, ${data.businessName}`;
 
   const reviews = data.reviews || [];
