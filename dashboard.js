@@ -1,7 +1,14 @@
+// =======================
+// IMPORTS
+// =======================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js";
 
+// =======================
+// FIREBASE CONFIG
+// =======================
 const firebaseConfig = {
   apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
   authDomain: "reviewresq-app.firebaseapp.com",
@@ -15,13 +22,18 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// =======================
+// LOGOUT
+// =======================
 window.logout = function () {
   signOut(auth).then(() => {
     window.location.href = "login.html";
   });
 };
 
-// Load dashboard
+// =======================
+// LOAD DASHBOARD
+// =======================
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "login.html";
@@ -29,9 +41,13 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const uid = user.uid;
-// Set the user's personal review link in the dashboard
-document.getElementById("reviewLink").value =
-  `https://reviewresq.com/review/?id=${uid}`;
+
+  // Set the user's personal review link in the dashboard
+  const reviewLinkInput = document.getElementById("reviewLink");
+  if (reviewLinkInput) {
+    reviewLinkInput.value = `https://reviewresq.com/review/?id=${uid}`;
+  }
+
   const docRef = doc(db, "businesses", uid);
   const snap = await getDoc(docRef);
 
@@ -41,21 +57,34 @@ document.getElementById("reviewLink").value =
   }
 
   const data = snap.data();
+
   // Load branding settings into the form (if exists)
   if (data.branding) {
-    document.getElementById("primaryColor").value =
-      data.branding.primaryColor || "#2563eb";
+    if (document.getElementById("primaryColor")) {
+      document.getElementById("primaryColor").value =
+        data.branding.primaryColor || "#2563eb";
+    }
 
-    document.getElementById("buttonColor").value =
-      data.branding.buttonColor || "#2563eb";
+    if (document.getElementById("buttonColor")) {
+      document.getElementById("buttonColor").value =
+        data.branding.buttonColor || "#2563eb";
+    }
 
-    document.getElementById("backgroundColor").value =
-      data.branding.backgroundColor || "#ffffff";
+    if (document.getElementById("backgroundColor")) {
+      document.getElementById("backgroundColor").value =
+        data.branding.backgroundColor || "#ffffff";
+    }
   }
-  document.getElementById("welcomeTitle").innerHTML = `Welcome back, ${data.businessName}`;
+
+  // Welcome title
+  if (document.getElementById("welcomeTitle")) {
+    document.getElementById("welcomeTitle").innerHTML =
+      `Welcome back, ${data.businessName}`;
+  }
 
   const reviews = data.reviews || [];
 
+  // KPIs
   document.getElementById("kpiTotal").innerText = reviews.length;
 
   const bad = reviews.filter(r => r.rating <= 3).length;
@@ -67,29 +96,38 @@ document.getElementById("reviewLink").value =
 
   // Fill table
   const tbody = document.getElementById("reviewsTableBody");
-  tbody.innerHTML = "";
+  if (tbody) {
+    tbody.innerHTML = "";
 
-  reviews.forEach(r => {
-    const row = `
-      <tr>
-        <td>${r.reviewerName}</td>
-        <td>${r.email || "-"}</td>
-        <td>${r.rating}</td>
-        <td>${r.comment}</td>
-        <td>${r.date}</td>
-      </tr>`;
-    tbody.innerHTML += row;
-  });
+    reviews.forEach(r => {
+      const row = `
+        <tr>
+          <td>${r.reviewerName || "-"}</td>
+          <td>${r.email || "-"}</td>
+          <td>${r.rating}</td>
+          <td>${r.comment}</td>
+          <td>${r.date}</td>
+        </tr>`;
+      tbody.innerHTML += row;
+    });
+  }
 
   // Load charts
   loadCharts(reviews);
 });
 
-// Charts
+// =======================
+// CHARTS
+// =======================
 function loadCharts(reviews) {
-  const starCounts = [0,0,0,0,0];
-  reviews.forEach(r => starCounts[r.rating - 1]++);
+  const starCounts = [0, 0, 0, 0, 0];
+  reviews.forEach(r => {
+    if (r.rating >= 1 && r.rating <= 5) {
+      starCounts[r.rating - 1]++;
+    }
+  });
 
+  // Bar: stars
   new Chart(document.getElementById("starChart"), {
     type: "bar",
     data: {
@@ -102,6 +140,7 @@ function loadCharts(reviews) {
     }
   });
 
+  // Pie: positive vs negative
   const pos = reviews.filter(r => r.rating >= 4).length;
   const neg = reviews.filter(r => r.rating <= 3).length;
 
@@ -116,11 +155,11 @@ function loadCharts(reviews) {
     }
   });
 
-  // fake monthly growth example
+  // Line: monthly growth (demo)
   new Chart(document.getElementById("lineChart"), {
     type: "line",
     data: {
-      labels: ["Jan","Feb","Mar","Apr","May","Jun"],
+      labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
       datasets: [{
         label: "Monthly Reviews",
         borderColor: "#1a73e8",
@@ -130,12 +169,17 @@ function loadCharts(reviews) {
   });
 }
 
+// =======================
+// ICONS
+// =======================
 feather.replace();
 
-import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js";
-
+// =======================
+// QR + LINK FUNCTIONS
+// =======================
 window.copyLink = function () {
   const link = document.getElementById("reviewLink");
+  if (!link) return;
   link.select();
   navigator.clipboard.writeText(link.value);
   alert("Link copied!");
@@ -163,6 +207,7 @@ window.shareSMS = function () {
   const link = document.getElementById("reviewLink").value;
   window.location.href = "sms:?body=" + encodeURIComponent(link);
 };
+
 window.downloadQR = function () {
   const canvas = document.getElementById("qrCanvas");
   const pngUrl = canvas.toDataURL("image/png");
@@ -208,27 +253,29 @@ window.downloadPDF = async function () {
   pdf.save("ReviewResQ-QR.pdf");
 };
 
-// 🔹 Save Branding to Firestore
-async function saveBranding() {
-    const uid = auth.currentUser.uid;
-    const docRef = doc(db, "businesses", uid);
+// =======================
+// SAVE BRANDING
+// =======================
+window.saveBranding = async function () {
+  const uid = auth.currentUser.uid;
+  const docRef = doc(db, "businesses", uid);
 
-    const primary = document.getElementById("primaryColor").value;
-    const buttonColor = document.getElementById("buttonColor").value;
-    const bgColor = document.getElementById("backgroundColor").value;
+  const primary = document.getElementById("primaryColor").value;
+  const buttonColor = document.getElementById("buttonColor").value;
+  const bgColor = document.getElementById("backgroundColor").value;
 
-    try {
-        await updateDoc(docRef, {
-            branding: {
-                primaryColor: primary,
-                buttonColor: buttonColor,
-                backgroundColor: bgColor
-            }
-        });
+  try {
+    await updateDoc(docRef, {
+      branding: {
+        primaryColor: primary,
+        buttonColor: buttonColor,
+        backgroundColor: bgColor
+      }
+    });
 
-        alert("Branding updated successfully!");
-    } catch (err) {
-        console.error("Branding update error:", err);
-        alert("Error saving branding");
-    }
-}
+    alert("Branding updated successfully!");
+  } catch (err) {
+    console.error("Branding update error:", err);
+    alert("Error saving branding");
+  }
+};
