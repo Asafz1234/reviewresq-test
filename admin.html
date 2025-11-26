@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin - ReviewResQ</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="app-body">
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <img src="logo.png" alt="ReviewResQ Logo" class="topbar-logo" />
+      <span class="topbar-brand">ReviewResQ – Admin</span>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <!-- כרטיס 1: יצירת עסק חדש -->
+    <section class="dashboard-card">
+      <h2>Add New Business</h2>
+      <p class="muted">Create a new business and get its Business ID for login.</p>
+
+      <form id="businessForm" class="form">
+        <label>
+          Business name
+          <input type="text" id="bizName" required />
+        </label>
+
+        <label>
+          Owner name
+          <input type="text" id="bizOwner" />
+        </label>
+
+        <label>
+          Email
+          <input type="email" id="bizEmail" />
+        </label>
+
+        <button type="submit" class="btn">Create business</button>
+      </form>
+
+      <p id="bizResult" class="muted"></p>
+    </section>
+
+    <!-- כרטיס 2: הוספת ביקורת -->
+    <section class="dashboard-card">
+      <h2>Add Review to Existing Business</h2>
+
+      <form id="reviewForm" class="form">
+        <label>
+          Business ID
+          <input type="text" id="reviewBizId" required />
+        </label>
+
+        <label>
+          Customer name
+          <input type="text" id="reviewName" required />
+        </label>
+
+        <label>
+          Rating (1–5)
+          <input type="number" id="reviewRating" min="1" max="5" required />
+        </label>
+
+        <label>
+          Date (optional)
+          <input type="date" id="reviewDate" />
+        </label>
+
+        <label>
+          Comment
+          <textarea id="reviewComment" rows="3"></textarea>
+        </label>
+
+        <button type="submit" class="btn btn-secondary">Add review</button>
+      </form>
+
+      <p id="reviewResult" class="muted"></p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { db } from "./firebase.js";
+    import {
+      collection,
+      addDoc,
+      doc,
+      updateDoc,
+      arrayUnion
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    console.log("Admin page connected to Firestore");
+
+    // טופס יצירת עסק
+    const businessForm = document.getElementById("businessForm");
+    const bizResult = document.getElementById("bizResult");
+
+    businessForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      bizResult.textContent = "Creating business...";
+
+      const name = document.getElementById("bizName").value.trim();
+      const owner = document.getElementById("bizOwner").value.trim();
+      const email = document.getElementById("bizEmail").value.trim();
+
+      if (!name) {
+        bizResult.textContent = "Please enter a business name.";
+        return;
+      }
+
+      try {
+        const docRef = await addDoc(collection(db, "businesses"), {
+          businessName: name,
+          ownerName: owner || "",
+          email: email || "",
+          reviews: []
+        });
+
+        const id = docRef.id;
+        bizResult.textContent = "Business created! Business ID: " + id;
+        businessForm.reset();
+      } catch (err) {
+        console.error(err);
+        bizResult.textContent = "Error creating business. Check console.";
+      }
+    });
+
+    // טופס הוספת ביקורת
+    const reviewForm = document.getElementById("reviewForm");
+    const reviewResult = document.getElementById("reviewResult");
+
+    reviewForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      reviewResult.textContent = "Adding review...";
+
+      const businessId = document.getElementById("reviewBizId").value.trim();
+      const name = document.getElementById("reviewName").value.trim();
+      const ratingValue = Number(
+        document.getElementById("reviewRating").value
+      );
+      const dateInput = document.getElementById("reviewDate").value;
+      const comment = document.getElementById("reviewComment").value.trim();
+
+      if (!businessId || !name || !ratingValue) {
+        reviewResult.textContent =
+          "Please fill business ID, customer name and rating.";
+        return;
+      }
+
+      const rating = Math.min(5, Math.max(1, ratingValue));
+
+      const review = {
+        reviewerName: name,
+        rating,
+        comment,
+        date: dateInput || new Date().toISOString().slice(0, 10)
+      };
+
+      try {
+        const ref = doc(db, "businesses", businessId);
+        await updateDoc(ref, {
+          reviews: arrayUnion(review)
+        });
+
+        reviewResult.textContent = "Review added successfully.";
+        reviewForm.reset();
+      } catch (err) {
+        console.error(err);
+        reviewResult.textContent =
+          "Error adding review. Make sure the Business ID is correct.";
+      }
+    });
+  </script>
+</body>
+</html>
