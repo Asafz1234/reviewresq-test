@@ -434,3 +434,10 @@ p {
   border-color: var(--rrq-blue-soft);
   box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.35);
 }
+.topbar-logo {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  margin-right: 10px;
+  border-radius: 4px;
+}
