@@ -1,6 +1,28 @@
-/* ---------- Base ---------- */
+/* =========
+   DESIGN TOKENS
+   ========= */
+:root {
+  --rrq-blue: #1f6feb;
+  --rrq-blue-soft: #2563eb;
+  --rrq-blue-dark: #1e40af;
+  --rrq-bg: #f3f4f6;
+  --rrq-surface: #ffffff;
+  --rrq-surface-soft: #f9fafb;
+  --rrq-text-main: #111827;
+  --rrq-text-muted: #6b7280;
+  --rrq-border-subtle: #e5e7eb;
+  --rrq-success: #16a34a;
+  --rrq-danger: #ef4444;
+  --rrq-warning: #f59e0b;
+  --rrq-radius-lg: 18px;
+  --rrq-radius-md: 12px;
+  --rrq-shadow-soft: 0 22px 45px rgba(15, 23, 42, 0.12);
+  --rrq-shadow-subtle: 0 10px 25px rgba(15, 23, 42, 0.06);
+}
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+/* =========
+   GLOBAL
+   ========= */
 
 *,
 *::before,
@@ -12,303 +34,403 @@ html,
 body {
   margin: 0;
   padding: 0;
-  height: 100%;
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  background: radial-gradient(circle at top left, #1f64ff 0, #0a1433 45%, #040814 100%);
-  color: #0f172a;
 }
 
-/* מרכז את כל התוכן + נותן שוליים נעימים */
 body {
-  display: flex;
-  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
+  background: radial-gradient(circle at top, #dbeafe 0, #f3f4f6 45%, #e5e7eb 100%);
+  color: var(--rrq-text-main);
+  min-height: 100vh;
 }
 
-/* ---------- Top Bar ---------- */
+/* טקסט כללי */
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+p {
+  margin: 0;
+}
+
+/* =========
+   TOP BAR
+   ========= */
 
 .topbar {
-  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 64px;
   padding: 0 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(90deg, #1f64ff, #0f9cf5);
-  color: #ffffff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.35);
-  position: sticky;
-  top: 0;
-  z-index: 20;
+  background: linear-gradient(90deg, #0f172a, var(--rrq-blue-soft));
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.45);
 }
 
-.logo-area {
+.topbar-left {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.logo {
-  height: 32px;
+.topbar-logo {
+  height: 28px;
   width: auto;
   border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.4);
 }
 
-.brand {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.logout {
-  border: none;
-  border-radius: 999px;
-  padding: 8px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  background: #f97373;
+.topbar-brand {
   color: #ffffff;
-  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  font-size: 18px;
+  font-weight: 600;
 }
 
-.logout:hover {
-  background: #ef4444;
+/* =========
+   BUTTONS
+   ========= */
+
+.btn {
+  border-radius: 999px;
+  border: none;
+  font-size: 14px;
+  padding: 8px 18px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.16s ease-out;
+}
+
+.btn-ghost {
+  background: rgba(15, 23, 42, 0.15);
+  color: #f9fafb;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.btn-ghost:hover {
+  background: rgba(15, 23, 42, 0.35);
   transform: translateY(-1px);
-  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.55);
 }
 
-/* ---------- Page Wrapper ---------- */
+/* =========
+   DASHBOARD LAYOUT
+   ========= */
 
-.page-wrapper {
-  max-width: 1100px;
-  margin: 32px auto 48px;
-  padding: 0 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.dashboard-shell {
+  max-width: 1120px;
+  margin: 36px auto 48px;
+  padding: 0 20px;
 }
 
-/* ---------- Cards ---------- */
+@media (max-width: 768px) {
+  .dashboard-shell {
+    margin-top: 24px;
+  }
+}
+
+.dashboard-header {
+  margin-bottom: 18px;
+}
+
+.page-title {
+  font-size: 26px;
+}
+
+.page-subtitle {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--rrq-text-muted);
+}
+
+/* =========
+   CARDS
+   ========= */
 
 .card {
-  background: rgba(248, 250, 252, 0.98);
-  border-radius: 18px;
-  padding: 24px 28px;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: var(--rrq-surface);
+  border-radius: var(--rrq-radius-lg);
+  padding: 22px 24px;
+  box-shadow: var(--rrq-shadow-soft);
+  border: 1px solid rgba(148, 163, 184, 0.3);
 }
 
-/* כותרת ראשית של הדשבורד */
-.dashboard-card h2 {
-  margin: 0 0 4px;
-  font-size: 24px;
-  font-weight: 700;
-  color: #0f172a;
+.card + .card {
+  margin-top: 22px;
 }
 
-.dashboard-card p#businessName {
-  margin: 0 0 18px;
-  font-size: 14px;
-  color: #64748b;
+.card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
 }
 
-/* ---------- Stats Row ---------- */
+.card-title {
+  font-size: 18px;
+}
 
-.stats-grid {
+.card-subtitle {
+  font-size: 13px;
+  color: var(--rrq-text-muted);
+}
+
+/* =========
+   METRICS
+   ========= */
+
+.card-metrics {
+  margin-top: 10px;
+}
+
+.metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
-.stat-card {
-  background: #f9fafb;
-  border-radius: 14px;
-  padding: 14px 16px;
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  position: relative;
-  overflow: hidden;
-}
-
-.stat-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(120deg, rgba(37, 99, 235, 0.07), transparent);
-  opacity: 0;
-  transition: opacity 0.18s ease;
-}
-
-.stat-card:hover::before {
-  opacity: 1;
-}
-
-.stat-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: #64748b;
-}
-
-.stat-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.stat-sub {
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-/* ---------- Reviews Section ---------- */
-
-.reviews-card {
-  margin-top: 4px;
-}
-
-.reviews-card h3 {
-  margin: 0 0 12px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-#reviews {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.reviewItem {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 12px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: #f9fafb;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.18);
-}
-
-.reviewItem strong {
-  font-size: 14px;
-  color: #0f172a;
-}
-
-.reviewItem p {
-  margin: 0;
-  grid-column: 1 / -1;
-  font-size: 13px;
-  color: #111827;
-}
-
-.reviewItem small {
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-.review-rating {
-  align-self: start;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(250, 204, 21, 0.16);
-  font-size: 12px;
-  font-weight: 600;
-  color: #92400e;
-}
-
-/* ---------- Login Page / Generic Container ---------- */
-
-.container {
-  max-width: 420px;
-  margin: 64px auto;
-  padding: 28px 26px 30px;
-  border-radius: 18px;
-  background: rgba(248, 250, 252, 0.98);
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.32);
-}
-
-.container h2 {
-  margin-top: 0;
-  margin-bottom: 14px;
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.container input[type="text"] {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  font-size: 14px;
-  outline: none;
-  transition: border 0.14s ease, box-shadow 0.14s ease;
-}
-
-.container input[type="text"]:focus {
-  border-color: #1f64ff;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.45);
-}
-
-.container button {
-  width: 100%;
-  margin-top: 14px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: none;
-  background: linear-gradient(90deg, #1f64ff, #0f9cf5);
-  color: #ffffff;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  cursor: pointer;
-  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.5);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-}
-
-.container button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 16px 40px rgba(37, 99, 235, 0.65);
-  opacity: 0.96;
-}
-
-/* ---------- Responsive ---------- */
-
 @media (max-width: 900px) {
-  .page-wrapper {
-    margin-top: 20px;
-  }
-
-  .stats-grid {
+  .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 600px) {
-  .topbar {
-    padding: 0 16px;
-  }
-
-  .brand {
-    font-size: 18px;
-  }
-
-  .stats-grid {
+  .metrics-grid {
     grid-template-columns: 1fr;
   }
+}
 
-  .card {
-    padding: 18px 16px;
-  }
+.metric {
+  background: linear-gradient(135deg, var(--rrq-surface-soft), #eef2ff);
+  border-radius: var(--rrq-radius-md);
+  padding: 14px 16px;
+  border: 1px solid var(--rrq-border-subtle);
+  box-shadow: var(--rrq-shadow-subtle);
+}
 
-  .container {
-    margin-top: 32px;
+.metric-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--rrq-text-muted);
+  margin-bottom: 6px;
+}
+
+.metric-value {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.metric-success {
+  color: var(--rrq-success);
+}
+
+.metric-danger {
+  color: var(--rrq-danger);
+}
+
+/* =========
+   REVIEWS LIST
+   ========= */
+
+.card-reviews {
+  margin-top: 24px;
+}
+
+.reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.empty-state {
+  padding: 20px 0;
+  text-align: center;
+  color: var(--rrq-text-muted);
+  font-size: 14px;
+}
+
+/* כרטיס ביקורת */
+
+.review-item {
+  background: var(--rrq-surface-soft);
+  border-radius: var(--rrq-radius-md);
+  padding: 14px 16px 12px;
+  border: 1px solid var(--rrq-border-subtle);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+  transition: transform 0.16s ease-out, box-shadow 0.16s ease-out,
+    border-color 0.16s ease-out;
+}
+
+.review-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+  border-color: rgba(79, 70, 229, 0.5);
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.review-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reviewer-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.review-date {
+  font-size: 12px;
+  color: var(--rrq-text-muted);
+}
+
+.review-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  font-size: 13px;
+}
+
+.review-rating .star {
+  color: #facc15;
+  font-size: 15px;
+}
+
+.review-rating .rating-value {
+  font-weight: 600;
+}
+
+.review-comment {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--rrq-text-main);
+  line-height: 1.5;
+}
+
+/* =========
+   BASIC STYLES לדפים אחרים (לנדינג / לוגין)
+   ========= */
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 40px;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
   }
+}
+
+.hero-title {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+.hero-subtitle {
+  font-size: 16px;
+  color: var(--rrq-text-muted);
+  max-width: 440px;
+}
+
+.hero-actions {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--rrq-blue-soft), var(--rrq-blue-dark));
+  color: #ffffff;
+  border-radius: 999px;
+  border: none;
+  padding: 10px 22px;
+  font-size: 15px;
+  cursor: pointer;
+  font-weight: 500;
+  box-shadow: 0 18px 35px rgba(37, 99, 235, 0.35);
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out,
+    filter 0.15s ease-out;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 22px 42px rgba(37, 99, 235, 0.5);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--rrq-blue-soft);
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.75);
+  padding: 9px 18px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* טופס לוגין בסיסי */
+
+.login-card {
+  max-width: 380px;
+  margin: 60px auto;
+  padding: 24px 24px 26px;
+  background: var(--rrq-surface);
+  border-radius: var(--rrq-radius-lg);
+  box-shadow: var(--rrq-shadow-soft);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.login-card h2 {
+  margin-bottom: 8px;
+}
+
+.login-card p {
+  font-size: 14px;
+  color: var(--rrq-text-muted);
+  margin-bottom: 16px;
+}
+
+.input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--rrq-border-subtle);
+  padding: 9px 10px;
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--rrq-blue-soft);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.35);
 }
