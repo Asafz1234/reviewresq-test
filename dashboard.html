@@ -45,6 +45,31 @@
 </div>
 
 <div class="main">
+  
+  <div class="send-box">
+  <h2>Send Review Link</h2>
+  <p>Your personal review link:</p>
+
+  <div class="send-row">
+    <input id="reviewLink" readonly />
+    <button onclick="copyLink()">Copy</button>
+  </div>
+
+  <div class="send-actions">
+    <button onclick="showQR()">Show QR Code</button>
+    <button onclick="shareWhatsapp()">WhatsApp</button>
+    <button onclick="shareSMS()">SMS</button>
+  </div>
+
+  <div id="qrModal" class="qr-modal">
+    <div class="qr-content">
+      <span class="close" onclick="closeQR()">&times;</span>
+      <h3>Scan to Leave a Review</h3>
+      <canvas id="qrCanvas"></canvas>
+    </div>
+  </div>
+</div>
+  
   <div class="topbar">
     <h1 id="welcomeTitle">Welcome back</h1>
   </div>
