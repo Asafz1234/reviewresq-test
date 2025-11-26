@@ -5,69 +5,69 @@
   <title>Dashboard - ReviewResQ</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
-
-<body class="dashboard-page">
-  <!-- TOP NAV BAR -->
+<body>
+  <!-- TOP BAR -->
   <header class="topbar">
-    <div class="logo-area">
-      <img src="logo.png" alt="ReviewResQ logo" class="logo" />
-      <span class="brand">ReviewResQ</span>
+    <div class="topbar-left">
+      <!-- שים בקובץ הלוגו שלך בשם logo.png בתיקייה הראשית -->
+      <img src="logo.png" alt="ReviewResQ logo" class="topbar-logo" />
+      <span class="topbar-brand">ReviewResQ</span>
     </div>
-
-    <button
-      class="logout-btn"
-      onclick="localStorage.removeItem('businessId'); window.location.href='login.html';"
-    >
-      Logout
-    </button>
+    <button class="btn btn-ghost" onclick="logout()">Logout</button>
   </header>
 
-  <!-- MAIN LAYOUT -->
-  <main class="dashboard-layout">
-    <!-- SUMMARY PANEL -->
-    <section class="summary-panel">
-      <div class="summary-header">
-        <h1>Your Reviews Dashboard</h1>
-        <p class="business-name">
-          Business: <span id="businessName">Loading...</span>
+  <!-- MAIN DASHBOARD SHELL -->
+  <main class="dashboard-shell">
+    <section class="dashboard-header">
+      <div>
+        <h1 class="page-title">Your Reviews Dashboard</h1>
+        <p class="page-subtitle">
+          Business:
+          <span id="businessName">Loading…</span>
         </p>
       </div>
+    </section>
 
+    <!-- METRICS CARDS -->
+    <section class="card card-metrics">
       <div class="metrics-grid">
-        <div class="metric-card">
-          <span class="metric-label">Total Reviews</span>
-          <span class="metric-value" id="totalReviews">0</span>
+        <div class="metric">
+          <p class="metric-label">Total Reviews</p>
+          <p class="metric-value" id="totalReviews">0</p>
         </div>
 
-        <div class="metric-card">
-          <span class="metric-label">Bad Reviews Rescued</span>
-          <span class="metric-value" id="badRescued">0</span>
+        <div class="metric">
+          <p class="metric-label">Bad Reviews Rescued</p>
+          <p class="metric-value metric-danger" id="badReviews">0</p>
         </div>
 
-        <div class="metric-card">
-          <span class="metric-label">Monthly Growth</span>
-          <span class="metric-value" id="monthlyGrowth">0%</span>
+        <div class="metric">
+          <p class="metric-label">Monthly Growth</p>
+          <p class="metric-value metric-success" id="monthlyGrowth">0%</p>
         </div>
 
-        <div class="metric-card">
-          <span class="metric-label">Review Invites Sent</span>
-          <span class="metric-value" id="reviewInvites">0</span>
+        <div class="metric">
+          <p class="metric-label">Review Invites Sent</p>
+          <p class="metric-value" id="reviewInvites">0</p>
         </div>
       </div>
     </section>
 
-    <!-- REVIEWS PANEL -->
-    <section class="reviews-panel">
-      <div class="panel-header">
-        <h2>Customer Reviews</h2>
+    <!-- REVIEWS LIST -->
+    <section class="card card-reviews">
+      <div class="card-header">
+        <h2 class="card-title">Customer Reviews</h2>
+        <p class="card-subtitle">Live feedback from your customers</p>
       </div>
 
       <div id="reviews" class="reviews-list">
-        <!-- reviews injected here -->
+        <!-- JS ימלא פה את הביקורות -->
+        <p class="empty-state">No reviews yet.</p>
       </div>
     </section>
   </main>
 
+  <!-- JS -->
   <script type="module">
     import { db } from "./firebase.js";
     import {
@@ -90,28 +90,29 @@
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
-        document.getElementById("businessName").innerText = "Not found";
+        document.getElementById("businessName").innerText =
+          "Business not found.";
         return;
       }
 
       const data = snap.data();
 
-      // business name
+      // שם עסק
       document.getElementById("businessName").innerText =
         data.businessName || "Unknown";
 
+      // סטטיסטיקות בסיסיות
       const reviews = data.reviews || [];
-
-      // basic stats
       const total = reviews.length;
-      const bad = reviews.filter(r => Number(r.rating) <= 3).length;
+      const badRescued = 0; // placeholder לעתיד
+      const invites = 0;    // placeholder לעתיד
 
       document.getElementById("totalReviews").innerText = total;
-      document.getElementById("badRescued").innerText = bad;
+      document.getElementById("badReviews").innerText = badRescued;
       document.getElementById("monthlyGrowth").innerText = "0%";
-      document.getElementById("reviewInvites").innerText = "0";
+      document.getElementById("reviewInvites").innerText = invites;
 
-      // render reviews
+      // הצגת ביקורות
       const reviewsDiv = document.getElementById("reviews");
       reviewsDiv.innerHTML = "";
 
@@ -122,22 +123,29 @@
 
       reviews.forEach((r) => {
         const item = document.createElement("article");
-        item.className = "reviewItem";
+        item.className = "review-item";
         item.innerHTML = `
-  <div class="review-header">
-      <div>
-          <div class="reviewer-name">${r.reviewerName || "Customer"}</div>
-          <div class="review-date">${r.date || ""}</div>
-      </div>
-
-      <div class="review-rating">⭐ ${r.rating || "-"}</div>
-  </div>
-
-  <p class="review-comment">${r.comment || ""}</p>
-`;
+          <div class="review-header">
+            <div class="review-main">
+              <div class="reviewer-name">${r.reviewerName || "Customer"}</div>
+              <div class="review-date">${r.date || ""}</div>
+            </div>
+            <div class="review-rating">
+              <span class="star">★</span>
+              <span class="rating-value">${r.rating || "-"}</span>
+            </div>
+          </div>
+          <p class="review-comment">${r.comment || ""}</p>
+        `;
         reviewsDiv.appendChild(item);
       });
     }
+
+    // כפתור יציאה
+    window.logout = function () {
+      localStorage.removeItem("businessId");
+      window.location.href = "login.html";
+    };
 
     loadDashboard();
   </script>
