@@ -197,3 +197,48 @@ canvas {
   font-size: 28px;
   cursor: pointer;
 }
+/* 🔹 Branding Box */
+.branding-box {
+    background: #ffffff;
+    padding: 20px;
+    margin-top: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.branding-box h2 {
+    margin-bottom: 15px;
+    color: #1e3a8a; /* כחול מודרני */
+}
+
+.branding-box label {
+    display: block;
+    font-weight: 600;
+    margin-top: 12px;
+}
+
+.branding-box input[type="file"],
+.branding-box input[type="color"] {
+    width: 100%;
+    margin-top: 6px;
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+.branding-box button {
+    margin-top: 20px;
+    width: 100%;
+    background: #2563eb;
+    border: none;
+    color: white;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.branding-box button:hover {
+    background: #1e40af;
+}
