@@ -161,3 +161,38 @@ window.downloadQR = function () {
   downloadLink.download = "review-qr.png";
   downloadLink.click();
 };
+
+window.downloadPDF = async function () {
+  const { jsPDF } = window.jspdf;
+
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "pt",
+    format: "a4"
+  });
+
+  const canvas = document.getElementById("qrCanvas");
+  const qrData = canvas.toDataURL("image/png");
+
+  // Title
+  pdf.setFontSize(24);
+  pdf.setTextColor(30, 80, 200);
+  pdf.text("ReviewResQ - Your Feedback QR", 40, 60);
+
+  // QR Code
+  pdf.addImage(qrData, "PNG", 40, 100, 200, 200);
+
+  // Link text
+  const link = document.getElementById("reviewLink").value;
+  pdf.setFontSize(14);
+  pdf.setTextColor(60, 60, 60);
+  pdf.text("Your personal review link:", 40, 340);
+  pdf.text(link, 40, 360);
+
+  // Footer
+  pdf.setFontSize(12);
+  pdf.setTextColor(150, 150, 150);
+  pdf.text("Powered by ReviewResQ", 40, 800);
+
+  pdf.save("ReviewResQ-QR.pdf");
+};
