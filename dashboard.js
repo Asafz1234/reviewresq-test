@@ -152,3 +152,12 @@ window.shareSMS = function () {
   const link = document.getElementById("reviewLink").value;
   window.location.href = "sms:?body=" + encodeURIComponent(link);
 };
+window.downloadQR = function () {
+  const canvas = document.getElementById("qrCanvas");
+  const pngUrl = canvas.toDataURL("image/png");
+
+  const downloadLink = document.createElement("a");
+  downloadLink.href = pngUrl;
+  downloadLink.download = "review-qr.png";
+  downloadLink.click();
+};
