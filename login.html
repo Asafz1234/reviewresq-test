@@ -1,56 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Login - ReviewResQ</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login • ReviewResQ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .card {
+      background: white;
+      padding: 35px;
+      border-radius: 12px;
+      box-shadow: 0 3px 20px rgba(0,0,0,0.1);
+      width: 350px;
+      text-align: center;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #1a73e8;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      margin-top: 15px;
+      cursor: pointer;
+    }
+    a {
+      display: block;
+      margin-top: 15px;
+      color: #1a73e8;
+    }
+  </style>
 </head>
-
 <body>
 
-  <div class="container">
-    <h2>Login to Your Dashboard</h2>
+<div class="card">
+  <h2>Login to ReviewResQ</h2>
 
-    <input id="businessId" type="text" placeholder="Enter Business ID" />
+  <input id="email" type="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
 
-    <button onclick="login()">Login</button>
-  </div>
+  <button onclick="login()">Login</button>
 
-  <!-- Script for Firestore -->
-  <script type="module">
-    import { db } from "./firebase.js";
-    import {
-      getFirestore,
-      doc,
-      getDoc
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  <a href="signup.html">Create an Account</a>
+</div>
 
-    console.log("Login page connected to Firestore");
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-    // 🟢 הפונקציה שחסרה אצלך
-    window.login = async function () {
-      console.log("Login() triggered");
+  const firebaseConfig = {
+    apiKey: "YOUR_FIREBASE_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "ID",
+    appId: "ID"
+  };
 
-      const id = document.getElementById("businessId").value.trim();
-      if (!id) return alert("Please enter your Business ID");
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
 
-      const ref = doc(db, "businesses", id);
-      const snapshot = await getDoc(ref);
+  window.login = function() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
 
-      if (!snapshot.exists()) {
-        alert("Business ID not found");
-        return;
-      }
-
-      // אם קיים — שמור בלוקאל סטורג'
-      localStorage.setItem("businessId", id);
-
-      // עבור לדשבורד
-      window.location.href = "dashboard.html";
-    };
-  </script>
-
-  <script type="module" src="firebase.js"></script>
+    signInWithEmailAndPassword(auth, email, password)
+      .then(() => {
+        window.location.href = "dashboard.html";
+      })
+      .catch(err => {
+        alert("Login failed: " + err.message);
+      });
+  }
+</script>
 
 </body>
 </html>
