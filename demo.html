@@ -732,21 +732,30 @@ if (sendBtn && feedbackForm) {
     const comment = document.getElementById("feedback")?.value || "";
     const rating = window.currentRating || 1;
 
+// === DEBUG MODE ===
+console.log("🟡 DEBUG MODE: Review submission started");
+
+// קבלת ה-ID מה-URL
 const params = new URLSearchParams(window.location.search);
 const businessId = params.get("id");
 
+console.log("🔍 Business ID from URL:", businessId || "❌ None found");
+
 if (!businessId) {
-  // Basic — שולח למייל בלבד
-  console.log("Basic plan detected — sending by email only");
+  console.log("🟠 Basic plan detected – sending by email only");
+  alert("📧 Basic plan: feedback will be sent by email only");
   feedbackForm.submit();
   return;
 }
 
-console.log("Advanced plan detected — saving to Firestore");
+console.log("🟢 Advanced plan detected – saving to Firestore");
 
+// יצירת רפרנס למסמך
 const ref = doc(db, "businesses", businessId);
 
 try {
+  console.log("💾 Attempting to save review to Firestore...");
+
   await updateDoc(ref, {
     reviews: arrayUnion({
       reviewerName: name,
@@ -756,15 +765,15 @@ try {
     }),
   });
 
-  console.log("✅ Bad review saved to Firestore");
-  alert("Your feedback was sent successfully!");
+  console.log("✅ Firestore save success!");
+  alert("✅ Your feedback was sent successfully and saved to dashboard!");
 
 } catch (err) {
   console.error("❌ Firestore update error:", err);
-  alert("Error saving review.");
+  alert("⚠️ Error saving review to Firestore. Check console for details.");
 }
-  });
-}
+
+console.log("🔚 DEBUG MODE: Script finished");
 </script>
   
 </body>
