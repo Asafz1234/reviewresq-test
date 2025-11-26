@@ -196,3 +196,28 @@ window.downloadPDF = async function () {
 
   pdf.save("ReviewResQ-QR.pdf");
 };
+
+// 🔹 Save Branding to Firestore
+async function saveBranding() {
+    const uid = auth.currentUser.uid;
+    const docRef = doc(db, "businesses", uid);
+
+    const primary = document.getElementById("primaryColor").value;
+    const buttonColor = document.getElementById("buttonColor").value;
+    const bgColor = document.getElementById("backgroundColor").value;
+
+    try {
+        await updateDoc(docRef, {
+            branding: {
+                primaryColor: primary,
+                buttonColor: buttonColor,
+                backgroundColor: bgColor
+            }
+        });
+
+        alert("Branding updated successfully!");
+    } catch (err) {
+        console.error("Branding update error:", err);
+        alert("Error saving branding");
+    }
+}
