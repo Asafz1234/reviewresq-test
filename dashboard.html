@@ -124,15 +124,17 @@
         const item = document.createElement("article");
         item.className = "reviewItem";
         item.innerHTML = `
-          <div class="review-header">
-            <div>
-              <div class="reviewer-name">${r.reviewerName || "Customer"}</div>
-              <div class="review-date">${r.date || ""}</div>
-            </div>
-            <div class="review-rating">⭐ ${r.rating || "-"}</div>
-          </div>
-          <p class="review-comment">${r.comment || ""}</p>
-        `;
+  <div class="review-header">
+      <div>
+          <div class="reviewer-name">${r.reviewerName || "Customer"}</div>
+          <div class="review-date">${r.date || ""}</div>
+      </div>
+
+      <div class="review-rating">⭐ ${r.rating || "-"}</div>
+  </div>
+
+  <p class="review-comment">${r.comment || ""}</p>
+`;
         reviewsDiv.appendChild(item);
       });
     }
