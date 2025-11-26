@@ -172,7 +172,9 @@ function loadCharts(reviews) {
 // =======================
 // ICONS
 // =======================
-feather.replace();
+if (window.feather) {
+  feather.replace();
+}
 
 // =======================
 // QR + LINK FUNCTIONS
