@@ -700,40 +700,70 @@
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   // כפתור שליחת ביקורת שלילית
-  const sendBtn = document.getElementById("sendFeedback");
+  <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  updateDoc,
+  arrayUnion
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  if (sendBtn) {
-    sendBtn.addEventListener("click", async (e) => {
-      e.preventDefault(); // שלא ינסה לשלוח טופס רגיל
+const firebaseConfig = {
+  apiKey: "AIzaSyB3B-Xq5Q4G8LAgAGZyS9Oq14tqWIMvaw",
+  authDomain: "reviewresq.firebaseapp.com",
+  projectId: "reviewresq",
+  storageBucket: "reviewresq.appspot.com",
+  messagingSenderId: "829110104269",
+  appId: "1:829110104269:web:1f1e7b0a91bff6a4c02f54"
+};
 
-      // לוקחים מהשדות של הפידבק
-      const name = document.getElementById("name")?.value || "Anonymous";
-      const comment = document.getElementById("feedback")?.value || "";
-      const rating = window.currentRating || 1;
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-      // מזהים את הלקוח מתוך הקישור - דוגמה:
-      // demo.html?id=BUSINESS_ID
-      const params = new URLSearchParams(window.location.search);
-      const businessId = params.get("id");
+const sendBtn = document.getElementById("sendfeedback");
+const feedbackForm = document.getElementById("feedbackForm");
 
-      if (!businessId) {
-        console.error("❌ No business ID found in URL!");
-        alert("Business ID missing in URL");
-        return;
-      }
+if (sendBtn && feedbackForm) {
+  sendBtn.addEventListener("click", async (e) => {
+    e.preventDefault(); // עוצר רגע את השליחה למייל
 
-      // קישור למסמך בפיירסטור
+    const name = document.getElementById("name")?.value || "Anonymous";
+    const comment = document.getElementById("feedback")?.value || "";
+    const rating = window.currentRating || 1;
+
+    // מוציא Business ID מהקישור
+    const params = new URLSearchParams(window.location.search);
+    const businessId = params.get("id");
+
+    if (!businessId) {
+      alert("Business ID missing in URL");
+      return;
+    }
+
+    try {
       const ref = doc(db, "businesses", businessId);
 
-      try {
-        await updateDoc(ref, {
-          reviews: arrayUnion({
-            reviewerName: name,
-            comment: comment,
-            rating: rating,
-            date: new Date().toISOString().split("T")[0]
-          })
-        });
+      await updateDoc(ref, {
+        reviews: arrayUnion({
+          reviewerName: name,
+          comment: comment,
+          rating: rating,
+          date: new Date().toISOString().split("T")[0]
+        })
+      });
+
+      console.log("✔ Review saved to Firestore");
+
+      // אחרי השמירה לפיירסטור – שולח את המייל
+      feedbackForm.submit();
+    } catch (err) {
+      console.error("Firestore error:", err);
+      alert("Error saving review, try again.");
+    }
+  });
+}
+</script>
 
         console.log("✅ Bad review saved to Firestore");
         alert("Your feedback was sent successfully!");
