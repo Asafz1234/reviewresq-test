@@ -120,11 +120,67 @@ onAuthStateChanged(auth, async (user) => {
 // CHARTS
 // =======================
 function loadCharts(reviews) {
+  // אם ספריית Chart לא נטענה – אל תעשה כלום
+  if (typeof Chart === "undefined") {
+    console.warn("Chart.js not loaded - skipping charts");
+    return;
+  }
+
+  const starCtx = document.getElementById("starChart");
+  const pieCtx  = document.getElementById("pieChart");
+  const lineCtx = document.getElementById("lineChart");
+
+  // אם אין קנבאסים בדף – לא מנסים לצייר
+  if (!starCtx || !pieCtx || !lineCtx) {
+    console.warn("Chart canvas elements not found - skipping charts");
+    return;
+  }
+
   const starCounts = [0, 0, 0, 0, 0];
   reviews.forEach(r => {
     if (r.rating >= 1 && r.rating <= 5) {
       starCounts[r.rating - 1]++;
     }
+  });
+
+  new Chart(starCtx, {
+    type: "bar",
+    data: {
+      labels: ["1★", "2★", "3★", "4★", "5★"],
+      datasets: [{
+        label: "Ratings",
+        backgroundColor: "#1a73e8",
+        data: starCounts
+      }]
+    }
+  });
+
+  const pos = reviews.filter(r => r.rating >= 4).length;
+  const neg = reviews.filter(r => r.rating <= 3).length;
+
+  new Chart(pieCtx, {
+    type: "pie",
+    data: {
+      labels: ["Positive", "Negative"],
+      datasets: [{
+        data: [pos, neg],
+        backgroundColor: ["#43a047", "#e53935"]
+      }]
+    }
+  });
+
+  new Chart(lineCtx, {
+    type: "line",
+    data: {
+      labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+      datasets: [{
+        label: "Monthly Reviews",
+        borderColor: "#1a73e8",
+        data: [5, 8, 12, 18, 14, reviews.length]
+      }]
+    }
+  });
+}
   });
 
   // Bar: stars
