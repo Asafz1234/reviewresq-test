@@ -8,25 +8,35 @@
     name="description"
     content="ReviewResQ builds a simple review funnel for local businesses. Happy customers go to Google for a 5-star review. Upset customers send private feedback to you first."
   />
+
+  <!-- Nice modern font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
     :root {
-      --bg-page: #0f172a;
-      --bg-soft: #0b1220;
-      --bg-card: #020617;
-      --bg-card-soft: #020617;
-      --border-soft: rgba(148, 163, 184, 0.28);
+      --bg-page: #f3f4f6;
+      --bg-shell: #f3f4f6;
+      --bg-card: #ffffff;
+      --bg-soft: #f9fafb;
+      --border-soft: #e5e7eb;
+
       --accent: #2563eb;
-      --accent-soft: #60a5fa;
-      --accent-soft2: #22c55e;
-      --accent-gold: #facc15;
-      --text-main: #e5e7eb;
-      --text-sub: #cbd5f5;
-      --text-soft: #9ca3af;
-      --text-muted: #6b7280;
+      --accent-soft: #1d4ed8;
+      --accent-gold: #d97706;
+      --accent-green: #16a34a;
+
+      --text-main: #0f172a;
+      --text-sub: #4b5563;
+      --text-soft: #6b7280;
+      --text-muted: #9ca3af;
+
       --radius-lg: 20px;
-      --radius-xl: 28px;
+      --radius-xl: 26px;
       --radius-pill: 999px;
-      --shadow-card: 0 26px 70px rgba(15, 23, 42, 0.75);
+
+      --shadow-soft: 0 16px 45px rgba(15, 23, 42, 0.10);
     }
 
     * {
@@ -36,12 +46,9 @@
     }
 
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
         "Segoe UI", sans-serif;
-      background:
-        radial-gradient(circle at top left, #1d4ed8 0, transparent 45%),
-        radial-gradient(circle at top right, #22c55e 0, transparent 40%),
-        var(--bg-page);
+      background: var(--bg-page);
       color: var(--text-main);
       -webkit-font-smoothing: antialiased;
     }
@@ -64,29 +71,21 @@
       padding: 0 16px 56px;
     }
 
-    .hidden {
-      display: none;
-    }
-
     /* HEADER */
 
     header {
       position: sticky;
       top: 0;
       z-index: 40;
+      background: rgba(255, 255, 255, 0.96);
       backdrop-filter: blur(20px);
-      background: linear-gradient(
-        to bottom,
-        rgba(15, 23, 42, 0.9),
-        rgba(15, 23, 42, 0.7),
-        transparent
-      );
+      border-bottom: 1px solid rgba(229, 231, 235, 0.9);
     }
 
     .nav {
       max-width: 1120px;
       margin: 0 auto;
-      padding: 14px 16px 10px;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -103,34 +102,28 @@
       width: 34px;
       height: 34px;
       border-radius: 999px;
-      background: radial-gradient(circle at 20% 20%, #93c5fd, #1d4ed8);
+      background: linear-gradient(135deg, #2563eb, #60a5fa);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #eff6ff;
       font-weight: 800;
       font-size: 18px;
-      box-shadow: 0 14px 30px rgba(37, 99, 235, 0.6);
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.45);
     }
 
     .brand-text-main {
       font-weight: 700;
-      letter-spacing: 0.12em;
-      font-size: 13px;
-      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 14px;
+      text-transform: none;
     }
 
     .brand-text-sub {
       font-size: 11px;
       color: var(--text-soft);
-      letter-spacing: 0.22em;
+      letter-spacing: 0.20em;
       text-transform: uppercase;
-    }
-
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
     }
 
     .nav-links {
@@ -153,7 +146,7 @@
       width: 0;
       height: 2px;
       border-radius: 999px;
-      background: linear-gradient(90deg, #60a5fa, #22c55e);
+      background: linear-gradient(90deg, #2563eb, #60a5fa);
       transition: width 140ms ease-out;
     }
 
@@ -170,27 +163,27 @@
     .btn-nav-outline {
       border-radius: var(--radius-pill);
       padding: 7px 14px;
-      border: 1px solid rgba(148, 163, 184, 0.7);
-      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid #d1d5db;
+      background: #ffffff;
       font-size: 13px;
-      color: var(--text-sub);
+      color: var(--text-soft);
       cursor: pointer;
     }
 
     .btn-nav-outline:hover {
-      background: rgba(15, 23, 42, 0.95);
+      background: #f9fafb;
     }
 
     .btn-nav-primary {
       border-radius: var(--radius-pill);
       padding: 8px 18px;
       border: none;
-      background: linear-gradient(135deg, #2563eb, #22c55e);
+      background: #2563eb;
       color: #f9fafb;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 14px 32px rgba(37, 99, 235, 0.55);
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.35);
       white-space: nowrap;
     }
 
@@ -203,8 +196,8 @@
       border-radius: 999px;
       width: 32px;
       height: 32px;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid #d1d5db;
+      background: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -215,7 +208,7 @@
       width: 16px;
       height: 2px;
       border-radius: 999px;
-      background: #e5e7eb;
+      background: #4b5563;
       position: relative;
     }
 
@@ -227,7 +220,7 @@
       width: 16px;
       height: 2px;
       border-radius: 999px;
-      background: #e5e7eb;
+      background: #4b5563;
     }
 
     .nav-menu-btn span::before {
@@ -241,9 +234,8 @@
     .mobile-menu {
       display: none;
       padding: 8px 16px 14px;
-      border-top: 1px solid rgba(148, 163, 184, 0.4);
-      background: rgba(15, 23, 42, 0.98);
-      backdrop-filter: blur(20px);
+      border-top: 1px solid #e5e7eb;
+      background: #ffffff;
     }
 
     .mobile-menu.open {
@@ -284,27 +276,38 @@
       }
     }
 
-    /* HERO – MOBILE FIRST */
+    /* HERO */
 
     main {
       flex: 1;
     }
 
     .hero-wrapper {
-      margin-top: 14px;
+      margin-top: 18px;
     }
 
     .hero {
-      background: radial-gradient(circle at top left, #1d4ed8 0, transparent 58%),
-        radial-gradient(circle at bottom right, #22c55e 0, transparent 45%),
-        rgba(15, 23, 42, 0.98);
+      background: var(--bg-card);
       border-radius: var(--radius-xl);
-      padding: 20px 18px 22px;
-      box-shadow: var(--shadow-card);
-      border: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 22px 18px 22px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border-soft);
       display: flex;
       flex-direction: column;
       gap: 18px;
+    }
+
+    @media (min-width: 900px) {
+      .hero {
+        flex-direction: row;
+        align-items: stretch;
+        gap: 22px;
+        padding: 26px 26px 24px;
+      }
+    }
+
+    .hero-main {
+      flex: 3;
     }
 
     .hero-kicker {
@@ -313,9 +316,9 @@
       gap: 8px;
       padding: 4px 10px;
       border-radius: var(--radius-pill);
-      border: 1px solid rgba(45, 212, 191, 0.6);
-      background: rgba(15, 118, 110, 0.18);
-      color: #a7f3d0;
+      border: 1px solid #bbf7d0;
+      background: #ecfdf5;
+      color: #166534;
       font-size: 11px;
       margin-bottom: 10px;
     }
@@ -339,25 +342,20 @@
     }
 
     @media (min-width: 900px) {
-      .hero {
-        flex-direction: row;
-        align-items: stretch;
-        gap: 22px;
-        padding: 26px 26px 24px;
-      }
       .hero-title {
         font-size: 32px;
       }
     }
 
     .hero-title span.accent {
-      color: #60a5fa;
+      color: var(--accent-gold);
     }
 
     .hero-subtitle {
       font-size: 14px;
       color: var(--text-sub);
       margin-bottom: 12px;
+      max-width: 34rem;
     }
 
     .hero-pills {
@@ -374,8 +372,8 @@
       gap: 6px;
       padding: 5px 10px;
       border-radius: var(--radius-pill);
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-soft);
+      background: var(--bg-soft);
       color: var(--text-soft);
     }
 
@@ -383,7 +381,7 @@
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: #22c55e;
+      background: var(--accent-green);
     }
 
     .hero-ctas {
@@ -409,11 +407,11 @@
       border-radius: var(--radius-pill);
       border: none;
       cursor: pointer;
-      background: linear-gradient(135deg, #2563eb, #22c55e);
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
       color: #f9fafb;
       font-size: 14px;
       font-weight: 600;
-      box-shadow: 0 22px 55px rgba(37, 99, 235, 0.7);
+      box-shadow: 0 18px 45px rgba(37, 99, 235, 0.35);
       width: 100%;
     }
 
@@ -440,8 +438,8 @@
       gap: 6px;
       padding: 10px 16px;
       border-radius: var(--radius-pill);
-      border: 1px solid rgba(148, 163, 184, 0.7);
-      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #d1d5db;
+      background: #ffffff;
       color: var(--text-sub);
       font-size: 13px;
       width: 100%;
@@ -464,7 +462,7 @@
     }
 
     .hero-footnote strong {
-      color: #e5e7eb;
+      color: var(--text-main);
     }
 
     .hero-hint {
@@ -472,28 +470,19 @@
       color: var(--text-muted);
     }
 
-    /* HERO MOCKUP */
+    /* HERO MOCKUP – PHONE CARD */
 
     .hero-mock {
+      flex: 2.2;
       margin-top: 6px;
-      background: var(--bg-card-soft);
+      background: #ffffff;
       border-radius: 18px;
-      border: 1px solid rgba(148, 163, 184, 0.5);
+      border: 1px solid var(--border-soft);
       padding: 12px 12px 10px;
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.7);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
       max-width: 360px;
       margin-left: auto;
       margin-right: auto;
-    }
-
-    @media (min-width: 900px) {
-      .hero-main {
-        flex: 3;
-      }
-      .hero-mock {
-        flex: 2.2;
-        margin: 0;
-      }
     }
 
     .mock-header {
@@ -513,7 +502,7 @@
       width: 34px;
       height: 34px;
       border-radius: 999px;
-      background: radial-gradient(circle at 20% 20%, #93c5fd, #1d4ed8);
+      background: linear-gradient(135deg, #2563eb, #60a5fa);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -525,7 +514,7 @@
     .mock-name {
       font-size: 12px;
       font-weight: 600;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.10em;
     }
 
     .mock-sub {
@@ -540,23 +529,23 @@
       padding: 3px 8px;
       border-radius: 999px;
       font-size: 10px;
-      border: 1px solid rgba(34, 197, 94, 0.5);
-      background: rgba(22, 163, 74, 0.15);
-      color: #bbf7d0;
+      border: 1px solid #bbf7d0;
+      background: #ecfdf5;
+      color: #166534;
     }
 
     .mock-status span.dot {
       width: 6px;
       height: 6px;
       border-radius: 999px;
-      background: #22c55e;
+      background: var(--accent-green);
     }
 
     .mock-body {
       border-radius: 14px;
       padding: 10px;
-      background: #020617;
-      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
       font-size: 11px;
     }
 
@@ -615,13 +604,13 @@
     }
 
     .mock-pill.good {
-      background: rgba(22, 163, 74, 0.16);
-      border: 1px solid rgba(74, 222, 128, 0.7);
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
     }
 
     .mock-pill.bad {
-      background: rgba(185, 28, 28, 0.16);
-      border: 1px solid rgba(248, 113, 113, 0.8);
+      background: #fef2f2;
+      border: 1px solid #fecaca;
     }
 
     .mock-pill-head {
@@ -634,7 +623,7 @@
     .mock-pill-badge {
       padding: 1px 5px;
       border-radius: 999px;
-      background: rgba(15, 23, 42, 0.7);
+      background: rgba(15, 23, 42, 0.05);
       font-size: 9px;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -660,7 +649,7 @@
     }
 
     .mock-powered span {
-      color: #93c5fd;
+      color: var(--accent-soft);
       font-weight: 600;
     }
 
@@ -681,6 +670,38 @@
       max-width: 40rem;
     }
 
+    /* METRICS STRIP */
+
+    .metrics-strip {
+      margin-top: 26px;
+      padding: 12px 14px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-soft);
+      background: #ffffff;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      font-size: 11px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .metrics-item span.value {
+      display: block;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent-soft);
+    }
+
+    .metrics-item span.label {
+      color: var(--text-soft);
+    }
+
+    @media (max-width: 640px) {
+      .metrics-strip {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
     /* HOW IT WORKS */
 
     .steps-grid {
@@ -697,11 +718,11 @@
     }
 
     .step-card {
-      background: rgba(15, 23, 42, 0.9);
+      background: #ffffff;
       border-radius: var(--radius-lg);
-      border: 1px solid rgba(148, 163, 184, 0.4);
+      border: 1px solid var(--border-soft);
       padding: 14px 14px 12px;
-      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.65);
+      box-shadow: var(--shadow-soft);
     }
 
     .step-label {
@@ -739,11 +760,11 @@
     }
 
     .benefit-card {
-      background: rgba(15, 23, 42, 0.9);
+      background: #ffffff;
       border-radius: var(--radius-lg);
-      border: 1px solid rgba(148, 163, 184, 0.4);
+      border: 1px solid var(--border-soft);
       padding: 14px 14px 12px;
-      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.65);
+      box-shadow: var(--shadow-soft);
     }
 
     .benefit-title {
@@ -769,40 +790,8 @@
     .benefit-tag {
       padding: 3px 8px;
       border-radius: var(--radius-pill);
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid rgba(148, 163, 184, 0.4);
-    }
-
-    /* SOCIAL PROOF STRIP */
-
-    .metrics-strip {
-      margin-top: 26px;
-      padding: 12px 14px;
-      border-radius: var(--radius-lg);
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      background: radial-gradient(circle at left, rgba(96, 165, 250, 0.35), transparent 60%),
-        radial-gradient(circle at right, rgba(34, 197, 94, 0.35), transparent 55%),
-        rgba(15, 23, 42, 0.9);
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      font-size: 11px;
-    }
-
-    .metrics-item span.value {
-      display: block;
-      font-size: 18px;
-      font-weight: 700;
-    }
-
-    .metrics-item span.label {
-      color: var(--text-soft);
-    }
-
-    @media (max-width: 640px) {
-      .metrics-strip {
-        grid-template-columns: minmax(0, 1fr);
-      }
+      background: var(--bg-soft);
+      border: 1px solid var(--border-soft);
     }
 
     /* PRICING */
@@ -821,19 +810,19 @@
     }
 
     .plan-card {
-      background: rgba(15, 23, 42, 0.94);
+      background: #ffffff;
       border-radius: var(--radius-lg);
-      border: 1px solid rgba(148, 163, 184, 0.4);
+      border: 1px solid var(--border-soft);
       padding: 16px 16px 14px;
-      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.7);
+      box-shadow: var(--shadow-soft);
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
 
     .plan-card.highlight {
-      border-color: rgba(96, 165, 250, 0.9);
-      box-shadow: 0 26px 70px rgba(37, 99, 235, 0.9);
+      border-color: var(--accent-soft);
+      box-shadow: 0 26px 70px rgba(37, 99, 235, 0.24);
       position: relative;
       overflow: hidden;
     }
@@ -909,9 +898,9 @@
       font-size: 10px;
       padding: 3px 8px;
       border-radius: var(--radius-pill);
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(129, 140, 248, 0.8);
-      color: #c7d2fe;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
       letter-spacing: 0.16em;
       text-transform: uppercase;
     }
@@ -932,11 +921,11 @@
     }
 
     .faq-item {
-      background: rgba(15, 23, 42, 0.92);
+      background: #ffffff;
       border-radius: var(--radius-lg);
-      border: 1px solid rgba(148, 163, 184, 0.4);
+      border: 1px solid var(--border-soft);
       padding: 12px 14px 12px;
-      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.7);
+      box-shadow: var(--shadow-soft);
       font-size: 13px;
     }
 
@@ -955,13 +944,12 @@
       margin-top: 34px;
       padding: 16px 18px;
       border-radius: var(--radius-lg);
-      background: radial-gradient(circle at top left, rgba(96, 165, 250, 0.4), transparent 60%),
-        radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.4), transparent 55%),
-        rgba(15, 23, 42, 0.96);
-      border: 1px solid rgba(148, 163, 184, 0.55);
+      background: #ffffff;
+      border: 1px solid var(--border-soft);
       display: flex;
       flex-direction: column;
       gap: 10px;
+      box-shadow: var(--shadow-soft);
     }
 
     @media (min-width: 720px) {
@@ -985,8 +973,8 @@
     /* FOOTER */
 
     footer {
-      border-top: 1px solid rgba(148, 163, 184, 0.4);
-      background: #020617;
+      border-top: 1px solid #e5e7eb;
+      background: #ffffff;
       padding: 10px 0;
       font-size: 11px;
       color: var(--text-muted);
@@ -1004,7 +992,7 @@
     }
 
     .footer-inner a {
-      color: #93c5fd;
+      color: var(--accent-soft);
       text-decoration: underline;
       text-underline-offset: 3px;
     }
@@ -1014,12 +1002,12 @@
       text-align: center;
       font-size: 12px;
       color: var(--text-soft);
-      background: #020617;
+      background: #ffffff;
     }
 
     .legal-footer a {
       margin: 0 10px;
-      color: #9ca3af;
+      color: #6b7280;
       text-decoration: none;
     }
 
@@ -1035,7 +1023,7 @@
         <div class="brand">
           <div class="brand-icon">R</div>
           <div>
-            <div class="brand-text-main">REVIEWRESQ</div>
+            <div class="brand-text-main">ReviewResQ</div>
             <div class="brand-text-sub">REVIEWS · REPUTATION · RESCUE</div>
           </div>
         </div>
