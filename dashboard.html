@@ -741,7 +741,7 @@
 
         const businessName = data.businessName || data.name || "Your business";
         const welcomeTitle = byId("welcomeTitle");
-        if (welcomeTitle) welcomeTitle.textContent = \`Welcome back, \${businessName}\`;
+        if (welcomeTitle) welcomeTitle.textContent = `Welcome back, \${businessName}\`;
 
         if (data.branding) {
           const { primaryColor, buttonColor, backgroundColor } = data.branding;
