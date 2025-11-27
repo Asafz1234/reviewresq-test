@@ -231,43 +231,98 @@
       }
     });
 
-    // SIGNUP
-    $("signupForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const businessName = $("signupBusinessName").value.trim();
-      const phone = $("signupPhone").value.trim();
-      const email = $("signupEmail").value.trim();
-      const password = $("signupPassword").value;
+  // SIGNUP (Create account)
+signupForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  signupError.textContent = "";
 
-      if (!businessName || !phone) {
-        $("signupError").textContent = "Please fill business name and phone.";
-        return;
-      }
+  const businessNameInput = document.getElementById("signupBusinessName");
+  const phoneInput        = document.getElementById("signupPhone");
+  const emailInput        = document.getElementById("signupEmail");
+  const passwordInput     = document.getElementById("signupPassword");
 
-      if (phone.length < 7) {
-        $("signupError").textContent = "Phone number is too short.";
-        return;
-      }
+  const businessName = businessNameInput.value.trim();
+  const phone        = phoneInput.value.trim();
+  const email        = emailInput.value.trim();
+  const password     = passwordInput.value;
 
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        await setDoc(doc(db, "businesses", cred.user.uid), {
-          businessName,
-          phone,
-          email,
-          plan: "advanced",
-          createdAt: new Date().toISOString(),
-          reviews: []
-        });
-        window.location.href = "/dashboard";
-      } catch (err) {
-        let msg = "Could not create account.";
-        if (err.code === "auth/email-already-in-use") msg = "Email already in use.";
-        if (err.code === "auth/weak-password") msg = "Password must be 6+ characters.";
-        $("signupError").textContent = msg;
-      }
+  // ---------- ולידציה בצד הלקוח ----------
+
+  // שם עסק
+  if (businessName.length < 2) {
+    signupError.textContent = "Business name must be at least 2 characters.";
+    businessNameInput.focus();
+    return;
+  }
+
+  // טלפון – רק ספרות ולפחות 7
+  const phoneClean = phone.replace(/\D/g, "");
+  if (phoneClean.length < 7) {
+    signupError.textContent = "Please enter a valid phone number (at least 7 digits).";
+    phoneInput.focus();
+    return;
+  }
+
+  // אימייל
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    signupError.textContent = "Please enter a valid email address.";
+    emailInput.focus();
+    return;
+  }
+
+  // סיסמה
+  if (password.length < 6) {
+    signupError.textContent = "Password must be at least 6 characters.";
+    passwordInput.focus();
+    return;
+  }
+
+  // ---------- יצירת משתמש בפיירבייס ----------
+
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const uid  = cred.user.uid;
+
+    await setDoc(doc(db, "businesses", uid), {
+      businessName,
+      email,
+      phone: phoneClean,
+      plan: "advanced",
+      createdAt: new Date().toISOString(),
+      reviews: []
     });
 
+    // מעבר לדשבורד אחרי יצירה
+    window.location.href = "/dashboard";
+  } catch (err) {
+    console.error("Signup error:", err.code, err.message);
+
+    let msg;
+    switch (err.code) {
+      case "auth/email-already-in-use":
+        msg = "This email is already in use. Try logging in instead.";
+        break;
+      case "auth/invalid-email":
+        msg = "Email address is not valid.";
+        break;
+      case "auth/weak-password":
+        msg = "Password is too weak (minimum 6 characters).";
+        break;
+      case "auth/missing-password":
+        msg = "Please enter a password.";
+        break;
+      case "auth/operation-not-allowed":
+        msg = "Email/password sign-up is disabled. Enable it in Firebase Authentication → Sign-in method.";
+        break;
+      default:
+        msg = "Could not create account. Please check the details and try again.";
+        break;
+    }
+
+    signupError.textContent = msg;
+  }
+});
     // RESET PASSWORD
     $("forgotLink").onclick = () => {
       $("resetForm").style.display = "block";
