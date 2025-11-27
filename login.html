@@ -1,406 +1,175 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Login • ReviewResQ</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import {
+    getAuth,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    sendPasswordResetEmail
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import {
+    getFirestore,
+    doc,
+    setDoc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top left, #1d4ed8, #020617 55%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #0f172a;
+  const firebaseConfig = {
+    apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
+    authDomain: "reviewresq-app.firebaseapp.com",
+    projectId: "reviewresq-app",
+    storageBucket: "reviewresq-app.firebasestorage.app",
+    messagingSenderId: "863497920392",
+    appId: "1:863497920392:web:ca99060b42a50711b9e43d"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // UI elements
+  const tabLogin = document.getElementById("tab-login");
+  const tabSignup = document.getElementById("tab-signup");
+  const loginForm = document.getElementById("loginForm");
+  const signupForm = document.getElementById("signupForm");
+  const resetForm = document.getElementById("resetForm");
+  const forgotLink = document.getElementById("forgotLink");
+
+  const loginError = document.getElementById("loginError");
+  const signupError = document.getElementById("signupError");
+  const resetMessage = document.getElementById("resetMessage");
+
+  // Switch tabs
+  function showTab(tab) {
+    if (tab === "login") {
+      tabLogin.classList.add("active");
+      tabSignup.classList.remove("active");
+      loginForm.classList.add("active");
+      signupForm.classList.remove("active");
+    } else {
+      tabSignup.classList.add("active");
+      tabLogin.classList.remove("active");
+      signupForm.classList.add("active");
+      loginForm.classList.remove("active");
+    }
+    loginError.textContent = "";
+    signupError.textContent = "";
+    resetMessage.textContent = "";
+    resetForm.style.display = "none";
+  }
+
+  tabLogin.addEventListener("click", () => showTab("login"));
+  tabSignup.addEventListener("click", () => showTab("signup"));
+
+  // LOGIN
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    loginError.textContent = "";
+
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value;
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error(err);
+      if (err.code === "auth/invalid-email") loginError.textContent = "Invalid email format.";
+      else if (err.code === "auth/user-not-found") loginError.textContent = "Account not found.";
+      else if (err.code === "auth/wrong-password") loginError.textContent = "Wrong password.";
+      else loginError.textContent = "Login failed.";
+    }
+  });
+
+  // VALIDATIONS
+  function isValidPhone(phone) {
+    return /^[0-9\-+() ]{7,15}$/.test(phone);
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  // SIGNUP
+  signupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    signupError.textContent = "";
+
+    const businessName = signupBusinessName.value.trim();
+    const phone = signupPhone.value.trim();
+    const email = signupEmail.value.trim();
+    const password = signupPassword.value;
+
+    // VALIDATIONS
+    if (!businessName) {
+      signupError.textContent = "Business name is required.";
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      signupError.textContent = "Enter a valid phone number.";
+      return;
+    }
+    if (!isValidEmail(email)) {
+      signupError.textContent = "Enter a valid email.";
+      return;
+    }
+    if (password.length < 6) {
+      signupError.textContent = "Password must be at least 6 characters.";
+      return;
     }
 
-    .card {
-      background: #ffffff;
-      width: 100%;
-      max-width: 420px;
-      padding: 32px 28px;
-      border-radius: 18px;
-      box-shadow: 0 30px 70px rgba(15, 23, 42, 0.35);
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = cred.user.uid;
+
+      await setDoc(doc(db, "businesses", uid), {
+        businessName,
+        email,
+        phone,
+        plan: "advanced",
+        createdAt: new Date().toISOString(),
+        reviews: []
+      });
+
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error(err);
+      if (err.code === "auth/email-already-in-use")
+        signupError.textContent = "This email is already registered.";
+      else if (err.code === "auth/invalid-email")
+        signupError.textContent = "Invalid email format.";
+      else if (err.code === "auth/weak-password")
+        signupError.textContent = "Password is too weak.";
+      else signupError.textContent = "Could not create account.";
+    }
+  });
+
+  // FORGOT PASSWORD
+  forgotLink.addEventListener("click", () => {
+    resetForm.style.display = "block";
+    resetMessage.textContent = "";
+    const emailFromLogin = loginEmail.value.trim();
+    if (emailFromLogin) resetEmail.value = emailFromLogin;
+  });
+
+  resetForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    resetMessage.textContent = "";
+
+    const email = resetEmail.value.trim();
+    if (!isValidEmail(email)) {
+      resetMessage.textContent = "Enter a valid email address.";
+      return;
     }
 
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 18px;
-    }
-
-    .logo-badge {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 17px;
-      color: #e5f0ff;
-      background: radial-gradient(circle at 30% 0%, #60a5fa, #1d4ed8 55%, #0f172a 100%);
-    }
-
-    .logo-text-title {
-      font-weight: 700;
-      font-size: 18px;
-      color: #020617;
-    }
-
-    .logo-text-sub {
-      font-size: 12px;
-      color: #6b7280;
-    }
-
-    h1 {
-      font-size: 22px;
-      margin-bottom: 4px;
-      color: #020617;
-    }
-
-    .subtitle {
-      font-size: 13px;
-      color: #6b7280;
-      margin-bottom: 18px;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 8px;
-      background: #f3f4f6;
-      border-radius: 999px;
-      padding: 4px;
-      margin-bottom: 18px;
-    }
-
-    .tab-btn {
-      flex: 1;
-      border: none;
-      background: transparent;
-      font-size: 13px;
-      padding: 7px 0;
-      border-radius: 999px;
-      cursor: pointer;
-      color: #6b7280;
-      font-weight: 500;
-    }
-
-    .tab-btn.active {
-      background: #1d4ed8;
-      color: #e5f0ff;
-      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.4);
-    }
-
-    form {
-      display: none;
-      margin-top: 4px;
-    }
-
-    form.active {
-      display: block;
-    }
-
-    label {
-      display: block;
-      font-size: 13px;
-      margin-bottom: 4px;
-      color: #4b5563;
-    }
-
-    input {
-      width: 100%;
-      padding: 9px 11px;
-      border-radius: 10px;
-      border: 1px solid #e5e7eb;
-      font-size: 13px;
-      margin-bottom: 12px;
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-
-    input:focus {
-      border-color: #2563eb;
-      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.10);
-    }
-
-    .btn-primary {
-      width: 100%;
-      border: none;
-      border-radius: 999px;
-      padding: 9px 0;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      background: linear-gradient(to right, #2563eb, #4f46e5);
-      color: #e5f0ff;
-      box-shadow: 0 14px 28px rgba(37, 99, 235, 0.55);
-      margin-top: 4px;
-    }
-
-    .btn-primary:active {
-      transform: translateY(1px);
-      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.4);
-    }
-
-    .row-inline {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 4px;
-      margin-bottom: 10px;
-    }
-
-    .link {
-      font-size: 12px;
-      color: #2563eb;
-      cursor: pointer;
-      text-decoration: none;
-    }
-
-    .link:hover {
-      text-decoration: underline;
-    }
-
-    .helper {
-      font-size: 11px;
-      color: #9ca3af;
-      margin-top: 4px;
-    }
-
-    .error {
-      margin-top: 6px;
-      font-size: 12px;
-      color: #ef4444;
-      min-height: 16px;
-    }
-
-    .success {
-      margin-top: 6px;
-      font-size: 12px;
-      color: #16a34a;
-      min-height: 16px;
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="logo">
-      <div class="logo-badge">R</div>
-      <div>
-        <div class="logo-text-title">ReviewResQ</div>
-        <div class="logo-text-sub">Business Portal</div>
-      </div>
-    </div>
-
-    <h1>Welcome back</h1>
-    <p class="subtitle">Sign in or create your ReviewResQ account.</p>
-
-    <div class="tabs">
-      <button id="tab-login" class="tab-btn active">Login</button>
-      <button id="tab-signup" class="tab-btn">Create account</button>
-    </div>
-
-    <!-- LOGIN FORM -->
-    <form id="loginForm" class="active">
-      <label for="loginEmail">Email</label>
-      <input id="loginEmail" type="email" autocomplete="email" required />
-
-      <label for="loginPassword">Password</label>
-      <input id="loginPassword" type="password" autocomplete="current-password" required />
-
-      <div class="row-inline">
-        <span></span>
-        <a id="forgotLink" class="link">Forgot password?</a>
-      </div>
-
-      <button type="submit" class="btn-primary">Login</button>
-      <div id="loginError" class="error"></div>
-    </form>
-
-    <!-- SIGNUP FORM -->
-    <form id="signupForm">
-      <label for="signupBusinessName">Business name</label>
-      <input id="signupBusinessName" type="text" required />
-
-      <label for="signupPhone">Phone</label>
-      <input id="signupPhone" type="tel" required />
-
-      <label for="signupEmail">Email</label>
-      <input id="signupEmail" type="email" autocomplete="email" required />
-
-      <label for="signupPassword">Password</label>
-      <input id="signupPassword" type="password" autocomplete="new-password" required />
-
-      <p class="helper">We’ll use this email for login and password reset.</p>
-
-      <button type="submit" class="btn-primary">Create account</button>
-      <div id="signupError" class="error"></div>
-    </form>
-
-    <!-- RESET PASSWORD FORM (modal style inside card) -->
-    <form id="resetForm" style="display:none; margin-top:10px;">
-      <label for="resetEmail">Reset password</label>
-      <input id="resetEmail" type="email" placeholder="Your account email" required />
-      <button type="submit" class="btn-primary">Send reset link</button>
-      <div id="resetMessage" class="success"></div>
-    </form>
-  </div>
-
-  <!-- FIREBASE / LOGIC -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import {
-      getAuth,
-      signInWithEmailAndPassword,
-      createUserWithEmailAndPassword,
-      sendPasswordResetEmail
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import {
-      getFirestore,
-      doc,
-      setDoc
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
-      authDomain: "reviewresq-app.firebaseapp.com",
-      projectId: "reviewresq-app",
-      storageBucket: "reviewresq-app.firebasestorage.app",
-      messagingSenderId: "863497920392",
-      appId: "1:863497920392:web:ca99060b42a50711b9e43d"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    const tabLogin = document.getElementById("tab-login");
-    const tabSignup = document.getElementById("tab-signup");
-    const loginForm = document.getElementById("loginForm");
-    const signupForm = document.getElementById("signupForm");
-    const resetForm = document.getElementById("resetForm");
-    const forgotLink = document.getElementById("forgotLink");
-
-    const loginError = document.getElementById("loginError");
-    const signupError = document.getElementById("signupError");
-    const resetMessage = document.getElementById("resetMessage");
-
-    function showTab(tab) {
-      if (tab === "login") {
-        tabLogin.classList.add("active");
-        tabSignup.classList.remove("active");
-        loginForm.classList.add("active");
-        signupForm.classList.remove("active");
+    try {
+      await sendPasswordResetEmail(auth, email);
+      resetMessage.textContent = "Reset link sent — check your inbox.";
+    } catch (err) {
+      console.error(err);
+      if (err.code === "auth/user-not-found") {
+        resetMessage.textContent = "No account with this email.";
       } else {
-        tabSignup.classList.add("active");
-        tabLogin.classList.remove("active");
-        signupForm.classList.add("active");
-        loginForm.classList.remove("active");
+        resetMessage.textContent = "Could not send reset email.";
       }
-      // מסתירים הודעות קודמות
-      loginError.textContent = "";
-      signupError.textContent = "";
-      resetMessage.textContent = "";
-      resetForm.style.display = "none";
     }
-
-    tabLogin.addEventListener("click", (e) => {
-      e.preventDefault();
-      showTab("login");
-    });
-
-    tabSignup.addEventListener("click", (e) => {
-      e.preventDefault();
-      showTab("signup");
-    });
-
-    // LOGIN
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      loginError.textContent = "";
-      const email = document.getElementById("loginEmail").value.trim();
-      const password = document.getElementById("loginPassword").value;
-
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        window.location.href = "/dashboard"; // או "dashboard.html" אם זה השם
-      } catch (err) {
-        console.error(err);
-        loginError.textContent = "Login failed. Check your email and password.";
-      }
-    });
-
-    // SIGNUP (Create account)
-    signupForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      signupError.textContent = "";
-
-      const businessName = document.getElementById("signupBusinessName").value.trim();
-      const phone = document.getElementById("signupPhone").value.trim();
-      const email = document.getElementById("signupEmail").value.trim();
-      const password = document.getElementById("signupPassword").value;
-
-      if (!businessName || !phone) {
-        signupError.textContent = "Please fill business name and phone.";
-        return;
-      }
-
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        const uid = cred.user.uid;
-
-        await setDoc(doc(db, "businesses", uid), {
-          businessName,
-          email,
-          phone,
-          plan: "advanced",
-          createdAt: new Date().toISOString(),
-          reviews: []
-        });
-
-        window.location.href = "/dashboard"; // Goes to dashboard after signup
-      } catch (err) {
-        console.error(err);
-        let msg = "Could not create account.";
-        if (err.code === "auth/email-already-in-use") msg = "Email already in use.";
-        if (err.code === "auth/weak-password") msg = "Password should be at least 6 characters.";
-        signupError.textContent = msg;
-      }
-    });
-
-    // FORGOT PASSWORD
-    forgotLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      resetForm.style.display = "block";
-      resetMessage.textContent = "";
-      const emailFromLogin = document.getElementById("loginEmail").value.trim();
-      if (emailFromLogin) {
-        document.getElementById("resetEmail").value = emailFromLogin;
-      }
-    });
-
-    resetForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      resetMessage.textContent = "";
-      const email = document.getElementById("resetEmail").value.trim();
-      if (!email) {
-        resetMessage.textContent = "Enter your email first.";
-        return;
-      }
-
-      try {
-        await sendPasswordResetEmail(auth, email);
-        resetMessage.textContent = "Reset link sent. Check your inbox.";
-      } catch (err) {
-        console.error(err);
-        resetMessage.textContent = "Could not send reset email. Check the address.";
-      }
-    });
-  </script>
-</body>
-</html>
+  });
+</script>
