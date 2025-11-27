@@ -669,6 +669,7 @@
   </div>
 
   <!-- MAIN SCRIPT -->
+ <!-- MAIN SCRIPT -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import {
@@ -684,6 +685,7 @@
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js";
 
+    // ------------ FIREBASE ------------
     const firebaseConfig = {
       apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
       authDomain: "reviewresq-app.firebaseapp.com",
@@ -697,26 +699,39 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // helpers
     const $ = (sel) => document.querySelector(sel);
     const byId = (id) => document.getElementById(id);
 
+    // ------------ LOGOUT ------------
     window.logout = function () {
-      signOut(auth).then(() => (window.location.href = "login.html"));
+      signOut(auth).then(() => {
+        window.location.href = "login.html";
+      });
     };
 
+    // ------------ NAV SCROLL ------------
     window.addEventListener("DOMContentLoaded", () => {
       if (window.feather) window.feather.replace();
 
       document.querySelectorAll(".nav-link").forEach((btn) => {
         btn.addEventListener("click", () => {
-          document.querySelectorAll(".nav-link").forEach((b) => b.classList.remove("active"));
+          document.querySelectorAll(".nav-link").forEach((b) =>
+            b.classList.remove("active")
+          );
           btn.classList.add("active");
-          const target = document.querySelector(btn.getAttribute("data-target"));
-          if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+
+          const target = document.querySelector(
+            btn.getAttribute("data-target")
+          );
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
         });
       });
     });
 
+    // ------------ LOAD DASHBOARD ------------
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
         window.location.href = "login.html";
@@ -726,8 +741,11 @@
       try {
         const uid = user.uid;
 
+        // personal review link
         const linkInput = byId("reviewLink");
-        if (linkInput) linkInput.value = `https://reviewresq.com/review/?id=${uid}`;
+        if (linkInput) {
+          linkInput.value = `https://reviewresq.com/review/?id=${uid}`;
+        }
 
         const docRef = doc(db, "businesses", uid);
         const snap = await getDoc(docRef);
@@ -737,23 +755,34 @@
           return;
         }
 
-        const data = snap.data();
+        const data = snap.data() || {};
 
+        // welcome text
         const businessName = data.businessName || data.name || "Your business";
         const welcomeTitle = byId("welcomeTitle");
-        if (welcomeTitle) welcomeTitle.textContent = `Welcome back, \${businessName}\`;
+        if (welcomeTitle) {
+          welcomeTitle.textContent = `Welcome back, ${businessName}`;
+        }
 
+        // apply branding if exists
         if (data.branding) {
           const { primaryColor, buttonColor, backgroundColor } = data.branding;
+
           if (primaryColor) {
             document.documentElement.style.setProperty("--primary", primaryColor);
-            document.documentElement.style.setProperty("--primary-soft", primaryColor + "20");
+            document.documentElement.style.setProperty(
+              "--primary-soft",
+              primaryColor + "20"
+            );
           }
           if (buttonColor) {
             document.documentElement.style.setProperty("--primary", buttonColor);
           }
           if (backgroundColor) {
-            document.documentElement.style.setProperty("--bg-soft", backgroundColor);
+            document.documentElement.style.setProperty(
+              "--bg-soft",
+              backgroundColor
+            );
           }
 
           const pc = byId("primaryColor");
@@ -764,7 +793,9 @@
           if (bgc) bgc.value = backgroundColor || "#f3f4f6";
         }
 
+        // reviews array
         const reviews = Array.isArray(data.reviews) ? data.reviews : [];
+
         updateKPIs(reviews);
         fillReviewsTable(reviews);
         loadCharts(reviews);
@@ -774,12 +805,13 @@
       }
     });
 
+    // ------------ KPIs ------------
     function updateKPIs(reviews) {
       const total = reviews.length;
       const bad = reviews.filter((r) => Number(r.rating) <= 3).length;
       const positive = reviews.filter((r) => Number(r.rating) >= 4).length;
       const positiveRate = total ? Math.round((positive / total) * 100) : 0;
-      const growth = total ? "+100%" : "+0%";
+      const growth = total ? "+100%" : "+0%"; // placeholder
 
       if (byId("kpiTotal")) byId("kpiTotal").textContent = total;
       if (byId("kpiBad")) byId("kpiBad").textContent = bad;
@@ -787,6 +819,7 @@
       if (byId("kpiGrowth")) byId("kpiGrowth").textContent = growth;
     }
 
+    // ------------ TABLE FILL ------------
     function sanitize(value) {
       if (value == null) return "";
       return String(value)
@@ -810,17 +843,18 @@
 
       reviews.forEach((r) => {
         const tr = document.createElement("tr");
-        tr.innerHTML = \`
-          <td>\${sanitize(r.reviewerName || r.name || "Customer")}</td>
-          <td>\${sanitize(r.email || "-")}</td>
-          <td>\${sanitize(r.rating || "-")}</td>
-          <td>\${sanitize(r.comment || "")}</td>
-          <td>\${sanitize(r.date || "")}</td>
-        \`;
+        tr.innerHTML = `
+          <td>${sanitize(r.reviewerName || r.name || "Customer")}</td>
+          <td>${sanitize(r.email || "-")}</td>
+          <td>${sanitize(r.rating || "-")}</td>
+          <td>${sanitize(r.comment || "")}</td>
+          <td>${sanitize(r.date || "")}</td>
+        `;
         tbody.appendChild(tr);
       });
     }
 
+    // ------------ CHARTS ------------
     let starChartInstance = null;
     let pieChartInstance = null;
     let lineChartInstance = null;
@@ -839,12 +873,14 @@
       const starCounts = [0, 0, 0, 0, 0];
       reviews.forEach((r) => {
         const rating = Number(r.rating);
-        if (rating >= 1 && rating <= 5) starCounts[rating - 1]++;
+        if (rating >= 1 && rating <= 5) {
+          starCounts[rating - 1]++;
+        }
       });
 
       const pos = reviews.filter((r) => Number(r.rating) >= 4).length;
       const neg = reviews.filter((r) => Number(r.rating) <= 3).length;
-      const monthly = [5, 8, 12, 18, 14, reviews.length];
+      const monthly = [5, 8, 12, 18, 14, reviews.length]; // demo data
 
       if (starChartInstance) starChartInstance.destroy();
       if (pieChartInstance) pieChartInstance.destroy();
@@ -854,12 +890,14 @@
         type: "bar",
         data: {
           labels: ["1★", "2★", "3★", "4★", "5★"],
-          datasets: [{
-            label: "Ratings",
-            data: starCounts,
-            backgroundColor: "#2563eb",
-            borderRadius: 8
-          }]
+          datasets: [
+            {
+              label: "Ratings",
+              data: starCounts,
+              backgroundColor: "#2563eb",
+              borderRadius: 8
+            }
+          ]
         },
         options: {
           plugins: { legend: { display: false } },
@@ -874,10 +912,12 @@
         type: "pie",
         data: {
           labels: ["Positive (4–5★)", "Neutral/Negative (1–3★)"],
-          datasets: [{
-            data: [pos, neg],
-            backgroundColor: ["#16a34a", "#ef4444"]
-          }]
+          datasets: [
+            {
+              data: [pos, neg],
+              backgroundColor: ["#16a34a", "#ef4444"]
+            }
+          ]
         },
         options: {
           plugins: { legend: { position: "bottom" } }
@@ -888,14 +928,16 @@
         type: "line",
         data: {
           labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-          datasets: [{
-            label: "Monthly Reviews",
-            data: monthly,
-            borderColor: "#2563eb",
-            backgroundColor: "rgba(37,99,235,0.15)",
-            fill: true,
-            tension: 0.35
-          }]
+          datasets: [
+            {
+              label: "Monthly Reviews",
+              data: monthly,
+              borderColor: "#2563eb",
+              backgroundColor: "rgba(37,99,235,0.15)",
+              fill: true,
+              tension: 0.35
+            }
+          ]
         },
         options: {
           plugins: { legend: { display: false } },
@@ -907,8 +949,7 @@
       });
     }
 
-    // ----------  SHARE / QR / PDF ----------
-
+    // ------------ SHARE / QR / PDF ------------
     window.copyLink = function () {
       const input = byId("reviewLink");
       if (!input) return;
@@ -925,6 +966,7 @@
       const canvas = byId("qrCanvas");
       const linkInput = byId("reviewLink");
       if (!modal || !canvas || !linkInput) return;
+
       modal.style.display = "flex";
       QRCode.toCanvas(canvas, linkInput.value, { width: 260 });
     };
@@ -937,14 +979,14 @@
     window.shareWhatsapp = function () {
       const linkInput = byId("reviewLink");
       if (!linkInput) return;
-      const text = \`Hi! We'd love your feedback: \${linkInput.value}\`;
+      const text = `Hi! We'd love your feedback: ${linkInput.value}`;
       window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
     };
 
     window.shareSMS = function () {
       const linkInput = byId("reviewLink");
       if (!linkInput) return;
-      const text = \`Hi! We'd love your feedback: \${linkInput.value}\`;
+      const text = `Hi! We'd love your feedback: ${linkInput.value}`;
       window.location.href = "sms:?body=" + encodeURIComponent(text);
     };
 
@@ -967,6 +1009,7 @@
         alert("PDF library not loaded.");
         return;
       }
+
       const { jsPDF } = glb;
       const canvas = byId("qrCanvas");
       const linkInput = byId("reviewLink");
@@ -974,8 +1017,13 @@
         alert("Open the QR first, then download.");
         return;
       }
+
       const qrData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4"
+      });
 
       pdf.setFontSize(24);
       pdf.setTextColor(30, 64, 175);
@@ -995,7 +1043,7 @@
       pdf.save("ReviewResQ-QR.pdf");
     };
 
-   // ---------- BRANDING SAVE ----------
+    // ------------ BRANDING SAVE ------------
     window.saveBranding = async function () {
       const user = auth.currentUser;
       if (!user) {
@@ -1021,10 +1069,15 @@
           }
         });
 
-        // מעדכן צבעים ישר במסך
         document.documentElement.style.setProperty("--primary", buttonColor);
-        document.documentElement.style.setProperty("--primary-soft", primary + "20");
-        document.documentElement.style.setProperty("--bg-soft", backgroundColor);
+        document.documentElement.style.setProperty(
+          "--primary-soft",
+          primary + "20"
+        );
+        document.documentElement.style.setProperty(
+          "--bg-soft",
+          backgroundColor
+        );
 
         alert("Branding updated successfully!");
       } catch (err) {
