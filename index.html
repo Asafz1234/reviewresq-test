@@ -2,33 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Review Rescue – Turn Happy Customers into 5-Star Google Reviews</title>
+  <title>ReviewResQ – Turn Happy Customers into 5-Star Google Reviews</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta
     name="description"
-    content="Review Rescue builds a simple review funnel for local businesses. Happy customers go to Google for a 5-star review. Upset customers send private feedback to you first."
+    content="ReviewResQ builds a simple review funnel for local businesses. Happy customers go to Google for a 5-star review. Upset customers send private feedback to you first."
   />
   <style>
     :root {
-      --bg-page: #f3f4f6;
-      --bg-card: #ffffff;
-      --bg-soft: #f9fafb;
-      --border-soft: #e5e7eb;
+      --bg-page: #0f172a;
+      --bg-soft: #0b1220;
+      --bg-card: #020617;
+      --bg-card-soft: #020617;
+      --border-soft: rgba(148, 163, 184, 0.28);
       --accent: #2563eb;
-      --accent-soft: #1d4ed8;
-      --accent-light: #dbeafe;
-      --accent-green: #16a34a;
-      --accent-gold: #f59e0b;
-      --text-main: #0f172a;
-      --text-sub: #4b5563;
-      --text-soft: #6b7280;
-      --text-muted: #9ca3af;
+      --accent-soft: #60a5fa;
+      --accent-soft2: #22c55e;
+      --accent-gold: #facc15;
+      --text-main: #e5e7eb;
+      --text-sub: #cbd5f5;
+      --text-soft: #9ca3af;
+      --text-muted: #6b7280;
       --radius-lg: 20px;
-      --radius-xl: 26px;
-      --radius-md: 14px;
+      --radius-xl: 28px;
       --radius-pill: 999px;
-      --shadow-card: 0 22px 55px rgba(15, 23, 42, 0.13);
-      --shadow-soft: 0 12px 30px rgba(15, 23, 42, 0.12);
+      --shadow-card: 0 26px 70px rgba(15, 23, 42, 0.75);
     }
 
     * {
@@ -40,7 +38,10 @@
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
         "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #e0edff 0, #f3f4f6 35%, #f9fafb 100%);
+      background:
+        radial-gradient(circle at top left, #1d4ed8 0, transparent 45%),
+        radial-gradient(circle at top right, #22c55e 0, transparent 40%),
+        var(--bg-page);
       color: var(--text-main);
       -webkit-font-smoothing: antialiased;
     }
@@ -57,35 +58,39 @@
     }
 
     .shell {
+      width: 100%;
       max-width: 1120px;
       margin: 0 auto;
-      padding: 0 16px 60px;
+      padding: 0 16px 56px;
     }
 
     .hidden {
       display: none;
     }
 
-    /* HEADER / NAVBAR */
+    /* HEADER */
 
     header {
       position: sticky;
       top: 0;
       z-index: 40;
-      background: rgba(249, 250, 251, 0.96);
-      backdrop-filter: blur(14px);
-      border-bottom: 1px solid rgba(209, 213, 219, 0.8);
+      backdrop-filter: blur(20px);
+      background: linear-gradient(
+        to bottom,
+        rgba(15, 23, 42, 0.9),
+        rgba(15, 23, 42, 0.7),
+        transparent
+      );
     }
 
     .nav {
       max-width: 1120px;
       margin: 0 auto;
-      padding: 10px 16px;
+      padding: 14px 16px 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      flex-wrap: wrap;
     }
 
     .brand {
@@ -95,35 +100,41 @@
     }
 
     .brand-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 20% 20%, #93c5fd, #1d4ed8);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #eff6ff;
-      font-weight: 700;
+      font-weight: 800;
       font-size: 18px;
-      box-shadow: 0 10px 22px rgba(37, 99, 235, 0.4);
+      box-shadow: 0 14px 30px rgba(37, 99, 235, 0.6);
     }
 
     .brand-text-main {
       font-weight: 700;
-      letter-spacing: 0.08em;
-      font-size: 15px;
+      letter-spacing: 0.12em;
+      font-size: 13px;
+      text-transform: uppercase;
     }
 
     .brand-text-sub {
       font-size: 11px;
       color: var(--text-soft);
-      letter-spacing: 0.16em;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
     }
 
-    .nav-links {
+    .nav-right {
       display: flex;
       align-items: center;
+      gap: 10px;
+    }
+
+    .nav-links {
+      display: none;
       gap: 18px;
       font-size: 14px;
       color: var(--text-soft);
@@ -142,103 +153,158 @@
       width: 0;
       height: 2px;
       border-radius: 999px;
-      background: linear-gradient(90deg, #2563eb, #38bdf8);
-      transition: width 160ms ease-out;
+      background: linear-gradient(90deg, #60a5fa, #22c55e);
+      transition: width 140ms ease-out;
     }
 
     .nav-links a:hover::after {
       width: 100%;
     }
 
-    .nav-right {
-      display: flex;
+    .nav-cta {
+      display: none;
       align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
+      gap: 8px;
     }
 
-    .btn-sms {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 16px;
+    .btn-nav-outline {
       border-radius: var(--radius-pill);
-      border: 1px solid rgba(37, 99, 235, 0.85);
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: #eff6ff;
+      padding: 7px 14px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.7);
+      font-size: 13px;
+      color: var(--text-sub);
+      cursor: pointer;
+    }
+
+    .btn-nav-outline:hover {
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .btn-nav-primary {
+      border-radius: var(--radius-pill);
+      padding: 8px 18px;
+      border: none;
+      background: linear-gradient(135deg, #2563eb, #22c55e);
+      color: #f9fafb;
       font-size: 13px;
       font-weight: 600;
-      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.35);
+      cursor: pointer;
+      box-shadow: 0 14px 32px rgba(37, 99, 235, 0.55);
       white-space: nowrap;
     }
 
-    .btn-sms span.icon {
-      font-size: 15px;
-    }
-
-    .btn-sms:hover {
-      filter: brightness(1.04);
+    .btn-nav-primary:hover {
+      filter: brightness(1.05);
       transform: translateY(-1px);
-      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.45);
     }
 
-    .nav-auth {
-      padding: 7px 14px;
-      font-size: 13px;
-      border-radius: var(--radius-pill);
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
+    .nav-menu-btn {
+      border-radius: 999px;
+      width: 32px;
+      height: 32px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      transition: 140ms ease;
     }
 
-    .nav-auth:hover {
-      background: #f1f5f9;
+    .nav-menu-btn span {
+      width: 16px;
+      height: 2px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      position: relative;
     }
 
-    .nav-auth.primary {
-      background: #2563eb;
-      border-color: #1d4ed8;
-      color: #ffffff;
-      font-weight: 600;
+    .nav-menu-btn span::before,
+    .nav-menu-btn span::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      width: 16px;
+      height: 2px;
+      border-radius: 999px;
+      background: #e5e7eb;
     }
 
-    .nav-auth.primary:hover {
-      background: #1d4ed8;
+    .nav-menu-btn span::before {
+      top: -5px;
     }
 
-    @media (max-width: 860px) {
+    .nav-menu-btn span::after {
+      top: 5px;
+    }
+
+    .mobile-menu {
+      display: none;
+      padding: 8px 16px 14px;
+      border-top: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.98);
+      backdrop-filter: blur(20px);
+    }
+
+    .mobile-menu.open {
+      display: block;
+    }
+
+    .mobile-menu-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--text-soft);
+      margin-bottom: 10px;
+    }
+
+    .mobile-menu-links a {
+      padding: 4px 0;
+    }
+
+    .mobile-menu-cta {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    @media (min-width: 768px) {
       .nav-links {
+        display: flex;
+      }
+      .nav-cta {
+        display: flex;
+      }
+      .nav-menu-btn {
         display: none;
+      }
+      .mobile-menu {
+        display: none !important;
       }
     }
 
-    /* HERO */
+    /* HERO – MOBILE FIRST */
 
     main {
       flex: 1;
     }
 
     .hero-wrapper {
-      margin-top: 30px;
+      margin-top: 14px;
     }
 
     .hero {
-      background: var(--bg-card);
+      background: radial-gradient(circle at top left, #1d4ed8 0, transparent 58%),
+        radial-gradient(circle at bottom right, #22c55e 0, transparent 45%),
+        rgba(15, 23, 42, 0.98);
       border-radius: var(--radius-xl);
+      padding: 20px 18px 22px;
       box-shadow: var(--shadow-card);
-      border: 1px solid var(--border-soft);
-      padding: 26px 24px 24px;
-      display: grid;
-      grid-template-columns: minmax(0, 3fr) minmax(0, 2.4fr);
-      gap: 26px;
-    }
-
-    @media (max-width: 880px) {
-      .hero {
-        grid-template-columns: minmax(0, 1fr);
-      }
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
     }
 
     .hero-kicker {
@@ -247,41 +313,58 @@
       gap: 8px;
       padding: 4px 10px;
       border-radius: var(--radius-pill);
-      border: 1px solid #bbf7d0;
-      background: #ecfdf5;
-      color: #166534;
+      border: 1px solid rgba(45, 212, 191, 0.6);
+      background: rgba(15, 118, 110, 0.18);
+      color: #a7f3d0;
       font-size: 11px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
 
     .hero-kicker span.badge {
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.14em;
     }
 
     .hero-title {
-      font-size: clamp(26px, 3vw + 8px, 32px);
-      line-height: 1.15;
+      font-size: 24px;
+      line-height: 1.25;
       margin-bottom: 10px;
     }
 
+    @media (min-width: 480px) {
+      .hero-title {
+        font-size: 26px;
+      }
+    }
+
+    @media (min-width: 900px) {
+      .hero {
+        flex-direction: row;
+        align-items: stretch;
+        gap: 22px;
+        padding: 26px 26px 24px;
+      }
+      .hero-title {
+        font-size: 32px;
+      }
+    }
+
     .hero-title span.accent {
-      color: var(--accent-soft);
+      color: #60a5fa;
     }
 
     .hero-subtitle {
-      font-size: 15px;
+      font-size: 14px;
       color: var(--text-sub);
-      max-width: 34rem;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
     .hero-pills {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       font-size: 12px;
     }
 
@@ -291,8 +374,8 @@
       gap: 6px;
       padding: 5px 10px;
       border-radius: var(--radius-pill);
-      border: 1px solid #e5e7eb;
-      background: #f9fafb;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.85);
       color: var(--text-soft);
     }
 
@@ -300,90 +383,88 @@
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: var(--accent-green);
+      background: #22c55e;
     }
 
     .hero-ctas {
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
+      flex-direction: column;
+      gap: 8px;
       margin-bottom: 8px;
+    }
+
+    @media (min-width: 520px) {
+      .hero-ctas {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
     }
 
     .btn-primary {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
-      padding: 10px 18px;
+      padding: 11px 18px;
       border-radius: var(--radius-pill);
       border: none;
       cursor: pointer;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: #eff6ff;
+      background: linear-gradient(135deg, #2563eb, #22c55e);
+      color: #f9fafb;
       font-size: 14px;
       font-weight: 600;
-      box-shadow: var(--shadow-soft);
-      transition: transform 140ms ease-out, box-shadow 140ms ease-out, filter 140ms ease-out;
+      box-shadow: 0 22px 55px rgba(37, 99, 235, 0.7);
+      width: 100%;
+    }
+
+    @media (min-width: 520px) {
+      .btn-primary {
+        width: auto;
+      }
     }
 
     .btn-primary span.arrow {
-      font-size: 16px;
+      font-size: 18px;
       transform: translateY(1px);
     }
 
     .btn-primary:hover {
-      transform: translateY(-1px);
       filter: brightness(1.05);
-      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.45);
+      transform: translateY(-1px);
     }
 
-    /* SEE LIVE DEMO – MAIN BUTTON (גדול) */
-    .demo-cta-inline {
-      text-align: center;
-      margin: 24px 0 4px;
-    }
-
-    .btn-demo-main {
+    .btn-secondary {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      padding: 13px 26px;
+      padding: 10px 16px;
       border-radius: var(--radius-pill);
-      border: none;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      background: linear-gradient(135deg, #eef2ff, #dbeafe);
-      color: #1e40af;
-      box-shadow:
-        0 0 0 1px rgba(129, 140, 248, 0.5),
-        0 16px 40px rgba(59, 130, 246, 0.45);
-      transition: transform 150ms ease-out, box-shadow 150ms ease-out, background 150ms ease-out;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.85);
+      color: var(--text-sub);
+      font-size: 13px;
+      width: 100%;
     }
 
-    .btn-demo-main span.icon {
+    @media (min-width: 520px) {
+      .btn-secondary {
+        width: auto;
+      }
+    }
+
+    .btn-secondary span.icon {
       font-size: 16px;
-      transform: translateY(1px);
-    }
-
-    .btn-demo-main:hover {
-      transform: translateY(-2px) scale(1.01);
-      background: linear-gradient(135deg, #e0ecff, #bfdbfe);
-      box-shadow:
-        0 0 0 1px rgba(129, 140, 248, 0.6),
-        0 22px 55px rgba(37, 99, 235, 0.55);
     }
 
     .hero-footnote {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-soft);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .hero-footnote strong {
-      color: var(--text-sub);
+      color: #e5e7eb;
     }
 
     .hero-hint {
@@ -391,203 +472,207 @@
       color: var(--text-muted);
     }
 
-    /* HERO DEMO CARD */
+    /* HERO MOCKUP */
 
-    .hero-demo {
-      background: var(--bg-soft);
-      border-radius: 20px;
-      border: 1px solid var(--border-soft);
-      padding: 16px 16px 14px;
-      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+    .hero-mock {
+      margin-top: 6px;
+      background: var(--bg-card-soft);
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      padding: 12px 12px 10px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.7);
+      max-width: 360px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
-    .demo-header {
+    @media (min-width: 900px) {
+      .hero-main {
+        flex: 3;
+      }
+      .hero-mock {
+        flex: 2.2;
+        margin: 0;
+      }
+    }
+
+    .mock-header {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
     }
 
-    .demo-business {
+    .mock-biz {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
-    .demo-avatar {
-      width: 40px;
-      height: 40px;
+    .mock-avatar {
+      width: 34px;
+      height: 34px;
       border-radius: 999px;
-      background: linear-gradient(135deg, #1d4ed8, #0f172a);
+      background: radial-gradient(circle at 20% 20%, #93c5fd, #1d4ed8);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #eff6ff;
+      font-size: 15px;
       font-weight: 700;
-      font-size: 16px;
     }
 
-    .demo-name {
-      font-size: 13px;
+    .mock-name {
+      font-size: 12px;
       font-weight: 600;
+      letter-spacing: 0.12em;
+    }
+
+    .mock-sub {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .mock-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      border: 1px solid rgba(34, 197, 94, 0.5);
+      background: rgba(22, 163, 74, 0.15);
+      color: #bbf7d0;
+    }
+
+    .mock-status span.dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    .mock-body {
+      border-radius: 14px;
+      padding: 10px;
+      background: #020617;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      font-size: 11px;
+    }
+
+    .mock-stars-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+
+    .mock-score-main {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .mock-score-sub {
+      color: var(--text-soft);
+      font-size: 10px;
+    }
+
+    .mock-stars {
+      text-align: right;
+    }
+
+    .mock-stars-icons {
+      font-size: 14px;
+      color: var(--accent-gold);
+      letter-spacing: 1px;
+    }
+
+    .mock-stars-text {
+      font-size: 10px;
+      color: var(--text-soft);
+    }
+
+    .mock-copy {
+      color: var(--text-soft);
+      margin-bottom: 8px;
+    }
+
+    .mock-flow {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .mock-pill {
+      border-radius: 10px;
+      padding: 6px 7px;
+      font-size: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .mock-pill.good {
+      background: rgba(22, 163, 74, 0.16);
+      border: 1px solid rgba(74, 222, 128, 0.7);
+    }
+
+    .mock-pill.bad {
+      background: rgba(185, 28, 28, 0.16);
+      border: 1px solid rgba(248, 113, 113, 0.8);
+    }
+
+    .mock-pill-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+
+    .mock-pill-badge {
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.7);
+      font-size: 9px;
+      text-transform: uppercase;
       letter-spacing: 0.08em;
     }
 
-    .demo-sub {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .demo-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 9px;
-      border-radius: var(--radius-pill);
-      background: #ecfdf5;
-      color: #15803d;
-      font-size: 11px;
-      border: 1px solid #bbf7d0;
-    }
-
-    .demo-status span.dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 999px;
-      background: var(--accent-green);
-    }
-
-    .demo-body {
-      padding: 10px;
-      border-radius: 16px;
-      background: #ffffff;
-      border: 1px solid #e5e7eb;
-    }
-
-    .demo-rating-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-
-    .demo-score {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .demo-score-value {
-      font-size: 24px;
-      font-weight: 700;
-    }
-
-    .demo-score-label {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .demo-stars {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 2px;
-    }
-
-    .demo-stars-icons {
-      font-size: 14px;
-      letter-spacing: 1px;
-      color: var(--accent-gold);
-    }
-
-    .demo-stars-text {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .demo-text {
-      font-size: 12px;
-      color: var(--text-soft);
-      margin-bottom: 10px;
-    }
-
-    .demo-flow {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .demo-flow-item {
-      border-radius: 12px;
-      padding: 7px 8px;
-      font-size: 11px;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    .demo-flow-item.good {
-      background: #ecfdf5;
-      border: 1px solid #bbf7d0;
-    }
-
-    .demo-flow-item.bad {
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-    }
-
-    .demo-flow-label {
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .demo-flow-label span.badge {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 999px;
-      background: rgba(15, 23, 42, 0.06);
-    }
-
-    .demo-flow-copy {
+    .mock-pill-text {
       color: var(--text-sub);
     }
 
-    .demo-footnote {
-      font-size: 11px;
-      color: var(--text-muted);
+    .mock-foot {
+      font-size: 10px;
+      color: var(--text-soft);
       margin-top: 4px;
     }
 
-    .demo-powered {
+    .mock-powered {
       text-align: right;
       font-size: 10px;
       color: var(--text-muted);
-      margin-top: 4px;
+      margin-top: 5px;
       letter-spacing: 0.16em;
       text-transform: uppercase;
     }
 
-    .demo-powered span {
-      color: var(--accent-soft);
+    .mock-powered span {
+      color: #93c5fd;
       font-weight: 600;
     }
 
     /* GENERIC SECTIONS */
 
     section {
-      margin-top: 40px;
+      margin-top: 34px;
     }
 
     section h2 {
       font-size: 20px;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     section p.lead {
@@ -599,24 +684,24 @@
     /* HOW IT WORKS */
 
     .steps-grid {
-      margin-top: 18px;
+      margin-top: 16px;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
     }
 
-    @media (max-width: 860px) {
+    @media (min-width: 800px) {
       .steps-grid {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
     }
 
     .step-card {
-      background: var(--bg-card);
+      background: rgba(15, 23, 42, 0.9);
       border-radius: var(--radius-lg);
-      border: 1px solid var(--border-soft);
+      border: 1px solid rgba(148, 163, 184, 0.4);
       padding: 14px 14px 12px;
-      box-shadow: var(--shadow-soft);
+      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.65);
     }
 
     .step-label {
@@ -643,28 +728,22 @@
     .benefits-grid {
       margin-top: 18px;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
     }
 
-    @media (max-width: 980px) {
+    @media (min-width: 768px) {
       .benefits-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 700px) {
-      .benefits-grid {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
     }
 
     .benefit-card {
-      background: var(--bg-card);
+      background: rgba(15, 23, 42, 0.9);
       border-radius: var(--radius-lg);
-      border: 1px solid var(--border-soft);
+      border: 1px solid rgba(148, 163, 184, 0.4);
       padding: 14px 14px 12px;
-      box-shadow: var(--shadow-soft);
+      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.65);
     }
 
     .benefit-title {
@@ -690,8 +769,40 @@
     .benefit-tag {
       padding: 3px 8px;
       border-radius: var(--radius-pill);
-      background: var(--bg-soft);
-      border: 1px solid #e5e7eb;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    /* SOCIAL PROOF STRIP */
+
+    .metrics-strip {
+      margin-top: 26px;
+      padding: 12px 14px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: radial-gradient(circle at left, rgba(96, 165, 250, 0.35), transparent 60%),
+        radial-gradient(circle at right, rgba(34, 197, 94, 0.35), transparent 55%),
+        rgba(15, 23, 42, 0.9);
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      font-size: 11px;
+    }
+
+    .metrics-item span.value {
+      display: block;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .metrics-item span.label {
+      color: var(--text-soft);
+    }
+
+    @media (max-width: 640px) {
+      .metrics-strip {
+        grid-template-columns: minmax(0, 1fr);
+      }
     }
 
     /* PRICING */
@@ -699,30 +810,30 @@
     .pricing-grid {
       margin-top: 18px;
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 14px;
     }
 
-    @media (max-width: 700px) {
+    @media (min-width: 720px) {
       .pricing-grid {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
     .plan-card {
-      background: var(--bg-card);
+      background: rgba(15, 23, 42, 0.94);
       border-radius: var(--radius-lg);
-      border: 1px solid var(--border-soft);
+      border: 1px solid rgba(148, 163, 184, 0.4);
       padding: 16px 16px 14px;
-      box-shadow: var(--shadow-soft);
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.7);
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
 
     .plan-card.highlight {
-      border-color: rgba(37, 99, 235, 0.9);
-      box-shadow: 0 22px 50px rgba(37, 99, 235, 0.25);
+      border-color: rgba(96, 165, 250, 0.9);
+      box-shadow: 0 26px 70px rgba(37, 99, 235, 0.9);
       position: relative;
       overflow: hidden;
     }
@@ -798,10 +909,10 @@
       font-size: 10px;
       padding: 3px 8px;
       border-radius: var(--radius-pill);
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: #1d4ed8;
-      letter-spacing: 0.14em;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(129, 140, 248, 0.8);
+      color: #c7d2fe;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
     }
 
@@ -810,22 +921,22 @@
     .faq-grid {
       margin-top: 18px;
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
     }
 
-    @media (max-width: 780px) {
+    @media (min-width: 780px) {
       .faq-grid {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
     .faq-item {
-      background: var(--bg-card);
+      background: rgba(15, 23, 42, 0.92);
       border-radius: var(--radius-lg);
-      border: 1px solid var(--border-soft);
+      border: 1px solid rgba(148, 163, 184, 0.4);
       padding: 12px 14px 12px;
-      box-shadow: var(--shadow-soft);
+      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.7);
       font-size: 13px;
     }
 
@@ -841,16 +952,24 @@
     /* FINAL CTA STRIP */
 
     .cta-strip {
-      margin-top: 40px;
+      margin-top: 34px;
       padding: 16px 18px;
       border-radius: var(--radius-lg);
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
+      background: radial-gradient(circle at top left, rgba(96, 165, 250, 0.4), transparent 60%),
+        radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.4), transparent 55%),
+        rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.55);
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    @media (min-width: 720px) {
+      .cta-strip {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
     }
 
     .cta-strip h3 {
@@ -866,9 +985,9 @@
     /* FOOTER */
 
     footer {
-      border-top: 1px solid #e5e7eb;
-      background: #f9fafb;
-      padding: 12px 0;
+      border-top: 1px solid rgba(148, 163, 184, 0.4);
+      background: #020617;
+      padding: 10px 0;
       font-size: 11px;
       color: var(--text-muted);
     }
@@ -885,104 +1004,27 @@
     }
 
     .footer-inner a {
-      color: var(--accent-soft);
+      color: #93c5fd;
       text-decoration: underline;
       text-underline-offset: 3px;
     }
 
     .legal-footer {
-      margin-top: 40px;
-      padding: 20px 0;
+      padding: 18px 0 20px;
       text-align: center;
-      font-size: 13px;
-      color: #9ca3af;
-      background: #f9fafb;
+      font-size: 12px;
+      color: var(--text-soft);
+      background: #020617;
     }
 
     .legal-footer a {
       margin: 0 10px;
-      color: #6b7280;
+      color: #9ca3af;
       text-decoration: none;
     }
 
     .legal-footer a:hover {
       text-decoration: underline;
-    }
-
-    /* AUTH MODAL */
-
-    .auth-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.35);
-      backdrop-filter: blur(4px);
-      z-index: 200;
-    }
-
-    .auth-modal {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 201;
-    }
-
-    .auth-box {
-      background: #ffffff;
-      padding: 26px 24px 20px;
-      border-radius: 16px;
-      width: 90%;
-      max-width: 360px;
-      box-shadow: var(--shadow-card);
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .auth-box h3 {
-      font-size: 18px;
-      margin-bottom: 4px;
-    }
-
-    .auth-box input {
-      padding: 10px;
-      border: 1px solid #d1d5db;
-      border-radius: 10px;
-      font-size: 14px;
-    }
-
-    .auth-box button {
-      padding: 10px;
-      background: #2563eb;
-      border: none;
-      color: #ffffff;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      margin-top: 4px;
-    }
-
-    .auth-box button:hover {
-      background: #1d4ed8;
-    }
-
-    #auth-switch {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 4px;
-    }
-
-    #auth-switch button {
-      background: none;
-      border: none;
-      color: #2563eb;
-      padding: 0;
-      margin: 0;
-      font-size: 12px;
-      cursor: pointer;
-      font-weight: 500;
     }
   </style>
 </head>
@@ -993,7 +1035,7 @@
         <div class="brand">
           <div class="brand-icon">R</div>
           <div>
-            <div class="brand-text-main">REVIEW RESCUE</div>
+            <div class="brand-text-main">REVIEWRESQ</div>
             <div class="brand-text-sub">REVIEWS · REPUTATION · RESCUE</div>
           </div>
         </div>
@@ -1005,19 +1047,28 @@
           <a href="#faq">FAQ</a>
         </div>
 
-        <div class="nav-right">
-          <button class="nav-auth" id="login-btn">Login</button>
-          <button class="nav-auth primary" id="signup-btn">Create account</button>
-
-          <a
-            class="btn-sms"
-            href="sms:+17542216803?&body=Hi%20Review%20Rescue%2C%20I%27d%20like%20to%20see%20a%20free%20demo%20for%20my%20business."
-          >
-            <span class="icon">💬</span>
-            <span>Text us for a free demo</span>
-          </a>
+        <div class="nav-cta">
+          <a class="btn-nav-outline" href="/login.html">Login</a>
+          <a class="btn-nav-primary" href="/signup.html">Create account</a>
         </div>
+
+        <button class="nav-menu-btn" id="nav-menu-btn" aria-label="Toggle menu">
+          <span></span>
+        </button>
       </nav>
+
+      <div class="mobile-menu" id="mobile-menu">
+        <div class="mobile-menu-links">
+          <a href="#how-it-works">How it works</a>
+          <a href="#what-you-get">What you get</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#faq">FAQ</a>
+        </div>
+        <div class="mobile-menu-cta">
+          <a class="btn-nav-outline" href="/login.html">Login</a>
+          <a class="btn-nav-primary" href="/signup.html">Create account</a>
+        </div>
+      </div>
     </header>
 
     <main>
@@ -1025,7 +1076,7 @@
         <!-- HERO -->
         <div class="hero-wrapper">
           <section class="hero" id="top">
-            <div>
+            <div class="hero-main">
               <div class="hero-kicker">
                 <span class="badge">New</span>
                 <span>Smart review funnel for local businesses in Florida</span>
@@ -1038,9 +1089,9 @@
               </h1>
 
               <p class="hero-subtitle">
-                Review Rescue builds and manages a simple feedback page for your business. Happy
-                customers go straight to Google for a public review. Upset customers send
-                private feedback to you first – so your rating stays protected.
+                ReviewResQ builds and manages a simple feedback page for your business.
+                Happy customers go straight to Google for a public review.
+                Upset customers send private feedback to you first – so your rating stays protected.
               </p>
 
               <div class="hero-pills">
@@ -1061,101 +1112,123 @@
               <div class="hero-ctas">
                 <a
                   class="btn-primary"
-                  href="sms:+17542216803?&body=Hi%20Review%20Rescue%2C%20I%27d%20like%20you%20to%20set%20up%20a%20free%20demo%20for%20my%20business."
+                  href="sms:+17542216803?&body=Hi%20ReviewResQ%2C%20I%27d%20like%20you%20to%20set%20up%20a%20free%20demo%20for%20my%20business."
                 >
-                  <span>Get your free demo setup</span>
+                  <span>Get your free review funnel</span>
                   <span class="arrow">→</span>
+                </a>
+
+                <a
+                  class="btn-secondary"
+                  href="https://reviewresq.com/demo"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span class="icon">▶</span>
+                  <span>Watch the 60-second demo</span>
                 </a>
               </div>
 
               <p class="hero-footnote">
                 <strong>No setup fee · Cancel anytime.</strong>
-                You only pay after you approve your personalized Review Rescue page.
+                You only pay after you approve your personalized ReviewResQ page.
               </p>
               <p class="hero-hint">
-                Perfect for home services, contractors, auto shops, barbers, beauty, dentists, restaurants, and more.
+                Built for home services, contractors, auto shops, barbers, beauty, dentists, restaurants, and more.
               </p>
-
-              <div class="demo-cta-inline">
-                <a class="btn-demo-main" href="https://reviewresq.com/demo" target="_blank" rel="noopener noreferrer">
-                  <span>See the live demo</span>
-                  <span class="icon">↗</span>
-                </a>
-              </div>
             </div>
 
-            <!-- DEMO PREVIEW CARD -->
-            <aside class="hero-demo" aria-label="Preview of the Review Rescue feedback portal">
-              <div class="demo-header">
-                <div class="demo-business">
-                  <div class="demo-avatar">YB</div>
+            <!-- PHONE STYLE MOCKUP -->
+            <aside class="hero-mock" aria-label="Preview of the ReviewResQ feedback portal">
+              <div class="mock-header">
+                <div class="mock-biz">
+                  <div class="mock-avatar">YB</div>
                   <div>
-                    <div class="demo-name">YOUR BUSINESS NAME</div>
-                    <div class="demo-sub">Private feedback portal</div>
+                    <div class="mock-name">YOUR BUSINESS</div>
+                    <div class="mock-sub">Feedback portal</div>
                   </div>
                 </div>
-                <div class="demo-status">
+                <div class="mock-status">
                   <span class="dot"></span>
-                  <span>Feedback portal is online</span>
+                  <span>Live & ready</span>
                 </div>
               </div>
 
-              <div class="demo-body">
-                <div class="demo-rating-row">
-                  <div class="demo-score">
-                    <div class="demo-score-value">4.8</div>
-                    <div class="demo-score-label">Average rating from recent customers</div>
+              <div class="mock-body">
+                <div class="mock-stars-row">
+                  <div>
+                    <div class="mock-score-main">4.8</div>
+                    <div class="mock-score-sub">Average from recent customers</div>
                   </div>
-                  <div class="demo-stars">
-                    <div class="demo-stars-icons">★★★★★</div>
-                    <div class="demo-stars-text">on Google</div>
+                  <div class="mock-stars">
+                    <div class="mock-stars-icons">★★★★★</div>
+                    <div class="mock-stars-text">on Google</div>
                   </div>
                 </div>
 
-                <div class="demo-text">
-                  Your customer taps a star rating. Review Rescue sends them to the right place based on their score.
+                <div class="mock-copy">
+                  Your customer scans a QR code or taps a link, chooses a star rating,
+                  and ReviewResQ sends them to the right place automatically.
                 </div>
 
-                <div class="demo-flow">
-                  <div class="demo-flow-item good">
-                    <div class="demo-flow-label">
+                <div class="mock-flow">
+                  <div class="mock-pill good">
+                    <div class="mock-pill-head">
                       <span>4–5 ★</span>
-                      <span class="badge">Happy</span>
+                      <span class="mock-pill-badge">Google</span>
                     </div>
-                    <div class="demo-flow-copy">
+                    <div class="mock-pill-text">
                       Sent straight to your Google page to leave a public review.
                     </div>
                   </div>
 
-                  <div class="demo-flow-item bad">
-                    <div class="demo-flow-label">
+                  <div class="mock-pill bad">
+                    <div class="mock-pill-head">
                       <span>1–3 ★</span>
-                      <span class="badge">Private</span>
+                      <span class="mock-pill-badge">Private</span>
                     </div>
-                    <div class="demo-flow-copy">
-                      Sent to a private feedback form that goes only to you by email.
+                    <div class="mock-pill-text">
+                      Sent to a private feedback form that emails you directly.
                     </div>
                   </div>
                 </div>
 
-                <div class="demo-footnote">
-                  Happy customers help you rank higher on Google. Upset customers talk to you privately first,
-                  so you can fix issues before they hit your public rating.
+                <div class="mock-foot">
+                  Happy customers boost your rating. Unhappy customers talk to you first, not the whole internet.
                 </div>
               </div>
 
-              <div class="demo-powered">
-                Powered by <span>REVIEW RESCUE</span>
+              <div class="mock-powered">
+                POWERED BY <span>REVIEWRESQ</span>
               </div>
             </aside>
           </section>
         </div>
 
+        <!-- SOCIAL PROOF -->
+        <section aria-label="Results you can expect">
+          <div class="metrics-strip">
+            <div class="metrics-item">
+              <span class="value">3×</span>
+              <span class="label">More Google reviews from happy customers</span>
+            </div>
+            <div class="metrics-item">
+              <span class="value">70%</span>
+              <span class="label">Of low ratings turned into private conversations</span>
+            </div>
+            <div class="metrics-item">
+              <span class="value">10 sec</span>
+              <span class="label">Average time it takes a customer to complete</span>
+            </div>
+          </div>
+        </section>
+
         <!-- HOW IT WORKS -->
         <section id="how-it-works">
-          <h2>How it works</h2>
+          <h2>How ReviewResQ works</h2>
           <p class="lead">
-            We set everything up for you. Your team only needs to send customers to your link or QR code.
+            We set everything up for you. Your team only needs to send customers to your link or QR code –
+            ReviewResQ handles the rest.
           </p>
 
           <div class="steps-grid">
@@ -1163,17 +1236,18 @@
               <div class="step-label">Step 1</div>
               <div class="step-title">We build your custom portal</div>
               <div class="step-text">
-                You send us your logo, business name, and Google review link. We create a branded
-                Review Rescue page that matches your business and routes customers based on their rating.
+                You send us your logo, business name, and Google review link.
+                We create a branded ReviewResQ page that matches your business and routes
+                customers based on their rating.
               </div>
             </article>
 
             <article class="step-card">
               <div class="step-label">Step 2</div>
-              <div class="step-title">Your staff shares the link</div>
+              <div class="step-title">Your staff shares a simple link</div>
               <div class="step-text">
-                After each job or visit, your staff shows the page or sends a quick text. Customers
-                tap a star rating on their own phone – it takes about 10 seconds.
+                After each job or visit, your staff shows the page or sends a quick text.
+                Customers tap a star rating on their own phone – it takes about 10 seconds.
               </div>
             </article>
 
@@ -1181,8 +1255,9 @@
               <div class="step-label">Step 3</div>
               <div class="step-title">Happy → Google, unhappy → private</div>
               <div class="step-text">
-                4–5★ ratings are redirected straight to Google to leave a public review. 1–3★ ratings
-                are sent to a private form that emails you the feedback so you can respond.
+                4–5★ ratings are redirected straight to Google to leave a public review.
+                1–3★ ratings are sent to a private form that emails you the feedback
+                so you can fix issues before they hit your public rating.
               </div>
             </article>
           </div>
@@ -1190,30 +1265,30 @@
 
         <!-- WHAT YOU GET -->
         <section id="what-you-get">
-          <h2>What you get with Review Rescue</h2>
+          <h2>What you get with ReviewResQ</h2>
           <p class="lead">
-            A simple system that grows your rating and protects your reputation, without adding work
-            for you or your team.
+            A complete review funnel that grows your rating and protects your reputation,
+            without adding work for you or your team.
           </p>
 
           <div class="benefits-grid">
             <article class="benefit-card">
-              <div class="benefit-title">Branded review funnel</div>
+              <div class="benefit-title">Branded, mobile-first review page</div>
               <div class="benefit-text">
-                Clean, mobile-first page with your logo and colors. Looks professional and is easy for
-                any customer to use.
+                Clean, modern page with your logo, colors, and copy.
+                Designed for phones first so every customer can use it in seconds.
               </div>
               <div class="benefit-tags">
-                <span class="benefit-tag">Mobile-first</span>
-                <span class="benefit-tag">Works with SMS & QR</span>
+                <span class="benefit-tag">Mobile-optimized</span>
+                <span class="benefit-tag">Looks premium</span>
               </div>
             </article>
 
             <article class="benefit-card">
-              <div class="benefit-title">Protection from bad reviews</div>
+              <div class="benefit-title">Protection from unfair bad reviews</div>
               <div class="benefit-text">
-                When something goes wrong, customers send private feedback to you first instead of
-                posting a 1-star review on Google.
+                When something goes wrong, customers are gently routed to a private feedback form
+                instead of dropping a 1-star review on Google.
               </div>
               <div class="benefit-tags">
                 <span class="benefit-tag">Catch issues early</span>
@@ -1224,30 +1299,32 @@
             <article class="benefit-card">
               <div class="benefit-title">Simple for your staff</div>
               <div class="benefit-text">
-                No logins, no apps, no training. If your team can send a text, they can use Review Rescue.
+                No logins, no apps, no passwords. If your team can send a text or show a QR code,
+                they can use ReviewResQ.
               </div>
               <div class="benefit-tags">
                 <span class="benefit-tag">~10 seconds per customer</span>
-                <span class="benefit-tag">No extra software</span>
+                <span class="benefit-tag">No extra training</span>
               </div>
             </article>
 
             <article class="benefit-card">
               <div class="benefit-title">Hands-on setup & support</div>
               <div class="benefit-text">
-                We personally set up your portal, connect everything, and make adjustments as you use it.
+                We personally set up your portal, adjust the wording for your business,
+                and support you by text whenever you need a tweak.
               </div>
               <div class="benefit-tags">
                 <span class="benefit-tag">Free demo build</span>
-                <span class="benefit-tag">Fast support by text</span>
+                <span class="benefit-tag">Fast SMS support</span>
               </div>
             </article>
 
             <article class="benefit-card">
               <div class="benefit-title">Works with how you already operate</div>
               <div class="benefit-text">
-                Whether you text customers before/after jobs or use QR codes on receipts, Review Rescue
-                fits into your existing workflow.
+                Use QR codes on invoices, reception desks, vans, or simply text customers after the job.
+                ReviewResQ plugs into your existing workflow.
               </div>
               <div class="benefit-tags">
                 <span class="benefit-tag">Home services</span>
@@ -1258,12 +1335,12 @@
             <article class="benefit-card">
               <div class="benefit-title">Built for local search</div>
               <div class="benefit-text">
-                More happy customers leaving honest reviews over time can help you stand out when
-                people search for services like yours on Google.
+                A steady stream of genuine 5-star reviews helps you stand out
+                when people search for services like yours on Google.
               </div>
               <div class="benefit-tags">
                 <span class="benefit-tag">Better first impression</span>
-                <span class="benefit-tag">Local visibility</span>
+                <span class="benefit-tag">More calls & bookings</span>
               </div>
             </article>
           </div>
@@ -1273,22 +1350,22 @@
         <section id="pricing">
           <h2>Simple pricing</h2>
           <p class="lead">
-            Start with a free demo. You only pay once you’ve seen your portal live and you’re happy with it.
+            Start with a free demo. You only pay once you’ve seen your ReviewResQ portal live and you’re happy with it.
           </p>
 
           <div class="pricing-grid">
             <article class="plan-card">
-              <div class="plan-label">Basic</div>
-              <div class="plan-name">Review Rescue Basic</div>
+              <div class="plan-label">Starter</div>
+              <div class="plan-name">ReviewResQ Basic</div>
               <div class="plan-price">
                 $39<span>/month</span>
               </div>
 
               <ul class="plan-list">
-                <li>Branded review portal with your logo</li>
-                <li>Filters negative feedback (1–3★) to private form</li>
-                <li>Redirects happy clients (4–5★) straight to Google</li>
-                <li>Private feedback delivered to your email</li>
+                <li>Branded ReviewResQ portal with your logo</li>
+                <li>Routes 4–5★ ratings straight to Google</li>
+                <li>Private feedback form for 1–3★ ratings</li>
+                <li>Feedback delivered directly to your email</li>
                 <li>Setup within ~24 hours once approved</li>
               </ul>
 
@@ -1297,7 +1374,7 @@
               </div>
               <div class="plan-cta">
                 Text <strong>“Basic”</strong> to
-                <a href="sms:+17542216803?&body=Hi%20Review%20Rescue%2C%20I%27d%20like%20to%20start%20with%20the%20Basic%20plan.">
+                <a href="sms:+17542216803?&body=Hi%20ReviewResQ%2C%20I%27d%20like%20to%20start%20with%20the%20Basic%20plan.">
                   +1 (754) 221-6803
                 </a>
                 to get started.
@@ -1306,18 +1383,18 @@
 
             <article class="plan-card highlight">
               <div class="plan-badge">MOST POPULAR</div>
-              <div class="plan-label">Advanced</div>
-              <div class="plan-name">Review Rescue Advanced</div>
+              <div class="plan-label">Growth</div>
+              <div class="plan-name">ReviewResQ Advanced</div>
               <div class="plan-price">
                 $59<span>/month</span>
               </div>
 
               <ul class="plan-list">
                 <li>Everything in Basic</li>
-                <li>Custom colors & branding to match your business</li>
+                <li>Custom colors & copy tuned for your niche</li>
                 <li>Optional custom domain (e.g. yourbusiness.reviewresq.com)</li>
                 <li>Monthly mini analytics summary by email</li>
-                <li>Priority support (fast reply by text)</li>
+                <li>Priority support with fast SMS response</li>
               </ul>
 
               <div class="plan-footnote">
@@ -1325,7 +1402,7 @@
               </div>
               <div class="plan-cta">
                 Text <strong>“Advanced”</strong> to
-                <a href="sms:+17542216803?&body=Hi%20Review%20Rescue%2C%20I%27m%20interested%20in%20the%20Advanced%20plan.">
+                <a href="sms:+17542216803?&body=Hi%20ReviewResQ%2C%20I%27m%20interested%20in%20the%20Advanced%20plan.">
                   +1 (754) 221-6803
                 </a>
                 for a quick setup.
@@ -1338,40 +1415,39 @@
         <section id="faq">
           <h2>Common questions</h2>
           <p class="lead">
-            If you work with customers in person and care about your Google rating, Review Rescue is built for you.
+            If you work with customers in person and care about your Google rating, ReviewResQ is built for you.
           </p>
 
           <div class="faq-grid">
             <article class="faq-item">
               <div class="faq-q">Do you guarantee 5-star reviews?</div>
               <div class="faq-a">
-                No. We don’t create fake reviews or pressure anyone. We make it easier for happy
-                customers to review you on Google, and let unhappy customers talk to you privately
-                instead of posting publicly.
+                No. We don’t create fake reviews or pressure anyone.
+                We simply make it very easy for happy customers to review you on Google,
+                and give unhappy customers a private way to talk to you instead.
               </div>
             </article>
 
             <article class="faq-item">
               <div class="faq-q">How long does setup take?</div>
               <div class="faq-a">
-                Once you approve your demo and send us your details, most portals go live within
-                about 24 hours.
+                Once you approve your demo and send us your details, most portals go live within about 24 hours.
               </div>
             </article>
 
             <article class="faq-item">
-              <div class="faq-q">How does my team use it?</div>
+              <div class="faq-q">How does my team use it day-to-day?</div>
               <div class="faq-a">
-                Very simple: they open your Review Rescue link, show the screen or send a quick text,
-                and the customer taps a rating. No login, no app, no passwords.
+                Very simple: they open your ReviewResQ link, show the screen or send a quick text,
+                and the customer taps a rating. No login, no app, no passwords to remember.
               </div>
             </article>
 
             <article class="faq-item">
               <div class="faq-q">Can I cancel if it’s not for me?</div>
               <div class="faq-a">
-                Yes. There are no contracts. If it’s not helping you, just send us a text and we’ll
-                cancel for the next billing cycle.
+                Yes. There are no contracts. If it’s not helping you, just send us a text
+                and we’ll cancel for the next billing cycle.
               </div>
             </article>
           </div>
@@ -1381,15 +1457,15 @@
         <section>
           <div class="cta-strip">
             <div>
-              <h3>Ready to see your own Review Rescue portal?</h3>
+              <h3>Ready to see your own ReviewResQ portal?</h3>
               <p>
-                Text us your business name and Google review link. We’ll build your demo so you can
-                see it live before you decide.
+                Text us your business name and Google review link.
+                We’ll build your demo so you can see it live before you decide.
               </p>
             </div>
             <a
               class="btn-primary"
-              href="sms:+17542216803?&body=Hi%20Review%20Rescue%2C%20here%20is%20my%20business%20name%20and%20Google%20review%20link.%20Please%20set%20up%20my%20free%20demo."
+              href="sms:+17542216803?&body=Hi%20ReviewResQ%2C%20here%20is%20my%20business%20name%20and%20Google%20review%20link.%20Please%20set%20up%20my%20free%20demo."
             >
               Text us to start your free demo →
             </a>
@@ -1400,7 +1476,7 @@
 
     <footer>
       <div class="footer-inner">
-        <div>© <span id="year"></span> Review Rescue. All rights reserved.</div>
+        <div>© <span id="year"></span> ReviewResQ. All rights reserved.</div>
         <div>
           Text us at
           <a href="sms:+17542216803">+1 (754) 221-6803</a>
@@ -1409,111 +1485,30 @@
         </div>
       </div>
     </footer>
-  </div>
 
-  <!-- AUTH MODALS -->
-  <div id="auth-overlay" class="auth-overlay hidden"></div>
-
-  <div id="auth-modal" class="auth-modal hidden">
-    <div class="auth-box">
-      <h3 id="auth-title">Login</h3>
-      <input id="auth-email" type="email" placeholder="Email" />
-      <input id="auth-pass" type="password" placeholder="Password" />
-      <button id="auth-submit">Continue</button>
-      <p id="auth-switch"></p>
+    <div class="legal-footer">
+      <a href="/terms.html">Terms of Service</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/refund.html">Refund Policy</a>
     </div>
   </div>
 
-  <div class="legal-footer">
-    <a href="/terms.html">Terms of Service</a>
-    <a href="/privacy.html">Privacy Policy</a>
-    <a href="/refund.html">Refund Policy</a>
-  </div>
-
   <script>
-    // Year in footer
+    // Footer year
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // Auth modal logic
-    const authOverlay = document.getElementById("auth-overlay");
-    const authModal = document.getElementById("auth-modal");
-    const loginBtn = document.getElementById("login-btn");
-    const signupBtn = document.getElementById("signup-btn");
-    const authTitle = document.getElementById("auth-title");
-    const authEmail = document.getElementById("auth-email");
-    const authPass = document.getElementById("auth-pass");
-    const authSubmit = document.getElementById("auth-submit");
-    const authSwitch = document.getElementById("auth-switch");
+    // Mobile menu toggle
+    const menuBtn = document.getElementById("nav-menu-btn");
+    const mobileMenu = document.getElementById("mobile-menu");
 
-    let authMode = "login"; // or "signup"
-
-    function openAuth(mode) {
-      authMode = mode;
-      authTitle.textContent = mode === "login" ? "Login to Review Rescue" : "Create your Review Rescue account";
-      authSubmit.textContent = mode === "login" ? "Login" : "Create account";
-      authEmail.value = "";
-      authPass.value = "";
-      authSwitch.innerHTML =
-        mode === "login"
-          ? 'Don’t have an account yet? <button type="button" id="to-signup">Create one</button>'
-          : 'Already have an account? <button type="button" id="to-login">Log in</button>';
-
-      authOverlay.classList.remove("hidden");
-      authModal.classList.remove("hidden");
-
-      // Attach switch listeners
-      const toSignup = document.getElementById("to-signup");
-      const toLogin = document.getElementById("to-login");
-      if (toSignup) {
-        toSignup.addEventListener("click", () => openAuth("signup"));
-      }
-      if (toLogin) {
-        toLogin.addEventListener("click", () => openAuth("login"));
-      }
+    if (menuBtn) {
+      menuBtn.addEventListener("click", () => {
+        mobileMenu.classList.toggle("open");
+      });
     }
-
-    function closeAuth() {
-      authOverlay.classList.add("hidden");
-      authModal.classList.add("hidden");
-    }
-
-    if (loginBtn) {
-      loginBtn.addEventListener("click", () => openAuth("login"));
-    }
-    if (signupBtn) {
-      signupBtn.addEventListener("click", () => openAuth("signup"));
-    }
-
-    authOverlay.addEventListener("click", closeAuth);
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        closeAuth();
-      }
-    });
-
-    authSubmit.addEventListener("click", () => {
-      const email = authEmail.value.trim();
-      const password = authPass.value.trim();
-      if (!email || !password) {
-        alert("Please fill in both email and password.");
-        return;
-      }
-
-      // Hook for Firebase - implement in firebase.js if you want real auth
-      if (window.handleAuthSubmit) {
-        window.handleAuthSubmit({ mode: authMode, email, password });
-      } else {
-        alert(
-          authMode.toUpperCase() +
-            " submitted for " +
-            email +
-            ". Implement window.handleAuthSubmit in firebase.js to connect real auth."
-        );
-      }
-    });
   </script>
 
+  <!-- If you still use Firebase, keep your module here -->
   <script type="module" src="firebase.js"></script>
 </body>
 </html>
