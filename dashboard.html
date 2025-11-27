@@ -995,8 +995,7 @@
       pdf.save("ReviewResQ-QR.pdf");
     };
 
-    // ---------- BRANDING SAVE ----------
-
+   // ---------- BRANDING SAVE ----------
     window.saveBranding = async function () {
       const user = auth.currentUser;
       if (!user) {
@@ -1004,19 +1003,28 @@
         return;
       }
 
-      const primary = byId("primaryColor")?.value || "#2563eb";
-      const buttonColor = byId("buttonColor")?.value || primary;
-      const backgroundColor = byId("backgroundColor")?.value || "#f3f4f6";
+      const primaryInput = byId("primaryColor");
+      const buttonInput = byId("buttonColor");
+      const bgInput = byId("backgroundColor");
+
+      const primary = (primaryInput && primaryInput.value) || "#2563eb";
+      const buttonColor = (buttonInput && buttonInput.value) || primary;
+      const backgroundColor = (bgInput && bgInput.value) || "#f3f4f6";
 
       try {
         const docRef = doc(db, "businesses", user.uid);
         await updateDoc(docRef, {
           branding: {
             primaryColor: primary,
-            buttonColor,
-            backgroundColor
+            buttonColor: buttonColor,
+            backgroundColor: backgroundColor
           }
         });
+
+        // מעדכן צבעים ישר במסך
+        document.documentElement.style.setProperty("--primary", buttonColor);
+        document.documentElement.style.setProperty("--primary-soft", primary + "20");
+        document.documentElement.style.setProperty("--bg-soft", backgroundColor);
 
         alert("Branding updated successfully!");
       } catch (err) {
