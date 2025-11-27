@@ -16,6 +16,7 @@
       justify-content: center;
       color: #0f172a;
     }
+
     .card {
       background: #ffffff;
       width: 100%;
@@ -24,12 +25,14 @@
       border-radius: 18px;
       box-shadow: 0 30px 70px rgba(15, 23, 42, 0.35);
     }
+
     .logo {
       display: flex;
       align-items: center;
       gap: 10px;
       margin-bottom: 18px;
     }
+
     .logo-badge {
       width: 32px;
       height: 32px;
@@ -42,11 +45,29 @@
       color: #e5f0ff;
       background: radial-gradient(circle at 30% 0%, #60a5fa, #1d4ed8 55%, #0f172a 100%);
     }
-    .logo-text-title { font-weight: 700; font-size: 18px; color: #020617; }
-    .logo-text-sub { font-size: 12px; color: #6b7280; }
 
-    h1 { font-size: 22px; margin-bottom: 4px; color: #020617; }
-    .subtitle { font-size: 13px; color: #6b7280; margin-bottom: 18px; }
+    .logo-text-title {
+      font-weight: 700;
+      font-size: 18px;
+      color: #020617;
+    }
+
+    .logo-text-sub {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    h1 {
+      font-size: 22px;
+      margin-bottom: 4px;
+      color: #020617;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 18px;
+    }
 
     .tabs {
       display: flex;
@@ -56,6 +77,7 @@
       padding: 4px;
       margin-bottom: 18px;
     }
+
     .tab-btn {
       flex: 1;
       border: none;
@@ -67,14 +89,28 @@
       color: #6b7280;
       font-weight: 500;
     }
+
     .tab-btn.active {
       background: #1d4ed8;
       color: #e5f0ff;
       box-shadow: 0 8px 18px rgba(37, 99, 235, 0.4);
     }
-    form { display: none; margin-top: 4px; }
-    form.active { display: block; }
-    label { display: block; font-size: 13px; margin-bottom: 4px; color: #4b5563; }
+
+    form {
+      display: none;
+      margin-top: 4px;
+    }
+
+    form.active {
+      display: block;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #4b5563;
+    }
 
     input {
       width: 100%;
@@ -86,10 +122,12 @@
       outline: none;
       transition: border-color 0.15s, box-shadow 0.15s;
     }
+
     input:focus {
       border-color: #2563eb;
       box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.10);
     }
+
     .btn-primary {
       width: 100%;
       border: none;
@@ -104,6 +142,11 @@
       margin-top: 4px;
     }
 
+    .btn-primary:active {
+      transform: translateY(1px);
+      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.4);
+    }
+
     .row-inline {
       display: flex;
       justify-content: space-between;
@@ -111,12 +154,55 @@
       margin-top: 4px;
       margin-bottom: 10px;
     }
-    .link { font-size: 12px; color: #2563eb; cursor: pointer; }
-    .error { margin-top: 6px; font-size: 12px; color: #ef4444; min-height: 16px; }
-    .success { margin-top: 6px; font-size: 12px; color: #16a34a; min-height: 16px; }
+
+    .link {
+      font-size: 12px;
+      color: #2563eb;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .link:hover {
+      text-decoration: underline;
+    }
+
+    .helper {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+
+    .error {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #ef4444;
+      min-height: 16px;
+    }
+
+    .success {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #16a34a;
+      min-height: 16px;
+    }
+
+    .agree-wrapper {
+      font-size: 12px;
+      color: #4b5563;
+      margin-top: 4px;
+      margin-bottom: 6px;
+    }
+
+    .agree-wrapper a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    .agree-wrapper a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
-
 <body>
   <div class="card">
     <div class="logo">
@@ -135,47 +221,66 @@
       <button id="tab-signup" class="tab-btn">Create account</button>
     </div>
 
-    <!-- LOGIN -->
+    <!-- LOGIN FORM -->
     <form id="loginForm" class="active">
-      <label>Email</label>
-      <input id="loginEmail" type="email" />
-      <label>Password</label>
-      <input id="loginPassword" type="password" />
+      <label for="loginEmail">Email</label>
+      <input id="loginEmail" type="email" autocomplete="email" required />
+
+      <label for="loginPassword">Password</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" required />
+
       <div class="row-inline">
         <span></span>
         <a id="forgotLink" class="link">Forgot password?</a>
       </div>
+
       <button type="submit" class="btn-primary">Login</button>
       <div id="loginError" class="error"></div>
     </form>
 
-    <!-- SIGNUP -->
+    <!-- SIGNUP FORM -->
     <form id="signupForm">
-      <label>Business name</label>
-      <input id="signupBusinessName" type="text" />
+      <label for="signupBusinessName">Business name</label>
+      <input id="signupBusinessName" type="text" required />
 
-      <label>Phone</label>
-      <input id="signupPhone" type="tel" />
+      <label for="signupPhone">Phone</label>
+      <input id="signupPhone" type="tel" required />
 
-      <label>Email</label>
-      <input id="signupEmail" type="email" />
+      <label for="signupEmail">Email</label>
+      <input id="signupEmail" type="email" autocomplete="email" required />
 
-      <label>Password</label>
-      <input id="signupPassword" type="password" />
+      <label for="signupPassword">Password</label>
+      <input id="signupPassword" type="password" autocomplete="new-password" required />
+
+      <p class="helper">We’ll use this email for login and password reset.</p>
+
+      <!-- ✅ CHECKBOX להסכמה לתנאים -->
+      <div class="agree-wrapper">
+        <label style="display:flex; align-items:flex-start; gap:6px;">
+          <input type="checkbox" id="signupAgree" style="margin-top:3px;" />
+          <span>
+            I agree to the
+            <a href="/terms.html" target="_blank">Terms of Service</a>
+            and
+            <a href="/privacy.html" target="_blank">Privacy Policy</a>.
+          </span>
+        </label>
+      </div>
 
       <button type="submit" class="btn-primary">Create account</button>
       <div id="signupError" class="error"></div>
     </form>
 
-    <!-- RESET PASSWORD -->
+    <!-- RESET PASSWORD FORM -->
     <form id="resetForm" style="display:none; margin-top:10px;">
-      <label>Reset password</label>
-      <input id="resetEmail" type="email" placeholder="Your email" />
+      <label for="resetEmail">Reset password</label>
+      <input id="resetEmail" type="email" placeholder="Your account email" required />
       <button type="submit" class="btn-primary">Send reset link</button>
       <div id="resetMessage" class="success"></div>
     </form>
   </div>
 
+  <!-- FIREBASE / LOGIC -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import {
@@ -190,155 +295,145 @@
       setDoc
     } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const app = initializeApp({
+    const firebaseConfig = {
       apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
       authDomain: "reviewresq-app.firebaseapp.com",
       projectId: "reviewresq-app",
       storageBucket: "reviewresq-app.firebasestorage.app",
       messagingSenderId: "863497920392",
       appId: "1:863497920392:web:ca99060b42a50711b9e43d"
-    });
+    };
 
+    const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    const $ = (id) => document.getElementById(id);
+    const tabLogin = document.getElementById("tab-login");
+    const tabSignup = document.getElementById("tab-signup");
+    const loginForm = document.getElementById("loginForm");
+    const signupForm = document.getElementById("signupForm");
+    const resetForm = document.getElementById("resetForm");
+    const forgotLink = document.getElementById("forgotLink");
+
+    const loginError = document.getElementById("loginError");
+    const signupError = document.getElementById("signupError");
+    const resetMessage = document.getElementById("resetMessage");
 
     function showTab(tab) {
-      $("loginForm").classList.toggle("active", tab === "login");
-      $("signupForm").classList.toggle("active", tab === "signup");
-      $("tab-login").classList.toggle("active", tab === "login");
-      $("tab-signup").classList.toggle("active", tab === "signup");
-      $("resetForm").style.display = "none";
-      $("loginError").textContent = "";
-      $("signupError").textContent = "";
-      $("resetMessage").textContent = "";
+      if (tab === "login") {
+        tabLogin.classList.add("active");
+        tabSignup.classList.remove("active");
+        loginForm.classList.add("active");
+        signupForm.classList.remove("active");
+      } else {
+        tabSignup.classList.add("active");
+        tabLogin.classList.remove("active");
+        signupForm.classList.add("active");
+        loginForm.classList.remove("active");
+      }
+      loginError.textContent = "";
+      signupError.textContent = "";
+      resetMessage.textContent = "";
+      resetForm.style.display = "none";
     }
 
-    $("tab-login").onclick = () => showTab("login");
-    $("tab-signup").onclick = () => showTab("signup");
+    tabLogin.addEventListener("click", (e) => {
+      e.preventDefault();
+      showTab("login");
+    });
+
+    tabSignup.addEventListener("click", (e) => {
+      e.preventDefault();
+      showTab("signup");
+    });
 
     // LOGIN
-    $("loginForm").addEventListener("submit", async (e) => {
+    loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = $("loginEmail").value.trim();
-      const password = $("loginPassword").value;
+      loginError.textContent = "";
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value;
+
       try {
         await signInWithEmailAndPassword(auth, email, password);
         window.location.href = "/dashboard";
       } catch (err) {
-        $("loginError").textContent = "Login failed. Check your email and password.";
+        console.error(err);
+        loginError.textContent = "Login failed. Check your email and password.";
       }
     });
 
-  // SIGNUP (Create account)
-signupForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  signupError.textContent = "";
+    // SIGNUP (Create account)
+    signupForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      signupError.textContent = "";
 
-  const businessNameInput = document.getElementById("signupBusinessName");
-  const phoneInput        = document.getElementById("signupPhone");
-  const emailInput        = document.getElementById("signupEmail");
-  const passwordInput     = document.getElementById("signupPassword");
+      const businessName = document.getElementById("signupBusinessName").value.trim();
+      const phone = document.getElementById("signupPhone").value.trim();
+      const email = document.getElementById("signupEmail").value.trim();
+      const password = document.getElementById("signupPassword").value;
+      const agree = document.getElementById("signupAgree").checked;
 
-  const businessName = businessNameInput.value.trim();
-  const phone        = phoneInput.value.trim();
-  const email        = emailInput.value.trim();
-  const password     = passwordInput.value;
+      if (!businessName || !phone) {
+        signupError.textContent = "Please fill business name and phone.";
+        return;
+      }
 
-  // ---------- ולידציה בצד הלקוח ----------
+      if (!agree) {
+        signupError.textContent = "Please agree to the Terms of Service and Privacy Policy.";
+        return;
+      }
 
-  // שם עסק
-  if (businessName.length < 2) {
-    signupError.textContent = "Business name must be at least 2 characters.";
-    businessNameInput.focus();
-    return;
-  }
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = cred.user.uid;
 
-  // טלפון – רק ספרות ולפחות 7
-  const phoneClean = phone.replace(/\D/g, "");
-  if (phoneClean.length < 7) {
-    signupError.textContent = "Please enter a valid phone number (at least 7 digits).";
-    phoneInput.focus();
-    return;
-  }
+        await setDoc(doc(db, "businesses", uid), {
+          businessName,
+          email,
+          phone,
+          plan: "advanced",
+          createdAt: new Date().toISOString(),
+          reviews: []
+        });
 
-  // אימייל
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    signupError.textContent = "Please enter a valid email address.";
-    emailInput.focus();
-    return;
-  }
-
-  // סיסמה
-  if (password.length < 6) {
-    signupError.textContent = "Password must be at least 6 characters.";
-    passwordInput.focus();
-    return;
-  }
-
-  // ---------- יצירת משתמש בפיירבייס ----------
-
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    const uid  = cred.user.uid;
-
-    await setDoc(doc(db, "businesses", uid), {
-      businessName,
-      email,
-      phone: phoneClean,
-      plan: "advanced",
-      createdAt: new Date().toISOString(),
-      reviews: []
+        window.location.href = "/dashboard";
+      } catch (err) {
+        console.error(err);
+        let msg = "Could not create account. Please check the details and try again.";
+        if (err.code === "auth/email-already-in-use") msg = "Email already in use.";
+        if (err.code === "auth/weak-password") msg = "Password should be at least 6 characters.";
+        if (err.code === "auth/invalid-email") msg = "Email address is not valid.";
+        signupError.textContent = msg;
+      }
     });
 
-    // מעבר לדשבורד אחרי יצירה
-    window.location.href = "/dashboard";
-  } catch (err) {
-    console.error("Signup error:", err.code, err.message);
-
-    let msg;
-    switch (err.code) {
-      case "auth/email-already-in-use":
-        msg = "This email is already in use. Try logging in instead.";
-        break;
-      case "auth/invalid-email":
-        msg = "Email address is not valid.";
-        break;
-      case "auth/weak-password":
-        msg = "Password is too weak (minimum 6 characters).";
-        break;
-      case "auth/missing-password":
-        msg = "Please enter a password.";
-        break;
-      case "auth/operation-not-allowed":
-        msg = "Email/password sign-up is disabled. Enable it in Firebase Authentication → Sign-in method.";
-        break;
-      default:
-        msg = "Could not create account. Please check the details and try again.";
-        break;
-    }
-
-    signupError.textContent = msg;
-  }
-});
-    // RESET PASSWORD
-    $("forgotLink").onclick = () => {
-      $("resetForm").style.display = "block";
-      $("resetMessage").textContent = "";
-      $("resetEmail").value = $("loginEmail").value.trim();
-    };
-
-    $("resetForm").addEventListener("submit", async (e) => {
+    // FORGOT PASSWORD
+    forgotLink.addEventListener("click", (e) => {
       e.preventDefault();
-      const email = $("resetEmail").value.trim();
-      if (!email) return $("resetMessage").textContent = "Enter your email.";
+      resetForm.style.display = "block";
+      resetMessage.textContent = "";
+      const emailFromLogin = document.getElementById("loginEmail").value.trim();
+      if (emailFromLogin) {
+        document.getElementById("resetEmail").value = emailFromLogin;
+      }
+    });
+
+    resetForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      resetMessage.textContent = "";
+      const email = document.getElementById("resetEmail").value.trim();
+      if (!email) {
+        resetMessage.textContent = "Enter your email first.";
+        return;
+      }
+
       try {
         await sendPasswordResetEmail(auth, email);
-        $("resetMessage").textContent = "Reset link sent!";
-      } catch {
-        $("resetMessage").textContent = "Failed to send reset link.";
+        resetMessage.textContent = "Reset link sent. Check your inbox.";
+      } catch (err) {
+        console.error(err);
+        resetMessage.textContent = "Could not send reset email. Check the address.";
       }
     });
   </script>
