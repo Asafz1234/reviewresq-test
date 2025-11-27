@@ -1,47 +1,36 @@
-// =========================
-// Firebase imports
-// =========================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
   getAuth,
   onAuthStateChanged,
-  signOut,
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   getFirestore,
   doc,
   getDoc,
-  updateDoc,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// =========================
 // Firebase config
-// =========================
 const firebaseConfig = {
   apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
   authDomain: "reviewresq-app.firebaseapp.com",
   projectId: "reviewresq-app",
   storageBucket: "reviewresq-app.firebasestorage.app",
   messagingSenderId: "863497920392",
-  appId: "1:863497920392:web:ca99060b42a50711b9e43d",
+  appId: "1:863497920392:web:ca99060b42a50711b9e43d"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// =========================
 // Logout
-// =========================
 window.logout = function () {
-  signOut(auth).then(() => {
-    window.location.href = "login.html";
-  });
+  signOut(auth).then(() => (window.location.href = "login.html"));
 };
 
-// =========================
-// Load dashboard data
-// =========================
+// Load Dashboard
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "login.html";
@@ -49,226 +38,151 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const uid = user.uid;
-
-  // שים את הלינק האישי לשדה
   const linkInput = document.getElementById("reviewLink");
-  if (linkInput) {
-    linkInput.value = `https://reviewresq.com/demo?id=${uid}`;
-  }
+  if (linkInput)
+    linkInput.value = `https://reviewresq.com/review/?id=${uid}`;
 
   const docRef = doc(db, "businesses", uid);
   const snap = await getDoc(docRef);
 
   if (!snap.exists()) {
-    console.warn("Business profile missing in Firestore");
+    alert("Business profile is missing in Firestore.");
     return;
   }
 
   const data = snap.data();
 
-  // כותרת Welcome
-  const welcomeTitle = document.getElementById("welcomeTitle");
-  if (welcomeTitle) {
-    welcomeTitle.innerText = `Welcome back, ${data.name || "Business Owner"}`;
-  }
+  const name = data.businessName || "Your Business";
+  const welcome = document.getElementById("welcomeTitle");
+  if (welcome) welcome.textContent = `Welcome back, ${name}!`;
 
-  // Branding – טעינה לטופס (אם קיים)
-  if (data.branding) {
-    const { primaryColor, buttonColor, backgroundColor } = data.branding;
-
-    const primary = document.getElementById("primaryColor");
-    const btn = document.getElementById("buttonColor");
-    const bg = document.getElementById("backgroundColor");
-
-    if (primary && primaryColor) primary.value = primaryColor;
-    if (btn && buttonColor) btn.value = buttonColor;
-    if (bg && backgroundColor) bg.value = backgroundColor;
-  }
-
-  // Reviews
   const reviews = data.reviews || [];
+  document.getElementById("kpiTotal").innerText = reviews.length;
+  document.getElementById("kpiBad").innerText = reviews.filter(r => r.rating <= 3).length;
+  document.getElementById("kpiPositive").innerText = reviews.length ? 
+    Math.round((reviews.filter(r => r.rating >= 4).length / reviews.length) * 100) + "%" : "0%";
+  document.getElementById("kpiGrowth").innerText = "+0%";
 
-  // KPI cards
-  const totalEl = document.getElementById("kpiTotal");
-  const badEl = document.getElementById("kpiBad");
-  const positiveEl = document.getElementById("kpiPositive");
-  const growthEl = document.getElementById("kpiGrowth");
-
-  const total = reviews.length;
-  const bad = reviews.filter((r) => r.rating <= 3).length;
-  const positive = reviews.filter((r) => r.rating >= 4).length;
-  const positiveRate = total ? Math.round((positive / total) * 100) : 0;
-
-  if (totalEl) totalEl.innerText = total;
-  if (badEl) badEl.innerText = bad;
-  if (positiveEl) positiveEl.innerText = positiveRate + "%";
-  if (growthEl) growthEl.innerText = "+0%"; // כרגע סטטי
-
-  // טבלת ביקורות
   const tbody = document.getElementById("reviewsTableBody");
-  if (tbody) {
-    tbody.innerHTML = "";
-    reviews.forEach((r) => {
-      const row = document.createElement("tr");
-      row.innerHTML = `
+  tbody.innerHTML = "";
+  reviews.forEach(r => {
+    tbody.innerHTML += `
+      <tr>
         <td>${r.reviewerName || "-"}</td>
         <td>${r.email || "-"}</td>
         <td>${r.rating || "-"}</td>
         <td>${r.comment || "-"}</td>
         <td>${r.date || "-"}</td>
-      `;
-      tbody.appendChild(row);
-    });
-  }
+      </tr>`;
+  });
 
-  // גרפים
   loadCharts(reviews);
 });
 
-// =========================
 // Charts
-// =========================
 function loadCharts(reviews) {
-  // אם Chart.js לא נטען – לא נפליל את העמוד
-  if (typeof Chart === "undefined") {
-    console.warn("Chart.js not loaded – skipping charts");
-    return;
-  }
+  if (typeof Chart === "undefined") return;
 
-  const starCtx = document.getElementById("starChart");
-  const pieCtx = document.getElementById("pieChart");
-  const lineCtx = document.getElementById("lineChart");
+  const star = document.getElementById("starChart");
+  const pie = document.getElementById("pieChart");
+  const line = document.getElementById("lineChart");
+  if (!star || !pie || !line) return;
 
-  if (!starCtx || !pieCtx || !lineCtx) {
-    console.warn("Chart canvas elements not found");
-    return;
-  }
+  const stars = [0, 0, 0, 0, 0];
+  reviews.forEach(r => (stars[r.rating - 1] = (stars[r.rating - 1] || 0) + 1));
 
-  // בר התפלגות כוכבים
-  const starCounts = [0, 0, 0, 0, 0];
-  reviews.forEach((r) => {
-    if (r.rating >= 1 && r.rating <= 5) {
-      starCounts[r.rating - 1]++;
-    }
-  });
-
-  new Chart(starCtx, {
+  new Chart(star, {
     type: "bar",
     data: {
       labels: ["1★", "2★", "3★", "4★", "5★"],
-      datasets: [
-        {
-          label: "Ratings",
-          backgroundColor: "#38bdf8",
-          borderRadius: 6,
-          data: starCounts,
-        },
-      ],
+      datasets: [{ data: stars, backgroundColor: "#3b82f6" }]
     },
-    options: {
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, ticks: { precision: 0 } },
-      },
-    },
+    options: { scales: { y: { beginAtZero: true } } }
   });
 
-  // פאי חיובי / שלילי
-  const pos = reviews.filter((r) => r.rating >= 4).length;
-  const neg = reviews.filter((r) => r.rating <= 3).length;
+  const pos = reviews.filter(r => r.rating >= 4).length;
+  const neg = reviews.filter(r => r.rating <= 3).length;
 
-  new Chart(pieCtx, {
+  new Chart(pie, {
     type: "pie",
     data: {
       labels: ["Positive", "Negative"],
-      datasets: [
-        {
-          data: [pos, neg],
-          backgroundColor: ["#22c55e", "#ef4444"],
-        },
-      ],
-    },
+      datasets: [{ data: [pos, neg], backgroundColor: ["#22c55e", "#ef4444"] }]
+    }
   });
 
-  // קו – כרגע דמיוני
-  new Chart(lineCtx, {
+  new Chart(line, {
     type: "line",
     data: {
       labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-      datasets: [
-        {
-          label: "Monthly Reviews",
-          borderColor: "#38bdf8",
-          backgroundColor: "rgba(56,189,248,0.2)",
-          tension: 0.3,
-          fill: true,
-          data: [2, 4, 8, 10, 12, reviews.length || 5],
-        },
-      ],
-    },
-    options: {
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, ticks: { precision: 0 } },
-      },
-    },
+      datasets: [{
+        label: "Monthly Reviews",
+        data: [2, 4, 6, 10, 8, reviews.length],
+        borderColor: "#3b82f6",
+        fill: true
+      }]
+    }
   });
 }
 
-// =========================
-// QR + Share + PDF
-// =========================
-
-// Copy link
+// Copy & Share
 window.copyLink = function () {
   const link = document.getElementById("reviewLink");
   if (!link) return;
-
   link.select();
-  link.setSelectionRange(0, 99999);
   navigator.clipboard.writeText(link.value);
-  alert("Link copied!");
+  alert("Copied!");
 };
 
-// Show QR modal
-window.showQR = function () {
+window.showQR = async function () {
   const modal = document.getElementById("qrModal");
   const canvas = document.getElementById("qrCanvas");
-  const link = document.getElementById("reviewLink")?.value;
-
-  if (!modal || !canvas || !link) return;
-
+  const link = document.getElementById("reviewLink").value;
   modal.style.display = "flex";
-
-  // QRCode כ-ESM
-  import("https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js").then(
-    (module) => {
-      module.default.toCanvas(canvas, link, { width: 220 });
-    }
-  );
+  const QRCode = await import("https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js");
+  QRCode.default.toCanvas(canvas, link, { width: 200 });
 };
 
 window.closeQR = function () {
-  const modal = document.getElementById("qrModal");
-  if (modal) modal.style.display = "none";
+  document.getElementById("qrModal").style.display = "none";
 };
 
-// Share via WhatsApp
 window.shareWhatsapp = function () {
-  const link = document.getElementById("reviewLink")?.value;
-  if (!link) return;
-  window.open("https://wa.me/?text=" + encodeURIComponent(link));
+  const link = document.getElementById("reviewLink").value;
+  window.open(`https://wa.me/?text=${encodeURIComponent(link)}`);
 };
 
-// Share via SMS
 window.shareSMS = function () {
-  const link = document.getElementById("reviewLink")?.value;
-  if (!link) return;
-  window.location.href = "sms:?body=" + encodeURIComponent(link);
+  const link = document.getElementById("reviewLink").value;
+  window.location.href = `sms:?body=${encodeURIComponent(link)}`;
 };
 
-// Download QR as PNG
 window.downloadQR = function () {
   const canvas = document.getElementById("qrCanvas");
-  if (!canvas) {
-    alert("Please click 'Show QR Code
+  if (!canvas) return alert("Please show QR first.");
+  const a = document.createElement("a");
+  a.href = canvas.toDataURL("image/png");
+  a.download = "review-qr.png";
+  a.click();
+};
+
+window.downloadPDF = function () {
+  if (!window.jspdf) return alert("PDF not loaded.");
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+  const canvas = document.getElementById("qrCanvas");
+  const img = canvas.toDataURL("image/png");
+  pdf.text("ReviewResQ - Feedback QR", 20, 20);
+  pdf.addImage(img, "PNG", 20, 40, 150, 150);
+  pdf.save("ReviewResQ-QR.pdf");
+};
+
+window.saveBranding = async function () {
+  const uid = auth.currentUser.uid;
+  const ref = doc(db, "businesses", uid);
+  const primary = document.getElementById("primaryColor").value;
+  const button = document.getElementById("buttonColor").value;
+  const bg = document.getElementById("backgroundColor").value;
+  await updateDoc(ref, { branding: { primaryColor: primary, buttonColor: button, backgroundColor: bg } });
+  alert("Branding saved!");
+};
