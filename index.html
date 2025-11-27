@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ReviewResq – Turn Happy Customers into 5-Star Google Reviews</title>
+  <title>Review Rescue – Turn Happy Customers into 5-Star Google Reviews</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta
     name="description"
-    content="ReviewResq builds a simple review funnel for local businesses. Happy customers go to Google for a 5-star review. Upset customers send private feedback to you first."
+    content="Review Rescue builds a simple review funnel for local businesses. Happy customers go to Google for a 5-star review. Upset customers send private feedback to you first."
   />
   <style>
     :root {
@@ -60,6 +60,10 @@
       max-width: 1120px;
       margin: 0 auto;
       padding: 0 16px 60px;
+    }
+
+    .hidden {
+      display: none;
     }
 
     /* HEADER / NAVBAR */
@@ -154,11 +158,6 @@
       justify-content: flex-end;
     }
 
-    .nav-label {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
     .btn-sms {
       display: inline-flex;
       align-items: center;
@@ -184,16 +183,29 @@
       box-shadow: 0 16px 40px rgba(37, 99, 235, 0.45);
     }
 
-    .btn-call-link {
-      font-size: 11px;
-      color: var(--text-soft);
+    .nav-auth {
+      padding: 7px 14px;
+      font-size: 13px;
+      border-radius: var(--radius-pill);
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      cursor: pointer;
+      transition: 140ms ease;
     }
 
-    .btn-call-link a {
-      text-decoration: underline;
-      text-underline-offset: 2px;
-      color: var(--accent-soft);
-      font-weight: 500;
+    .nav-auth:hover {
+      background: #f1f5f9;
+    }
+
+    .nav-auth.primary {
+      background: #2563eb;
+      border-color: #1d4ed8;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .nav-auth.primary:hover {
+      background: #1d4ed8;
     }
 
     @media (max-width: 860px) {
@@ -877,6 +889,101 @@
       text-decoration: underline;
       text-underline-offset: 3px;
     }
+
+    .legal-footer {
+      margin-top: 40px;
+      padding: 20px 0;
+      text-align: center;
+      font-size: 13px;
+      color: #9ca3af;
+      background: #f9fafb;
+    }
+
+    .legal-footer a {
+      margin: 0 10px;
+      color: #6b7280;
+      text-decoration: none;
+    }
+
+    .legal-footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* AUTH MODAL */
+
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+    }
+
+    .auth-modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 201;
+    }
+
+    .auth-box {
+      background: #ffffff;
+      padding: 26px 24px 20px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 360px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .auth-box h3 {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .auth-box input {
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .auth-box button {
+      padding: 10px;
+      background: #2563eb;
+      border: none;
+      color: #ffffff;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .auth-box button:hover {
+      background: #1d4ed8;
+    }
+
+    #auth-switch {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    #auth-switch button {
+      background: none;
+      border: none;
+      color: #2563eb;
+      padding: 0;
+      margin: 0;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -886,7 +993,7 @@
         <div class="brand">
           <div class="brand-icon">R</div>
           <div>
-            <div class="brand-text-main">REVIEWRESQ</div>
+            <div class="brand-text-main">REVIEW RESCUE</div>
             <div class="brand-text-sub">REVIEWS · REPUTATION · RESCUE</div>
           </div>
         </div>
@@ -899,18 +1006,16 @@
         </div>
 
         <div class="nav-right">
-          <div class="nav-label">Ask for a free demo by text:</div>
+          <button class="nav-auth" id="login-btn">Login</button>
+          <button class="nav-auth primary" id="signup-btn">Create account</button>
+
           <a
             class="btn-sms"
-            href="sms:+17542216803?&body=Hi%20ReviewResq%2C%20I%27d%20like%20to%20see%20a%20free%20demo%20for%20my%20business."
+            href="sms:+17542216803?&body=Hi%20Review%20Rescue%2C%20I%27d%20like%20to%20see%20a%20free%20demo%20for%20my%20business."
           >
             <span class="icon">💬</span>
             <span>Text us for a free demo</span>
           </a>
-          <div class="btn-call-link">
-            Prefer a call?
-            <a href="tel:+17542216803">Call +1 (754) 221-6803</a>
-          </div>
         </div>
       </nav>
     </header>
@@ -933,7 +1038,7 @@
               </h1>
 
               <p class="hero-subtitle">
-                ReviewResq builds and manages a simple feedback page for your business. Happy
+                Review Rescue builds and manages a simple feedback page for your business. Happy
                 customers go straight to Google for a public review. Upset customers send
                 private feedback to you first – so your rating stays protected.
               </p>
@@ -956,7 +1061,7 @@
               <div class="hero-ctas">
                 <a
                   class="btn-primary"
-                  href="sms:+17542216803?&body=Hi%20ReviewResq%2C%20I%27d%20like%20you%20to%20set%20up%20a%20free%20demo%20for%20my%20business."
+                  href="sms:+17542216803?&body=Hi%20Review%20Rescue%2C%20I%27d%20like%20you%20to%20set%20up%20a%20free%20demo%20for%20my%20business."
                 >
                   <span>Get your free demo setup</span>
                   <span class="arrow">→</span>
@@ -965,7 +1070,7 @@
 
               <p class="hero-footnote">
                 <strong>No setup fee · Cancel anytime.</strong>
-                You only pay after you approve your personalized ReviewResq page.
+                You only pay after you approve your personalized Review Rescue page.
               </p>
               <p class="hero-hint">
                 Perfect for home services, contractors, auto shops, barbers, beauty, dentists, restaurants, and more.
@@ -980,7 +1085,7 @@
             </div>
 
             <!-- DEMO PREVIEW CARD -->
-            <aside class="hero-demo" aria-label="Preview of the ReviewResq feedback portal">
+            <aside class="hero-demo" aria-label="Preview of the Review Rescue feedback portal">
               <div class="demo-header">
                 <div class="demo-business">
                   <div class="demo-avatar">YB</div>
@@ -1008,7 +1113,7 @@
                 </div>
 
                 <div class="demo-text">
-                  Your customer taps a star rating. ReviewResq sends them to the right place based on their score.
+                  Your customer taps a star rating. Review Rescue sends them to the right place based on their score.
                 </div>
 
                 <div class="demo-flow">
@@ -1040,7 +1145,7 @@
               </div>
 
               <div class="demo-powered">
-                Powered by <span>REVIEWRESQ</span>
+                Powered by <span>REVIEW RESCUE</span>
               </div>
             </aside>
           </section>
@@ -1059,7 +1164,7 @@
               <div class="step-title">We build your custom portal</div>
               <div class="step-text">
                 You send us your logo, business name, and Google review link. We create a branded
-                ReviewResq page that matches your business and routes customers based on their rating.
+                Review Rescue page that matches your business and routes customers based on their rating.
               </div>
             </article>
 
@@ -1085,7 +1190,7 @@
 
         <!-- WHAT YOU GET -->
         <section id="what-you-get">
-          <h2>What you get with ReviewResq</h2>
+          <h2>What you get with Review Rescue</h2>
           <p class="lead">
             A simple system that grows your rating and protects your reputation, without adding work
             for you or your team.
@@ -1119,7 +1224,7 @@
             <article class="benefit-card">
               <div class="benefit-title">Simple for your staff</div>
               <div class="benefit-text">
-                No logins, no apps, no training. If your team can send a text, they can use ReviewResq.
+                No logins, no apps, no training. If your team can send a text, they can use Review Rescue.
               </div>
               <div class="benefit-tags">
                 <span class="benefit-tag">~10 seconds per customer</span>
@@ -1141,7 +1246,7 @@
             <article class="benefit-card">
               <div class="benefit-title">Works with how you already operate</div>
               <div class="benefit-text">
-                Whether you text customers before/after jobs or use QR codes on receipts, ReviewResq
+                Whether you text customers before/after jobs or use QR codes on receipts, Review Rescue
                 fits into your existing workflow.
               </div>
               <div class="benefit-tags">
@@ -1174,7 +1279,7 @@
           <div class="pricing-grid">
             <article class="plan-card">
               <div class="plan-label">Basic</div>
-              <div class="plan-name">ReviewResq Basic</div>
+              <div class="plan-name">Review Rescue Basic</div>
               <div class="plan-price">
                 $39<span>/month</span>
               </div>
@@ -1192,7 +1297,7 @@
               </div>
               <div class="plan-cta">
                 Text <strong>“Basic”</strong> to
-                <a href="sms:+17542216803?&body=Hi%20ReviewResq%2C%20I%27d%20like%20to%20start%20with%20the%20Basic%20plan.">
+                <a href="sms:+17542216803?&body=Hi%20Review%20Rescue%2C%20I%27d%20like%20to%20start%20with%20the%20Basic%20plan.">
                   +1 (754) 221-6803
                 </a>
                 to get started.
@@ -1202,7 +1307,7 @@
             <article class="plan-card highlight">
               <div class="plan-badge">MOST POPULAR</div>
               <div class="plan-label">Advanced</div>
-              <div class="plan-name">ReviewResq Advanced</div>
+              <div class="plan-name">Review Rescue Advanced</div>
               <div class="plan-price">
                 $59<span>/month</span>
               </div>
@@ -1220,7 +1325,7 @@
               </div>
               <div class="plan-cta">
                 Text <strong>“Advanced”</strong> to
-                <a href="sms:+17542216803?&body=Hi%20ReviewResq%2C%20I%27m%20interested%20in%20the%20Advanced%20plan.">
+                <a href="sms:+17542216803?&body=Hi%20Review%20Rescue%2C%20I%27m%20interested%20in%20the%20Advanced%20plan.">
                   +1 (754) 221-6803
                 </a>
                 for a quick setup.
@@ -1233,7 +1338,7 @@
         <section id="faq">
           <h2>Common questions</h2>
           <p class="lead">
-            If you work with customers in person and care about your Google rating, ReviewResq is built for you.
+            If you work with customers in person and care about your Google rating, Review Rescue is built for you.
           </p>
 
           <div class="faq-grid">
@@ -1257,7 +1362,7 @@
             <article class="faq-item">
               <div class="faq-q">How does my team use it?</div>
               <div class="faq-a">
-                Very simple: they open your ReviewResq link, show the screen or send a quick text,
+                Very simple: they open your Review Rescue link, show the screen or send a quick text,
                 and the customer taps a rating. No login, no app, no passwords.
               </div>
             </article>
@@ -1276,7 +1381,7 @@
         <section>
           <div class="cta-strip">
             <div>
-              <h3>Ready to see your own ReviewResq portal?</h3>
+              <h3>Ready to see your own Review Rescue portal?</h3>
               <p>
                 Text us your business name and Google review link. We’ll build your demo so you can
                 see it live before you decide.
@@ -1284,7 +1389,7 @@
             </div>
             <a
               class="btn-primary"
-              href="sms:+17542216803?&body=Hi%20ReviewResq%2C%20here%20is%20my%20business%20name%20and%20Google%20review%20link.%20Please%20set%20up%20my%20free%20demo."
+              href="sms:+17542216803?&body=Hi%20Review%20Rescue%2C%20here%20is%20my%20business%20name%20and%20Google%20review%20link.%20Please%20set%20up%20my%20free%20demo."
             >
               Text us to start your free demo →
             </a>
@@ -1295,7 +1400,7 @@
 
     <footer>
       <div class="footer-inner">
-        <div>© <span id="year"></span> ReviewResq. All rights reserved.</div>
+        <div>© <span id="year"></span> Review Rescue. All rights reserved.</div>
         <div>
           Text us at
           <a href="sms:+17542216803">+1 (754) 221-6803</a>
@@ -1306,16 +1411,109 @@
     </footer>
   </div>
 
-  <script>
-    document.getElementById("year").textContent = new Date().getFullYear();
-  </script>
-<script type="module" src="firebase.js"></script>
+  <!-- AUTH MODALS -->
+  <div id="auth-overlay" class="auth-overlay hidden"></div>
 
-<footer style="margin-top:40px; padding:20px 0; text-align:center; font-size:13px; color:#9ca3af;">
-    <a href="/terms.html" style="margin:0 10px; color:#6b7280; text-decoration:none;">Terms of Service</a>
-    <a href="/privacy.html" style="margin:0 10px; color:#6b7280; text-decoration:none;">Privacy Policy</a>
-    <a href="/refund.html" style="margin:0 10px; color:#6b7280; text-decoration:none;">Refund Policy</a>
-  </footer>
-  
+  <div id="auth-modal" class="auth-modal hidden">
+    <div class="auth-box">
+      <h3 id="auth-title">Login</h3>
+      <input id="auth-email" type="email" placeholder="Email" />
+      <input id="auth-pass" type="password" placeholder="Password" />
+      <button id="auth-submit">Continue</button>
+      <p id="auth-switch"></p>
+    </div>
+  </div>
+
+  <div class="legal-footer">
+    <a href="/terms.html">Terms of Service</a>
+    <a href="/privacy.html">Privacy Policy</a>
+    <a href="/refund.html">Refund Policy</a>
+  </div>
+
+  <script>
+    // Year in footer
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Auth modal logic
+    const authOverlay = document.getElementById("auth-overlay");
+    const authModal = document.getElementById("auth-modal");
+    const loginBtn = document.getElementById("login-btn");
+    const signupBtn = document.getElementById("signup-btn");
+    const authTitle = document.getElementById("auth-title");
+    const authEmail = document.getElementById("auth-email");
+    const authPass = document.getElementById("auth-pass");
+    const authSubmit = document.getElementById("auth-submit");
+    const authSwitch = document.getElementById("auth-switch");
+
+    let authMode = "login"; // or "signup"
+
+    function openAuth(mode) {
+      authMode = mode;
+      authTitle.textContent = mode === "login" ? "Login to Review Rescue" : "Create your Review Rescue account";
+      authSubmit.textContent = mode === "login" ? "Login" : "Create account";
+      authEmail.value = "";
+      authPass.value = "";
+      authSwitch.innerHTML =
+        mode === "login"
+          ? 'Don’t have an account yet? <button type="button" id="to-signup">Create one</button>'
+          : 'Already have an account? <button type="button" id="to-login">Log in</button>';
+
+      authOverlay.classList.remove("hidden");
+      authModal.classList.remove("hidden");
+
+      // Attach switch listeners
+      const toSignup = document.getElementById("to-signup");
+      const toLogin = document.getElementById("to-login");
+      if (toSignup) {
+        toSignup.addEventListener("click", () => openAuth("signup"));
+      }
+      if (toLogin) {
+        toLogin.addEventListener("click", () => openAuth("login"));
+      }
+    }
+
+    function closeAuth() {
+      authOverlay.classList.add("hidden");
+      authModal.classList.add("hidden");
+    }
+
+    if (loginBtn) {
+      loginBtn.addEventListener("click", () => openAuth("login"));
+    }
+    if (signupBtn) {
+      signupBtn.addEventListener("click", () => openAuth("signup"));
+    }
+
+    authOverlay.addEventListener("click", closeAuth);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeAuth();
+      }
+    });
+
+    authSubmit.addEventListener("click", () => {
+      const email = authEmail.value.trim();
+      const password = authPass.value.trim();
+      if (!email || !password) {
+        alert("Please fill in both email and password.");
+        return;
+      }
+
+      // Hook for Firebase - implement in firebase.js if you want real auth
+      if (window.handleAuthSubmit) {
+        window.handleAuthSubmit({ mode: authMode, email, password });
+      } else {
+        alert(
+          authMode.toUpperCase() +
+            " submitted for " +
+            email +
+            ". Implement window.handleAuthSubmit in firebase.js to connect real auth."
+        );
+      }
+    });
+  </script>
+
+  <script type="module" src="firebase.js"></script>
 </body>
 </html>
