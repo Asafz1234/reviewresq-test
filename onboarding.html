@@ -2,764 +2,227 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ReviewResQ – Business Onboarding</title>
+  <title>ReviewResQ – Onboarding</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta
-    name="description"
-    content="Set up your ReviewResQ business profile so we can build your custom review funnel."
-  />
-
-  <!-- Same font as landing page -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-    rel="stylesheet"
-  />
 
   <style>
     :root {
-      --bg-page: #f3f4f6;
-      --bg-card: #ffffff;
-      --border-soft: #e5e7eb;
-
+      --bg: #f3f4f6;
+      --card: #ffffff;
+      --text-main: #0f172a;
+      --text-sub: #475569;
       --accent: #2563eb;
       --accent-soft: #1d4ed8;
-      --accent-gold: #d97706;
-
-      --text-main: #0f172a;
-      --text-sub: #4b5563;
-      --text-soft: #6b7280;
-      --text-muted: #9ca3af;
-
-      --radius-lg: 20px;
-      --radius-xl: 26px;
-      --radius-pill: 999px;
-
-      --shadow-soft: 0 16px 45px rgba(15, 23, 42, 0.1);
+      --border: #e2e8f0;
+      --radius: 20px;
+      --radius-lg: 26px;
+      --shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
     }
 
     * {
-      box-sizing: border-box;
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, "Inter", sans-serif;
     }
 
     body {
-      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
-        "SF Pro Text", "Segoe UI", sans-serif;
-      background: var(--bg-page);
+      background: var(--bg);
+      padding: 20px;
       color: var(--text-main);
-      -webkit-font-smoothing: antialiased;
-    }
-
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    .page {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    header {
-      background: #ffffff;
-      border-bottom: 1px solid rgba(229, 231, 235, 0.9);
     }
 
     .shell {
-      max-width: 640px;
-      margin: 0 auto;
-      padding: 16px 16px 40px;
-    }
-
-    .nav {
-      max-width: 640px;
-      margin: 0 auto;
-      padding: 10px 16px 6px;
+      max-width: 1100px;
+      margin: auto;
+      background: var(--card);
+      border-radius: var(--radius-lg);
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      gap: 30px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    /* Left = form */
+    .left {
+      flex: 2.2;
     }
 
-    .brand-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      background: linear-gradient(135deg, #2563eb, #60a5fa);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #eff6ff;
-      font-weight: 800;
-      font-size: 18px;
-      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.45);
+    h1 {
+      font-size: 26px;
+      margin-bottom: 8px;
     }
 
-    .brand-text-main {
-      font-weight: 700;
-      letter-spacing: 0.06em;
+    p.sub {
       font-size: 14px;
-    }
-
-    .brand-text-sub {
-      font-size: 10px;
-      color: var(--text-soft);
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-    }
-
-    .header-right {
-      font-size: 12px;
-      color: var(--text-soft);
-      text-align: right;
-    }
-
-    main {
-      flex: 1;
-    }
-
-    .card {
-      margin-top: 18px;
-      background: var(--bg-card);
-      border-radius: var(--radius-xl);
-      border: 1px solid var(--border-soft);
-      box-shadow: var(--shadow-soft);
-      padding: 20px 16px 18px;
-    }
-
-    @media (min-width: 640px) {
-      .card {
-        padding: 24px 22px 20px;
-      }
-    }
-
-    .step-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-
-    .title-row {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-bottom: 12px;
-    }
-
-    .title-row h1 {
-      font-size: 20px;
-    }
-
-    .title-row h1 span {
-      color: var(--accent-gold);
-    }
-
-    .title-row p {
-      font-size: 13px;
       color: var(--text-sub);
+      margin-bottom: 20px;
     }
 
-    .badge-strip {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
+    .field {
       margin-bottom: 14px;
-    }
-
-    .badge {
-      font-size: 11px;
-      padding: 4px 9px;
-      border-radius: var(--radius-pill);
-      background: #eff6ff;
-      color: #1d4ed8;
-      border: 1px solid #bfdbfe;
-    }
-
-    form {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-    }
-
-    .field-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      gap: 6px;
     }
 
     label {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-main);
+      font-size: 14px;
+      color: var(--text-sub);
     }
 
-    label span.required {
-      color: #ef4444;
-      margin-left: 2px;
+    input {
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      outline: none;
+      font-size: 15px;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      background: #ffffff;
+      box-shadow: 0 0 0 1px var(--accent);
     }
 
     .hint {
-      font-size: 11px;
-      color: var(--text-muted);
+      font-size: 12px;
+      color: var(--text-sub);
     }
 
-    input,
-    select,
-    textarea {
-      border-radius: 10px;
-      border: 1px solid var(--border-soft);
-      padding: 9px 10px;
-      font-size: 13px;
-      font-family: inherit;
-      outline: none;
-      background: #f9fafb;
-      transition: border-color 120ms ease-out, background-color 120ms ease-out,
-        box-shadow 120ms ease-out;
+    .error {
+      font-size: 12px;
+      color: #dc2626;
+      margin-top: -4px;
     }
 
-    input:focus,
-    select:focus,
-    textarea:focus {
-      border-color: var(--accent-soft);
+    .btn {
+      margin-top: 10px;
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+      border: none;
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.35);
+      transition: 0.15s;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+    }
+
+    /* Right = live preview */
+    .right {
+      flex: 1.4;
       background: #ffffff;
-      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
-    }
-
-    .two-cols {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
       gap: 10px;
     }
 
-    @media (min-width: 600px) {
-      .two-cols {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 60px;
-      max-height: 160px;
-    }
-
-    .plan-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .plan-pill {
-      flex: 1 1 140px;
-      border-radius: 12px;
-      border: 1px solid var(--border-soft);
-      padding: 9px 10px;
-      font-size: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      cursor: pointer;
-      background: #f9fafb;
-      transition: border-color 120ms ease-out, background-color 120ms ease-out,
-        box-shadow 120ms ease-out, transform 80ms ease-out;
-    }
-
-    .plan-pill input[type="radio"] {
-      display: none;
-    }
-
-    .plan-pill strong {
-      font-size: 13px;
-    }
-
-    .plan-pill span {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .plan-pill.selected {
-      border-color: var(--accent-soft);
-      background: #eef2ff;
-      box-shadow: 0 14px 35px rgba(37, 99, 235, 0.18);
-      transform: translateY(-1px);
-    }
-
-    .form-footer {
-      margin-top: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .btn-primary {
-      width: 100%;
-      border-radius: var(--radius-pill);
-      border: none;
-      padding: 11px 16px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: #f9fafb;
-      box-shadow: 0 18px 45px rgba(37, 99, 235, 0.35);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.7;
-      cursor: default;
-      box-shadow: none;
-    }
-
-    .btn-primary span.icon {
-      font-size: 16px;
-      transform: translateY(1px);
-    }
-
-    .status {
-      font-size: 12px;
-    }
-
-    .status.error {
-      color: #b91c1c;
-    }
-
-    .status.success {
-      color: #166534;
-    }
-
-    .status.muted {
-      color: var(--text-muted);
-    }
-
-    footer {
-      padding: 14px 16px 18px;
-      font-size: 11px;
-      color: var(--text-muted);
+    .preview-header {
       text-align: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .preview-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .preview-sub {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    @media (max-width: 850px) {
+      .shell {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
+
 <body>
-  <div class="page">
-    <header>
-      <div class="nav">
-        <div class="brand">
-          <div class="brand-icon">R</div>
-          <div>
-            <div class="brand-text-main">ReviewResQ</div>
-            <div class="brand-text-sub">BUSINESS SETUP</div>
-          </div>
-        </div>
-        <div class="header-right">
-          <div id="user-email-label">Loading...</div>
-          <div>Step 1 of 2: Business profile</div>
+  <div class="shell">
+    
+    <!-- LEFT SIDE (FORM) -->
+    <div class="left">
+      <h1>Set up your ReviewResQ portal</h1>
+      <p class="sub">Just a few details so we can build your branded review funnel.</p>
+
+      <div class="field">
+        <label>Business name</label>
+        <input id="bizName" type="text" placeholder="e.g. OneTouch Home Services" />
+        <div id="bizNameErr" class="error"></div>
+      </div>
+
+      <div class="field">
+        <label>Your logo URL (PNG/JPG)</label>
+        <input id="logoUrl" type="text" placeholder="https://yourdomain.com/logo.png" />
+        <div class="hint">If you don’t have one, leave empty.</div>
+      </div>
+
+      <div class="field">
+        <label>Your Google Review Link</label>
+        <input id="googleLink" type="text" placeholder="Paste your Google Business Review link" />
+        <div id="googleLinkErr" class="error"></div>
+        <div class="hint">
+          Don’t know how to get your review link?
+          <a href="/help-review-link.html" style="color: var(--accent)">Click here</a>
         </div>
       </div>
-    </header>
 
-    <main>
-      <div class="shell">
-        <div class="card">
-          <div class="step-label">Step 1</div>
-          <div class="title-row">
-            <h1>Tell us about your <span>business</span></h1>
-            <p>
-              We’ll use these details to build your personalized ReviewResQ portal
-              and route customers correctly between Google and private feedback.
-            </p>
-          </div>
-
-          <div class="badge-strip">
-            <div class="badge">Takes ~2 minutes</div>
-            <div class="badge">You can change this later</div>
-          </div>
-
-          <form id="onboarding-form">
-            <div class="field-group">
-              <label for="businessName">
-                Business name <span class="required">*</span>
-              </label>
-              <input
-                id="businessName"
-                name="businessName"
-                type="text"
-                autocomplete="organization"
-                required
-                placeholder="Example: OneTouch Home Services"
-              />
-            </div>
-
-            <div class="two-cols">
-              <div class="field-group">
-                <label for="businessEmail">
-                  Business email <span class="required">*</span>
-                </label>
-                <input
-                  id="businessEmail"
-                  name="businessEmail"
-                  type="email"
-                  autocomplete="email"
-                  required
-                  placeholder="you@yourbusiness.com"
-                />
-                <div class="hint">
-                  This is where we’ll send private feedback from unhappy customers.
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label for="businessPhone">Business phone</label>
-                <input
-                  id="businessPhone"
-                  name="businessPhone"
-                  type="tel"
-                  autocomplete="tel"
-                  placeholder="+1 (754) 555-1234"
-                />
-                <div class="hint">
-                  Optional – used in your portal copy so customers can contact you.
-                </div>
-              </div>
-            </div>
-
-            <div class="field-group">
-              <label for="websiteUrl">Website (if you have one)</label>
-              <input
-                id="websiteUrl"
-                name="websiteUrl"
-                type="url"
-                placeholder="https://yourbusiness.com"
-              />
-            </div>
-
-            <div class="field-group">
-              <label for="googleReviewUrl">
-                Google reviews link <span class="required">*</span>
-              </label>
-              <input
-                id="googleReviewUrl"
-                name="googleReviewUrl"
-                type="url"
-                required
-                placeholder="Paste your Google review link here"
-              />
-              <div class="hint">
-                When a customer chooses 4–5★, we’ll send them directly to this link.
-              </div>
-            </div>
-
-            <div class="field-group">
-              <label for="feedbackEmail">
-                Where should private feedback be sent? <span class="required">*</span>
-              </label>
-              <input
-                id="feedbackEmail"
-                name="feedbackEmail"
-                type="email"
-                required
-                placeholder="owner@yourbusiness.com"
-              />
-              <div class="hint">
-                1–3★ feedback will go to this email only – not to Google.
-              </div>
-            </div>
-
-            <div class="two-cols">
-              <div class="field-group">
-                <label for="businessCategory">Business category</label>
-                <select id="businessCategory" name="businessCategory">
-                  <option value="">Choose a category</option>
-                  <option value="home_services">Home services / contractors</option>
-                  <option value="auto">Auto shop / car services</option>
-                  <option value="beauty">Barber / beauty / salon</option>
-                  <option value="medical">Dental / medical</option>
-                  <option value="restaurant">Restaurant / food</option>
-                  <option value="other">Other / mixed</option>
-                </select>
-              </div>
-
-              <div class="field-group">
-                <label for="city">City / area</label>
-                <input
-                  id="city"
-                  name="city"
-                  type="text"
-                  placeholder="Example: Fort Lauderdale, FL"
-                />
-              </div>
-            </div>
-
-            <div class="field-group">
-              <label for="notes">Anything specific we should know?</label>
-              <textarea
-                id="notes"
-                name="notes"
-                placeholder="For example: We get many unfair reviews from price shoppers. Focus the copy on honest, satisfied customers..."
-              ></textarea>
-            </div>
-
-            <div class="field-group">
-              <label>Plan you’re most interested in</label>
-              <div class="plan-row" id="plan-row">
-                <label class="plan-pill selected">
-                  <input
-                    type="radio"
-                    name="plan"
-                    value="basic"
-                    checked
-                  />
-                  <strong>Basic – $39/mo</strong>
-                  <span>Simple, powerful funnel for one location.</span>
-                </label>
-
-                <label class="plan-pill">
-                  <input
-                    type="radio"
-                    name="plan"
-                    value="advanced"
-                  />
-                  <strong>Advanced – $59/mo</strong>
-                  <span>Custom copy, colors, mini-analytics & priority support.</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="form-footer">
-              <button type="submit" class="btn-primary" id="submit-btn">
-                <span>Save and continue</span>
-                <span class="icon">→</span>
-              </button>
-              <div id="status" class="status muted">
-                Your changes are saved securely in your ReviewResQ account.
-              </div>
-            </div>
-          </form>
-        </div>
+      <div class="field">
+        <label>Your business category</label>
+        <input id="category" type="text" placeholder="e.g. Handyman, Flooring, Auto Repair, Dentist..." />
       </div>
-    </main>
 
-    <footer>
-      © <span id="year"></span> ReviewResQ – Business onboarding
-    </footer>
+      <button class="btn" id="btnSubmit">Continue →</button>
+    </div>
+
+    <!-- RIGHT SIDE (Preview) -->
+    <div class="right">
+      <div class="preview-header">
+        <div class="preview-title" id="prevName">YOUR BUSINESS</div>
+        <div class="preview-sub">Review page preview</div>
+      </div>
+
+      <p id="prevCat" style="font-size:13px; color:var(--text-sub);">
+        Category will appear here…
+      </p>
+
+      <p style="font-size:13px; margin-top:6px;">
+        Logo preview:
+      </p>
+
+      <img
+        id="prevLogo"
+        src=""
+        alt="Logo preview"
+        style="max-width: 140px; margin-top: 4px; display:none; border-radius:10px;"
+      />
+
+      <p style="font-size:13px; margin-top:10px;">
+        Your Google Review Link:<br />
+        <span id="prevGoogle" style="font-size:12px; color:var(--text-sub)"></span>
+      </p>
+
+    </div>
   </div>
 
-  <script type="module">
-    // === 1. Firebase SDK imports ===
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-    import {
-      getAuth,
-      onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-    import {
-      getFirestore,
-      doc,
-      setDoc,
-      serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-
-    // === 2. Your Firebase config (מה שנתת לי) ===
-    const firebaseConfig = {
-      apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
-      authDomain: "reviewresq-app.firebaseapp.com",
-      projectId: "reviewresq-app",
-      storageBucket: "reviewresq-app.firebasestorage.app",
-      messagingSenderId: "863497920392",
-      appId: "1:863497920392:web:ca99060b42a50711b9e43d",
-      measurementId: "G-G3P2BX845N"
-    };
-
-    // === 3. Init Firebase (עמוד עצמאי – לא תלוי ב-firebase.js) ===
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    const yearSpan = document.getElementById("year");
-    if (yearSpan) {
-      yearSpan.textContent = new Date().getFullYear();
-    }
-
-    const statusEl = document.getElementById("status");
-    const submitBtn = document.getElementById("submit-btn");
-    const userEmailLabel = document.getElementById("user-email-label");
-    const form = document.getElementById("onboarding-form");
-
-    let currentUser = null;
-
-    // === 4. Handle auth state ===
-    onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        // לא מחובר – נשלח אותו להתחברות
-        if (userEmailLabel) {
-          userEmailLabel.textContent = "Not signed in";
-        }
-        if (statusEl) {
-          statusEl.textContent = "Please log in or create an account first.";
-          statusEl.className = "status error";
-        }
-        // הפניה לעמוד האות' שלך
-        setTimeout(() => {
-          window.location.href = "/auth.html#signup";
-        }, 2000);
-        return;
-      }
-
-      currentUser = user;
-      if (userEmailLabel) {
-        userEmailLabel.textContent = user.email || "Signed in";
-      }
-      if (statusEl) {
-        statusEl.textContent = "Fill in your business details and click Save.";
-        statusEl.className = "status muted";
-      }
-    });
-
-    // === 5. Plan pill UI ===
-    const planRow = document.getElementById("plan-row");
-    if (planRow) {
-      planRow.addEventListener("click", (e) => {
-        const label = e.target.closest(".plan-pill");
-        if (!label) return;
-        const all = planRow.querySelectorAll(".plan-pill");
-        all.forEach((el) => el.classList.remove("selected"));
-        label.classList.add("selected");
-        const input = label.querySelector('input[type="radio"]');
-        if (input) {
-          input.checked = true;
-        }
-      });
-    }
-
-    // === 6. Simple validators ===
-    function isValidEmail(email) {
-      if (!email) return false;
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    }
-
-    function isValidPhone(phone) {
-      if (!phone) return true; // optional field
-      const digits = phone.replace(/\D/g, "");
-      return digits.length >= 7;
-    }
-
-    function setStatus(message, type = "muted") {
-      if (!statusEl) return;
-      statusEl.textContent = message;
-      statusEl.className = "status " + type;
-    }
-
-    function setLoading(isLoading) {
-      if (!submitBtn) return;
-      submitBtn.disabled = isLoading;
-      const textSpan = submitBtn.querySelector("span:first-child");
-      if (!textSpan) return;
-      textSpan.textContent = isLoading ? "Saving..." : "Save and continue";
-    }
-
-    // === 7. Handle submit ===
-    if (form) {
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (!currentUser) {
-          setStatus("You must be logged in to save your business profile.", "error");
-          return;
-        }
-
-        const businessName = document.getElementById("businessName").value.trim();
-        const businessEmail = document.getElementById("businessEmail").value.trim();
-        const businessPhone = document.getElementById("businessPhone").value.trim();
-        const websiteUrl = document.getElementById("websiteUrl").value.trim();
-        const googleReviewUrl = document.getElementById("googleReviewUrl").value.trim();
-        const feedbackEmail = document.getElementById("feedbackEmail").value.trim();
-        const businessCategory = document.getElementById("businessCategory").value.trim();
-        const city = document.getElementById("city").value.trim();
-        const notes = document.getElementById("notes").value.trim();
-
-        const planInput = form.querySelector('input[name="plan"]:checked');
-        const plan = planInput ? planInput.value : "basic";
-
-        // Basic validation
-        if (!businessName) {
-          setStatus("Please enter your business name.", "error");
-          return;
-        }
-        if (!googleReviewUrl) {
-          setStatus("Please paste your Google review link.", "error");
-          return;
-        }
-        if (!isValidEmail(businessEmail)) {
-          setStatus("Please enter a valid business email.", "error");
-          return;
-        }
-        if (!isValidEmail(feedbackEmail)) {
-          setStatus("Please enter a valid email for private feedback.", "error");
-          return;
-        }
-        if (!isValidPhone(businessPhone)) {
-          setStatus("Please enter a valid business phone number.", "error");
-          return;
-        }
-
-        const payload = {
-          businessName,
-          businessEmail,
-          businessPhone,
-          websiteUrl,
-          googleReviewUrl,
-          feedbackEmail,
-          businessCategory,
-          city,
-          notes,
-          plan,
-          ownerUid: currentUser.uid,
-          ownerEmail: currentUser.email || null,
-          updatedAt: serverTimestamp(),
-          createdAt: serverTimestamp()
-        };
-
-        try {
-          setLoading(true);
-          setStatus("Saving your business profile...", "muted");
-
-          const ref = doc(db, "businesses", currentUser.uid);
-          await setDoc(ref, payload, { merge: true });
-
-          setStatus(
-            "Saved! We’ll use this info to build your personalized ReviewResQ portal.",
-            "success"
-          );
-
-          // אחרי כמה שניות אפשר להעביר לעמוד הבא (למשל /dashboard.html)
-          setTimeout(() => {
-            // לעת עתה – מחזירים לדף הבית. אפשר לשנות ל-/dashboard.html כשיהיה.
-            window.location.href = "/";
-          }, 2000);
-        } catch (err) {
-          console.error(err);
-          setStatus(
-            "Something went wrong while saving. Please try again or contact us.",
-            "error"
-          );
-        } finally {
-          setLoading(false);
-        }
-      });
-    }
-  </script>
+  <script type="module" src="/onboarding.js"></script>
 </body>
 </html>
