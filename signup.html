@@ -2,421 +2,149 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Create Your ReviewResQ Account</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="/logo.png" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --bg-page: #f3f4f6;
-      --bg-card: #ffffff;
-      --accent: #2563eb;
-      --accent-soft: #1d4ed8;
-      --text-main: #0f172a;
-      --text-sub: #4b5563;
-      --error: #b91c1c;
-      --success: #16a34a;
-      --radius-xl: 24px;
-      --radius-pill: 999px;
-      --shadow-card: 0 24px 60px rgba(15, 23, 42, 0.18);
-    }
 
-    * {
-      box-sizing: border-box;
+  <link rel="stylesheet" href="styles.css" />
+
+  <style>
+    body {
+      background: #f7f9fc;
+      font-family: "Inter", sans-serif;
       margin: 0;
       padding: 0;
     }
 
-    body {
-      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #e0edff 0, #f9fafb 40%, #f3f4f6 100%);
-      color: var(--text-main);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
-    }
-
-    .shell {
-      max-width: 1120px;
-      width: 100%;
-      display: grid;
-      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-      gap: 32px;
-      align-items: center;
-    }
-
-    @media (max-width: 900px) {
-      .shell {
-        grid-template-columns: minmax(0, 1fr);
-      }
-      body {
-        padding-top: 40px;
-      }
-    }
-
-    .hero {
-      padding-right: 16px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 18px;
-    }
-
-    .brand-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #eff6ff;
-      font-weight: 700;
-      font-size: 20px;
-      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.4);
-    }
-
-    .brand-title {
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      font-size: 14px;
-    }
-
-    .brand-sub {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: #9ca3af;
-    }
-
-    .hero-title {
-      font-size: clamp(26px, 3.2vw + 10px, 34px);
-      line-height: 1.1;
-      margin-bottom: 10px;
-    }
-
-    .hero-title span.accent {
-      color: var(--accent-soft);
-    }
-
-    .hero-text {
-      font-size: 14px;
-      color: var(--text-sub);
-      max-width: 34rem;
-      margin-bottom: 16px;
-    }
-
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 10px;
-      border-radius: var(--radius-pill);
-      border: 1px solid #bbf7d0;
-      background: #ecfdf5;
-      color: #166534;
-      font-size: 11px;
-      margin-bottom: 12px;
-    }
-
-    .hero-badge span.label {
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      font-weight: 600;
-    }
-
-    .hero-footnote {
-      font-size: 12px;
-      color: var(--text-sub);
-      margin-top: 8px;
-    }
-
-    .hero-footnote strong {
-      color: var(--text-main);
-    }
-
-    /* CARD */
-
-    .card {
-      background: var(--bg-card);
-      border-radius: var(--radius-xl);
-      box-shadow: var(--shadow-card);
-      padding: 24px 22px 22px;
+    .container {
       max-width: 420px;
-      width: 100%;
-      margin: 0 auto;
-      border: 1px solid #e5e7eb;
-    }
-
-    .card-title {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-
-    .card-sub {
-      font-size: 13px;
-      color: var(--text-sub);
-      margin-bottom: 18px;
-    }
-
-    .form-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .field-label {
-      font-size: 12px;
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-
-    .field-input {
-      width: 100%;
-      border-radius: 999px;
-      border: 1px solid #d1d5db;
-      padding: 9px 14px;
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
-      background: #f9fafb;
-    }
-
-    .field-input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.5);
+      margin: 40px auto;
+      padding: 32px;
       background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 4px 25px rgba(0,0,0,0.08);
     }
 
-    .field-input::placeholder {
-      color: #9ca3af;
+    h2 {
+      margin-top: 0;
+      font-size: 26px;
+      text-align: center;
+      font-weight: 700;
+      color: #111827;
     }
 
-    .btn-primary {
-      margin-top: 4px;
-      width: 100%;
-      border-radius: 999px;
-      border: none;
-      padding: 10px 16px;
-      font-size: 14px;
+    label {
       font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+      color: #374151;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1.5px solid #d1d5db;
+      margin-bottom: 15px;
+      outline: none;
+      transition: 0.25s;
+    }
+
+    input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-weight: 600;
+      font-size: 17px;
       cursor: pointer;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: #eff6ff;
-      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.45);
-      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+      margin-top: 5px;
+      transition: 0.2s;
     }
 
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.05);
-      box-shadow: 0 20px 48px rgba(37, 99, 235, 0.55);
+    .btn:hover {
+      background: #1d4ed8;
     }
 
-    .helper {
+    .error-box {
       margin-top: 10px;
-      font-size: 12px;
-      color: var(--text-sub);
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      flex-wrap: wrap;
+      padding: 12px;
+      border-radius: 8px;
+      background: #fee2e2;
+      color: #b91c1c;
+      font-size: 15px;
+      display: none;
     }
 
-    .helper a {
-      color: var(--accent-soft);
+    .bottom-links {
+      margin-top: 14px;
+      text-align: center;
+      font-size: 15px;
+    }
+
+    a {
+      color: #2563eb;
       text-decoration: none;
-      font-weight: 500;
-    }
-
-    .helper a:hover {
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-
-    .error-msg {
-      margin-top: 8px;
-      font-size: 12px;
-      color: var(--error);
-      min-height: 16px;
-    }
-
-    .success-msg {
-      margin-top: 8px;
-      font-size: 12px;
-      color: var(--success);
+      font-weight: 600;
     }
   </style>
 </head>
+
 <body>
-  <div class="shell">
-    <section class="hero">
-      <div class="brand">
-        <div class="brand-icon">R</div>
-        <div>
-          <div class="brand-title">REVIEWRESQ</div>
-          <div class="brand-sub">REVIEWS · REPUTATION · RESCUE</div>
-        </div>
-      </div>
 
-      <div class="hero-badge">
-        <span class="label">New</span>
-        <span>Smart review funnel for local businesses in Florida</span>
-      </div>
+  <div class="container">
+    <h2>Create your ReviewResQ account</h2>
 
-      <h1 class="hero-title">
-        Create your <span class="accent">ReviewResQ</span> account
-        and protect your Google rating automatically.
-      </h1>
+    <label>Full name</label>
+    <input id="fullname" type="text" placeholder="John Doe" />
 
-      <p class="hero-text">
-        Set up your dashboard so you can see how many customers went to Google,
-        how many sent private feedback, and which jobs generated new 5-star reviews.
-      </p>
+    <label>Work email</label>
+    <input id="email" type="email" placeholder="example@email.com" />
 
-      <p class="hero-footnote">
-        <strong>No setup fee. Cancel anytime.</strong>
-        You only pay after your ReviewResQ funnel is live and approved.
-      </p>
-    </section>
+    <label>Mobile phone</label>
+    <input id="phone" type="text" placeholder="7542308130" />
 
-    <section>
-      <div class="card">
-        <h2 class="card-title">Create your ReviewResQ account</h2>
-        <p class="card-sub">Use real details so we can send you alerts and protect your rating.</p>
+    <label>Password</label>
+    <input id="password" type="password" placeholder="******" />
 
-        <form id="signup-form" class="form-grid" novalidate>
-          <div>
-            <div class="field-label">Full name</div>
-            <input
-              id="name-input"
-              class="field-input"
-              type="text"
-              autocomplete="name"
-              placeholder="e.g. John Smith"
-              required
-            />
-          </div>
+    <button class="btn" onclick="handleSignup()">Create account</button>
 
-          <div>
-            <div class="field-label">Work email</div>
-            <input
-              id="email-input"
-              class="field-input"
-              type="email"
-              autocomplete="email"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
+    <div id="errorBox" class="error-box"></div>
 
-          <div>
-            <div class="field-label">Mobile phone</div>
-            <input
-              id="phone-input"
-              class="field-input"
-              type="tel"
-              autocomplete="tel"
-              placeholder="+1 754 555 1234"
-              required
-            />
-          </div>
-
-          <div>
-            <div class="field-label">Password</div>
-            <input
-              id="password-input"
-              class="field-input"
-              type="password"
-              autocomplete="new-password"
-              placeholder="At least 6 characters"
-              required
-            />
-          </div>
-
-          <button type="submit" class="btn-primary">Create account</button>
-        </form>
-
-        <div id="signup-error" class="error-msg"></div>
-
-        <div class="helper">
-          <span>Already have an account? <a href="/login.html">Log in</a></span>
-          <a href="/index.html">← Back to main site</a>
-        </div>
-      </div>
-    </section>
+    <div class="bottom-links">
+      Already have an account?
+      <a href="login.html">Log in</a>
+    </div>
   </div>
 
-  <script type="module" src="/firebase.js"></script>
+  <script type="module" src="firebase.js"></script>
+
   <script>
-    const form = document.getElementById("signup-form");
-    const nameEl = document.getElementById("name-input");
-    const emailEl = document.getElementById("email-input");
-    const phoneEl = document.getElementById("phone-input");
-    const passEl = document.getElementById("password-input");
-    const errorBox = document.getElementById("signup-error");
-
-    function isValidEmail(email) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
-
-    function isValidPhone(phone) {
-      const digits = phone.replace(/\D/g, "");
-      return digits.length >= 10 && digits.length <= 15; // 10–15 digits
-    }
-
-    function isValidName(name) {
-      if (name.length < 2 || name.length > 80) return false;
-      return !/[0-9]/.test(name);
-    }
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      errorBox.textContent = "";
-
-      const name = nameEl.value.trim();
-      const email = emailEl.value.trim();
-      const phone = phoneEl.value.trim();
-      const password = passEl.value;
-
-      if (!isValidName(name)) {
-        errorBox.textContent = "Please enter a real name (no numbers).";
-        nameEl.focus();
-        return;
-      }
-
-      if (!isValidEmail(email)) {
-        errorBox.textContent = "Please enter a valid email address.";
-        emailEl.focus();
-        return;
-      }
-
-      if (!isValidPhone(phone)) {
-        errorBox.textContent = "Please enter a valid phone number (10–15 digits).";
-        phoneEl.focus();
-        return;
-      }
-
-      if (password.length < 6) {
-        errorBox.textContent = "Password must be at least 6 characters.";
-        passEl.focus();
-        return;
-      }
+    async function handleSignup() {
+      const name = document.getElementById("fullname").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const errorBox = document.getElementById("errorBox");
 
       const res = await window.reviewResQSignup(name, email, phone, password);
 
-      if (res.ok) {
-        window.location.href = "/dashboard.html";
-      } else {
-        errorBox.textContent = res.message || "Signup failed. Please try again.";
+      if (!res.ok) {
+        errorBox.style.display = "block";
+        errorBox.textContent = res.message;
+        return;
       }
-    });
+
+      window.location.href = "dashboard.html";
+    }
   </script>
+
 </body>
 </html>
