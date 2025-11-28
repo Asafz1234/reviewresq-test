@@ -1,25 +1,23 @@
-// Firebase connection file
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-  getFirestore,
-  collection,
-  getDocs,
-  doc,
-  getDoc
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
+    authDomain: "reviewresq-app.firebaseapp.com",
+    projectId: "reviewresq-app",
+    storageBucket: "reviewresq-app.firebasestorage.app",
+    messagingSenderId: "863497920392",
+    appId: "1:863497920392:web:ca99060b42a50711b9e43d",
+    measurementId: "G-G3P2BX845N"
+  };
 
-const firebaseConfig = {
-  apiKey: "AIzAsyDw0nnO8Rkn1ER5J3pyFbr6GPPGjvR7CzB",
-  authDomain: "reviewresq-app.firebaseapp.com",
-  projectId: "reviewresq-app",
-  storageBucket: "reviewresq-app.appspot.com",
-  messagingSenderId: "863497920392",
-  appId: "1:863497920392:web:ca99060b42a50711b9e43d"
-};
-
-// Initialize Firebase
-export const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-
-console.log("Firebase Connected!");
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
