@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Business Profile – ReviewResQ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+  <script type="module" src="firebase.js"></script>
+</head>
+
+<body>
+  <div class="container">
+    <h2>Business Profile</h2>
+    <p>Update your business information so customers see your brand correctly.</p>
+
+    <form id="businessForm">
+
+      <label>Business Name</label>
+      <input type="text" id="bizName" placeholder="My Company LLC" required />
+
+      <label>Business Email</label>
+      <input type="email" id="bizEmail" placeholder="company@example.com" required />
+
+      <label>Phone Number</label>
+      <input type="text" id="bizPhone" placeholder="+1 555 555 5555" required />
+
+      <label>Business Address</label>
+      <input type="text" id="bizAddress" placeholder="123 Main St, Florida" />
+
+      <label>Google Review Link</label>
+      <input type="text" id="googleLink" placeholder="https://g.page/r/xxxxx" />
+
+      <label>Primary Brand Color</label>
+      <input type="color" id="primaryColor" value="#2563eb" />
+
+      <label>Secondary Brand Color</label>
+      <input type="color" id="secondaryColor" value="#facc15" />
+
+      <label>Upload Logo</label>
+      <input type="file" id="logoUpload" accept="image/*" />
+
+      <button type="submit" class="saveBtn">Save Changes</button>
+    </form>
+
+    <p id="statusMsg"></p>
+  </div>
+
+  <script type="module">
+    import { db, auth, uploadLogoAndGetURL } from "./firebase.js";
+    import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = "login.html";
+        return;
+      }
+
+      const ref = doc(db, "businesses", user.uid);
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        const data = snap.data();
+        bizName.value = data.name || "";
+        bizEmail.value = data.email || "";
+        bizPhone.value = data.phone || "";
+        bizAddress.value = data.address || "";
+        googleLink.value = data.googleLink || "";
+        primaryColor.value = data.branding?.primary || "#2563eb";
+        secondaryColor.value = data.branding?.secondary || "#facc15";
+      }
+
+      businessForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        let logoURL = null;
+        if (logoUpload.files.length > 0) {
+          logoURL = await uploadLogoAndGetURL(logoUpload.files[0], user.uid);
+        }
+
+        const payload = {
+          name: bizName.value,
+          email: bizEmail.value,
+          phone: bizPhone.value,
+          address: bizAddress.value,
+          googleLink: googleLink.value,
+          branding: {
+            primary: primaryColor.value,
+            secondary: secondaryColor.value
+          },
+          ...(logoURL && { logoURL })
+        };
+
+        await setDoc(ref, payload, { merge: true });
+        statusMsg.innerText = "Business profile updated successfully!";
+      });
+    });
+  </script>
+
+</body>
+</html>
