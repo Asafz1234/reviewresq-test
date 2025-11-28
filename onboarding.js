@@ -1,174 +1,173 @@
-// onboarding.js
+// onboarding.js – שומר / טוען את פרטי העסק ל-Firestore
+
 import {
   auth,
-  db,
   onAuthStateChanged,
+  db,
   doc,
   getDoc,
   setDoc,
+  serverTimestamp,
 } from "./firebase.js";
 
-// ---------- DOM ELEMENTS ----------
-const bizNameInput = document.getElementById("bizName");
-const logoUrlInput = document.getElementById("logoUrl");
-const googleLinkInput = document.getElementById("googleLink");
-const categoryInput = document.getElementById("category");
+const form = document.getElementById("onboarding-form");
+const submitBtn = document.getElementById("submit-btn");
+const globalMsg = document.getElementById("global-message");
+const previewBizName = document.getElementById("preview-biz-name");
 
-const bizNameErr = document.getElementById("bizNameErr");
-const googleLinkErr = document.getElementById("googleLinkErr");
+const bizNameInput = document.getElementById("biz-name");
 
-const btnSubmit = document.getElementById("btnSubmit");
+// עדכון פריוויו בזמן אמת
+if (bizNameInput && previewBizName) {
+  bizNameInput.addEventListener("input", () => {
+    previewBizName.textContent =
+      bizNameInput.value.trim() || "YOUR BUSINESS";
+  });
+}
 
-// Preview elements
-const prevName = document.getElementById("prevName");
-const prevCat = document.getElementById("prevCat");
-const prevLogo = document.getElementById("prevLogo");
-const prevGoogle = document.getElementById("prevGoogle");
+// עוזר להודעות כלליות
+function showGlobal(type, msg) {
+  globalMsg.textContent = msg;
+  globalMsg.className = `global-message visible ${type}`;
+}
+
+function clearGlobal() {
+  globalMsg.textContent = "";
+  globalMsg.className = "global-message";
+}
+
+function fieldError(id, msg) {
+  const el = document.getElementById(id + "-error");
+  if (el) el.textContent = msg || "";
+}
+
+function clearFieldErrors() {
+  document.querySelectorAll(".error-text").forEach((el) => (el.textContent = ""));
+}
 
 let currentUser = null;
+let bizDocRef = null;
 
-// ---------- LIVE PREVIEW ----------
-function updatePreview() {
-  const name = bizNameInput.value.trim();
-  const cat = categoryInput.value.trim();
-  const logo = logoUrlInput.value.trim();
-  const gLink = googleLinkInput.value.trim();
-
-  prevName.textContent = name || "YOUR BUSINESS";
-  prevCat.textContent = cat ? `Category: ${cat}` : "Category will appear here…";
-
-  if (logo) {
-    prevLogo.src = logo;
-    prevLogo.style.display = "block";
-  } else {
-    prevLogo.src = "";
-    prevLogo.style.display = "none";
-  }
-
-  prevGoogle.textContent = gLink || "Your Google review link will appear here…";
-}
-
-[bizNameInput, logoUrlInput, googleLinkInput, categoryInput].forEach((input) => {
-  if (!input) return;
-  input.addEventListener("input", updatePreview);
-});
-
-// ---------- ERROR HANDLING ----------
-function clearErrors() {
-  bizNameErr.textContent = "";
-  googleLinkErr.textContent = "";
-}
-
-function validateForm() {
-  clearErrors();
-  let valid = true;
-
-  const name = bizNameInput.value.trim();
-  const gLink = googleLinkInput.value.trim();
-
-  if (!name) {
-    bizNameErr.textContent = "Business name is required.";
-    valid = false;
-  }
-
-  if (!gLink) {
-    googleLinkErr.textContent = "Google review link is required.";
-    valid = false;
-  } else if (!gLink.startsWith("http")) {
-    googleLinkErr.textContent = "Please enter a valid link starting with http or https.";
-    valid = false;
-  }
-
-  return valid;
-}
-
-// ---------- LOAD EXISTING DATA ----------
-async function loadExistingBusiness(user) {
-  try {
-    const ref = doc(db, "businesses", user.uid);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      updatePreview();
-      return;
-    }
-
-    const data = snap.data();
-
-    if (data.businessName) bizNameInput.value = data.businessName;
-    if (data.logoUrl) logoUrlInput.value = data.logoUrl;
-    if (data.googleReviewLink) googleLinkInput.value = data.googleReviewLink;
-    if (data.category) categoryInput.value = data.category;
-
-    updatePreview();
-  } catch (err) {
-    console.error("Error loading business document:", err);
-    updatePreview();
-  }
-}
-
-// ---------- SAVE DATA ----------
-async function saveBusiness() {
-  if (!currentUser) {
-    alert("Please log in again.");
-    window.location.href = "/auth.html";
-    return;
-  }
-
-  if (!validateForm()) return;
-
-  btnSubmit.disabled = true;
-  btnSubmit.textContent = "Saving…";
-
-  const businessName = bizNameInput.value.trim();
-  const logoUrl = logoUrlInput.value.trim();
-  const googleReviewLink = googleLinkInput.value.trim();
-  const category = categoryInput.value.trim();
-
-  try {
-    const ref = doc(db, "businesses", currentUser.uid);
-    await setDoc(
-      ref,
-      {
-        ownerUid: currentUser.uid,
-        businessName,
-        logoUrl: logoUrl || null,
-        googleReviewLink,
-        category: category || null,
-        onboardingCompleted: true,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-
-    // Redirect to dashboard after successful save
-    window.location.href = "/dashboard.html";
-  } catch (err) {
-    console.error("Error saving business data:", err);
-    alert("We couldn't save your details. Please try again.");
-    btnSubmit.disabled = false;
-    btnSubmit.textContent = "Continue →";
-  }
-}
-
-// ---------- AUTH CHECK ----------
+// --- AUTH GUARD + טעינת נתונים קיימים ---
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    // not logged in → send back to auth
+    // אם אין משתמש – נשלח לעמוד התחברות
     window.location.href = "/auth.html";
     return;
   }
 
   currentUser = user;
+  bizDocRef = doc(db, "businesses", user.uid);
 
-  // When we have the user, load his business data if exists
-  await loadExistingBusiness(user);
+  try {
+    const snap = await getDoc(bizDocRef);
+    if (snap.exists()) {
+      const data = snap.data();
+
+      // מלא טופס מנתונים קיימים
+      if (data.bizName) document.getElementById("biz-name").value = data.bizName || "";
+      if (data.category) document.getElementById("biz-category").value = data.category || "";
+      if (data.phone) document.getElementById("biz-phone").value = data.phone || "";
+      if (data.email) document.getElementById("biz-email").value = data.email || "";
+      if (data.googleReviewLink) document.getElementById("google-link").value = data.googleReviewLink || "";
+      if (data.websiteUrl) document.getElementById("website-url").value = data.websiteUrl || "";
+      if (data.logoUrl) document.getElementById("logo-url").value = data.logoUrl || "";
+      if (data.cityArea) document.getElementById("biz-city").value = data.cityArea || "";
+      if (data.plan) document.getElementById("plan").value = data.plan || "advanced";
+      if (data.notes) document.getElementById("notes").value = data.notes || "";
+
+      // עדכון פריוויו
+      if (data.bizName) previewBizName.textContent = data.bizName;
+    }
+  } catch (err) {
+    console.error("Failed to load business doc:", err);
+    showGlobal("error", "Could not load your business details. Please try again.");
+  }
 });
 
-// ---------- EVENTS ----------
-btnSubmit.addEventListener("click", (e) => {
+// --- SUBMIT ONBOARDING FORM ---
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  saveBusiness();
-});
+  clearGlobal();
+  clearFieldErrors();
 
-// Initial preview in case inputs are empty
-updatePreview();
+  if (!currentUser || !bizDocRef) {
+    return showGlobal("error", "You must be logged in to save your onboarding.");
+  }
+
+  const bizName = document.getElementById("biz-name").value.trim();
+  const category = document.getElementById("biz-category").value.trim();
+  const phone = document.getElementById("biz-phone").value.trim();
+  const email = document.getElementById("biz-email").value.trim();
+  const googleLink = document.getElementById("google-link").value.trim();
+  const websiteUrl = document.getElementById("website-url").value.trim();
+  const logoUrl = document.getElementById("logo-url").value.trim();
+  const cityArea = document.getElementById("biz-city").value.trim();
+  const plan = document.getElementById("plan").value || "advanced";
+  const notes = document.getElementById("notes").value.trim();
+
+  let hasError = false;
+
+  if (!bizName) {
+    fieldError("biz-name", "Business name is required.");
+    hasError = true;
+  }
+  if (!category) {
+    fieldError("biz-category", "Please enter your main service or category.");
+    hasError = true;
+  }
+  if (!phone) {
+    fieldError("biz-phone", "Phone is required.");
+    hasError = true;
+  }
+  if (!email) {
+    fieldError("biz-email", "Contact email is required.");
+    hasError = true;
+  }
+  if (!googleLink) {
+    fieldError("google-link", "Google review link is required.");
+    hasError = true;
+  }
+
+  if (hasError) {
+    showGlobal("error", "Please fix the highlighted fields and try again.");
+    return;
+  }
+
+  submitBtn.disabled = true;
+
+  try {
+    // שמירה / עדכון המסמך ב-Firestore
+    await setDoc(
+      bizDocRef,
+      {
+        ownerUid: currentUser.uid,
+        bizName,
+        category,
+        phone,
+        email,
+        googleReviewLink: googleLink,
+        websiteUrl: websiteUrl || null,
+        logoUrl: logoUrl || null,
+        cityArea: cityArea || null,
+        plan: plan || "advanced",
+        notes: notes || null,
+        onboardingComplete: true,
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    showGlobal("success", "Saved! Redirecting you to your dashboard…");
+
+    setTimeout(() => {
+      window.location.href = "/dashboard.html";
+    }, 800);
+  } catch (err) {
+    console.error("Onboarding save failed:", err);
+    showGlobal("error", "Could not save your details. Please try again.");
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
