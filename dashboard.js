@@ -1,188 +1,406 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+// dashboard.js
+// לוגיקה מלאה של דשבורד ReviewResQ
+
 import {
-  getAuth,
+  auth,
+  db,
   onAuthStateChanged,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import {
-  getFirestore,
+  signOut,
   doc,
   getDoc,
-  updateDoc
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  collection,
+  query,
+  orderBy,
+  limit,
+  getDocs,
+} from "./firebase.js";
 
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
-  authDomain: "reviewresq-app.firebaseapp.com",
-  projectId: "reviewresq-app",
-  storageBucket: "reviewresq-app.firebasestorage.app",
-  messagingSenderId: "863497920392",
-  appId: "1:863497920392:web:ca99060b42a50711b9e43d"
-};
+document.addEventListener("DOMContentLoaded", () => {
+  // DOM REFS
+  const userEmailDisplay = document.getElementById("userEmailDisplay");
+  const logoutBtn = document.getElementById("logoutBtn");
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+  const globalBanner = document.getElementById("globalBanner");
+  const globalBannerText = document.getElementById("globalBannerText");
 
-// Logout
-window.logout = function () {
-  signOut(auth).then(() => (window.location.href = "login.html"));
-};
+  const emptyState = document.getElementById("emptyState");
+  const dashContent = document.getElementById("dashContent");
 
-// Load Dashboard
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.href = "login.html";
-    return;
+  const bizNameDisplay = document.getElementById("bizNameDisplay");
+  const bizNameText = document.getElementById("bizNameText");
+  const bizCategoryText = document.getElementById("bizCategoryText");
+  const bizUpdatedAt = document.getElementById("bizUpdatedAt");
+  const bizStatusBadge = document.getElementById("bizStatusBadge");
+
+  const bizLogoImg = document.getElementById("bizLogoImg");
+  const bizLogoInitials = document.getElementById("bizLogoInitials");
+
+  const googleLinkDisplay = document.getElementById("googleLinkDisplay");
+  const viewPortalBtn = document.getElementById("viewPortalBtn");
+
+  const averageRatingValue = document.getElementById("averageRatingValue");
+  const totalReviewsValue = document.getElementById("totalReviewsValue");
+  const privateFeedbackValue = document.getElementById("privateFeedbackValue");
+
+  const recentFeedbackBody = document.getElementById("recentFeedbackBody");
+  const feedbackEmptyState = document.getElementById("feedbackEmptyState");
+
+  /* ---------------------------------------------------
+     עוזרים כלליים
+  --------------------------------------------------- */
+
+  function showBanner(type, text) {
+    if (!globalBanner || !globalBannerText) return;
+    globalBannerText.textContent = text;
+    globalBanner.className = "global-banner visible " + type; // info / warn
   }
 
-  const uid = user.uid;
-  const linkInput = document.getElementById("reviewLink");
-  if (linkInput)
-    linkInput.value = `https://reviewresq.com/review/?id=${uid}`;
-
-  const docRef = doc(db, "businesses", uid);
-  const snap = await getDoc(docRef);
-
-  if (!snap.exists()) {
-    alert("Business profile is missing in Firestore.");
-    return;
+  function hideBanner() {
+    if (!globalBanner) return;
+    globalBanner.className = "global-banner";
+    if (globalBannerText) globalBannerText.textContent = "";
   }
 
-  const data = snap.data();
+  function showEmptyState() {
+    if (emptyState) emptyState.classList.add("visible");
+    if (dashContent) dashContent.style.display = "none";
+  }
 
-  const name = data.businessName || "Your Business";
-  const welcome = document.getElementById("welcomeTitle");
-  if (welcome) welcome.textContent = `Welcome back, ${name}!`;
+  function showDashboard() {
+    if (emptyState) emptyState.classList.remove("visible");
+    if (dashContent) dashContent.style.display = "";
+  }
 
-  const reviews = data.reviews || [];
-  document.getElementById("kpiTotal").innerText = reviews.length;
-  document.getElementById("kpiBad").innerText = reviews.filter(r => r.rating <= 3).length;
-  document.getElementById("kpiPositive").innerText = reviews.length ? 
-    Math.round((reviews.filter(r => r.rating >= 4).length / reviews.length) * 100) + "%" : "0%";
-  document.getElementById("kpiGrowth").innerText = "+0%";
+  function formatDate(ts) {
+    if (!ts) return "recently";
 
-  const tbody = document.getElementById("reviewsTableBody");
-  tbody.innerHTML = "";
-  reviews.forEach(r => {
-    tbody.innerHTML += `
-      <tr>
-        <td>${r.reviewerName || "-"}</td>
-        <td>${r.email || "-"}</td>
-        <td>${r.rating || "-"}</td>
-        <td>${r.comment || "-"}</td>
-        <td>${r.date || "-"}</td>
-      </tr>`;
+    // אם זה Timestamp של Firestore
+    try {
+      const date =
+        typeof ts.toDate === "function" ? ts.toDate() : new Date(ts);
+
+      return date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "recently";
+    }
+  }
+
+  function computeInitials(name) {
+    if (!name) return "YB";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    const first = parts[0][0] || "";
+    const last = parts[parts.length - 1][0] || "";
+    return (first + last).toUpperCase();
+  }
+
+  function clearFeedbackTable() {
+    if (!recentFeedbackBody) return;
+    recentFeedbackBody.innerHTML = "";
+  }
+
+  /* ---------------------------------------------------
+     AUTH STATE
+  --------------------------------------------------- */
+
+  onAuthStateChanged(auth, async (user) => {
+    try {
+      if (!user) {
+        // אין משתמש – הולכים להתחברות
+        window.location.href = "/auth.html";
+        return;
+      }
+
+      // מציג אימייל למעלה
+      if (userEmailDisplay) {
+        userEmailDisplay.textContent = user.email || "Logged in";
+      }
+
+      hideBanner();
+
+      // טוען ביזנס
+      await loadBusinessProfile(user.uid);
+
+      // טוען סטטיסטיקות
+      await loadStats(user.uid);
+
+      // טוען פידבקים אחרונים
+      await loadRecentFeedback(user.uid);
+    } catch (err) {
+      console.error("Error in auth state handler:", err);
+      showBanner(
+        "warn",
+        "Something went wrong while loading your dashboard. Please refresh the page."
+      );
+    }
   });
 
-  loadCharts(reviews);
+  /* ---------------------------------------------------
+     LOGOUT
+  --------------------------------------------------- */
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      try {
+        await signOut(auth);
+        window.location.href = "/auth.html";
+      } catch (err) {
+        console.error("Logout error:", err);
+        showBanner("warn", "Could not log out. Please try again.");
+      }
+    });
+  }
+
+  /* ---------------------------------------------------
+     LOAD BUSINESS PROFILE
+  --------------------------------------------------- */
+
+  async function loadBusinessProfile(uid) {
+    const ref = doc(db, "businesses", uid);
+
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      // אין מסמך עסק – מבקשים לסיים אונבורדינג
+      showEmptyState();
+      showBanner(
+        "warn",
+        "We couldn’t find your business profile yet. Please complete the onboarding form."
+      );
+      return;
+    }
+
+    const data = snap.data() || {};
+    showDashboard();
+
+    const businessName = data.businessName || "Your business";
+    const category = data.businessCategory || "Category not set yet";
+    const googleLink = data.googleReviewLink || "";
+    const status = data.status || "Live · Ready";
+    const updatedAtValue = data.updatedAt || data.createdAt || null;
+
+    // שם עסק בכותרת
+    if (bizNameDisplay) {
+      bizNameDisplay.textContent = businessName + " – dashboard";
+    }
+    if (bizNameText) {
+      bizNameText.textContent = businessName;
+    }
+
+    if (bizCategoryText) {
+      bizCategoryText.textContent = category;
+    }
+
+    if (bizUpdatedAt) {
+      bizUpdatedAt.textContent = formatDate(updatedAtValue);
+    }
+
+    if (bizStatusBadge) {
+      bizStatusBadge.textContent = status;
+    }
+
+    // לוגו / ראשי תיבות
+    const logoUrl = data.logoUrl || "";
+    if (logoUrl && bizLogoImg && bizLogoInitials) {
+      bizLogoImg.src = logoUrl;
+      bizLogoImg.style.display = "block";
+      bizLogoInitials.style.display = "none";
+    } else if (bizLogoInitials) {
+      bizLogoInitials.textContent = computeInitials(businessName);
+      if (bizLogoImg) bizLogoImg.style.display = "none";
+      bizLogoInitials.style.display = "block";
+    }
+
+    // Google review link
+    if (googleLinkDisplay) {
+      if (googleLink) {
+        googleLinkDisplay.href = googleLink;
+        googleLinkDisplay.textContent = googleLink;
+      } else {
+        googleLinkDisplay.removeAttribute("href");
+        googleLinkDisplay.textContent = "Not set yet";
+      }
+    }
+
+    // customer portal url (אם הגדרנו)
+    const portalUrl =
+      data.portalUrl ||
+      data.feedbackPortalUrl ||
+      ""; // שדות אופציונליים – רק אם בנית אותם באונבורדינג
+
+    if (viewPortalBtn) {
+      if (portalUrl) {
+        viewPortalBtn.disabled = false;
+        viewPortalBtn.addEventListener("click", () => {
+          window.open(portalUrl, "_blank", "noopener");
+        });
+      } else if (googleLink) {
+        // fallback נחמד – אם אין portalUrl אבל יש Google link
+        viewPortalBtn.disabled = false;
+        viewPortalBtn.addEventListener("click", () => {
+          window.open(googleLink, "_blank", "noopener");
+        });
+      } else {
+        viewPortalBtn.disabled = false;
+        viewPortalBtn.addEventListener("click", () => {
+          alert(
+            "Your customer portal link is not configured yet. Please contact support or update your onboarding details."
+          );
+        });
+      }
+    }
+
+    // אפשר גם לשים באנר מידע חיובי:
+    showBanner(
+      "info",
+      "Your business profile is loaded. Share your ReviewResQ link with customers to start getting more reviews."
+    );
+  }
+
+  /* ---------------------------------------------------
+     LOAD STATS FROM FEEDBACK COLLECTION
+     businesses/{uid}/feedback
+  --------------------------------------------------- */
+
+  async function loadStats(uid) {
+    try {
+      const feedbackRef = collection(db, "businesses", uid, "feedback");
+      const q = query(feedbackRef, orderBy("createdAt", "desc"), limit(100));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        // אין עדיין פידבקים
+        if (averageRatingValue) averageRatingValue.textContent = "–";
+        if (totalReviewsValue) totalReviewsValue.textContent = "0";
+        if (privateFeedbackValue) privateFeedbackValue.textContent = "0";
+        return;
+      }
+
+      let total = 0;
+      let sumRating = 0;
+      let publicCount = 0;
+      let privateCount = 0;
+
+      snap.forEach((docSnap) => {
+        const data = docSnap.data() || {};
+        const rating = typeof data.rating === "number" ? data.rating : null;
+        const type = data.type || ""; // "public" | "private" (אם אתה שומר ככה)
+
+        if (rating != null) {
+          total += 1;
+          sumRating += rating;
+
+          if (type === "public" || rating >= 4) {
+            publicCount += 1;
+          } else if (type === "private" || rating <= 3) {
+            privateCount += 1;
+          }
+        }
+      });
+
+      const avg =
+        total > 0 ? (Math.round((sumRating / total) * 10) / 10).toFixed(1) : "–";
+
+      if (averageRatingValue) averageRatingValue.textContent = avg;
+      if (totalReviewsValue) totalReviewsValue.textContent = String(publicCount);
+      if (privateFeedbackValue)
+        privateFeedbackValue.textContent = String(privateCount);
+    } catch (err) {
+      console.error("Error loading stats:", err);
+      // לא שוברים את הדשבורד – פשוט משאירים את הערכים ריקים
+      if (averageRatingValue) averageRatingValue.textContent = "–";
+      if (totalReviewsValue) totalReviewsValue.textContent = "–";
+      if (privateFeedbackValue) privateFeedbackValue.textContent = "–";
+    }
+  }
+
+  /* ---------------------------------------------------
+     LOAD RECENT FEEDBACK (TABLE)
+     businesses/{uid}/feedback
+  --------------------------------------------------- */
+
+  async function loadRecentFeedback(uid) {
+    if (!recentFeedbackBody || !feedbackEmptyState) return;
+
+    clearFeedbackTable();
+    feedbackEmptyState.style.display = "block";
+
+    try {
+      const feedbackRef = collection(db, "businesses", uid, "feedback");
+      const q = query(feedbackRef, orderBy("createdAt", "desc"), limit(20));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        // נשאר עם empty state
+        return;
+      }
+
+      feedbackEmptyState.style.display = "none";
+
+      snap.forEach((docSnap) => {
+        const data = docSnap.data() || {};
+        const tr = document.createElement("tr");
+
+        const createdAt = formatDate(data.createdAt);
+        const customerName = data.customerName || "Customer";
+        const message = data.message || "";
+        const rating = typeof data.rating === "number" ? data.rating : null;
+        const type = data.type || (rating != null && rating >= 4 ? "public" : "private");
+
+        // Date
+        const tdDate = document.createElement("td");
+        tdDate.textContent = createdAt;
+
+        // Customer
+        const tdCustomer = document.createElement("td");
+        tdCustomer.textContent = customerName;
+
+        // Rating
+        const tdRating = document.createElement("td");
+        if (rating != null) {
+          const pill = document.createElement("span");
+          pill.classList.add("rating-pill");
+          if (rating >= 4) {
+            pill.classList.add("rating-high");
+          } else {
+            pill.classList.add("rating-low");
+          }
+          pill.textContent = rating.toFixed(1);
+          tdRating.appendChild(pill);
+        } else {
+          tdRating.textContent = "–";
+        }
+
+        // Type
+        const tdType = document.createElement("td");
+        tdType.textContent = type === "public" ? "Public (Google)" : "Private";
+
+        // Message – קיצור טקסט אם ארוך
+        const tdMsg = document.createElement("td");
+        let shortMsg = message;
+        if (shortMsg.length > 120) {
+          shortMsg = shortMsg.slice(0, 117) + "...";
+        }
+        tdMsg.textContent = shortMsg || "—";
+
+        tr.appendChild(tdDate);
+        tr.appendChild(tdCustomer);
+        tr.appendChild(tdRating);
+        tr.appendChild(tdType);
+        tr.appendChild(tdMsg);
+
+        recentFeedbackBody.appendChild(tr);
+      });
+    } catch (err) {
+      console.error("Error loading recent feedback:", err);
+      // במקרה כזה – נשאיר את ה־empty state
+      feedbackEmptyState.style.display = "block";
+    }
+  }
 });
-
-// Charts
-function loadCharts(reviews) {
-  if (typeof Chart === "undefined") return;
-
-  const star = document.getElementById("starChart");
-  const pie = document.getElementById("pieChart");
-  const line = document.getElementById("lineChart");
-  if (!star || !pie || !line) return;
-
-  const stars = [0, 0, 0, 0, 0];
-  reviews.forEach(r => (stars[r.rating - 1] = (stars[r.rating - 1] || 0) + 1));
-
-  new Chart(star, {
-    type: "bar",
-    data: {
-      labels: ["1★", "2★", "3★", "4★", "5★"],
-      datasets: [{ data: stars, backgroundColor: "#3b82f6" }]
-    },
-    options: { scales: { y: { beginAtZero: true } } }
-  });
-
-  const pos = reviews.filter(r => r.rating >= 4).length;
-  const neg = reviews.filter(r => r.rating <= 3).length;
-
-  new Chart(pie, {
-    type: "pie",
-    data: {
-      labels: ["Positive", "Negative"],
-      datasets: [{ data: [pos, neg], backgroundColor: ["#22c55e", "#ef4444"] }]
-    }
-  });
-
-  new Chart(line, {
-    type: "line",
-    data: {
-      labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-      datasets: [{
-        label: "Monthly Reviews",
-        data: [2, 4, 6, 10, 8, reviews.length],
-        borderColor: "#3b82f6",
-        fill: true
-      }]
-    }
-  });
-}
-
-// Copy & Share
-window.copyLink = function () {
-  const link = document.getElementById("reviewLink");
-  if (!link) return;
-  link.select();
-  navigator.clipboard.writeText(link.value);
-  alert("Copied!");
-};
-
-window.showQR = async function () {
-  const modal = document.getElementById("qrModal");
-  const canvas = document.getElementById("qrCanvas");
-  const link = document.getElementById("reviewLink").value;
-  modal.style.display = "flex";
-  const QRCode = await import("https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js");
-  QRCode.default.toCanvas(canvas, link, { width: 200 });
-};
-
-window.closeQR = function () {
-  document.getElementById("qrModal").style.display = "none";
-};
-
-window.shareWhatsapp = function () {
-  const link = document.getElementById("reviewLink").value;
-  window.open(`https://wa.me/?text=${encodeURIComponent(link)}`);
-};
-
-window.shareSMS = function () {
-  const link = document.getElementById("reviewLink").value;
-  window.location.href = `sms:?body=${encodeURIComponent(link)}`;
-};
-
-window.downloadQR = function () {
-  const canvas = document.getElementById("qrCanvas");
-  if (!canvas) return alert("Please show QR first.");
-  const a = document.createElement("a");
-  a.href = canvas.toDataURL("image/png");
-  a.download = "review-qr.png";
-  a.click();
-};
-
-window.downloadPDF = function () {
-  if (!window.jspdf) return alert("PDF not loaded.");
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF();
-  const canvas = document.getElementById("qrCanvas");
-  const img = canvas.toDataURL("image/png");
-  pdf.text("ReviewResQ - Feedback QR", 20, 20);
-  pdf.addImage(img, "PNG", 20, 40, 150, 150);
-  pdf.save("ReviewResQ-QR.pdf");
-};
-
-window.saveBranding = async function () {
-  const uid = auth.currentUser.uid;
-  const ref = doc(db, "businesses", uid);
-  const primary = document.getElementById("primaryColor").value;
-  const button = document.getElementById("buttonColor").value;
-  const bg = document.getElementById("backgroundColor").value;
-  await updateDoc(ref, { branding: { primaryColor: primary, buttonColor: button, backgroundColor: bg } });
-  alert("Branding saved!");
-};
