@@ -1,23 +1,70 @@
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+// firebase.js
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
-    authDomain: "reviewresq-app.firebaseapp.com",
-    projectId: "reviewresq-app",
-    storageBucket: "reviewresq-app.firebasestorage.app",
-    messagingSenderId: "863497920392",
-    appId: "1:863497920392:web:ca99060b42a50711b9e43d",
-    measurementId: "G-G3P2BX845N"
-  };
+// ייבוא Firebase App
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+// ייבוא Firebase Authentication
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+// ----------------------------
+//  Firebase Configuration
+// ----------------------------
+const firebaseConfig = {
+  apiKey: "AIzaSyDwnwrO8RKn1ER53JpyFbr69PG9jvR7Cz8",
+  authDomain: "reviewresq-app.firebaseapp.com",
+  projectId: "reviewresq-app",
+  storageBucket: "reviewresq-app.firebasestorage.app",
+  messagingSenderId: "863497920392",
+  appId: "1:863497920392:web:ca9906b042a50711b9e43d",
+  measurementId: "G-G3P2BX848M"
+};
+
+// אתחול אפליקציית Firebase
+const app = initializeApp(firebaseConfig);
+
+// יצירת מופע של Authentication
+const auth = getAuth(app);
+
+// ----------------------------
+//  פונקציות Signup / Login
+// ----------------------------
+
+// יצירת חשבון חדש
+window.reviewResQSignup = async function (name, email, password) {
+  try {
+    const userCred = await createUserWithEmailAndPassword(auth, email, password);
+    console.log("Signup Success:", userCred.user.uid);
+    return { ok: true, user: userCred.user };
+  } catch (error) {
+    console.error("Signup Error:", error);
+    return { ok: false, error };
+  }
+};
+
+// התחברות למערכת
+window.reviewResQLogin = async function (email, password) {
+  try {
+    const userCred = await signInWithEmailAndPassword(auth, email, password);
+    console.log("Login Success:", userCred.user.uid);
+    return { ok: true, user: userCred.user };
+  } catch (error) {
+    console.error("Login Error:", error);
+    return { ok: false, error };
+  }
+};
+
+// התנתקות
+window.reviewResQLogout = async function () {
+  try {
+    await signOut(auth);
+    return { ok: true };
+  } catch (error) {
+    console.error("Logout Error:", error);
+    return { ok: false, error };
+  }
+};
