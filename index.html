@@ -9,14 +9,17 @@
     content="ReviewResQ builds a simple review funnel for local businesses. Happy customers go to Google for a 5-star review. Upset customers send private feedback to you first."
   />
 
-  <!-- Nice modern font -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Modern font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
 
   <style>
     :root {
-      --bg-page: #f3f4f6;
+      --bg-page: #ffffff;
       --bg-shell: #f3f4f6;
       --bg-card: #ffffff;
       --bg-soft: #f9fafb;
@@ -36,7 +39,7 @@
       --radius-xl: 26px;
       --radius-pill: 999px;
 
-      --shadow-soft: 0 16px 45px rgba(15, 23, 42, 0.10);
+      --shadow-soft: 0 16px 45px rgba(15, 23, 42, 0.1);
     }
 
     * {
@@ -46,8 +49,8 @@
     }
 
     body {
-      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-        "Segoe UI", sans-serif;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+        "SF Pro Text", "Segoe UI", sans-serif;
       background: var(--bg-page);
       color: var(--text-main);
       -webkit-font-smoothing: antialiased;
@@ -116,13 +119,12 @@
       font-weight: 700;
       letter-spacing: 0.06em;
       font-size: 14px;
-      text-transform: none;
     }
 
     .brand-text-sub {
       font-size: 11px;
       color: var(--text-soft);
-      letter-spacing: 0.20em;
+      letter-spacing: 0.2em;
       text-transform: uppercase;
     }
 
@@ -265,12 +267,15 @@
       .nav-links {
         display: flex;
       }
+
       .nav-cta {
         display: flex;
       }
+
       .nav-menu-btn {
         display: none;
       }
+
       .mobile-menu {
         display: none !important;
       }
@@ -280,6 +285,7 @@
 
     main {
       flex: 1;
+      background: var(--bg-shell);
     }
 
     .hero-wrapper {
@@ -349,6 +355,7 @@
 
     .hero-title span.accent {
       color: var(--accent-gold);
+      font-weight: 800;
     }
 
     .hero-subtitle {
@@ -514,7 +521,7 @@
     .mock-name {
       font-size: 12px;
       font-weight: 600;
-      letter-spacing: 0.10em;
+      letter-spacing: 0.1em;
     }
 
     .mock-sub {
@@ -653,7 +660,7 @@
       font-weight: 600;
     }
 
-    /* GENERIC SECTIONS */
+    /* SECTIONS */
 
     section {
       margin-top: 34px;
@@ -1036,9 +1043,9 @@
         </div>
 
         <div class="nav-cta">
-         <a class="btn-nav-outline" href="/auth.html#login">Login</a>
-<a class="btn-nav-primary" href="/auth.html#signup">Create account</a>
-
+          <!-- ✅ מחובר עכשיו ל-auth.html -->
+          <a class="btn-nav-outline" href="/auth.html#login">Login</a>
+          <a class="btn-nav-primary" href="/auth.html#signup">Create account</a>
         </div>
 
         <button class="nav-menu-btn" id="nav-menu-btn" aria-label="Toggle menu">
@@ -1054,8 +1061,9 @@
           <a href="#faq">FAQ</a>
         </div>
         <div class="mobile-menu-cta">
-          <a class="btn-nav-outline" href="/login.html">Login</a>
-          <a class="btn-nav-primary" href="/signup.html">Create account</a>
+          <!-- ✅ גם במובייל מחובר ל-auth.html -->
+          <a class="btn-nav-outline" href="/auth.html#login">Login</a>
+          <a class="btn-nav-primary" href="/auth.html#signup">Create account</a>
         </div>
       </div>
     </header>
@@ -1497,7 +1505,7 @@
     }
   </script>
 
-  <!-- If you still use Firebase, keep your module here -->
+  <!-- Firebase (אם אתה עדיין צריך אותו לעמוד הראשי) -->
   <script type="module" src="firebase.js"></script>
 </body>
 </html>
