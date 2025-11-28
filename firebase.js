@@ -26,20 +26,26 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 // ----------------------------
-//  Helpers
+//  Error mapping – ידידותי ללקוח
 // ----------------------------
 function formatAuthError(error) {
   const code = error?.code || "";
+
   switch (code) {
     case "auth/email-already-in-use":
-      return "This email is already in use. Try logging in instead.";
+      return "This email is already connected to a ReviewResQ account. Try logging in instead or reset your password.";
     case "auth/invalid-email":
-      return "This email address is not valid.";
+      return "This email address doesn’t look right. Please check for typos (example@mail.com).";
     case "auth/weak-password":
       return "Password is too weak. Use at least 6 characters.";
     case "auth/user-not-found":
+      return "We couldn’t find an account with this email. Check the email or create a new account.";
     case "auth/wrong-password":
-      return "Wrong email or password.";
+      return "The password is incorrect. Please try again or reset your password.";
+    case "auth/network-request-failed":
+      return "Network error. Please check your internet connection and try again.";
+    case "auth/too-many-requests":
+      return "Too many attempts in a short time. Please wait a moment and try again.";
     default:
       return error?.message || "Something went wrong. Please try again.";
   }
@@ -54,7 +60,9 @@ window.reviewResQSignup = async function (name, email, phone, password) {
   try {
     const userCred = await createUserWithEmailAndPassword(auth, email, password);
     console.log("Signup success:", userCred.user.uid);
-    // בעתיד אפשר להוסיף כאן שמירה של name/phone ב-Firestore
+
+    // בעתיד אפשר לשמור כאן name + phone ב-Firestore
+
     return { ok: true, user: userCred.user };
   } catch (error) {
     console.error("Signup error:", error);
