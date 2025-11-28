@@ -1,397 +1,266 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>ReviewResQ – Login or Create account</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta
-    name="description"
-    content="Log in or create your ReviewResQ account to protect your Google rating automatically."
-  />
-  <style>
-    :root {
-      --bg-page: #f3f4f6;
-      --bg-card: #ffffff;
-      --border-soft: #e5e7eb;
-      --accent: #2563eb;
-      --accent-soft: #1d4ed8;
-      --accent-light: #dbeafe;
-      --danger: #dc2626;
-      --text-main: #0f172a;
-      --text-sub: #4b5563;
-      --radius-xl: 28px;
-      --radius-pill: 999px;
-      --shadow-card: 0 26px 70px rgba(15, 23, 42, 0.17);
-    }
+  <body>
+    <div class="auth-shell">
+      <div class="auth-card">
+        <header class="brand">
+          <div class="brand-icon">R</div>
+          <div class="brand-text">
+            <div class="brand-title">REVIEWRESQ</div>
+            <div class="brand-sub">REVIEWS · REPUTATION · RESQ</div>
+          </div>
+        </header>
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+        <h1 class="auth-title">Welcome back</h1>
+        <p class="auth-subtitle">
+          Log in or create your ReviewResQ account.
+        </p>
 
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-        "Segoe UI", sans-serif;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle at top, #e0edff 0, #f9fafb 45%, #e5e7eb 100%);
-      color: var(--text-main);
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .auth-shell {
-      width: 100%;
-      max-width: 960px;
-      padding: 24px 16px;
-      display: flex;
-      justify-content: center;
-    }
-
-    .auth-card {
-      width: 100%;
-      max-width: 480px;
-      background: var(--bg-card);
-      border-radius: var(--radius-xl);
-      box-shadow: var(--shadow-card);
-      border: 1px solid var(--border-soft);
-      padding: 26px 26px 24px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    .brand-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #eff6ff;
-      font-weight: 700;
-      font-size: 18px;
-      box-shadow: 0 14px 30px rgba(37, 99, 235, 0.5);
-    }
-
-    .brand-text {
-      text-align: left;
-    }
-
-    .brand-title {
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-    }
-
-    .brand-sub {
-      font-size: 11px;
-      color: var(--text-sub);
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-    }
-
-    .auth-title {
-      text-align: center;
-      font-size: 20px;
-      margin-top: 8px;
-      margin-bottom: 4px;
-    }
-
-    .auth-subtitle {
-      text-align: center;
-      font-size: 13px;
-      color: var(--text-sub);
-      margin-bottom: 16px;
-    }
-
-    /* TABS */
-    .auth-tabs {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      margin-bottom: 18px;
-      background: #f3f4f6;
-      border-radius: var(--radius-pill);
-      padding: 4px;
-    }
-
-    .auth-tab {
-      flex: 1;
-      border-radius: var(--radius-pill);
-      border: none;
-      background: transparent;
-      padding: 6px 10px;
-      font-size: 13px;
-      cursor: pointer;
-      color: var(--text-sub);
-      transition: background 140ms ease-out, color 140ms ease-out,
-        transform 80ms ease-out;
-    }
-
-    .auth-tab.active {
-      background: #ffffff;
-      color: var(--accent-soft);
-      font-weight: 600;
-      box-shadow: 0 6px 16px rgba(148, 163, 184, 0.45);
-      transform: translateY(-1px);
-    }
-
-    /* PANELS / FORMS */
-
-    .auth-panel {
-      display: none;
-    }
-
-    .auth-panel.active {
-      display: block;
-    }
-
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    label {
-      font-size: 13px;
-      color: var(--text-sub);
-    }
-
-    input {
-      width: 100%;
-      padding: 9px 10px;
-      border-radius: 12px;
-      border: 1px solid var(--border-soft);
-      font-size: 14px;
-      outline: none;
-      transition: border-color 120ms ease-out, box-shadow 120ms ease-out,
-        background 120ms ease-out;
-      background: #f9fafb;
-    }
-
-    input:focus {
-      border-color: var(--accent-soft);
-      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.4);
-      background: #ffffff;
-    }
-
-    input.error {
-      border-color: var(--danger);
-      background: #fef2f2;
-    }
-
-    .field-hint {
-      font-size: 11px;
-      color: var(--text-sub);
-    }
-
-    .field-error {
-      font-size: 11px;
-      color: var(--danger);
-    }
-
-    .btn-primary {
-      margin-top: 6px;
-      border: none;
-      border-radius: var(--radius-pill);
-      padding: 11px 18px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: #eff6ff;
-      box-shadow: 0 18px 40px rgba(37, 99, 235, 0.55);
-      transition: transform 120ms ease-out, box-shadow 120ms ease-out,
-        filter 120ms ease-out;
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.03);
-      box-shadow: 0 24px 60px rgba(37, 99, 235, 0.65);
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.7;
-      cursor: wait;
-      box-shadow: none;
-      transform: none;
-    }
-
-    .auth-footer {
-      margin-top: 10px;
-      font-size: 12px;
-      color: var(--text-sub);
-      text-align: center;
-    }
-
-    .auth-footer a {
-      color: var(--accent-soft);
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    .auth-footer a:hover {
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-
-    .global-message {
-      margin-top: 8px;
-      font-size: 12px;
-      text-align: center;
-      padding: 6px 10px;
-      border-radius: 10px;
-      display: none;
-    }
-
-    .global-message.visible {
-      display: block;
-    }
-
-    .global-message.error {
-      background: #fef2f2;
-      color: #b91c1c;
-      border: 1px solid #fecaca;
-    }
-
-    .global-message.success {
-      background: #ecfdf5;
-      color: #166534;
-      border: 1px solid #bbf7d0;
-    }
-
-    @media (max-width: 600px) {
-      .auth-card {
-        max-width: 420px;
-        padding: 22px 18px 20px;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="auth-shell">
-    <div class="auth-card">
-      <header class="brand">
-        <div class="brand-icon">R</div>
-        <div class="brand-text">
-          <div class="brand-title">REVIEWRESQ</div>
-          <div class="brand-sub">REVIEWS · REPUTATION · RESQ</div>
+        <!-- Tabs -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-target="login">Login</button>
+          <button class="auth-tab" data-target="signup">Create account</button>
+          <button class="auth-tab" data-target="forgot">Forgot password</button>
         </div>
-      </header>
 
-      <h1 class="auth-title">Welcome back</h1>
-      <p class="auth-subtitle">
-        Log in or create your ReviewResQ account.
-      </p>
+        <!-- Global message (errors / success) -->
+        <div id="global-message" class="global-message" role="alert"></div>
 
-      <!-- Tabs -->
-      <div class="auth-tabs">
-        <button class="auth-tab active" data-target="login">Login</button>
-        <button class="auth-tab" data-target="signup">Create account</button>
-        <button class="auth-tab" data-target="forgot">Forgot password</button>
-      </div>
+        <!-- LOGIN PANEL -->
+        <section id="login-panel" class="auth-panel active" aria-label="Login">
+          <form id="login-form">
+            <div class="field">
+              <label for="login-email">Work email</label>
+              <input id="login-email" type="email" autocomplete="email" />
+              <div id="login-email-error" class="field-error"></div>
+            </div>
 
-      <!-- Global message (errors / success) -->
-      <div id="global-message" class="global-message" role="alert"></div>
+            <div class="field">
+              <label for="login-password">Password</label>
+              <input id="login-password" type="password" autocomplete="current-password" />
+              <div id="login-password-error" class="field-error"></div>
+            </div>
 
-      <!-- LOGIN PANEL -->
-      <section id="login-panel" class="auth-panel active" aria-label="Login">
-        <form id="login-form">
-          <div class="field">
-            <label for="login-email">Work email</label>
-            <input id="login-email" type="email" autocomplete="email" />
-            <div id="login-email-error" class="field-error"></div>
-          </div>
+            <button type="submit" class="btn-primary" id="login-submit">
+              Log in
+            </button>
+          </form>
+        </section>
 
-          <div class="field">
-            <label for="login-password">Password</label>
-            <input id="login-password" type="password" autocomplete="current-password" />
-            <div id="login-password-error" class="field-error"></div>
-          </div>
+        <!-- SIGNUP PANEL -->
+        <section id="signup-panel" class="auth-panel" aria-label="Create account">
+          <form id="signup-form">
+            <div class="field">
+              <label for="signup-name">Full name</label>
+              <input id="signup-name" type="text" autocomplete="name" />
+              <div id="signup-name-error" class="field-error"></div>
+            </div>
 
-          <button type="submit" class="btn-primary" id="login-submit">
-            Log in
-          </button>
-        </form>
-      </section>
+            <div class="field">
+              <label for="signup-email">Business email</label>
+              <input id="signup-email" type="email" autocomplete="email" />
+              <div id="signup-email-error" class="field-error"></div>
+            </div>
 
-      <!-- SIGNUP PANEL -->
-      <section id="signup-panel" class="auth-panel" aria-label="Create account">
-        <form id="signup-form">
-          <div class="field">
-            <label for="signup-name">Full name</label>
-            <input id="signup-name" type="text" autocomplete="name" />
-            <div id="signup-name-error" class="field-error"></div>
-          </div>
+            <div class="field">
+              <label for="signup-phone">Business phone</label>
+              <input id="signup-phone" type="tel" autocomplete="tel" />
+              <div id="signup-phone-error" class="field-error"></div>
+            </div>
 
-          <div class="field">
-            <label for="signup-email">Business email</label>
-            <input id="signup-email" type="email" autocomplete="email" />
-            <div id="signup-email-error" class="field-error"></div>
-          </div>
+            <div class="field">
+              <label for="signup-password">Password</label>
+              <input id="signup-password" type="password" autocomplete="new-password" />
+              <div class="field-hint">At least 6 characters.</div>
+              <div id="signup-password-error" class="field-error"></div>
+            </div>
 
-          <div class="field">
-            <label for="signup-phone">Business phone</label>
-            <input id="signup-phone" type="tel" autocomplete="tel" />
-            <div id="signup-phone-error" class="field-error"></div>
-          </div>
+            <button type="submit" class="btn-primary" id="signup-submit">
+              Create account
+            </button>
+          </form>
+        </section>
 
-          <div class="field">
-            <label for="signup-password">Password</label>
-            <input id="signup-password" type="password" autocomplete="new-password" />
-            <div class="field-hint">At least 6 characters.</div>
-            <div id="signup-password-error" class="field-error"></div>
-          </div>
+        <!-- FORGOT PASSWORD PANEL -->
+        <section id="forgot-panel" class="auth-panel" aria-label="Forgot password">
+          <form id="forgot-form">
+            <div class="field">
+              <label for="forgot-email">Work email</label>
+              <input id="forgot-email" type="email" autocomplete="email" />
+              <div id="forgot-email-error" class="field-error"></div>
+            </div>
 
-          <button type="submit" class="btn-primary" id="signup-submit">
-            Create account
-          </button>
-        </form>
-      </section>
+            <div class="field-hint">
+              We’ll send a reset link to this email if it has an account.
+            </div>
 
-      <!-- FORGOT PASSWORD PANEL -->
-      <section id="forgot-panel" class="auth-panel" aria-label="Forgot password">
-        <form id="forgot-form">
-          <div class="field">
-            <label for="forgot-email">Work email</label>
-            <input id="forgot-email" type="email" autocomplete="email" />
-            <div id="forgot-email-error" class="field-error"></div>
-          </div>
+            <button type="submit" class="btn-primary" id="forgot-submit">
+              Send reset link
+            </button>
+          </form>
+        </section>
 
-          <div class="field-hint">
-            We’ll send a reset link to this email if it has an account.
-          </div>
-
-          <button type="submit" class="btn-primary" id="forgot-submit">
-            Send reset link
-          </button>
-        </form>
-      </section>
-
-      <div class="auth-footer">
-        <span>← <a href="/index.html">Back to main site</a></span>
+        <div class="auth-footer">
+          <span>← <a href="/index.html">Back to main site</a></span>
+        </div>
       </div>
     </div>
-  </div>
+<script type="module">
+  import {
+    auth,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    sendPasswordResetEmail,
+  } from "./firebase.js";
 
-  <!-- JS -->
-  <script type="module" src="./firebase.js"></script>
-</body>
-</html>
+  /* ---------------------------
+     TAB SWITCHING
+  ---------------------------- */
+  const tabs = document.querySelectorAll(".auth-tab");
+  const panels = document.querySelectorAll(".auth-panel");
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      tabs.forEach((t) => t.classList.remove("active"));
+      panels.forEach((p) => p.classList.remove("active"));
+
+      tab.classList.add("active");
+      const target = tab.dataset.target;
+      document.getElementById(`${target}-panel`).classList.add("active");
+
+      clearGlobalMessage();
+      clearAllErrors();
+    });
+  });
+
+  /* ---------------------------
+     GLOBAL HELPERS
+  ---------------------------- */
+  const globalMsg = document.getElementById("global-message");
+
+  function showGlobalError(msg) {
+    globalMsg.textContent = msg;
+    globalMsg.className = "global-message visible error";
+  }
+
+  function showGlobalSuccess(msg) {
+    globalMsg.textContent = msg;
+    globalMsg.className = "global-message visible success";
+  }
+
+  function clearGlobalMessage() {
+    globalMsg.textContent = "";
+    globalMsg.className = "global-message";
+  }
+
+  function clearAllErrors() {
+    document.querySelectorAll(".field-error").forEach((el) => (el.textContent = ""));
+    document.querySelectorAll("input").forEach((i) => i.classList.remove("error"));
+  }
+
+  function fieldError(id, msg) {
+    const input = document.getElementById(id);
+    const errorDiv = document.getElementById(id + "-error");
+
+    input.classList.add("error");
+    errorDiv.textContent = msg;
+  }
+
+  /* ---------------------------
+     LOGIN
+  ---------------------------- */
+  const loginForm = document.getElementById("login-form");
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearAllErrors();
+    clearGlobalMessage();
+
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value.trim();
+
+    if (!email) return fieldError("login-email", "Email is required.");
+    if (!password) return fieldError("login-password", "Password is required.");
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+
+      showGlobalSuccess("Logged in! Redirecting...");
+
+      setTimeout(() => {
+        window.location.href = "/dashboard.html";
+      }, 600);
+    } catch (err) {
+      if (err.code === "auth/invalid-credential") {
+        showGlobalError("Incorrect email or password.");
+      } else {
+        showGlobalError("Login failed. Please try again.");
+      }
+    }
+  });
+
+  /* ---------------------------
+     SIGNUP
+  ---------------------------- */
+  const signupForm = document.getElementById("signup-form");
+
+  signupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearAllErrors();
+    clearGlobalMessage();
+
+    const name = document.getElementById("signup-name").value.trim();
+    const email = document.getElementById("signup-email").value.trim();
+    const phone = document.getElementById("signup-phone").value.trim();
+    const password = document.getElementById("signup-password").value.trim();
+
+    if (!name) return fieldError("signup-name", "Full name is required.");
+    if (!email) return fieldError("signup-email", "Email is required.");
+    if (!phone) return fieldError("signup-phone", "Phone is required.");
+    if (password.length < 6)
+      return fieldError("signup-password", "Password must be at least 6 characters.");
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+
+      showGlobalSuccess("Account created! Redirecting...");
+
+      // 🔥 redirect to onboarding
+      setTimeout(() => {
+        window.location.href = "/onboarding.html";
+      }, 700);
+    } catch (err) {
+      if (err.code === "auth/email-already-in-use") {
+        showGlobalError("This email already has an account.");
+      } else if (err.code === "auth/invalid-email") {
+        showGlobalError("Please enter a valid email.");
+      } else {
+        showGlobalError("Signup failed. Please try again.");
+      }
+    }
+  });
+
+  /* ---------------------------
+     FORGOT PASSWORD
+  ---------------------------- */
+  const forgotForm = document.getElementById("forgot-form");
+
+  forgotForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearAllErrors();
+    clearGlobalMessage();
+
+    const email = document.getElementById("forgot-email").value.trim();
+    if (!email) return fieldError("forgot-email", "Email is required.");
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+
+      showGlobalSuccess("Reset link sent! Check your inbox.");
+    } catch (err) {
+      if (err.code === "auth/user-not-found") {
+        showGlobalError("No account found with this email.");
+      } else {
+        showGlobalError("Couldn't send reset link. Try again.");
+      }
+    }
+  });
+</script>
