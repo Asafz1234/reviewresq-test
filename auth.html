@@ -494,6 +494,30 @@
       }
     });
   </script>
+          <!-- Tabs logic (independent from Firebase) -->
+  <script>
+    // טאבס (Login / Create Account / Forgot Password)
+    const tabs = document.querySelectorAll(".auth-tab");
+    const panels = document.querySelectorAll(".auth-panel");
+
+    function clearTabState() {
+      tabs.forEach((t) => t.classList.remove("active"));
+      panels.forEach((p) => p.classList.remove("active"));
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        clearTabState();
+        tab.classList.add("active");
+        const target = tab.dataset.target;
+        const panel = document.getElementById(target + "-panel");
+        if (panel) {
+          panel.classList.add("active");
+        }
+      });
+    });
+  </script>
+
 </body>
 </html>
 
