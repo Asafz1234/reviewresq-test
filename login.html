@@ -2,438 +2,243 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Login • ReviewResQ</title>
+  <title>Login – ReviewResQ Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+  <link rel="icon" href="/logo.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      --bg-page: #f3f4f6;
+      --bg-card: #ffffff;
+      --accent: #2563eb;
+      --accent-soft: #1d4ed8;
+      --text-main: #0f172a;
+      --text-sub: #4b5563;
+      --error: #b91c1c;
+      --radius-xl: 24px;
+      --radius-pill: 999px;
+      --shadow-card: 0 24px 60px rgba(15, 23, 42, 0.18);
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top left, #1d4ed8, #020617 55%);
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #e0edff 0, #f9fafb 40%, #f3f4f6 100%);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #0f172a;
+      padding: 24px 16px;
     }
 
     .card {
-      background: #ffffff;
-      width: 100%;
+      background: var(--bg-card);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-card);
+      padding: 24px 22px 22px;
       max-width: 420px;
-      padding: 32px 28px;
-      border-radius: 18px;
-      box-shadow: 0 30px 70px rgba(15, 23, 42, 0.35);
+      width: 100%;
+      border: 1px solid #e5e7eb;
     }
 
-    .logo {
+    .brand {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
-    .logo-badge {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
       display: flex;
       align-items: center;
       justify-content: center;
+      color: #eff6ff;
       font-weight: 700;
-      font-size: 17px;
-      color: #e5f0ff;
-      background: radial-gradient(circle at 30% 0%, #60a5fa, #1d4ed8 55%, #0f172a 100%);
+      font-size: 20px;
+      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.4);
     }
 
-    .logo-text-title {
+    .brand-title {
       font-weight: 700;
-      font-size: 18px;
-      color: #020617;
-    }
-
-    .logo-text-sub {
-      font-size: 12px;
-      color: #6b7280;
-    }
-
-    h1 {
-      font-size: 22px;
-      margin-bottom: 4px;
-      color: #020617;
-    }
-
-    .subtitle {
-      font-size: 13px;
-      color: #6b7280;
-      margin-bottom: 18px;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 8px;
-      background: #f3f4f6;
-      border-radius: 999px;
-      padding: 4px;
-      margin-bottom: 18px;
-    }
-
-    .tab-btn {
-      flex: 1;
-      border: none;
-      background: transparent;
-      font-size: 13px;
-      padding: 7px 0;
-      border-radius: 999px;
-      cursor: pointer;
-      color: #6b7280;
-      font-weight: 500;
-    }
-
-    .tab-btn.active {
-      background: #1d4ed8;
-      color: #e5f0ff;
-      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.4);
-    }
-
-    form {
-      display: none;
-      margin-top: 4px;
-    }
-
-    form.active {
-      display: block;
-    }
-
-    label {
-      display: block;
-      font-size: 13px;
-      margin-bottom: 4px;
-      color: #4b5563;
-    }
-
-    input {
-      width: 100%;
-      padding: 9px 11px;
-      border-radius: 10px;
-      border: 1px solid #e5e7eb;
-      font-size: 13px;
-      margin-bottom: 12px;
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-
-    input:focus {
-      border-color: #2563eb;
-      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.10);
-    }
-
-    .btn-primary {
-      width: 100%;
-      border: none;
-      border-radius: 999px;
-      padding: 9px 0;
+      letter-spacing: 0.16em;
       font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      background: linear-gradient(to right, #2563eb, #4f46e5);
-      color: #e5f0ff;
-      box-shadow: 0 14px 28px rgba(37, 99, 235, 0.55);
-      margin-top: 4px;
     }
 
-    .btn-primary:active {
-      transform: translateY(1px);
-      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.4);
-    }
-
-    .row-inline {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 4px;
-      margin-bottom: 10px;
-    }
-
-    .link {
-      font-size: 12px;
-      color: #2563eb;
-      cursor: pointer;
-      text-decoration: none;
-    }
-
-    .link:hover {
-      text-decoration: underline;
-    }
-
-    .helper {
+    .brand-sub {
       font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
       color: #9ca3af;
-      margin-top: 4px;
     }
 
-    .error {
-      margin-top: 6px;
-      font-size: 12px;
-      color: #ef4444;
-      min-height: 16px;
-    }
-
-    .success {
-      margin-top: 6px;
-      font-size: 12px;
-      color: #16a34a;
-      min-height: 16px;
-    }
-
-    .agree-wrapper {
-      font-size: 12px;
-      color: #4b5563;
-      margin-top: 4px;
+    .card-title {
+      font-size: 20px;
+      font-weight: 600;
       margin-bottom: 6px;
     }
 
-    .agree-wrapper a {
-      color: #2563eb;
-      text-decoration: none;
+    .card-sub {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-bottom: 18px;
     }
 
-    .agree-wrapper a:hover {
+    .field-label {
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .field-input {
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      padding: 9px 14px;
+      font-size: 14px;
+      outline: none;
+      background: #f9fafb;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .field-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(37,99,235,0.5);
+      background: #ffffff;
+    }
+
+    .btn-primary {
+      margin-top: 8px;
+      width: 100%;
+      border-radius: 999px;
+      border: none;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #eff6ff;
+      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.45);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+      box-shadow: 0 20px 48px rgba(37, 99, 235, 0.55);
+    }
+
+    .helper {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text-sub);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .helper a {
+      color: var(--accent-soft);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .helper a:hover {
       text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .error-msg {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--error);
+      min-height: 16px;
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="logo">
-      <div class="logo-badge">R</div>
+  <main class="card">
+    <div class="brand">
+      <div class="brand-icon">R</div>
       <div>
-        <div class="logo-text-title">ReviewResQ</div>
-        <div class="logo-text-sub">Business Portal</div>
+        <div class="brand-title">REVIEWRESQ</div>
+        <div class="brand-sub">REVIEWS · REPUTATION · RESCUE</div>
       </div>
     </div>
 
-    <h1>Welcome back</h1>
-    <p class="subtitle">Sign in or create your ReviewResQ account.</p>
+    <h1 class="card-title">Log in to your account</h1>
+    <p class="card-sub">Access your ReviewResQ dashboard and manage your review funnel.</p>
 
-    <div class="tabs">
-      <button id="tab-login" class="tab-btn active">Login</button>
-      <button id="tab-signup" class="tab-btn">Create account</button>
+    <form id="login-form" novalidate>
+      <div style="margin-bottom:10px;">
+        <div class="field-label">Email</div>
+        <input
+          id="login-email"
+          class="field-input"
+          type="email"
+          autocomplete="email"
+          placeholder="you@example.com"
+          required
+        />
+      </div>
+
+      <div>
+        <div class="field-label">Password</div>
+        <input
+          id="login-password"
+          class="field-input"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Your password"
+          required
+        />
+      </div>
+
+      <button type="submit" class="btn-primary">Continue</button>
+    </form>
+
+    <div id="login-error" class="error-msg"></div>
+
+    <div class="helper">
+      <a href="/forgot.html">Forgot password?</a>
+      <span>Don’t have an account? <a href="/signup.html">Create account</a></span>
     </div>
 
-    <!-- LOGIN FORM -->
-    <form id="loginForm" class="active">
-      <label for="loginEmail">Email</label>
-      <input id="loginEmail" type="email" autocomplete="email" required />
+    <div class="helper" style="margin-top:6px;">
+      <a href="/index.html">← Back to main site</a>
+    </div>
+  </main>
 
-      <label for="loginPassword">Password</label>
-      <input id="loginPassword" type="password" autocomplete="current-password" required />
+  <script type="module" src="/firebase.js"></script>
+  <script>
+    const form = document.getElementById("login-form");
+    const emailEl = document.getElementById("login-email");
+    const passEl = document.getElementById("login-password");
+    const errorBox = document.getElementById("login-error");
 
-      <div class="row-inline">
-        <span></span>
-        <a id="forgotLink" class="link">Forgot password?</a>
-      </div>
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.textContent = "";
 
-      <button type="submit" class="btn-primary">Login</button>
-      <div id="loginError" class="error"></div>
-    </form>
+      const email = emailEl.value.trim();
+      const password = passEl.value;
 
-    <!-- SIGNUP FORM -->
-    <form id="signupForm">
-      <label for="signupBusinessName">Business name</label>
-      <input id="signupBusinessName" type="text" required />
+      if (!email || !password) {
+        errorBox.textContent = "Please enter your email and password.";
+        return;
+      }
 
-      <label for="signupPhone">Phone</label>
-      <input id="signupPhone" type="tel" required />
+      const res = await window.reviewResQLogin(email, password);
 
-      <label for="signupEmail">Email</label>
-      <input id="signupEmail" type="email" autocomplete="email" required />
-
-      <label for="signupPassword">Password</label>
-      <input id="signupPassword" type="password" autocomplete="new-password" required />
-
-      <p class="helper">We’ll use this email for login and password reset.</p>
-
-      <!-- ✅ CHECKBOX להסכמה לתנאים -->
-      <div class="agree-wrapper">
-        <label style="display:flex; align-items:flex-start; gap:6px;">
-          <input type="checkbox" id="signupAgree" style="margin-top:3px;" />
-          <span>
-            I agree to the
-            <a href="/terms.html" target="_blank">Terms of Service</a>
-            and
-            <a href="/privacy.html" target="_blank">Privacy Policy</a>.
-          </span>
-        </label>
-      </div>
-
-      <button type="submit" class="btn-primary">Create account</button>
-      <div id="signupError" class="error"></div>
-    </form>
-
-    <!-- RESET PASSWORD FORM -->
-    <form id="resetForm" style="display:none; margin-top:10px;">
-      <label for="resetEmail">Reset password</label>
-      <input id="resetEmail" type="email" placeholder="Your account email" required />
-      <button type="submit" class="btn-primary">Send reset link</button>
-      <div id="resetMessage" class="success"></div>
-    </form>
-  </div>
-
-  <!-- FIREBASE / LOGIC -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import {
-      getAuth,
-      signInWithEmailAndPassword,
-      createUserWithEmailAndPassword,
-      sendPasswordResetEmail
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import {
-      getFirestore,
-      doc,
-      setDoc
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
-      authDomain: "reviewresq-app.firebaseapp.com",
-      projectId: "reviewresq-app",
-      storageBucket: "reviewresq-app.firebasestorage.app",
-      messagingSenderId: "863497920392",
-      appId: "1:863497920392:web:ca99060b42a50711b9e43d"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    const tabLogin = document.getElementById("tab-login");
-    const tabSignup = document.getElementById("tab-signup");
-    const loginForm = document.getElementById("loginForm");
-    const signupForm = document.getElementById("signupForm");
-    const resetForm = document.getElementById("resetForm");
-    const forgotLink = document.getElementById("forgotLink");
-
-    const loginError = document.getElementById("loginError");
-    const signupError = document.getElementById("signupError");
-    const resetMessage = document.getElementById("resetMessage");
-
-    function showTab(tab) {
-      if (tab === "login") {
-        tabLogin.classList.add("active");
-        tabSignup.classList.remove("active");
-        loginForm.classList.add("active");
-        signupForm.classList.remove("active");
+      if (res.ok) {
+        window.location.href = "/dashboard.html";
       } else {
-        tabSignup.classList.add("active");
-        tabLogin.classList.remove("active");
-        signupForm.classList.add("active");
-        loginForm.classList.remove("active");
-      }
-      loginError.textContent = "";
-      signupError.textContent = "";
-      resetMessage.textContent = "";
-      resetForm.style.display = "none";
-    }
-
-    tabLogin.addEventListener("click", (e) => {
-      e.preventDefault();
-      showTab("login");
-    });
-
-    tabSignup.addEventListener("click", (e) => {
-      e.preventDefault();
-      showTab("signup");
-    });
-
-    // LOGIN
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      loginError.textContent = "";
-      const email = document.getElementById("loginEmail").value.trim();
-      const password = document.getElementById("loginPassword").value;
-
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        window.location.href = "/dashboard";
-      } catch (err) {
-        console.error(err);
-        loginError.textContent = "Login failed. Check your email and password.";
-      }
-    });
-
-    // SIGNUP (Create account)
-    signupForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      signupError.textContent = "";
-
-      const businessName = document.getElementById("signupBusinessName").value.trim();
-      const phone = document.getElementById("signupPhone").value.trim();
-      const email = document.getElementById("signupEmail").value.trim();
-      const password = document.getElementById("signupPassword").value;
-      const agree = document.getElementById("signupAgree").checked;
-
-      if (!businessName || !phone) {
-        signupError.textContent = "Please fill business name and phone.";
-        return;
-      }
-
-      if (!agree) {
-        signupError.textContent = "Please agree to the Terms of Service and Privacy Policy.";
-        return;
-      }
-
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        const uid = cred.user.uid;
-
-        await setDoc(doc(db, "businesses", uid), {
-          businessName,
-          email,
-          phone,
-          plan: "advanced",
-          createdAt: new Date().toISOString(),
-          reviews: []
-        });
-
-        window.location.href = "/dashboard";
-      } catch (err) {
-        console.error(err);
-        let msg = "Could not create account. Please check the details and try again.";
-        if (err.code === "auth/email-already-in-use") msg = "Email already in use.";
-        if (err.code === "auth/weak-password") msg = "Password should be at least 6 characters.";
-        if (err.code === "auth/invalid-email") msg = "Email address is not valid.";
-        signupError.textContent = msg;
-      }
-    });
-
-    // FORGOT PASSWORD
-    forgotLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      resetForm.style.display = "block";
-      resetMessage.textContent = "";
-      const emailFromLogin = document.getElementById("loginEmail").value.trim();
-      if (emailFromLogin) {
-        document.getElementById("resetEmail").value = emailFromLogin;
-      }
-    });
-
-    resetForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      resetMessage.textContent = "";
-      const email = document.getElementById("resetEmail").value.trim();
-      if (!email) {
-        resetMessage.textContent = "Enter your email first.";
-        return;
-      }
-
-      try {
-        await sendPasswordResetEmail(auth, email);
-        resetMessage.textContent = "Reset link sent. Check your inbox.";
-      } catch (err) {
-        console.error(err);
-        resetMessage.textContent = "Could not send reset email. Check the address.";
+        errorBox.textContent = res.message || "Login failed. Please try again.";
       }
     });
   </script>
