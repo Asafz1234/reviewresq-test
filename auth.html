@@ -2,128 +2,186 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ReviewResQ – Login / Create account</title>
+  <title>ReviewResQ – Login / Signup</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body {
+    :root {
+      --bg-page: #f3f4f6;
+      --bg-card: #ffffff;
+      --accent: #2563eb;
+      --accent-soft: #1d4ed8;
+      --text-main: #0f172a;
+      --text-sub: #4b5563;
+      --error: #dc2626;
+      --radius-xl: 24px;
+      --radius-pill: 999px;
+      --shadow-card: 0 22px 55px rgba(15, 23, 42, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
       margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f3f4f6;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
+      background: radial-gradient(circle at top, #e0edff 0, #f3f4f6 40%, #f9fafb 100%);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text-main);
+      padding: 20px;
     }
-    .shell {
-      max-width: 420px;
+
+    .card {
       width: 100%;
-      background: #ffffff;
-      border-radius: 18px;
-      box-shadow: 0 20px 55px rgba(15, 23, 42, 0.18);
-      padding: 22px 20px 20px;
-      border: 1px solid #e5e7eb;
+      max-width: 420px;
+      background: var(--bg-card);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-card);
+      padding: 26px 28px 24px;
     }
-    .brand {
+
+    .logo {
+      text-align: center;
+      margin-bottom: 8px;
       font-weight: 800;
-      letter-spacing: 0.16em;
-      font-size: 14px;
-      text-align: center;
-      margin-bottom: 4px;
-    }
-    .brand span {
-      color: #2563eb;
-    }
-    h1 {
-      font-size: 20px;
-      text-align: center;
-      margin-bottom: 4px;
-    }
-    .sub {
+      letter-spacing: 0.22em;
       font-size: 13px;
-      color: #6b7280;
-      text-align: center;
-      margin-bottom: 16px;
     }
+
+    .logo span {
+      color: var(--accent-soft);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 4px;
+      font-size: 22px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-bottom: 18px;
+    }
+
     .tabs {
       display: flex;
       margin-bottom: 16px;
+      gap: 6px;
       border-radius: 999px;
-      background: #f3f4f6;
+      background: #e5e7eb66;
       padding: 3px;
-      gap: 4px;
     }
+
     .tab {
       flex: 1;
       text-align: center;
-      padding: 7px 0;
+      padding: 6px 0;
       font-size: 13px;
       border-radius: 999px;
       cursor: pointer;
-      color: #6b7280;
+      color: var(--text-sub);
     }
+
     .tab.active {
       background: #ffffff;
-      color: #111827;
-      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
-    }
-    label {
-      display: block;
-      font-size: 13px;
-      margin-bottom: 3px;
-      margin-top: 10px;
-    }
-    input {
-      width: 100%;
-      padding: 9px;
-      border-radius: 10px;
-      border: 1px solid #e5e7eb;
-      font-size: 14px;
-    }
-    button {
-      width: 100%;
-      margin-top: 12px;
-      padding: 10px;
-      border-radius: 999px;
-      border: none;
-      background: #2563eb;
-      color: #eff6ff;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
+      color: var(--accent-soft);
       font-weight: 600;
-      cursor: pointer;
+    }
+
+    .form {
+      display: none;
+    }
+
+    .form.active {
+      display: block;
+    }
+
+    .field {
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: var(--text-sub);
+    }
+
+    .field input {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 12px;
+      border: 1px solid #d1d5db;
       font-size: 14px;
+      outline: none;
     }
-    .link-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      margin-top: 10px;
-      color: #6b7280;
+
+    .field input:focus {
+      border-color: var(--accent-soft);
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.25);
     }
-    .link-row span {
+
+    .btn-primary {
+      width: 100%;
+      margin-top: 4px;
+      padding: 10px 0;
+      border-radius: var(--radius-pill);
+      border: none;
       cursor: pointer;
-      text-decoration: underline;
-      text-underline-offset: 3px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+      color: #eff6ff;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 18px 40px rgba(37, 99, 235, 0.45);
     }
-    .error {
-      color: #b91c1c;
+
+    .btn-primary:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+    }
+
+    .helper {
+      margin-top: 10px;
       font-size: 12px;
-      margin-top: 8px;
-      min-height: 16px;
+      text-align: center;
+      color: var(--text-sub);
+    }
+
+    .helper a {
+      color: var(--accent-soft);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .message {
+      margin-top: 10px;
+      font-size: 12px;
       text-align: center;
     }
-    .success {
+
+    .message.error {
+      color: var(--error);
+    }
+
+    .message.success {
       color: #15803d;
-      font-size: 12px;
-      margin-top: 8px;
-      min-height: 16px;
-      text-align: center;
     }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <div class="brand"><span>REVIEW</span>RESQ</div>
+  <div class="card">
+    <div class="logo">
+      REVIEW<span>RESQ</span>
+    </div>
     <h1>Welcome back</h1>
-    <div class="sub">Log in or create your ReviewResQ account.</div>
+    <p class="subtitle">Log in or create your ReviewResQ account.</p>
 
     <div class="tabs">
       <div class="tab active" data-tab="login">Login</div>
@@ -132,143 +190,146 @@
     </div>
 
     <!-- LOGIN FORM -->
-    <div id="loginForm">
-      <label>Email</label>
-      <input type="email" id="loginEmail" placeholder="you@example.com" />
-
-      <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" />
-
-      <button id="loginBtn">Log in</button>
-      <div class="link-row">
-        <span data-tab-switch="signup">Create account</span>
-        <span data-tab-switch="reset">Forgot password?</span>
+    <form id="login-form" class="form active">
+      <div class="field">
+        <label for="login-email">Business email</label>
+        <input id="login-email" type="email" autocomplete="email" />
       </div>
-      <div class="error" id="loginError"></div>
-    </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" autocomplete="current-password" />
+      </div>
+      <button type="submit" class="btn-primary">Login</button>
+    </form>
 
     <!-- SIGNUP FORM -->
-    <div id="signupForm" style="display:none;">
-      <label>Full name</label>
-      <input type="text" id="signupName" placeholder="John Doe" />
-
-      <label>Business email</label>
-      <input type="email" id="signupEmail" placeholder="you@business.com" />
-
-      <label>Business phone</label>
-      <input type="tel" id="signupPhone" placeholder="Digits only" />
-
-      <label>Password</label>
-      <input type="password" id="signupPassword" placeholder="At least 6 characters" />
-
-      <button id="signupBtn">Create account</button>
-      <div class="link-row">
-        <span data-tab-switch="login">Already have an account?</span>
+    <form id="signup-form" class="form">
+      <div class="field">
+        <label for="signup-name">Full name</label>
+        <input id="signup-name" type="text" autocomplete="name" />
       </div>
-      <div class="error" id="signupError"></div>
-    </div>
+      <div class="field">
+        <label for="signup-email">Business email</label>
+        <input id="signup-email" type="email" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label for="signup-phone">Business phone</label>
+        <input id="signup-phone" type="tel" placeholder="Digits only" />
+      </div>
+      <div class="field">
+        <label for="signup-password">Password</label>
+        <input id="signup-password" type="password" autocomplete="new-password" />
+      </div>
+      <button type="submit" class="btn-primary">Create account</button>
+    </form>
 
     <!-- RESET FORM -->
-    <div id="resetForm" style="display:none;">
-      <label>Email</label>
-      <input type="email" id="resetEmail" placeholder="you@example.com" />
-      <button id="resetBtn">Send reset link</button>
-      <div class="link-row">
-        <span data-tab-switch="login">Back to login</span>
+    <form id="reset-form" class="form">
+      <div class="field">
+        <label for="reset-email">Business email</label>
+        <input id="reset-email" type="email" autocomplete="email" />
       </div>
-      <div class="error" id="resetError"></div>
-      <div class="success" id="resetSuccess"></div>
+      <button type="submit" class="btn-primary">Send reset link</button>
+    </form>
+
+    <div id="message" class="message"></div>
+
+    <div class="helper">
+      Already have an account?
+      <a href="#" id="go-login">Log in</a>
     </div>
   </div>
 
-  <script type="module" src="firebase.js"></script>
-  <script>
+  <script type="module">
+    import {
+      signUpBusiness,
+      loginWithEmailPassword,
+      sendPasswordResetLink
+    } from "./firebase.js";
+
     const tabs = document.querySelectorAll(".tab");
-    const loginForm = document.getElementById("loginForm");
-    const signupForm = document.getElementById("signupForm");
-    const resetForm = document.getElementById("resetForm");
+    const forms = {
+      login: document.getElementById("login-form"),
+      signup: document.getElementById("signup-form"),
+      reset: document.getElementById("reset-form"),
+    };
+    const messageEl = document.getElementById("message");
+    const goLoginLink = document.getElementById("go-login");
 
-    function setActiveTab(tab) {
-      tabs.forEach((t) => t.classList.remove("active"));
-      document.querySelector(`.tab[data-tab="${tab}"]`).classList.add("active");
-
-      loginForm.style.display = tab === "login" ? "block" : "none";
-      signupForm.style.display = tab === "signup" ? "block" : "none";
-      resetForm.style.display = tab === "reset" ? "block" : "none";
+    function setActiveTab(name) {
+      tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+      Object.entries(forms).forEach(([key, form]) => {
+        form.classList.toggle("active", key === name);
+      });
+      messageEl.textContent = "";
+      messageEl.className = "message";
     }
 
-    tabs.forEach((tab) => {
-      tab.addEventListener("click", () => {
-        setActiveTab(tab.dataset.tab);
-      });
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => setActiveTab(tab.dataset.tab));
     });
 
-    document.querySelectorAll("[data-tab-switch]").forEach((el) => {
-      el.addEventListener("click", () => {
-        const target = el.getAttribute("data-tab-switch");
-        setActiveTab(target);
-      });
+    goLoginLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      setActiveTab("login");
     });
+
+    function showError(msg) {
+      messageEl.textContent = msg;
+      messageEl.className = "message error";
+    }
+
+    function showSuccess(msg) {
+      messageEl.textContent = msg;
+      messageEl.className = "message success";
+    }
 
     // LOGIN
-    const loginBtn = document.getElementById("loginBtn");
-    const loginEmail = document.getElementById("loginEmail");
-    const loginPassword = document.getElementById("loginPassword");
-    const loginError = document.getElementById("loginError");
+    forms.login.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value;
 
-    loginBtn.addEventListener("click", async () => {
-      loginError.textContent = "";
-      const email = loginEmail.value.trim();
-      const pass = loginPassword.value.trim();
-
-      const res = await window.reviewResQLogin(email, pass);
-      if (!res.ok) {
-        loginError.textContent = res.message || "Login failed.";
-      } else {
-        window.location.href = "dashboard.html";
+      try {
+        await loginWithEmailPassword(email, password);
+        showSuccess("Logged in successfully. Redirecting to dashboard...");
+        // TODO: redirect to dashboard.html
+        // window.location.href = "/dashboard.html";
+      } catch (err) {
+        console.error(err);
+        showError(err.message || "Login failed. Please check your details.");
       }
     });
 
     // SIGNUP
-    const signupBtn = document.getElementById("signupBtn");
-    const signupName = document.getElementById("signupName");
-    const signupEmail = document.getElementById("signupEmail");
-    const signupPhone = document.getElementById("signupPhone");
-    const signupPassword = document.getElementById("signupPassword");
-    const signupError = document.getElementById("signupError");
+    forms.signup.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fullName = document.getElementById("signup-name").value.trim();
+      const email = document.getElementById("signup-email").value.trim();
+      const phone = document.getElementById("signup-phone").value.trim();
+      const password = document.getElementById("signup-password").value;
 
-    signupBtn.addEventListener("click", async () => {
-      signupError.textContent = "";
-      const name = signupName.value.trim();
-      const email = signupEmail.value.trim();
-      const phone = signupPhone.value.trim();
-      const pass = signupPassword.value.trim();
-
-      const res = await window.reviewResQSignup(name, email, phone, pass);
-      if (!res.ok) {
-        signupError.textContent = res.message || "Could not create account.";
-      } else {
-        window.location.href = "dashboard.html";
+      try {
+        await signUpBusiness({ fullName, email, phone, password });
+        showSuccess("Account created! You can now access your dashboard.");
+        // TODO: אפשר להפנות ישר לדשבורד אם תרצה
+        // window.location.href = "/dashboard.html";
+      } catch (err) {
+        console.error(err);
+        showError(err.message || "Signup failed. Please check your details.");
       }
     });
 
-    // RESET
-    const resetBtn = document.getElementById("resetBtn");
-    const resetEmail = document.getElementById("resetEmail");
-    const resetError = document.getElementById("resetError");
-    const resetSuccess = document.getElementById("resetSuccess");
-
-    resetBtn.addEventListener("click", async () => {
-      resetError.textContent = "";
-      resetSuccess.textContent = "";
-
-      const email = resetEmail.value.trim();
-      const res = await window.reviewResQResetPassword(email);
-
-      if (!res.ok) {
-        resetError.textContent = res.message || "Could not send reset link.";
-      } else {
-        resetSuccess.textContent = "Check your inbox for a reset link.";
+    // RESET PASSWORD
+    forms.reset.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("reset-email").value.trim();
+      try {
+        await sendPasswordResetLink(email);
+        showSuccess("Reset link sent. Please check your email.");
+      } catch (err) {
+        console.error(err);
+        showError(err.message || "Could not send reset link. Please try again.");
       }
     });
   </script>
