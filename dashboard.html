@@ -2,1091 +2,897 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ReviewResQ • Dashboard</title>
+  <title>ReviewResQ – Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    name="description"
+    content="ReviewResQ dashboard – see your business profile, review funnel stats and recent feedback."
+  />
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- jsPDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- Feather Icons -->
-  <script src="https://unpkg.com/feather-icons"></script>
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
 
   <style>
     :root {
-      --bg: #0f172a;
-      --bg-soft: #020617;
-      --sidebar: #020617;
-      --card-bg: #ffffff;
-      --primary: #2563eb;
-      --primary-soft: #dbeafe;
-      --accent-good: #16a34a;
-      --accent-bad: #ef4444;
+      --bg-page: #f3f4f6;
+      --bg-card: #ffffff;
+      --bg-soft: #f9fafb;
       --border-soft: #e5e7eb;
+
+      --accent: #2563eb;
+      --accent-soft: #1d4ed8;
+      --accent-light: #dbeafe;
+      --accent-green: #16a34a;
+      --accent-gold: #f59e0b;
+
       --text-main: #0f172a;
-      --text-sub: #6b7280;
+      --text-sub: #4b5563;
+      --text-soft: #6b7280;
+      --text-muted: #9ca3af;
+
       --radius-lg: 18px;
-      --radius-md: 12px;
-      --radius-sm: 8px;
-      --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.15);
-      --shadow-light: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius-xl: 24px;
+      --radius-pill: 999px;
+
+      --shadow-card: 0 24px 65px rgba(15, 23, 42, 0.12);
     }
 
-    * , *::before, *::after {
+    * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top left, #1d4ed8 0, #020617 40%, #020617 100%);
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: var(--bg-page);
       color: var(--text-main);
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 260px minmax(0, 1fr);
+      -webkit-font-smoothing: antialiased;
       min-height: 100vh;
     }
 
-    /* SIDEBAR */
-    .sidebar {
-      background: rgba(15, 23, 42, 0.96);
-      backdrop-filter: blur(16px);
-      border-right: 1px solid rgba(148, 163, 184, 0.35);
-      padding: 20px 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
+    a {
+      color: inherit;
+      text-decoration: none;
     }
 
-    .sidebar-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 8px;
-      border-radius: 999px;
-      background: linear-gradient(90deg, rgba(59, 130, 246, 0.25), transparent);
-    }
-
-    .logo-circle {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle at top, #38bdf8, #1d4ed8);
-      color: #f9fafb;
-      font-weight: 700;
-      font-size: 16px;
-    }
-
-    .logo-text {
+    .page {
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
 
-    .logo-title {
-      color: #e5e7eb;
-      font-weight: 600;
-      font-size: 15px;
-    }
+    /* HEADER / TOP BAR */
 
-    .logo-sub {
-      color: #9ca3af;
-      font-size: 11px;
-    }
-
-    .nav {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .nav-link {
-      width: 100%;
-      border: none;
-      background: transparent;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      color: #9ca3af;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background 0.15s ease, color 0.15s ease, transform 0.08s;
-    }
-
-    .nav-link i {
-      width: 18px;
-      height: 18px;
-    }
-
-    .nav-link:hover {
-      background: rgba(148, 163, 184, 0.2);
-      color: #e5e7eb;
-    }
-
-    .nav-link.active {
-      background: linear-gradient(90deg, #2563eb, #38bdf8);
-      color: #f9fafb;
-      transform: translateX(2px);
-    }
-
-    .logout-btn {
-      margin-top: auto;
-      border: none;
-      background: transparent;
-      color: #fca5a5;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .logout-btn i {
-      width: 18px;
-      height: 18px;
-    }
-
-    /* CONTENT */
-
-    .content {
-      padding: 24px 26px 32px;
-      background: radial-gradient(circle at top, rgba(59, 130, 246, 0.16), transparent 55%),
-                  radial-gradient(circle at bottom, rgba(14, 116, 144, 0.12), transparent 55%);
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(14px);
+      background: rgba(249, 250, 251, 0.96);
+      border-bottom: 1px solid rgba(229, 231, 235, 0.9);
     }
 
     .topbar {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 10px 16px;
       display: flex;
-      align-items: baseline;
+      align-items: center;
       justify-content: space-between;
-      margin-bottom: 18px;
+      gap: 10px;
     }
 
-    .topbar h1 {
-      margin: 0;
-      font-size: 26px;
-      font-weight: 650;
-      color: #f9fafb;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
-    .topbar-sub {
-      margin: 4px 0 0;
-      color: #cbd5f5;
-      font-size: 13px;
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2563eb, #60a5fa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #eff6ff;
+      font-weight: 800;
+      font-size: 18px;
+      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.5);
     }
 
-    .section {
-      margin-top: 10px;
+    .brand-text-main {
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      font-size: 14px;
     }
 
-    .section-title {
-      margin: 28px 0 14px;
-      font-size: 20px;
-      font-weight: 600;
-      color: #e5e7eb;
+    .brand-text-sub {
+      font-size: 11px;
+      color: var(--text-soft);
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
     }
 
-    /* KPI cards */
-
-    .kpi-row {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 16px;
-      margin-bottom: 22px;
-    }
-
-    .kpi-card {
-      background: rgba(15, 23, 42, 0.94);
-      border-radius: var(--radius-lg);
-      padding: 14px 16px;
-      box-shadow: var(--shadow-soft);
-      border: 1px solid rgba(148, 163, 184, 0.6);
-    }
-
-    .kpi-label {
-      display: block;
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       font-size: 12px;
-      color: #9ca3af;
-      margin-bottom: 6px;
+      color: var(--text-soft);
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
-    .kpi-value {
-      font-size: 24px;
-      font-weight: 650;
-      color: #f9fafb;
+    .user-chip {
+      padding: 5px 10px;
+      border-radius: var(--radius-pill);
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+      max-width: 220px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
     }
 
-    .kpi-bad {
-      border-color: rgba(248, 113, 113, 0.7);
+    .btn-logout {
+      border-radius: var(--radius-pill);
+      padding: 6px 14px;
+      border: none;
+      background: #fee2e2;
+      color: #b91c1c;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
     }
 
-    .kpi-good {
-      border-color: rgba(34, 197, 94, 0.7);
+    .btn-logout:hover {
+      background: #fecaca;
     }
 
-    /* generic cards */
+    /* MAIN LAYOUT */
+
+    main {
+      flex: 1;
+    }
+
+    .shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 18px 16px 28px;
+    }
+
+    /* GLOBAL MESSAGE / ALERT BAR */
+
+    .global-banner {
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .global-banner.visible {
+      display: flex;
+    }
+
+    .global-banner.info {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+    }
+
+    .global-banner.warn {
+      background: #fffbeb;
+      border: 1px solid #facc15;
+      color: #92400e;
+    }
+
+    .global-banner strong {
+      font-weight: 600;
+    }
+
+    /* HEADER AREA IN PAGE */
+
+    .page-header {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text-sub);
+      max-width: 460px;
+    }
+
+    /* BUSINESS SUMMARY / PROFILE */
+
+    .layout-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.4fr);
+      gap: 14px;
+    }
+
+    @media (max-width: 800px) {
+      .layout-main {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
 
     .card {
-      background: rgba(248, 250, 252, 0.96);
-      border-radius: var(--radius-lg);
-      padding: 18px 18px 20px;
-      box-shadow: var(--shadow-soft);
+      background: var(--bg-card);
+      border-radius: var(--radius-xl);
       border: 1px solid var(--border-soft);
+      box-shadow: var(--shadow-card);
+      padding: 16px 16px 14px;
     }
 
-    .card-header h2,
-    .card-header h3 {
-      margin: 0;
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .badge-soft {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: var(--radius-pill);
+      background: var(--bg-soft);
+      border: 1px solid var(--border-soft);
+      color: var(--text-soft);
+    }
+
+    .biz-main-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .biz-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
       font-size: 18px;
-      font-weight: 620;
-      color: var(--text-main);
+      color: #4b5563;
+      overflow: hidden;
+      flex-shrink: 0;
     }
 
-    .card-header p {
-      margin: 4px 0 6px;
-      font-size: 13px;
+    .biz-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+
+    .biz-text-main {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .biz-text-sub {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 2px;
+    }
+
+    .biz-text-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .biz-link-row {
+      margin-top: 8px;
+      font-size: 12px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: var(--bg-soft);
+      border: 1px solid var(--border-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      word-break: break-all;
+    }
+
+    .biz-link-row span.label {
+      font-weight: 500;
       color: var(--text-sub);
     }
 
-    .grid-two {
-      display: grid;
-      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-      gap: 18px;
-      margin-bottom: 26px;
+    .biz-link-row a {
+      color: var(--accent-soft);
+      text-decoration: underline;
+      text-underline-offset: 2px;
     }
 
-    .grid-three {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 18px;
-    }
-
-    /* fields + buttons */
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 12px;
-    }
-
-    .field label {
-      font-size: 13px;
-      color: var(--text-main);
-      margin-bottom: 4px;
-    }
-
-    .field-row {
-      display: flex;
-      gap: 8px;
-      margin: 8px 0 12px;
-    }
-
-    input[type="text"],
-    input[type="email"],
-    input[type="password"],
-    input[type="color"],
-    input[type="file"],
-    #reviewLink {
-      width: 100%;
-      border-radius: var(--radius-md);
-      border: 1px solid #d1d5db;
-      padding: 8px 10px;
-      font-size: 14px;
-      outline: none;
-      background: #ffffff;
-    }
-
-    input[type="color"] {
-      padding: 0;
-      height: 34px;
-    }
-
-    .hint {
-      font-size: 11px;
-      color: #9ca3af;
-    }
-
-    .btn-primary {
-      border: none;
-      border-radius: 999px;
-      padding: 8px 18px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      background: linear-gradient(90deg, #2563eb, #38bdf8);
-      color: #f9fafb;
-      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.45);
-      transition: transform 0.07s ease, box-shadow 0.07s ease, opacity 0.1s ease;
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 14px 40px rgba(37, 99, 235, 0.5);
-    }
-
-    .btn-ghost {
-      border-radius: 999px;
-      border: 1px solid #d1d5db;
-      background: #ffffff;
-      padding: 7px 14px;
-      font-size: 13px;
-      cursor: pointer;
-      color: var(--text-main);
-      transition: background 0.12s ease, transform 0.07s ease;
-    }
-
-    .btn-ghost:hover {
-      background: #eff6ff;
-      transform: translateY(-1px);
-    }
-
-    .btn-row {
+    .biz-actions {
+      margin-top: 10px;
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-    }
-
-    .full-width {
-      width: 100%;
-      margin-top: 8px;
-    }
-
-    /* TABLE */
-
-    .table-wrapper {
-      max-height: 360px;
-      overflow: auto;
-      border-radius: var(--radius-md);
-    }
-
-    .reviews-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-
-    .reviews-table thead {
-      position: sticky;
-      top: 0;
-      background: #f3f4f6;
-      z-index: 1;
-    }
-
-    .reviews-table th,
-    .reviews-table td {
-      padding: 8px 10px;
-      border-bottom: 1px solid #e5e7eb;
-      text-align: left;
-    }
-
-    .reviews-table th {
-      font-weight: 600;
-      color: #374151;
       font-size: 12px;
     }
 
-    .reviews-table tbody tr:hover {
+    .btn-ghost {
+      border-radius: var(--radius-pill);
+      padding: 6px 12px;
+      border: 1px solid var(--border-soft);
+      background: #ffffff;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .btn-ghost:hover {
       background: #f9fafb;
     }
 
-    /* QR MODAL */
+    /* STATS CARDS */
 
-    .qr-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.65);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 40;
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
     }
 
-    .qr-content {
-      position: relative;
-      background: #ffffff;
-      padding: 22px 22px 26px;
+    @media (max-width: 640px) {
+      .stats-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .stat-card {
+      background: var(--bg-card);
       border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border-soft);
+      padding: 10px 12px 9px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .stat-main {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .stat-unit {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .stat-foot {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .stat-accent-stars {
+      color: var(--accent-gold);
+      font-size: 13px;
+      margin-left: 4px;
+    }
+
+    /* RIGHT CARD – HOW TO USE */
+
+    .how-list {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 4px;
+      padding-left: 18px;
+    }
+
+    .how-list li {
+      margin-bottom: 4px;
+    }
+
+    .how-highlight {
+      margin-top: 8px;
+      font-size: 11px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+
+    /* RECENT FEEDBACK TABLE */
+
+    .section-block {
+      margin-top: 18px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .section-subtitle {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .table-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-soft);
+      box-shadow: var(--shadow-card);
+      padding: 10px 10px 6px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 580px;
+    }
+
+    thead {
+      background: var(--bg-soft);
+    }
+
+    th,
+    td {
+      padding: 8px 6px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    th {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    tbody tr:hover {
+      background: #f9fafb;
+    }
+
+    .rating-pill {
+      padding: 2px 7px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .rating-high {
+      background: #ecfdf5;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+
+    .rating-low {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
+    .feedback-empty {
+      padding: 10px 4px 6px;
+      font-size: 12px;
+      color: var(--text-soft);
       text-align: center;
-      min-width: 260px;
     }
 
-    .qr-content h3 {
-      margin-top: 0;
-      margin-bottom: 14px;
+    /* EMPTY STATE IF NO ONBOARDING */
+
+    .empty-state {
+      background: var(--bg-card);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-soft);
+      box-shadow: var(--shadow-card);
+      padding: 18px 16px 14px;
+      text-align: center;
+      max-width: 520px;
+      margin: 40px auto;
+      display: none;
+    }
+
+    .empty-state.visible {
+      display: block;
+    }
+
+    .empty-title {
       font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 6px;
     }
 
-    .qr-close {
-      position: absolute;
+    .empty-text {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-bottom: 12px;
+    }
+
+    .empty-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 13px;
+    }
+
+    .btn-primary {
+      border-radius: var(--radius-pill);
       border: none;
-      background: transparent;
-      right: 18px;
-      top: 16px;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #eff6ff;
+      box-shadow: 0 18px 45px rgba(37, 99, 235, 0.5);
     }
 
-    .qr-close i {
-      width: 18px;
-      height: 18px;
+    .btn-primary:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
     }
 
-    /* RESPONSIVE */
-
-    @media (max-width: 1024px) {
-      .layout {
-        grid-template-columns: 220px minmax(0, 1fr);
-      }
-
-      .grid-three {
-        grid-template-columns: minmax(0, 1fr);
-      }
-
-      .grid-two {
-        grid-template-columns: minmax(0, 1fr);
-      }
+    .btn-secondary {
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border-soft);
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      background: #ffffff;
+      color: var(--text-sub);
     }
 
-    @media (max-width: 768px) {
-      .layout {
-        grid-template-columns: minmax(0, 1fr);
-      }
+    .btn-secondary:hover {
+      background: #f9fafb;
+    }
 
-      .sidebar {
-        display: none;
-      }
+    /* FOOTER */
 
-      .content {
-        padding: 18px 14px 24px;
-      }
+    footer {
+      border-top: 1px solid #e5e7eb;
+      background: #ffffff;
+      padding: 8px 0;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
 
-      .kpi-row {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
+    .footer-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .footer-inner a {
+      color: var(--accent-soft);
+      text-decoration: underline;
+      text-underline-offset: 2px;
     }
   </style>
 </head>
 <body>
-  <div class="layout">
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo-circle">R</div>
-        <div class="logo-text">
-          <span class="logo-title">ReviewResQ</span>
-          <span class="logo-sub">Business Portal</span>
+  <div class="page">
+    <header>
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-icon">R</div>
+          <div>
+            <div class="brand-text-main">ReviewResQ</div>
+            <div class="brand-text-sub">REVIEWS · REPUTATION · RESCUE</div>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="user-chip">
+            <span id="userEmailDisplay">Loading user…</span>
+          </div>
+          <button id="logoutBtn" class="btn-logout">Log out</button>
         </div>
       </div>
+    </header>
 
-      <nav class="nav">
-        <button class="nav-link active" data-target="#home">
-          <i data-feather="home"></i>
-          <span>Home</span>
-        </button>
-        <button class="nav-link" data-target="#analytics">
-          <i data-feather="activity"></i>
-          <span>Analytics</span>
-        </button>
-        <button class="nav-link" data-target="#reviews">
-          <i data-feather="message-circle"></i>
-          <span>Reviews</span>
-        </button>
-        <button class="nav-link" data-target="#send-link-section">
-          <i data-feather="send"></i>
-          <span>Send Link</span>
-        </button>
-        <button class="nav-link" data-target="#settings-section">
-          <i data-feather="sliders"></i>
-          <span>Settings</span>
-        </button>
-      </nav>
+    <main>
+      <div class="shell">
 
-      <button class="logout-btn" onclick="logout()">
-        <i data-feather="log-out"></i>
-        <span>Logout</span>
-      </button>
-    </aside>
+        <!-- Global banner (JS ימלא / יסתיר) -->
+        <div id="globalBanner" class="global-banner">
+          <span id="globalBannerText"></span>
+        </div>
 
-    <!-- MAIN CONTENT -->
-    <main class="content">
-      <header class="topbar">
-        <div>
-          <h1 id="welcomeTitle">Welcome back</h1>
-          <p class="topbar-sub">
-            Live overview of how customers feel about your business.
+        <!-- Empty state אם אין עדיין onboarding -->
+        <section id="emptyState" class="empty-state">
+          <div class="empty-title">Let’s finish your setup</div>
+          <p class="empty-text">
+            We didn’t find your business profile yet. Complete the onboarding form so we can build
+            your ReviewResQ portal for you.
           </p>
-        </div>
-      </header>
-
-      <section id="home" class="section">
-        <!-- KPIs -->
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <span class="kpi-label">Total Reviews</span>
-            <span class="kpi-value" id="kpiTotal">0</span>
-          </div>
-          <div class="kpi-card kpi-bad">
-            <span class="kpi-label">Bad Reviews Rescued</span>
-            <span class="kpi-value" id="kpiBad">0</span>
-          </div>
-          <div class="kpi-card kpi-good">
-            <span class="kpi-label">Positive Rate</span>
-            <span class="kpi-value" id="kpiPositive">0%</span>
-          </div>
-          <div class="kpi-card">
-            <span class="kpi-label">30-Day Growth</span>
-            <span class="kpi-value" id="kpiGrowth">+0%</span>
-          </div>
-        </div>
-
-        <!-- SEND LINK + BRANDING -->
-        <div class="grid-two" id="send-link-section">
-          <!-- Send Review Link -->
-          <div class="card">
-            <div class="card-header">
-              <h2>Send Review Link</h2>
-              <p>Your private feedback portal link.</p>
-            </div>
-
-            <div class="field-row">
-              <input id="reviewLink" readonly />
-              <button class="btn-primary" onclick="copyLink()">Copy</button>
-            </div>
-
-            <div class="btn-row">
-              <button class="btn-ghost" onclick="downloadQR()">Download PNG</button>
-              <button class="btn-ghost" onclick="downloadPDF()">Download PDF</button>
-              <button class="btn-ghost" onclick="showQR()">Show QR Code</button>
-              <button class="btn-ghost" onclick="shareWhatsapp()">WhatsApp</button>
-              <button class="btn-ghost" onclick="shareSMS()">SMS</button>
-            </div>
-          </div>
-
-          <!-- Branding -->
-          <div class="card" id="settings-section">
-            <div class="card-header">
-              <h2>Branding Settings</h2>
-              <p>Match the portal to your brand.</p>
-            </div>
-
-            <div class="field">
-              <label for="logoInput">Upload Logo</label>
-              <input type="file" id="logoInput" accept="image/*" />
-              <small class="hint">Logo is only used locally in the page (no upload).</small>
-            </div>
-
-            <div class="field">
-              <label for="primaryColor">Primary Color</label>
-              <input type="color" id="primaryColor" value="#2563eb" />
-            </div>
-
-            <div class="field">
-              <label for="buttonColor">Button Color</label>
-              <input type="color" id="buttonColor" value="#2563eb" />
-            </div>
-
-            <div class="field">
-              <label for="backgroundColor">Background Color</label>
-              <input type="color" id="backgroundColor" value="#f3f4f6" />
-            </div>
-
-            <button class="btn-primary full-width" onclick="saveBranding()">Save Branding</button>
-          </div>
-        </div>
-
-        <!-- ANALYTICS -->
-        <section id="analytics" class="section">
-          <h2 class="section-title">Analytics</h2>
-          <div class="grid-three">
-            <div class="card">
-              <div class="card-header">
-                <h3>Rating Distribution</h3>
-                <p>How many 1★–5★ reviews you’ve received.</p>
-              </div>
-              <canvas id="starChart" height="180"></canvas>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h3>Positive vs Negative</h3>
-                <p>Snapshot of happy vs unhappy customers.</p>
-              </div>
-              <canvas id="pieChart" height="180"></canvas>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h3>Monthly Trend</h3>
-                <p>How your review volume is changing.</p>
-              </div>
-              <canvas id="lineChart" height="180"></canvas>
-            </div>
+          <div class="empty-actions">
+            <button
+              class="btn-primary"
+              onclick="window.location.href='/onboarding.html'"
+            >
+              Complete onboarding
+            </button>
+            <button
+              class="btn-secondary"
+              onclick="window.location.href='/'"
+            >
+              Back to main site
+            </button>
           </div>
         </section>
 
-        <!-- REVIEWS TABLE -->
-        <section id="reviews" class="section">
-          <h2 class="section-title">Customer Reviews</h2>
-          <div class="card">
-            <div class="table-wrapper">
-              <table class="reviews-table">
+        <!-- תוכן הדשבורד הרגיל (JS יסתיר אם אין ביזנס) -->
+        <div id="dashContent">
+
+          <header class="page-header">
+            <h1 class="page-title">
+              <span id="bizNameDisplay">Your ReviewResQ dashboard</span>
+            </h1>
+            <p class="page-subtitle">
+              See your business profile, key stats and recent feedback. Use this page to keep your
+              Google rating protected and growing.
+            </p>
+          </header>
+
+          <div class="layout-main">
+            <!-- LEFT: BUSINESS PROFILE + STATS -->
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Business profile</div>
+                  <div class="card-subtitle">
+                    This is how your ReviewResQ portal is configured.
+                  </div>
+                </div>
+                <span class="badge-soft" id="bizStatusBadge">Live · Ready</span>
+              </div>
+
+              <div class="biz-main-row">
+                <div class="biz-logo">
+                  <img id="bizLogoImg" alt="Business logo" />
+                  <span id="bizLogoInitials">YB</span>
+                </div>
+                <div>
+                  <div class="biz-text-main" id="bizNameText">YOUR BUSINESS</div>
+                  <div class="biz-text-sub" id="bizCategoryText">
+                    Category will appear here…
+                  </div>
+                  <div class="biz-text-meta">
+                    Last updated <span id="bizUpdatedAt">just now</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="biz-link-row">
+                <span class="label">Google review link</span>
+                <a id="googleLinkDisplay" href="#" target="_blank" rel="noopener noreferrer">
+                  Not set yet
+                </a>
+              </div>
+
+              <div class="biz-actions">
+                <button
+                  class="btn-ghost"
+                  id="editBizBtn"
+                  type="button"
+                  onclick="window.location.href='/onboarding.html'"
+                >
+                  Edit business details
+                </button>
+                <button
+                  class="btn-ghost"
+                  id="viewPortalBtn"
+                  type="button"
+                >
+                  Open my customer portal
+                </button>
+              </div>
+
+              <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted);">
+                Need to change your Google link, logo or category?
+                <a href="/onboarding.html">Update your onboarding details.</a>
+              </div>
+            </section>
+
+            <!-- RIGHT: HOW TO USE -->
+            <section class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">How to use ReviewResQ daily</div>
+                  <div class="card-subtitle">
+                    Simple steps your staff can follow after each job or visit.
+                  </div>
+                </div>
+              </div>
+              <ol class="how-list">
+                <li>
+                  Open your ReviewResQ link on your phone or tablet (or print the QR code).
+                </li>
+                <li>
+                  After each job, show the page or text the link to the customer while you’re still
+                  with them.
+                </li>
+                <li>
+                  Ask them to tap a star rating and follow the instructions – it takes ~10 seconds.
+                </li>
+                <li>
+                  4–5★ customers are redirected to Google to leave a public review.
+                </li>
+                <li>
+                  1–3★ customers send private feedback to your email so you can fix issues first.
+                </li>
+              </ol>
+
+              <div class="how-highlight">
+                Tip: Add the ReviewResQ link to your invoice template, WhatsApp messages or SMS
+                follow-ups, and put a QR code at your front desk or in your service vehicles.
+              </div>
+            </section>
+          </div>
+
+          <!-- STATS STRIP -->
+          <section class="section-block">
+            <header class="section-header">
+              <div>
+                <div class="section-title">Funnel overview</div>
+                <div class="section-subtitle">
+                  High-level view of how customers are flowing through your ReviewResQ page.
+                </div>
+              </div>
+            </header>
+
+            <div class="stats-grid">
+              <article class="stat-card">
+                <div class="stat-label">Average rating (last 30 days)</div>
+                <div class="stat-main">
+                  <span class="stat-value" id="averageRatingValue">–</span>
+                  <span class="stat-unit">/ 5</span>
+                  <span class="stat-accent-stars">★★★★★</span>
+                </div>
+                <div class="stat-foot">
+                  Based on feedback submitted via your portal.
+                </div>
+              </article>
+
+              <article class="stat-card">
+                <div class="stat-label">Total public reviews sent to Google</div>
+                <div class="stat-main">
+                  <span class="stat-value" id="totalReviewsValue">–</span>
+                  <span class="stat-unit">customers</span>
+                </div>
+                <div class="stat-foot">
+                  Customers who rated 4–5★ and were redirected.
+                </div>
+              </article>
+
+              <article class="stat-card">
+                <div class="stat-label">Private feedback captured</div>
+                <div class="stat-main">
+                  <span class="stat-value" id="privateFeedbackValue">–</span>
+                  <span class="stat-unit">issues</span>
+                </div>
+                <div class="stat-foot">
+                  1–3★ customers who contacted you privately.
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <!-- RECENT FEEDBACK TABLE -->
+          <section class="section-block">
+            <header class="section-header">
+              <div>
+                <div class="section-title">Recent feedback</div>
+                <div class="section-subtitle">
+                  A quick look at what customers are saying through your ReviewResQ portal.
+                </div>
+              </div>
+            </header>
+
+            <div class="table-card">
+              <table aria-label="Recent feedback">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Rating</th>
-                    <th>Comment</th>
                     <th>Date</th>
+                    <th>Customer</th>
+                    <th>Rating</th>
+                    <th>Type</th>
+                    <th>Message</th>
                   </tr>
                 </thead>
-                <tbody id="reviewsTableBody">
-                  <!-- Filled by JS -->
+                <tbody id="recentFeedbackBody">
+                  <!-- JS ימלא את השורות. אם אין כלום – נציג empty-row -->
                 </tbody>
               </table>
+
+              <div id="feedbackEmptyState" class="feedback-empty">
+                No feedback yet. Once customers start using your portal,
+                their feedback will appear here.
+              </div>
             </div>
-          </div>
-        </section>
-      </section>
+          </section>
+        </div>
+      </div>
     </main>
+
+    <footer>
+      <div class="footer-inner">
+        <div>© <span id="year"></span> ReviewResQ. All rights reserved.</div>
+        <div>
+          Need help? Text us at
+          <a href="sms:+17542216803">+1 (754) 221-6803</a>.
+        </div>
+      </div>
+    </footer>
   </div>
 
-  <!-- QR MODAL -->
-  <div id="qrModal" class="qr-modal">
-    <div class="qr-content">
-      <button class="qr-close" onclick="closeQR()">
-        <i data-feather="x"></i>
-      </button>
-      <h3>Scan to Leave a Review</h3>
-      <canvas id="qrCanvas"></canvas>
-    </div>
-  </div>
-
-
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-  <!-- MAIN SCRIPT -->
- <!-- MAIN SCRIPT -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import {
-      getAuth,
-      onAuthStateChanged,
-      signOut
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import {
-      getFirestore,
-      doc,
-      getDoc,
-      updateDoc
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-   
-
-    // ------------ FIREBASE ------------
-    const firebaseConfig = {
-      apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
-      authDomain: "reviewresq-app.firebaseapp.com",
-      projectId: "reviewresq-app",
-      storageBucket: "reviewresq-app.firebasestorage.app",
-      messagingSenderId: "863497920392",
-      appId: "1:863497920392:web:ca99060b42a50711b9e43d"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    // helpers
-    const $ = (sel) => document.querySelector(sel);
-    const byId = (id) => document.getElementById(id);
-
-    // ------------ LOGOUT ------------
-    window.logout = function () {
-      signOut(auth).then(() => {
-        window.location.href = "login.html";
-      });
-    };
-
-    // ------------ NAV SCROLL ------------
-    window.addEventListener("DOMContentLoaded", () => {
-      if (window.feather) window.feather.replace();
-
-      document.querySelectorAll(".nav-link").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          document.querySelectorAll(".nav-link").forEach((b) =>
-            b.classList.remove("active")
-          );
-          btn.classList.add("active");
-
-          const target = document.querySelector(
-            btn.getAttribute("data-target")
-          );
-          if (target) {
-            target.scrollIntoView({ behavior: "smooth", block: "start" });
-          }
-        });
-      });
-    });
-
-    // ------------ LOAD DASHBOARD ------------
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        window.location.href = "login.html";
-        return;
-      }
-
-      try {
-        const uid = user.uid;
-
-        // personal review link
-        const linkInput = byId("reviewLink");
-        if (linkInput) {
-          linkInput.value = `https://reviewresq.com/review/?id=${uid}`;
-        }
-
-        const docRef = doc(db, "businesses", uid);
-        const snap = await getDoc(docRef);
-
-        if (!snap.exists()) {
-          alert("Business profile is missing in Firestore.");
-          return;
-        }
-
-        const data = snap.data() || {};
-
-        // welcome text
-        const businessName = data.businessName || data.name || "Your business";
-        const welcomeTitle = byId("welcomeTitle");
-        if (welcomeTitle) {
-          welcomeTitle.textContent = `Welcome back, ${businessName}`;
-        }
-
-        // apply branding if exists
-        if (data.branding) {
-          const { primaryColor, buttonColor, backgroundColor } = data.branding;
-
-          if (primaryColor) {
-            document.documentElement.style.setProperty("--primary", primaryColor);
-            document.documentElement.style.setProperty(
-              "--primary-soft",
-              primaryColor + "20"
-            );
-          }
-          if (buttonColor) {
-            document.documentElement.style.setProperty("--primary", buttonColor);
-          }
-          if (backgroundColor) {
-            document.documentElement.style.setProperty(
-              "--bg-soft",
-              backgroundColor
-            );
-          }
-
-          const pc = byId("primaryColor");
-          const bc = byId("buttonColor");
-          const bgc = byId("backgroundColor");
-          if (pc) pc.value = primaryColor || "#2563eb";
-          if (bc) bc.value = buttonColor || primaryColor || "#2563eb";
-          if (bgc) bgc.value = backgroundColor || "#f3f4f6";
-        }
-
-        // reviews array
-        const reviews = Array.isArray(data.reviews) ? data.reviews : [];
-
-        updateKPIs(reviews);
-        fillReviewsTable(reviews);
-        loadCharts(reviews);
-      } catch (err) {
-        console.error("Error loading dashboard:", err);
-        alert("There was a problem loading your dashboard.");
-      }
-    });
-
-    // ------------ KPIs ------------
-    function updateKPIs(reviews) {
-      const total = reviews.length;
-      const bad = reviews.filter((r) => Number(r.rating) <= 3).length;
-      const positive = reviews.filter((r) => Number(r.rating) >= 4).length;
-      const positiveRate = total ? Math.round((positive / total) * 100) : 0;
-      const growth = total ? "+100%" : "+0%"; // placeholder
-
-      if (byId("kpiTotal")) byId("kpiTotal").textContent = total;
-      if (byId("kpiBad")) byId("kpiBad").textContent = bad;
-      if (byId("kpiPositive")) byId("kpiPositive").textContent = positiveRate + "%";
-      if (byId("kpiGrowth")) byId("kpiGrowth").textContent = growth;
-    }
-
-    // ------------ TABLE FILL ------------
-    function sanitize(value) {
-      if (value == null) return "";
-      return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-    }
-
-    function fillReviewsTable(reviews) {
-      const tbody = byId("reviewsTableBody");
-      if (!tbody) return;
-      tbody.innerHTML = "";
-
-      if (!reviews.length) {
-        const tr = document.createElement("tr");
-        tr.innerHTML =
-          '<td colspan="5" style="padding:10px; color:#6b7280;">No reviews yet. Once customers send feedback, you’ll see it here.</td>';
-        tbody.appendChild(tr);
-        return;
-      }
-
-      reviews.forEach((r) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${sanitize(r.reviewerName || r.name || "Customer")}</td>
-          <td>${sanitize(r.email || "-")}</td>
-          <td>${sanitize(r.rating || "-")}</td>
-          <td>${sanitize(r.comment || "")}</td>
-          <td>${sanitize(r.date || "")}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // ------------ CHARTS ------------
-    let starChartInstance = null;
-    let pieChartInstance = null;
-    let lineChartInstance = null;
-
-    function loadCharts(reviews) {
-      if (typeof Chart === "undefined") {
-        console.warn("Chart.js not loaded");
-        return;
-      }
-
-      const starCtx = document.getElementById("starChart");
-      const pieCtx = document.getElementById("pieChart");
-      const lineCtx = document.getElementById("lineChart");
-      if (!starCtx || !pieCtx || !lineCtx) return;
-
-      const starCounts = [0, 0, 0, 0, 0];
-      reviews.forEach((r) => {
-        const rating = Number(r.rating);
-        if (rating >= 1 && rating <= 5) {
-          starCounts[rating - 1]++;
-        }
-      });
-
-      const pos = reviews.filter((r) => Number(r.rating) >= 4).length;
-      const neg = reviews.filter((r) => Number(r.rating) <= 3).length;
-      const monthly = [5, 8, 12, 18, 14, reviews.length]; // demo data
-
-      if (starChartInstance) starChartInstance.destroy();
-      if (pieChartInstance) pieChartInstance.destroy();
-      if (lineChartInstance) lineChartInstance.destroy();
-
-      starChartInstance = new Chart(starCtx, {
-        type: "bar",
-        data: {
-          labels: ["1★", "2★", "3★", "4★", "5★"],
-          datasets: [
-            {
-              label: "Ratings",
-              data: starCounts,
-              backgroundColor: "#2563eb",
-              borderRadius: 8
-            }
-          ]
-        },
-        options: {
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { display: false } },
-            y: { grid: { color: "#e5e7eb" }, beginAtZero: true }
-          }
-        }
-      });
-
-      pieChartInstance = new Chart(pieCtx, {
-        type: "pie",
-        data: {
-          labels: ["Positive (4–5★)", "Neutral/Negative (1–3★)"],
-          datasets: [
-            {
-              data: [pos, neg],
-              backgroundColor: ["#16a34a", "#ef4444"]
-            }
-          ]
-        },
-        options: {
-          plugins: { legend: { position: "bottom" } }
-        }
-      });
-
-      lineChartInstance = new Chart(lineCtx, {
-        type: "line",
-        data: {
-          labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-          datasets: [
-            {
-              label: "Monthly Reviews",
-              data: monthly,
-              borderColor: "#2563eb",
-              backgroundColor: "rgba(37,99,235,0.15)",
-              fill: true,
-              tension: 0.35
-            }
-          ]
-        },
-        options: {
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { display: false } },
-            y: { grid: { color: "#e5e7eb" }, beginAtZero: true }
-          }
-        }
-      });
-    }
-
-    // ------------ SHARE / QR / PDF ------------
-    window.copyLink = function () {
-      const input = byId("reviewLink");
-      if (!input) return;
-      input.select();
-      input.setSelectionRange(0, 99999);
-      navigator.clipboard.writeText(input.value).then(
-        () => alert("Link copied to clipboard!"),
-        () => alert("Could not copy link.")
-      );
-    };
-
-    window.showQR = function () {
-      const modal = byId("qrModal");
-      const canvas = byId("qrCanvas");
-      const linkInput = byId("reviewLink");
-      if (!modal || !canvas || !linkInput) return;
-
-      modal.style.display = "flex";
-      QRCode.toCanvas(canvas, linkInput.value, { width: 260 });
-    };
-
-    window.closeQR = function () {
-      const modal = byId("qrModal");
-      if (modal) modal.style.display = "none";
-    };
-
-    window.shareWhatsapp = function () {
-      const linkInput = byId("reviewLink");
-      if (!linkInput) return;
-      const text = `Hi! We'd love your feedback: ${linkInput.value}`;
-      window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
-    };
-
-    window.shareSMS = function () {
-      const linkInput = byId("reviewLink");
-      if (!linkInput) return;
-      const text = `Hi! We'd love your feedback: ${linkInput.value}`;
-      window.location.href = "sms:?body=" + encodeURIComponent(text);
-    };
-
-    window.downloadQR = function () {
-      const canvas = byId("qrCanvas");
-      if (!canvas) {
-        alert("Open the QR first, then download.");
-        return;
-      }
-      const pngUrl = canvas.toDataURL("image/png");
-      const a = document.createElement("a");
-      a.href = pngUrl;
-      a.download = "reviewresq-qr.png";
-      a.click();
-    };
-
-    window.downloadPDF = function () {
-      const glb = window.jspdf;
-      if (!glb) {
-        alert("PDF library not loaded.");
-        return;
-      }
-
-      const { jsPDF } = glb;
-      const canvas = byId("qrCanvas");
-      const linkInput = byId("reviewLink");
-      if (!canvas || !linkInput) {
-        alert("Open the QR first, then download.");
-        return;
-      }
-
-      const qrData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "pt",
-        format: "a4"
-      });
-
-      pdf.setFontSize(24);
-      pdf.setTextColor(30, 64, 175);
-      pdf.text("ReviewResQ - Feedback Portal", 40, 60);
-
-      pdf.addImage(qrData, "PNG", 40, 90, 200, 200);
-
-      pdf.setFontSize(13);
-      pdf.setTextColor(55, 65, 81);
-      pdf.text("Your personal review link:", 40, 320);
-      pdf.text(linkInput.value, 40, 338);
-
-      pdf.setFontSize(11);
-      pdf.setTextColor(148, 163, 184);
-      pdf.text("Powered by ReviewResQ", 40, 800);
-
-      pdf.save("ReviewResQ-QR.pdf");
-    };
-
-    // ------------ BRANDING SAVE ------------
-    window.saveBranding = async function () {
-      const user = auth.currentUser;
-      if (!user) {
-        alert("Not authenticated.");
-        return;
-      }
-
-      const primaryInput = byId("primaryColor");
-      const buttonInput = byId("buttonColor");
-      const bgInput = byId("backgroundColor");
-
-      const primary = (primaryInput && primaryInput.value) || "#2563eb";
-      const buttonColor = (buttonInput && buttonInput.value) || primary;
-      const backgroundColor = (bgInput && bgInput.value) || "#f3f4f6";
-
-      try {
-        const docRef = doc(db, "businesses", user.uid);
-        await updateDoc(docRef, {
-          branding: {
-            primaryColor: primary,
-            buttonColor: buttonColor,
-            backgroundColor: backgroundColor
-          }
-        });
-
-        document.documentElement.style.setProperty("--primary", buttonColor);
-        document.documentElement.style.setProperty(
-          "--primary-soft",
-          primary + "20"
-        );
-        document.documentElement.style.setProperty(
-          "--bg-soft",
-          backgroundColor
-        );
-
-        alert("Branding updated successfully!");
-      } catch (err) {
-        console.error("Branding update error:", err);
-        alert("Error saving branding settings.");
-      }
-    };
+  <script>
+    // Year in footer
+    document.getElementById("year").textContent = new Date().getFullYear();
   </script>
+
+  <!-- Dashboard logic -->
+  <script type="module" src="./dashboard.js"></script>
 </body>
 </html>
