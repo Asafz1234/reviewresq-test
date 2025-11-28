@@ -2,112 +2,421 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sign Up • ReviewResQ</title>
-
+  <title>Create Your ReviewResQ Account</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/logo.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    body {
+    :root {
+      --bg-page: #f3f4f6;
+      --bg-card: #ffffff;
+      --accent: #2563eb;
+      --accent-soft: #1d4ed8;
+      --text-main: #0f172a;
+      --text-sub: #4b5563;
+      --error: #b91c1c;
+      --success: #16a34a;
+      --radius-xl: 24px;
+      --radius-pill: 999px;
+      --shadow-card: 0 24px 60px rgba(15, 23, 42, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f3f6fb;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #e0edff 0, #f9fafb 40%, #f3f4f6 100%);
+      color: var(--text-main);
+      min-height: 100vh;
       display: flex;
-      justify-content: center;
       align-items: center;
-      height: 100vh;
+      justify-content: center;
+      padding: 24px 16px;
     }
+
+    .shell {
+      max-width: 1120px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+      gap: 32px;
+      align-items: center;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      body {
+        padding-top: 40px;
+      }
+    }
+
+    .hero {
+      padding-right: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #eff6ff;
+      font-weight: 700;
+      font-size: 20px;
+      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.4);
+    }
+
+    .brand-title {
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      font-size: 14px;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #9ca3af;
+    }
+
+    .hero-title {
+      font-size: clamp(26px, 3.2vw + 10px, 34px);
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+
+    .hero-title span.accent {
+      color: var(--accent-soft);
+    }
+
+    .hero-text {
+      font-size: 14px;
+      color: var(--text-sub);
+      max-width: 34rem;
+      margin-bottom: 16px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      border: 1px solid #bbf7d0;
+      background: #ecfdf5;
+      color: #166534;
+      font-size: 11px;
+      margin-bottom: 12px;
+    }
+
+    .hero-badge span.label {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 600;
+    }
+
+    .hero-footnote {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 8px;
+    }
+
+    .hero-footnote strong {
+      color: var(--text-main);
+    }
+
+    /* CARD */
+
     .card {
-      background: white;
-      padding: 35px;
-      border-radius: 12px;
-      box-shadow: 0 3px 20px rgba(0, 0, 0, 0.1);
-      width: 350px;
-      text-align: center;
-    }
-    input {
+      background: var(--bg-card);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-card);
+      padding: 24px 22px 22px;
+      max-width: 420px;
       width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
+      margin: 0 auto;
+      border: 1px solid #e5e7eb;
     }
-    button {
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .card-sub {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-bottom: 18px;
+    }
+
+    .form-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .field-input {
       width: 100%;
-      padding: 12px;
-      background: #1a73e8;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      padding: 9px 14px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      background: #f9fafb;
+    }
+
+    .field-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.5);
+      background: #ffffff;
+    }
+
+    .field-input::placeholder {
+      color: #9ca3af;
+    }
+
+    .btn-primary {
+      margin-top: 4px;
+      width: 100%;
+      border-radius: 999px;
       border: none;
-      color: white;
-      border-radius: 8px;
-      margin-top: 15px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
-      font-size: 16px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #eff6ff;
+      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.45);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
     }
-    a {
-      margin-top: 15px;
-      display: block;
-      color: #1a73e8;
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+      box-shadow: 0 20px 48px rgba(37, 99, 235, 0.55);
+    }
+
+    .helper {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text-sub);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .helper a {
+      color: var(--accent-soft);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .helper a:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .error-msg {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--error);
+      min-height: 16px;
+    }
+
+    .success-msg {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--success);
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>Create Your ReviewResQ Account</h2>
+  <div class="shell">
+    <section class="hero">
+      <div class="brand">
+        <div class="brand-icon">R</div>
+        <div>
+          <div class="brand-title">REVIEWRESQ</div>
+          <div class="brand-sub">REVIEWS · REPUTATION · RESCUE</div>
+        </div>
+      </div>
 
-    <input id="businessName" type="text" placeholder="Business Name" />
-    <input id="email" type="email" placeholder="Email" />
-    <input id="password" type="password" placeholder="Password" />
+      <div class="hero-badge">
+        <span class="label">New</span>
+        <span>Smart review funnel for local businesses in Florida</span>
+      </div>
 
-    <button onclick="signup()">Create Account</button>
+      <h1 class="hero-title">
+        Create your <span class="accent">ReviewResQ</span> account
+        and protect your Google rating automatically.
+      </h1>
 
-    <a href="login.html">Already have an account?</a>
+      <p class="hero-text">
+        Set up your dashboard so you can see how many customers went to Google,
+        how many sent private feedback, and which jobs generated new 5-star reviews.
+      </p>
+
+      <p class="hero-footnote">
+        <strong>No setup fee. Cancel anytime.</strong>
+        You only pay after your ReviewResQ funnel is live and approved.
+      </p>
+    </section>
+
+    <section>
+      <div class="card">
+        <h2 class="card-title">Create your ReviewResQ account</h2>
+        <p class="card-sub">Use real details so we can send you alerts and protect your rating.</p>
+
+        <form id="signup-form" class="form-grid" novalidate>
+          <div>
+            <div class="field-label">Full name</div>
+            <input
+              id="name-input"
+              class="field-input"
+              type="text"
+              autocomplete="name"
+              placeholder="e.g. John Smith"
+              required
+            />
+          </div>
+
+          <div>
+            <div class="field-label">Work email</div>
+            <input
+              id="email-input"
+              class="field-input"
+              type="email"
+              autocomplete="email"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+
+          <div>
+            <div class="field-label">Mobile phone</div>
+            <input
+              id="phone-input"
+              class="field-input"
+              type="tel"
+              autocomplete="tel"
+              placeholder="+1 754 555 1234"
+              required
+            />
+          </div>
+
+          <div>
+            <div class="field-label">Password</div>
+            <input
+              id="password-input"
+              class="field-input"
+              type="password"
+              autocomplete="new-password"
+              placeholder="At least 6 characters"
+              required
+            />
+          </div>
+
+          <button type="submit" class="btn-primary">Create account</button>
+        </form>
+
+        <div id="signup-error" class="error-msg"></div>
+
+        <div class="helper">
+          <span>Already have an account? <a href="/login.html">Log in</a></span>
+          <a href="/index.html">← Back to main site</a>
+        </div>
+      </div>
+    </section>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  <script type="module" src="/firebase.js"></script>
+  <script>
+    const form = document.getElementById("signup-form");
+    const nameEl = document.getElementById("name-input");
+    const emailEl = document.getElementById("email-input");
+    const phoneEl = document.getElementById("phone-input");
+    const passEl = document.getElementById("password-input");
+    const errorBox = document.getElementById("signup-error");
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
-      authDomain: "reviewresq-app.firebaseapp.com",
-      projectId: "reviewresq-app",
-      storageBucket: "reviewresq-app.firebasestorage.app",
-      messagingSenderId: "863497920392",
-      appId: "1:863497920392:web:ca99060b42a50711b9e43d",
-      measurementId: "G-G3P2BX845N"
-    };
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    function isValidPhone(phone) {
+      const digits = phone.replace(/\D/g, "");
+      return digits.length >= 10 && digits.length <= 15; // 10–15 digits
+    }
 
-    window.signup = function () {
-      const name = document.getElementById("businessName").value;
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+    function isValidName(name) {
+      if (name.length < 2 || name.length > 80) return false;
+      return !/[0-9]/.test(name);
+    }
 
-      if (!name || !email || !password) {
-        alert("Please fill in all fields.");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.textContent = "";
+
+      const name = nameEl.value.trim();
+      const email = emailEl.value.trim();
+      const phone = phoneEl.value.trim();
+      const password = passEl.value;
+
+      if (!isValidName(name)) {
+        errorBox.textContent = "Please enter a real name (no numbers).";
+        nameEl.focus();
         return;
       }
 
-      createUserWithEmailAndPassword(auth, email, password)
-        .then(async (userCredential) => {
-          const uid = userCredential.user.uid;
+      if (!isValidEmail(email)) {
+        errorBox.textContent = "Please enter a valid email address.";
+        emailEl.focus();
+        return;
+      }
 
-          await setDoc(doc(db, "businesses", uid), {
-            businessName: name,
-            email: email,
-            plan: "advanced",
-            reviews: []
-          });
+      if (!isValidPhone(phone)) {
+        errorBox.textContent = "Please enter a valid phone number (10–15 digits).";
+        phoneEl.focus();
+        return;
+      }
 
-          alert("Account created! Redirecting to dashboard…");
-          window.location.href = "dashboard.html";
-        })
-        .catch((err) => {
-          alert("Signup failed: " + err.message);
-        });
-    };
+      if (password.length < 6) {
+        errorBox.textContent = "Password must be at least 6 characters.";
+        passEl.focus();
+        return;
+      }
+
+      const res = await window.reviewResQSignup(name, email, phone, password);
+
+      if (res.ok) {
+        window.location.href = "/dashboard.html";
+      } else {
+        errorBox.textContent = res.message || "Signup failed. Please try again.";
+      }
+    });
   </script>
 </body>
 </html>
