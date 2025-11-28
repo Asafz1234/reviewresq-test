@@ -2,245 +2,141 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Login – ReviewResQ Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="/logo.png" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — ReviewResQ</title>
+
   <style>
-    :root {
-      --bg-page: #f3f4f6;
-      --bg-card: #ffffff;
-      --accent: #2563eb;
-      --accent-soft: #1d4ed8;
-      --text-main: #0f172a;
-      --text-sub: #4b5563;
-      --error: #b91c1c;
-      --radius-xl: 24px;
-      --radius-pill: 999px;
-      --shadow-card: 0 24px 60px rgba(15, 23, 42, 0.18);
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
-      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #e0edff 0, #f9fafb 40%, #f3f4f6 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
+      background: #f7f9fc;
+      font-family: "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
     }
 
-    .card {
-      background: var(--bg-card);
-      border-radius: var(--radius-xl);
-      box-shadow: var(--shadow-card);
-      padding: 24px 22px 22px;
+    .container {
       max-width: 420px;
-      width: 100%;
-      border: 1px solid #e5e7eb;
+      margin: 40px auto;
+      padding: 32px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .brand-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #eff6ff;
+    h2 {
+      text-align: center;
+      font-size: 28px;
       font-weight: 700;
-      font-size: 20px;
-      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.4);
+      color: #111827;
+      margin-top: 0;
+      margin-bottom: 20px;
     }
 
-    .brand-title {
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      font-size: 14px;
-    }
-
-    .brand-sub {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: #9ca3af;
-    }
-
-    .card-title {
-      font-size: 20px;
+    label {
       font-weight: 600;
+      display: block;
       margin-bottom: 6px;
     }
 
-    .card-sub {
-      font-size: 13px;
-      color: var(--text-sub);
-      margin-bottom: 18px;
-    }
-
-    .field-label {
-      font-size: 12px;
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-
-    .field-input {
+    input {
       width: 100%;
-      border-radius: 999px;
-      border: 1px solid #d1d5db;
-      padding: 9px 14px;
-      font-size: 14px;
-      outline: none;
-      background: #f9fafb;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1.5px solid #d1d5db;
+      margin-bottom: 15px;
     }
 
-    .field-input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(37,99,235,0.5);
-      background: #ffffff;
-    }
-
-    .btn-primary {
-      margin-top: 8px;
+    .btn {
       width: 100%;
-      border-radius: 999px;
+      padding: 14px;
       border: none;
-      padding: 10px 16px;
-      font-size: 14px;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-size: 17px;
       font-weight: 600;
       cursor: pointer;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: #eff6ff;
-      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.45);
-      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
     }
 
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.05);
-      box-shadow: 0 20px 48px rgba(37, 99, 235, 0.55);
-    }
-
-    .helper {
+    .error-box {
       margin-top: 10px;
-      font-size: 12px;
-      color: var(--text-sub);
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      flex-wrap: wrap;
+      padding: 12px;
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 8px;
+      display: none;
+      font-size: 15px;
     }
 
-    .helper a {
-      color: var(--accent-soft);
+    .bottom-links {
+      margin-top: 15px;
+      text-align: center;
+      font-size: 15px;
+    }
+
+    a {
+      color: #2563eb;
+      font-weight: 600;
       text-decoration: none;
-      font-weight: 500;
-    }
-
-    .helper a:hover {
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-
-    .error-msg {
-      margin-top: 8px;
-      font-size: 12px;
-      color: var(--error);
-      min-height: 16px;
     }
   </style>
 </head>
+
 <body>
-  <main class="card">
-    <div class="brand">
-      <div class="brand-icon">R</div>
-      <div>
-        <div class="brand-title">REVIEWRESQ</div>
-        <div class="brand-sub">REVIEWS · REPUTATION · RESCUE</div>
-      </div>
+
+  <div class="container">
+    <h2>Log in to ReviewResQ</h2>
+
+    <label>Email</label>
+    <input id="email" type="email" placeholder="example@email.com" />
+
+    <label>Password</label>
+    <input id="password" type="password" placeholder="******" />
+
+    <button class="btn" onclick="handleLogin()">Log in</button>
+
+    <div id="errorBox" class="error-box"></div>
+
+    <div class="bottom-links">
+      Forgot password? <a href="#" onclick="resetPassword()">Reset</a>
+      <br />
+      Don’t have an account?
+      <a href="signup.html">Create account</a>
     </div>
+  </div>
 
-    <h1 class="card-title">Log in to your account</h1>
-    <p class="card-sub">Access your ReviewResQ dashboard and manage your review funnel.</p>
+  <script type="module" src="firebase.js"></script>
 
-    <form id="login-form" novalidate>
-      <div style="margin-bottom:10px;">
-        <div class="field-label">Email</div>
-        <input
-          id="login-email"
-          class="field-input"
-          type="email"
-          autocomplete="email"
-          placeholder="you@example.com"
-          required
-        />
-      </div>
-
-      <div>
-        <div class="field-label">Password</div>
-        <input
-          id="login-password"
-          class="field-input"
-          type="password"
-          autocomplete="current-password"
-          placeholder="Your password"
-          required
-        />
-      </div>
-
-      <button type="submit" class="btn-primary">Continue</button>
-    </form>
-
-    <div id="login-error" class="error-msg"></div>
-
-    <div class="helper">
-      <a href="/forgot.html">Forgot password?</a>
-      <span>Don’t have an account? <a href="/signup.html">Create account</a></span>
-    </div>
-
-    <div class="helper" style="margin-top:6px;">
-      <a href="/index.html">← Back to main site</a>
-    </div>
-  </main>
-
-  <script type="module" src="/firebase.js"></script>
   <script>
-    const form = document.getElementById("login-form");
-    const emailEl = document.getElementById("login-email");
-    const passEl = document.getElementById("login-password");
-    const errorBox = document.getElementById("login-error");
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      errorBox.textContent = "";
-
-      const email = emailEl.value.trim();
-      const password = passEl.value;
-
-      if (!email || !password) {
-        errorBox.textContent = "Please enter your email and password.";
-        return;
-      }
+    async function handleLogin() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const errorBox = document.getElementById("errorBox");
 
       const res = await window.reviewResQLogin(email, password);
 
-      if (res.ok) {
-        window.location.href = "/dashboard.html";
-      } else {
-        errorBox.textContent = res.message || "Login failed. Please try again.";
+      if (!res.ok) {
+        errorBox.style.display = "block";
+        errorBox.textContent = res.message;
+        return;
       }
-    });
+
+      window.location.href = "dashboard.html";
+    }
+
+    async function resetPassword() {
+      const email = prompt("Enter your email:");
+      if (!email) return;
+
+      const result = await window.reviewResQResetPassword(email);
+
+      if (result.ok) {
+        alert("Reset link sent! Check your email.");
+      } else {
+        alert(result.message);
+      }
+    }
   </script>
+
 </body>
 </html>
