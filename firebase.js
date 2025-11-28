@@ -1,29 +1,24 @@
 // firebase.js
-// קובץ מרכזי אחד לכל האפליקציה
+// מודול מרכזי לכל האפליקציה (Auth + Firestore)
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { 
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
   getAuth,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore,
   doc,
+  setDoc,
   getDoc,
-  setDoc
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-
-// *** שים לב: זה ה-config שנתת לי מה-Firebase שלך ***
+// ---------------------------
+// Firebase config (שלך)
+// ---------------------------
 const firebaseConfig = {
   apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
   authDomain: "reviewresq-app.firebaseapp.com",
@@ -34,49 +29,97 @@ const firebaseConfig = {
   measurementId: "G-G3P2BX845N"
 };
 
-// מאתחלים אפליקציה אחת בלבד
-const app = initializeApp(firebaseConfig);
+// כדי שלא ייזרק "app already exists" אם נטען פעמיים
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// מודולים עיקריים
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 
-// פונקציה להעלאת לוגו והחזרת URL ציבורי
-async function uploadLogoAndGetURL(file, userId) {
-  if (!file) return null;
-
-  const safeName = file.name.replace(/\s+/g, "-");
-  const path = `logos/${userId}/${Date.now()}-${safeName}`;
-
-  const logoRef = ref(storage, path);
-  await uploadBytes(logoRef, file);
-  const url = await getDownloadURL(logoRef);
-  return url;
+// ---------------------------
+//  ולידציות בסיסיות ל־Signup
+// ---------------------------
+function validateFullName(fullName) {
+  if (!fullName || fullName.trim().length < 2) {
+    throw new Error("Please enter your full name (at least 2 characters).");
+  }
 }
 
-// פונקציה קטנה להבטיח שיש משתמש מחובר – אופציונלי
-function waitForAuthUser() {
-  return new Promise((resolve) => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      unsub();
-      resolve(user);
-    });
+function validateEmail(email) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!re.test(email)) {
+    throw new Error("Please enter a valid email address.");
+  }
+}
+
+function validatePhone(phone) {
+  const re = /^[0-9]{7,15}$/; // ספרות בלבד, 7–15
+  if (!re.test(phone)) {
+    throw new Error("Phone number must contain digits only (7–15 digits).");
+  }
+}
+
+function validatePassword(password) {
+  if (!password || password.length < 6) {
+    throw new Error("Password must be at least 6 characters.");
+  }
+}
+
+// ---------------------------
+//  Signup – יצירת משתמש + Business
+// ---------------------------
+export async function signUpBusiness({ fullName, email, phone, password }) {
+  // ולידציות בצד לקוח
+  validateFullName(fullName);
+  validateEmail(email);
+  validatePhone(phone);
+  validatePassword(password);
+
+  // יצירת משתמש ב־Auth
+  const cred = await createUserWithEmailAndPassword(auth, email, password);
+  const user = cred.user;
+
+  // יצירת מסמך Business ב־Firestore
+  const businessRef = doc(db, "businesses", user.uid);
+  await setDoc(businessRef, {
+    ownerUid: user.uid,
+    fullName,
+    email,
+    phone,
+    plan: "basic", // כרגע ברירת מחדל – אפשר לעדכן בעתיד לפי בחירה
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
   });
+
+  return user;
 }
 
-// מייצאים – כל קובץ אחר יכול להשתמש בזה
-export {
-  app,
-  auth,
-  db,
-  storage,
-  uploadLogoAndGetURL,
-  waitForAuthUser,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  signOut,
-  doc,
-  getDoc,
-  setDoc
-};
+// ---------------------------
+// Login
+// ---------------------------
+export async function loginWithEmailPassword(email, password) {
+  validateEmail(email);
+  if (!password) {
+    throw new Error("Please enter your password.");
+  }
+
+  const cred = await signInWithEmailAndPassword(auth, email, password);
+  return cred.user;
+}
+
+// ---------------------------
+// Forgot Password – שליחת מייל
+// ---------------------------
+export async function sendPasswordResetLink(email) {
+  validateEmail(email);
+  await sendPasswordResetEmail(auth, email);
+}
+
+// ---------------------------
+// Helper לטעינת business של משתמש מחובר (לשימוש בדשבורד בעתיד)
+// ---------------------------
+export async function getCurrentBusinessProfile(uid) {
+  const ref = doc(db, "businesses", uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  return snap.data();
+}
