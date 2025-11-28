@@ -14,14 +14,15 @@ import {
 // ----------------------------
 // (אם שינית פעם את ה-config, תוודא שזה בדיוק מה שמופיע ב-Firebase
 //   ב-Project settings → General → Web app → Config)
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDwnwrO8RKn1ER53JpyFbr69PG9jvR7Cz8",
+  apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
   authDomain: "reviewresq-app.firebaseapp.com",
   projectId: "reviewresq-app",
   storageBucket: "reviewresq-app.firebasestorage.app",
   messagingSenderId: "863497920392",
-  appId: "1:863497920392:web:ca9906b042a50711b9e43d",
-  measurementId: "G-G3P2BX845N",
+  appId: "1:863497920392:web:ca99060b42a50711b9e43d",
+  measurementId: "G-G3P2BX845N"
 };
 
 const app = initializeApp(firebaseConfig);
