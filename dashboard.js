@@ -53,6 +53,7 @@ const portalOpenButtons = document.querySelectorAll('[data-action="portal-open"]
 const planBadge = document.getElementById("planBadge");
 const startTrialBtn = document.getElementById("startTrialBtn");
 const upgradeCtaBtn = document.getElementById("upgradeCtaBtn");
+const advancedDashboardBtn = document.getElementById("advancedDashboardBtn");
 const editProfileBtn = document.getElementById("editProfileBtn");
 const editModal = document.getElementById("editProfileModal");
 const editForm = document.getElementById("editProfileForm");
@@ -300,15 +301,21 @@ async function saveProfileEdits(event) {
 
 async function setPlanToAdvanced() {
   if (!currentUser) return;
-  await setDoc(
-    doc(db, "businessProfiles", currentUser.uid),
-    { plan: "advanced", updatedAt: serverTimestamp() },
-    { merge: true }
-  );
-  showBanner("Advanced plan enabled. Enjoy upgraded features!", "success");
-  if (planBadge) planBadge.textContent = "Advanced plan";
-  if (editFields.plan) editFields.plan.value = "advanced";
-  currentProfile.plan = "advanced";
+  try {
+    await setDoc(
+      doc(db, "businessProfiles", currentUser.uid),
+      { plan: "advanced", updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+    currentProfile.plan = "advanced";
+    if (planBadge) planBadge.textContent = "Advanced plan";
+    if (editFields.plan) editFields.plan.value = "advanced";
+    showBanner("Advanced plan enabled. Enjoy upgraded features!", "success");
+    window.location.href = "/dashboard-advanced.html";
+  } catch (err) {
+    console.error("Could not upgrade plan", err);
+    showBanner("Upgrade failed. Please try again.", "warn");
+  }
 }
 
 // =========================
@@ -373,6 +380,11 @@ async function loadBusinessProfile(user) {
   const updatedAt = data.updatedAt;
   const plan = data.plan || "basic";
 
+  if (plan === "advanced") {
+    window.location.href = "/dashboard-advanced.html";
+    return null;
+  }
+
   businessJoinedAt = data.createdAt || data.subscriptionStart || updatedAt || null;
   currentBusinessName = name;
 
@@ -416,6 +428,9 @@ async function loadBusinessProfile(user) {
 
   if (planBadge) {
     planBadge.textContent = plan === "advanced" ? "Advanced plan" : "Basic plan";
+  }
+  if (advancedDashboardBtn) {
+    advancedDashboardBtn.style.display = plan === "advanced" ? "inline-flex" : "none";
   }
 
   populateEditForm(currentProfile);
