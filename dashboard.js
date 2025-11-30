@@ -170,6 +170,13 @@ function updateLogoPreview(url, bizName) {
   }
 }
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
 async function saveLogoData(url) {
   await setDoc(
     doc(db, "businessProfiles", currentUser.uid),
@@ -188,25 +195,41 @@ async function uploadLogoForUser(file) {
   try {
     if (logoUploadStatus) logoUploadStatus.textContent = "Uploading logo…";
 
-    const url = await uploadLogoAndGetURL(file, currentUser.uid);
+    let logoUrlToSave = "";
+    let usedFallback = false;
+
+    try {
+      logoUrlToSave = await uploadLogoAndGetURL(file, currentUser.uid);
+    } catch (storageErr) {
+      console.error("Primary logo upload failed, falling back to inline storage:", storageErr);
+      usedFallback = true;
+      logoUrlToSave = await fileToDataUrl(file);
+    }
 
     await setDoc(
       doc(db, "businessProfiles", currentUser.uid),
-      { logoUrl: url, updatedAt: serverTimestamp() },
+      { logoUrl: logoUrlToSave, updatedAt: serverTimestamp(), logoUploadFallback: usedFallback },
       { merge: true }
     );
 
     if (bizLogoImg) {
-      bizLogoImg.src = url;
+      bizLogoImg.src = logoUrlToSave;
       bizLogoImg.alt = `${currentBusinessName} logo`;
       bizLogoImg.style.display = "block";
     }
     if (bizLogoInitials) bizLogoInitials.style.display = "none";
 
-    updateLogoPreview(url, currentBusinessName);
+    updateLogoPreview(logoUrlToSave, currentBusinessName);
 
-    if (logoUploadStatus)
-      logoUploadStatus.textContent = "Logo saved. Upload a new file to replace it.";
+    if (logoUploadStatus) {
+      const successMsg = usedFallback
+        ? "Logo saved with fallback. It will stay until you upload another file."
+        : "Logo saved. Upload a new file to replace it.";
+      logoUploadStatus.textContent = successMsg;
+    }
+    if (usedFallback) {
+      showBanner("We saved your logo using a fallback method.", "warn");
+    }
   } catch (err) {
     console.error("Logo upload failed:", err);
 
