@@ -175,39 +175,37 @@ function fileToDataUrl(file) {
   });
 }
 
-const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024;
-
 async function uploadLogoForUser(file) {
   if (!file || !currentUser) return;
 
+  // הגבלת גודל – כדי שלא נעמיס על Firestore
   if (file.size > MAX_LOGO_SIZE_BYTES) {
-    if (logoUploadStatus)
-      logoUploadStatus.textContent = "Please choose an image under 2MB for best results.";
+    if (logoUploadStatus) {
+      logoUploadStatus.textContent =
+        "Please choose an image under 2MB for best results.";
+    }
     showBanner("Logo too large. Pick a smaller image (under 2MB).", "warn");
-    logoUploadInput.value = "";
+    if (logoUploadInput) logoUploadInput.value = "";
     return;
   }
 
   try {
-    if (logoUploadStatus) logoUploadStatus.textContent = "Uploading logo…";
+    if (logoUploadStatus) logoUploadStatus.textContent = "Saving logo…";
 
-    let logoUrlToSave = "";
-    let usedFallback = false;
-
-    try {
-      logoUrlToSave = await uploadLogoAndGetURL(file, currentUser.uid);
-    } catch (storageErr) {
-      console.error("Primary logo upload failed:", storageErr);
-      usedFallback = true;
-      logoUrlToSave = await fileToDataUrl(file);
-    }
+    // במקום Firebase Storage – קוראים את הקובץ כ-data URL ושומרים אותו ישירות ב-Firestore
+    const logoUrlToSave = await fileToDataUrl(file);
 
     await setDoc(
       doc(db, "businessProfiles", currentUser.uid),
-      { logoUrl: logoUrlToSave, updatedAt: serverTimestamp(), logoUploadFallback: usedFallback },
+      {
+        logoUrl: logoUrlToSave,
+        updatedAt: serverTimestamp(),
+        logoUploadFallback: true, // מציין שאנחנו בשיטת ה-fallback
+      },
       { merge: true }
     );
 
+    // עדכון לוגו בדשבורד
     if (bizLogoImg) {
       bizLogoImg.src = logoUrlToSave;
       bizLogoImg.alt = `${currentBusinessName} logo`;
@@ -215,17 +213,19 @@ async function uploadLogoForUser(file) {
     }
     if (bizLogoInitials) bizLogoInitials.style.display = "none";
 
+    // עדכון כרטיס ה-Branding
     updateLogoPreview(logoUrlToSave, currentBusinessName);
 
     if (logoUploadStatus) {
-      logoUploadStatus.textContent = usedFallback
-        ? "Logo saved with fallback. It will stay until you upload another file."
-        : "Logo saved. Upload a new file to replace it.";
+      logoUploadStatus.textContent =
+        "Logo saved. Upload a new file to replace it.";
     }
   } catch (err) {
     console.error("Logo upload failed:", err);
-    if (logoUploadStatus)
-      logoUploadStatus.textContent = "Could not upload logo. Please try again.";
+    if (logoUploadStatus) {
+      logoUploadStatus.textContent =
+        "Could not upload logo. Please try again with a smaller image.";
+    }
     showBanner("We could not upload your logo. Please try again.", "warn");
     updateLogoPreview(null, currentBusinessName);
   } finally {
