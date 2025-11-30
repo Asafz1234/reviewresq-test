@@ -10,11 +10,12 @@ import {
   db,
   doc,
   getDoc,
+  setDoc,
   collection,
   query,
-  orderBy,
   getDocs,
   where,
+  uploadLogoAndGetURL,
 } from "./firebase.js";
 
 // -------- DOM ELEMENTS --------
@@ -64,6 +65,7 @@ const feedbackEmptyState = document.getElementById("feedbackEmptyState");
 let currentBusinessName = "Your business";
 let businessJoinedAt = null;
 let lastPortalUrl = "";
+let currentUser = null;
 const feedbackModal = document.getElementById("feedbackModal");
 const feedbackModalClose = document.getElementById("feedbackModalClose");
 const modalDate = document.getElementById("modalDate");
@@ -77,6 +79,10 @@ const modalEmail = document.getElementById("modalEmail");
 const modalNotes = document.getElementById("modalNotes");
 const modalNextAction = document.getElementById("modalNextAction");
 const reviewTotalsNote = document.getElementById("reviewTotalsNote");
+const logoUploadInput = document.getElementById("dashLogoUpload");
+const logoUploadPreview = document.getElementById("logoUploadPreview");
+const logoUploadPlaceholder = document.getElementById("logoUploadPlaceholder");
+const logoUploadStatus = document.getElementById("logoUploadStatus");
 
 // -------- HELPERS --------
 
@@ -122,6 +128,63 @@ function syncText(collection, value) {
   collection.forEach((el) => {
     if (el) el.textContent = value;
   });
+}
+
+// Update logo preview in the branding card
+function updateLogoPreview(url, bizName) {
+  if (!logoUploadPlaceholder || !logoUploadPreview || !logoUploadStatus) return;
+
+  const initials = initialsFromName(bizName);
+  logoUploadPlaceholder.textContent = initials;
+
+  if (url) {
+    logoUploadPreview.src = url;
+    logoUploadPreview.alt = `${bizName} logo`;
+    logoUploadPreview.style.display = "block";
+    logoUploadPlaceholder.style.display = "none";
+    logoUploadStatus.textContent = "Logo saved. Upload a new file to replace it.";
+  } else {
+    logoUploadPreview.removeAttribute("src");
+    logoUploadPreview.style.display = "none";
+    logoUploadPlaceholder.style.display = "flex";
+    logoUploadStatus.textContent =
+      "PNG or JPG works best. Upload a square image for the cleanest result.";
+  }
+}
+
+async function uploadLogoForUser(file) {
+  if (!file || !currentUser) return;
+
+  try {
+    if (logoUploadStatus) logoUploadStatus.textContent = "Uploading logo…";
+
+    const url = await uploadLogoAndGetURL(file, currentUser.uid);
+
+    await setDoc(
+      doc(db, "businessProfiles", currentUser.uid),
+      { logoUrl: url, updatedAt: new Date() },
+      { merge: true }
+    );
+
+    if (bizLogoImg) {
+      bizLogoImg.src = url;
+      bizLogoImg.alt = `${currentBusinessName} logo`;
+      bizLogoImg.style.display = "block";
+    }
+    if (bizLogoInitials) bizLogoInitials.style.display = "none";
+
+    updateLogoPreview(url, currentBusinessName);
+
+    if (logoUploadStatus)
+      logoUploadStatus.textContent = "Logo saved. Upload a new file to replace it.";
+  } catch (err) {
+    console.error("Logo upload failed:", err);
+    if (logoUploadStatus)
+      logoUploadStatus.textContent = "Could not upload logo. Please try again with a smaller image.";
+    alert("We could not upload your logo. Please try again with a smaller image.");
+  } finally {
+    if (logoUploadInput) logoUploadInput.value = "";
+  }
 }
 
 // Build an owner-only preview URL without affecting the shareable link
@@ -172,6 +235,8 @@ onAuthStateChanged(auth, async (user) => {
       window.location.href = "/auth.html";
     };
   }
+
+  currentUser = user;
 
   try {
     const profile = await loadBusinessProfile(user);
@@ -252,6 +317,8 @@ async function loadBusinessProfile(user) {
       bizLogoInitials.style.display = "flex";
     }
   }
+
+  updateLogoPreview(logoUrl, name);
 
   // Google review link
   if (googleLinkDisplay) {
@@ -340,7 +407,7 @@ async function loadFeedbackAndStats(uid) {
 
   try {
     const ref = collection(db, "feedback");
-    const q = query(ref, where("businessId", "==", uid), orderBy("createdAt", "desc"));
+    const q = query(ref, where("businessId", "==", uid));
     const snap = await getDocs(q);
 
     if (snap.empty) {
@@ -372,7 +439,13 @@ async function loadFeedbackAndStats(uid) {
       }
     });
 
-    renderFeedbackTable(feedbackRows);
+    const sortedRows = feedbackRows.sort((a, b) => {
+      const aTs = a.createdAt?.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt || 0).getTime();
+      const bTs = b.createdAt?.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt || 0).getTime();
+      return bTs - aTs;
+    });
+
+    renderFeedbackTable(sortedRows);
     updateStatsUI({ publicReviews, privateFeedback, ratingSum });
     updateReviewTotalsNote(publicReviews);
   } catch (err) {
@@ -380,6 +453,7 @@ async function loadFeedbackAndStats(uid) {
 
     feedbackEmptyState.style.display = "block";
     feedbackEmptyState.textContent = "Could not load feedback.";
+    updateStatsUI({ publicReviews: 0, privateFeedback: 0, ratingSum: 0 });
   }
 }
 
@@ -474,6 +548,18 @@ if (feedbackModalClose) {
 if (feedbackModal) {
   feedbackModal.addEventListener("click", (event) => {
     if (event.target === feedbackModal) closeFeedbackModal();
+  });
+}
+
+if (logoUploadInput) {
+  logoUploadInput.addEventListener("change", () => {
+    const file = logoUploadInput.files?.[0];
+    if (!file) return;
+    if (!currentUser) {
+      alert("Please sign in again to upload a logo.");
+      return;
+    }
+    uploadLogoForUser(file);
   });
 }
 
