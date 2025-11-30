@@ -482,20 +482,7 @@
   <main class="portal-shell">
     <section class="portal" id="portal">
       <div class="portal-inner">
-
-        <!-- אפשר להסיר את ה־Back אם אתה לא רוצה -->
-        <a href="/index.html" style="
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          margin-bottom: 18px;
-          font-size: 14px;
-          color: #2563eb;
-          text-decoration: none;
-          font-weight: 500;
-        ">
-          ← Back to landing page
-        </a>
+        <!-- אין Back to landing page כדי שהלקוח לא יברח לדף אחר -->
 
         <header class="portal-header">
           <div class="business-identity">
@@ -503,7 +490,7 @@
               YB
             </div>
             <div class="business-meta">
-              <div class="business-title" id="bizNameText">
+              <div class="business-title" id="bizNameDisplay">
                 YOUR BUSINESS NAME
               </div>
               <div class="business-subtitle">
@@ -561,7 +548,6 @@
           <h2>Help us make this better</h2>
           <p>Something wasn’t perfect? Tell us what happened so we can fix it for next time.</p>
 
-          <!-- פה אתה יכול לשים את ה-Formspree שלך או אימייל -->
           <form id="feedbackForm" action="https://formspree.io/f/xkgyopoj" method="POST">
             <textarea class="feedback-textarea" name="message" required
               placeholder="Tell us what we could have done better..."></textarea>
@@ -613,154 +599,153 @@
     </section>
   </main>
 
-  <!-- לוגיקת פורטל + טעינת נתוני העסק מה-Firestore -->
+  <!-- סקריפט התנהגות הכוכבים + הטופס -->
+  <script>
+    (function () {
+      const portal = document.getElementById("portal");
+      const ratingButtons = document.querySelectorAll(".rating-button");
+      const currentRatingValue = document.getElementById("currentRatingValue");
+      const changeRatingLink = document.getElementById("changeRatingLink");
+      const ratingField = document.getElementById("ratingField");
+      const lowPanel = document.getElementById("lowPanel");
+      const highPanel = document.getElementById("highPanel");
+      const feedbackForm = document.getElementById("feedbackForm");
+
+      let currentRating = 0;
+
+      function applyRatingState() {
+        portal.classList.add("has-rating");
+
+        if (currentRating <= 3) {
+          portal.classList.add("low-rating");
+          portal.classList.remove("high-rating");
+        } else {
+          portal.classList.add("high-rating");
+          portal.classList.remove("low-rating");
+        }
+
+        currentRatingValue.textContent = currentRating + "★";
+        ratingField.value = String(currentRating);
+
+        ratingButtons.forEach((btn) => {
+          const value = Number(btn.dataset.rating);
+          btn.classList.toggle("selected", value === currentRating);
+        });
+      }
+
+      ratingButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const value = Number(btn.dataset.rating);
+          if (!value) return;
+          currentRating = value;
+          applyRatingState();
+        });
+      });
+
+      changeRatingLink.addEventListener("click", (event) => {
+        event.preventDefault();
+        currentRating = 0;
+        portal.classList.remove("has-rating", "low-rating", "high-rating", "feedback-sent");
+        currentRatingValue.textContent = "–";
+        ratingField.value = "";
+        ratingButtons.forEach((btn) => btn.classList.remove("selected"));
+      });
+
+      if (feedbackForm) {
+        feedbackForm.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          if (!currentRating) {
+            alert("Please select a rating first.");
+            return;
+          }
+
+          const formData = new FormData(feedbackForm);
+          formData.set("rating", String(currentRating));
+
+          try {
+            await fetch(feedbackForm.action, {
+              method: feedbackForm.method,
+              body: formData,
+              headers: {
+                Accept: "application/json",
+              },
+            });
+          } catch (err) {
+            console.error("Formspree error", err);
+          }
+
+          portal.classList.add("feedback-sent");
+        });
+      }
+    })();
+  </script>
+
+  <!-- סקריפט שמושך את נתוני העסק מה-Firestore לפי bid -->
   <script type="module">
-    import { db, doc, getDoc } from "./firebase.js";
+    import { db } from "./firebase.js";
+    import {
+      doc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const portal = document.getElementById("portal");
-    const ratingButtons = document.querySelectorAll(".rating-button");
-    const currentRatingValue = document.getElementById("currentRatingValue");
-    const changeRatingLink = document.getElementById("changeRatingLink");
-    const ratingField = document.getElementById("ratingField");
-    const lowPanel = document.getElementById("lowPanel");
-    const highPanel = document.getElementById("highPanel");
-    const feedbackForm = document.getElementById("feedbackForm");
-
-    const bizNameText = document.getElementById("bizNameText");
-    const bizLogoInitials = document.getElementById("bizLogoInitials");
-    const businessNameField = document.getElementById("businessNameField");
-    const googleReviewBtn = document.getElementById("googleReviewBtn");
-
-    let currentRating = 0;
-    let googleReviewLink = "#";
-
-    // ---- חישוב ראשי תיבות ללוגו ----
     function initialsFromName(name = "") {
       const parts = name.trim().split(/\s+/);
-      if (!parts.length) return "RB";
+      if (!parts.length) return "YB";
       if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
       return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
     }
 
-    // ---- טעינת נתוני העסק לפי ?bid= ----
-    async function loadBusinessFromFirestore() {
+    async function loadBusinessForPortal() {
       const params = new URLSearchParams(window.location.search);
       const bid = params.get("bid");
 
       if (!bid) {
-        console.warn("No bid in URL – showing generic portal");
+        console.warn("No 'bid' parameter in URL – portal will use demo text only.");
         return;
       }
 
       try {
         const ref = doc(db, "businessProfiles", bid);
         const snap = await getDoc(ref);
+
         if (!snap.exists()) {
-          console.warn("Business profile not found for bid:", bid);
+          console.warn("No business profile found for bid:", bid);
           return;
         }
 
-        const data = snap.data() || {};
+        const data = snap.data();
         const name = data.businessName || "Your business";
+        const googleReviewLink = data.googleReviewLink || "";
 
-        if (bizNameText) bizNameText.textContent = name.toUpperCase();
-        if (businessNameField) businessNameField.value = name;
-        if (bizLogoInitials) bizLogoInitials.textContent = initialsFromName(name);
+        // שם העסק
+        const nameEl = document.getElementById("bizNameDisplay");
+        const hiddenBiz = document.getElementById("businessNameField");
+        if (nameEl) nameEl.textContent = name.toUpperCase();
+        if (hiddenBiz) hiddenBiz.value = name;
 
-        if (data.googleReviewLink) {
-          googleReviewLink = data.googleReviewLink;
-          if (googleReviewBtn) {
-            googleReviewBtn.href = googleReviewLink;
+        // ראשי תיבות
+        const initialsEl = document.getElementById("bizLogoInitials");
+        if (initialsEl) initialsEl.textContent = initialsFromName(name);
+
+        // כפתור גוגל
+        const googleBtn = document.getElementById("googleReviewBtn");
+        if (googleBtn) {
+          if (googleReviewLink) {
+            googleBtn.href = googleReviewLink;
+          } else {
+            googleBtn.href = "#";
+            googleBtn.addEventListener("click", (e) => {
+              e.preventDefault();
+              alert("Google review link is not set yet for this business.");
+            });
           }
         }
       } catch (err) {
-        console.error("Error loading business profile for portal:", err);
+        console.error("Failed to load business profile for portal:", err);
       }
     }
 
-    // ---- לוגיקת דירוג ----
-    function applyRatingState() {
-      portal.classList.add("has-rating");
-      if (currentRating <= 3) {
-        portal.classList.add("low-rating");
-        portal.classList.remove("high-rating");
-      } else {
-        portal.classList.add("high-rating");
-        portal.classList.remove("low-rating");
-      }
-
-      currentRatingValue.textContent = currentRating + "★";
-      ratingField.value = String(currentRating);
-
-      ratingButtons.forEach((btn) => {
-        const value = Number(btn.dataset.rating);
-        btn.classList.toggle("selected", value === currentRating);
-      });
-    }
-
-    ratingButtons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const value = Number(btn.dataset.rating);
-        if (!value) return;
-        currentRating = value;
-        applyRatingState();
-      });
-    });
-
-    changeRatingLink.addEventListener("click", (event) => {
-      event.preventDefault();
-      currentRating = 0;
-      portal.classList.remove(
-        "has-rating",
-        "low-rating",
-        "high-rating",
-        "feedback-sent"
-      );
-      currentRatingValue.textContent = "–";
-      ratingField.value = "";
-      ratingButtons.forEach((btn) => btn.classList.remove("selected"));
-    });
-
-    // ---- שליחת פידבק (1–3 כוכבים) ----
-    if (feedbackForm) {
-      feedbackForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        if (!currentRating) {
-          alert("Please select a rating first.");
-          return;
-        }
-
-        const formData = new FormData(feedbackForm);
-        formData.set("rating", String(currentRating));
-
-        try {
-          await fetch(feedbackForm.action, {
-            method: feedbackForm.method,
-            body: formData,
-            headers: {
-              Accept: "application/json",
-            },
-          });
-        } catch (err) {
-          console.error("Formspree error", err);
-        }
-
-        portal.classList.add("feedback-sent");
-      });
-    }
-
-    // ---- סטטוס כפתור גוגל אם אין לינק ----
-    if (googleReviewBtn) {
-      googleReviewBtn.addEventListener("click", (e) => {
-        if (!googleReviewLink || googleReviewLink === "#") {
-          e.preventDefault();
-          alert("Google review link is not set yet.");
-        }
-      });
-    }
-
-    // הפעלה
-    loadBusinessFromFirestore();
+    loadBusinessForPortal();
   </script>
 </body>
 </html>
