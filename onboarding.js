@@ -1,4 +1,7 @@
-// onboarding.js – שומר / טוען את פרטי העסק ל-Firestore
+// =============================
+//  onboarding.js (NEW)
+//  Handles loading + saving onboarding data
+// =============================
 
 import {
   auth,
@@ -7,167 +10,123 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
   serverTimestamp,
 } from "./firebase.js";
 
-const form = document.getElementById("onboarding-form");
-const submitBtn = document.getElementById("submit-btn");
-const globalMsg = document.getElementById("global-message");
-const previewBizName = document.getElementById("preview-biz-name");
+// ------------- DOM ELEMENTS -------------
+const form = document.getElementById("onboardingForm");
 
-const bizNameInput = document.getElementById("biz-name");
+const bizNameInput = document.getElementById("bizNameInput");
+const bizCategoryInput = document.getElementById("bizCategoryInput");
+const bizPhoneInput = document.getElementById("bizPhoneInput");
+const bizEmailInput = document.getElementById("bizEmailInput");
+const googleLinkInput = document.getElementById("googleLinkInput");
+const websiteInput = document.getElementById("websiteInput");
+const logoUrlInput = document.getElementById("logoUrlInput");
 
-// עדכון פריוויו בזמן אמת
-if (bizNameInput && previewBizName) {
-  bizNameInput.addEventListener("input", () => {
-    previewBizName.textContent =
-      bizNameInput.value.trim() || "YOUR BUSINESS";
-  });
+const errorBanner = document.getElementById("errorBanner");
+const errorBannerText = document.getElementById("errorBannerText");
+
+const saveBtn = document.getElementById("saveBtn");
+
+// ------------ HELPERS -------------
+
+function showError(msg) {
+  if (errorBanner) {
+    errorBanner.style.display = "block";
+    errorBannerText.textContent = msg;
+  }
 }
 
-// עוזר להודעות כלליות
-function showGlobal(type, msg) {
-  globalMsg.textContent = msg;
-  globalMsg.className = `global-message visible ${type}`;
+function hideError() {
+  if (errorBanner) {
+    errorBanner.style.display = "none";
+    errorBannerText.textContent = "";
+  }
 }
 
-function clearGlobal() {
-  globalMsg.textContent = "";
-  globalMsg.className = "global-message";
+// Convert blank to null
+function cleanValue(value) {
+  return value && value.trim() !== "" ? value.trim() : null;
 }
 
-function fieldError(id, msg) {
-  const el = document.getElementById(id + "-error");
-  if (el) el.textContent = msg || "";
+// ------------ LOAD ONBOARDING DATA --------------
+
+async function loadOnboarding(uid) {
+  try {
+    const ref = doc(db, "businessProfiles", uid);
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      console.log("No onboarding data yet. User will fill the form.");
+      return;
+    }
+
+    const data = snap.data();
+
+    bizNameInput.value = data.businessName || "";
+    bizCategoryInput.value = data.category || "";
+    bizPhoneInput.value = data.phone || "";
+    bizEmailInput.value = data.contactEmail || "";
+    googleLinkInput.value = data.googleReviewLink || "";
+    websiteInput.value = data.website || "";
+    logoUrlInput.value = data.logoUrl || "";
+
+  } catch (err) {
+    console.error("Error loading onboarding:", err);
+    showError("Could not load your business details. Please try again.");
+  }
 }
 
-function clearFieldErrors() {
-  document.querySelectorAll(".error-text").forEach((el) => (el.textContent = ""));
+// --------------- SAVE ONBOARDING ----------------
+
+async function saveOnboarding(uid) {
+  hideError();
+
+  const payload = {
+    businessName: cleanValue(bizNameInput.value),
+    category: cleanValue(bizCategoryInput.value),
+    phone: cleanValue(bizPhoneInput.value),
+    contactEmail: cleanValue(bizEmailInput.value),
+    googleReviewLink: cleanValue(googleLinkInput.value),
+    website: cleanValue(websiteInput.value),
+    logoUrl: cleanValue(logoUrlInput.value),
+    onboardingComplete: true,
+    updatedAt: serverTimestamp(),
+  };
+
+  try {
+    const ref = doc(db, "businessProfiles", uid);
+    await setDoc(ref, payload, { merge: true });
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
+
+    setTimeout(() => {
+      window.location.href = "/dashboard.html";
+    }, 500);
+
+  } catch (err) {
+    console.error("Save onboarding failed:", err);
+    showError("Could not save your business details. Please try again.");
+  }
 }
 
-let currentUser = null;
-let bizDocRef = null;
+// ---------------- AUTH FLOW -----------------
 
-// --- AUTH GUARD + טעינת נתונים קיימים ---
-onAuthStateChanged(auth, async (user) => {
+onAuthStateChanged(auth, (user) => {
   if (!user) {
-    // אם אין משתמש – נשלח לעמוד התחברות
     window.location.href = "/auth.html";
     return;
   }
 
-  currentUser = user;
-  bizDocRef = doc(db, "businesses", user.uid);
+  loadOnboarding(user.uid);
 
-  try {
-    const snap = await getDoc(bizDocRef);
-    if (snap.exists()) {
-      const data = snap.data();
-
-      // מלא טופס מנתונים קיימים
-      if (data.bizName) document.getElementById("biz-name").value = data.bizName || "";
-      if (data.category) document.getElementById("biz-category").value = data.category || "";
-      if (data.phone) document.getElementById("biz-phone").value = data.phone || "";
-      if (data.email) document.getElementById("biz-email").value = data.email || "";
-      if (data.googleReviewLink) document.getElementById("google-link").value = data.googleReviewLink || "";
-      if (data.websiteUrl) document.getElementById("website-url").value = data.websiteUrl || "";
-      if (data.logoUrl) document.getElementById("logo-url").value = data.logoUrl || "";
-      if (data.cityArea) document.getElementById("biz-city").value = data.cityArea || "";
-      if (data.plan) document.getElementById("plan").value = data.plan || "advanced";
-      if (data.notes) document.getElementById("notes").value = data.notes || "";
-
-      // עדכון פריוויו
-      if (data.bizName) previewBizName.textContent = data.bizName;
-    }
-  } catch (err) {
-    console.error("Failed to load business doc:", err);
-    showGlobal("error", "Could not load your business details. Please try again.");
-  }
-});
-
-// --- SUBMIT ONBOARDING FORM ---
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  clearGlobal();
-  clearFieldErrors();
-
-  if (!currentUser || !bizDocRef) {
-    return showGlobal("error", "You must be logged in to save your onboarding.");
-  }
-
-  const bizName = document.getElementById("biz-name").value.trim();
-  const category = document.getElementById("biz-category").value.trim();
-  const phone = document.getElementById("biz-phone").value.trim();
-  const email = document.getElementById("biz-email").value.trim();
-  const googleLink = document.getElementById("google-link").value.trim();
-  const websiteUrl = document.getElementById("website-url").value.trim();
-  const logoUrl = document.getElementById("logo-url").value.trim();
-  const cityArea = document.getElementById("biz-city").value.trim();
-  const plan = document.getElementById("plan").value || "advanced";
-  const notes = document.getElementById("notes").value.trim();
-
-  let hasError = false;
-
-  if (!bizName) {
-    fieldError("biz-name", "Business name is required.");
-    hasError = true;
-  }
-  if (!category) {
-    fieldError("biz-category", "Please enter your main service or category.");
-    hasError = true;
-  }
-  if (!phone) {
-    fieldError("biz-phone", "Phone is required.");
-    hasError = true;
-  }
-  if (!email) {
-    fieldError("biz-email", "Contact email is required.");
-    hasError = true;
-  }
-  if (!googleLink) {
-    fieldError("google-link", "Google review link is required.");
-    hasError = true;
-  }
-
-  if (hasError) {
-    showGlobal("error", "Please fix the highlighted fields and try again.");
-    return;
-  }
-
-  submitBtn.disabled = true;
-
-  try {
-    // שמירה / עדכון המסמך ב-Firestore
-    await setDoc(
-      bizDocRef,
-      {
-        ownerUid: currentUser.uid,
-        bizName,
-        category,
-        phone,
-        email,
-        googleReviewLink: googleLink,
-        websiteUrl: websiteUrl || null,
-        logoUrl: logoUrl || null,
-        cityArea: cityArea || null,
-        plan: plan || "advanced",
-        notes: notes || null,
-        onboardingComplete: true,
-        updatedAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    showGlobal("success", "Saved! Redirecting you to your dashboard…");
-
-    setTimeout(() => {
-      window.location.href = "/dashboard.html";
-    }, 800);
-  } catch (err) {
-    console.error("Onboarding save failed:", err);
-    showGlobal("error", "Could not save your details. Please try again.");
-  } finally {
-    submitBtn.disabled = false;
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      saveOnboarding(user.uid);
+    });
   }
 });
