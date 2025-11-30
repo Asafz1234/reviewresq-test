@@ -2,967 +2,181 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ReviewResQ – Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Dashboard</title>
   <meta
     name="description"
-    content="ReviewResQ dashboard – see your business profile, review funnel stats and recent feedback."
+    content="ReviewResQ dashboard – monitor your business profile, review funnel stats, and recent feedback."
   />
-
-  <!-- Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
     rel="stylesheet"
   />
-
-  <style>
-    :root {
-      --bg-page: #f3f4f6;
-      --bg-card: #ffffff;
-      --bg-soft: #f9fafb;
-      --border-soft: #e5e7eb;
-
-      --accent: #2563eb;
-      --accent-soft: #1d4ed8;
-      --accent-light: #dbeafe;
-      --accent-green: #16a34a;
-      --accent-gold: #f59e0b;
-
-      --text-main: #0f172a;
-      --text-sub: #4b5563;
-      --text-soft: #6b7280;
-      --text-muted: #9ca3af;
-
-      --radius-lg: 18px;
-      --radius-xl: 24px;
-      --radius-pill: 999px;
-
-      --shadow-card: 0 24px 65px rgba(15, 23, 42, 0.12);
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-        "Segoe UI", sans-serif;
-      background: var(--bg-page);
-      color: var(--text-main);
-      -webkit-font-smoothing: antialiased;
-      min-height: 100vh;
-    }
-
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    .page {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* HEADER / TOP BAR */
-
-    header {
-      position: sticky;
-      top: 0;
-      z-index: 40;
-      backdrop-filter: blur(14px);
-      background: rgba(249, 250, 251, 0.96);
-      border-bottom: 1px solid rgba(229, 231, 235, 0.9);
-    }
-
-    .topbar {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .brand-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #2563eb, #60a5fa);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #eff6ff;
-      font-weight: 800;
-      font-size: 18px;
-      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.5);
-    }
-
-    .brand-text-main {
-      font-weight: 700;
-      letter-spacing: 0.10em;
-      font-size: 14px;
-    }
-
-    .brand-text-sub {
-      font-size: 11px;
-      color: var(--text-soft);
-      letter-spacing: 0.20em;
-      text-transform: uppercase;
-    }
-
-    .topbar-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 12px;
-      color: var(--text-soft);
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    .user-chip {
-      padding: 5px 10px;
-      border-radius: var(--radius-pill);
-      border: 1px solid #e5e7eb;
-      background: #ffffff;
-      max-width: 220px;
-      text-overflow: ellipsis;
-      overflow: hidden;
-      white-space: nowrap;
-    }
-
-    .btn-logout {
-      border-radius: var(--radius-pill);
-      padding: 6px 14px;
-      border: none;
-      background: #fee2e2;
-      color: #b91c1c;
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-    }
-
-    .btn-logout:hover {
-      background: #fecaca;
-    }
-
-    /* MAIN LAYOUT */
-
-    main {
-      flex: 1;
-    }
-
-    .shell {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 18px 16px 28px;
-    }
-
-    /* GLOBAL MESSAGE / ALERT BAR */
-
-    .global-banner {
-      margin-bottom: 12px;
-      padding: 8px 12px;
-      border-radius: 12px;
-      font-size: 12px;
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .global-banner.visible {
-      display: flex;
-    }
-
-    .global-banner.info {
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: #1d4ed8;
-    }
-
-    .global-banner.warn {
-      background: #fffbeb;
-      border: 1px solid #facc15;
-      color: #92400e;
-    }
-
-    .global-banner strong {
-      font-weight: 600;
-    }
-
-    /* HEADER AREA IN PAGE */
-
-    .page-header {
-      margin-bottom: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .page-title {
-      font-size: 22px;
-      font-weight: 700;
-    }
-
-    .page-subtitle {
-      font-size: 13px;
-      color: var(--text-sub);
-      max-width: 460px;
-    }
-
-    /* BUSINESS SUMMARY / PROFILE */
-
-    .layout-main {
-      display: grid;
-      grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.4fr);
-      gap: 14px;
-    }
-
-    .layout-left {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    @media (max-width: 800px) {
-      .layout-main {
-        grid-template-columns: minmax(0, 1fr);
-      }
-
-      .layout-left {
-        order: 1;
-      }
-    }
-
-    .card {
-      background: var(--bg-card);
-      border-radius: var(--radius-xl);
-      border: 1px solid var(--border-soft);
-      box-shadow: var(--shadow-card);
-      padding: 16px 16px 14px;
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    .card-title {
-      font-size: 15px;
-      font-weight: 600;
-    }
-
-    .card-subtitle {
-      font-size: 12px;
-      color: var(--text-soft);
-    }
-
-    .badge-soft {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: var(--radius-pill);
-      background: var(--bg-soft);
-      border: 1px solid var(--border-soft);
-      color: var(--text-soft);
-    }
-
-    .biz-main-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 10px;
-    }
-
-    .biz-logo {
-      width: 44px;
-      height: 44px;
-      border-radius: 999px;
-      background: #e5e7eb;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 18px;
-      color: #4b5563;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-
-    .biz-logo img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: none;
-    }
-
-    .biz-text-main {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 2px;
-    }
-
-    .biz-text-sub {
-      font-size: 12px;
-      color: var(--text-sub);
-      margin-bottom: 2px;
-    }
-
-    .biz-text-meta {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .biz-link-row {
-      margin-top: 8px;
-      font-size: 12px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      background: var(--bg-soft);
-      border: 1px solid var(--border-soft);
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      word-break: break-all;
-    }
-
-    .biz-link-row span.label {
-      font-weight: 500;
-      color: var(--text-sub);
-    }
-
-    .biz-link-row a {
-      color: var(--accent-soft);
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-
-    .biz-actions {
-      margin-top: 10px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      font-size: 12px;
-    }
-
-    .btn-ghost {
-      border-radius: var(--radius-pill);
-      padding: 6px 12px;
-      border: 1px solid var(--border-soft);
-      background: #ffffff;
-      cursor: pointer;
-      font-size: 12px;
-      color: var(--text-sub);
-    }
-
-    .btn-ghost:hover {
-      background: #f9fafb;
-    }
-
-    /* STATS CARDS */
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    @media (max-width: 640px) {
-      .stats-grid {
-        grid-template-columns: minmax(0, 1fr);
-      }
-    }
-
-    .stat-card {
-      background: var(--bg-card);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border-soft);
-      padding: 10px 12px 9px;
-    }
-
-    .stat-label {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-
-    .stat-main {
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-      margin-bottom: 2px;
-    }
-
-    .stat-value {
-      font-size: 20px;
-      font-weight: 700;
-    }
-
-    .stat-unit {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .stat-foot {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .stat-accent-stars {
-      color: var(--accent-gold);
-      font-size: 13px;
-      margin-left: 4px;
-    }
-
-    /* RIGHT CARD – HOW TO USE */
-
-    .how-list {
-      font-size: 12px;
-      color: var(--text-sub);
-      margin-top: 4px;
-      padding-left: 18px;
-    }
-
-    .how-list li {
-      margin-bottom: 4px;
-    }
-
-    .how-highlight {
-      margin-top: 8px;
-      font-size: 11px;
-      padding: 6px 8px;
-      border-radius: 10px;
-      background: #ecfdf5;
-      border: 1px solid #bbf7d0;
-      color: #166534;
-    }
-
-    /* RECENT FEEDBACK TABLE */
-
-    .section-block {
-      margin-top: 18px;
-    }
-
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-
-    .section-title {
-      font-size: 15px;
-      font-weight: 600;
-    }
-
-    .section-subtitle {
-      font-size: 12px;
-      color: var(--text-sub);
-    }
-
-    .table-card {
-      background: var(--bg-card);
-      border-radius: var(--radius-xl);
-      border: 1px solid var(--border-soft);
-      box-shadow: var(--shadow-card);
-      padding: 10px 10px 6px;
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      min-width: 580px;
-    }
-
-    thead {
-      background: var(--bg-soft);
-    }
-
-    th,
-    td {
-      padding: 8px 6px;
-      text-align: left;
-      border-bottom: 1px solid #e5e7eb;
-    }
-
-    th {
-      font-weight: 600;
-      color: var(--text-muted);
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    tbody tr:hover {
-      background: #f9fafb;
-    }
-
-    .rating-pill {
-      padding: 2px 7px;
-      border-radius: var(--radius-pill);
-      font-size: 11px;
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-    }
-
-    .rating-high {
-      background: #ecfdf5;
-      color: #15803d;
-      border: 1px solid #bbf7d0;
-    }
-
-    .rating-low {
-      background: #fef2f2;
-      color: #b91c1c;
-      border: 1px solid #fecaca;
-    }
-
-    .feedback-empty {
-      padding: 10px 4px 6px;
-      font-size: 12px;
-      color: var(--text-soft);
-      text-align: center;
-    }
-
-    /* EMPTY STATE IF NO ONBOARDING */
-
-    .empty-state {
-      background: var(--bg-card);
-      border-radius: var(--radius-xl);
-      border: 1px solid var(--border-soft);
-      box-shadow: var(--shadow-card);
-      padding: 18px 16px 14px;
-      text-align: center;
-      max-width: 520px;
-      margin: 40px auto;
-      display: none;
-    }
-
-    .empty-state.visible {
-      display: block;
-    }
-
-    .empty-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-
-    .empty-text {
-      font-size: 13px;
-      color: var(--text-sub);
-      margin-bottom: 12px;
-    }
-
-    .empty-actions {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      font-size: 13px;
-    }
-
-    .btn-primary {
-      border-radius: var(--radius-pill);
-      border: none;
-      padding: 9px 16px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: #eff6ff;
-      box-shadow: 0 18px 45px rgba(37, 99, 235, 0.5);
-    }
-
-    .btn-primary:hover {
-      filter: brightness(1.05);
-      transform: translateY(-1px);
-    }
-
-    .btn-secondary {
-      border-radius: var(--radius-pill);
-      border: 1px solid var(--border-soft);
-      padding: 8px 14px;
-      font-size: 13px;
-      cursor: pointer;
-      background: #ffffff;
-      color: var(--text-sub);
-    }
-
-    .btn-secondary:hover {
-      background: #f9fafb;
-    }
-
-    /* FOOTER */
-
-    footer {
-      border-top: 1px solid #e5e7eb;
-      background: #ffffff;
-      padding: 8px 0;
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .footer-inner {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 0 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-
-    .footer-inner a {
-      color: var(--accent-soft);
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-  </style>
+  <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
   <div class="page">
-    <header>
-      <div class="topbar">
-        <div class="brand">
-          <div class="brand-icon">R</div>
-          <div>
-            <div class="brand-text-main">ReviewResQ</div>
-            <div class="brand-text-sub">REVIEWS · REPUTATION · RESCUE</div>
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark">RR</div>
+        <div class="brand-copy">
+          <div class="brand-row">
+            <span class="brand-name">ReviewResQ</span>
+            <span class="chip chip-soft" id="planBadge">Basic plan</span>
           </div>
+          <span class="brand-sub">Customer feedback control center</span>
         </div>
-
-        <div class="topbar-right">
-          <div class="user-chip">
-            <span id="userEmailDisplay">Loading user…</span>
-          </div>
-          <button id="logoutBtn" class="btn-logout">Log out</button>
+      </div>
+      <div class="header-actions">
+        <div class="user-block">
+          <span class="user-label">Signed in</span>
+          <span class="user-email" id="userEmailDisplay">Loading…</span>
         </div>
+        <button class="btn ghost" id="logoutBtn">Log out</button>
       </div>
     </header>
 
-    <main>
-      <div class="shell">
+    <main class="app-shell">
+      <div id="globalBanner" class="global-banner">
+        <div class="banner-text" id="globalBannerText"></div>
+        <button class="icon-btn" id="bannerDismiss" aria-label="Dismiss alert">✕</button>
+      </div>
 
-        <!-- Global banner (JS ימלא / יסתיר) -->
-        <div id="globalBanner" class="global-banner">
-          <span id="globalBannerText"></span>
+      <section id="emptyState" class="empty-state">
+        <div class="surface empty-card">
+          <div class="empty-hero">🚀</div>
+          <h1>Finish onboarding to unlock your dashboard</h1>
+          <p>
+            Complete your business profile to generate your ReviewResQ portal link, start
+            collecting reviews, and track feedback in one place.
+          </p>
+          <a class="btn primary" href="/onboarding.html">Resume onboarding</a>
+        </div>
+      </section>
+
+      <section id="dashContent" class="dash-content">
+        <div class="surface hero">
+          <div class="hero-meta">
+            <div class="avatar-group">
+              <div class="avatar" id="bizLogoInitials">RR</div>
+              <img id="bizLogoImg" class="avatar" alt="Business logo" />
+            </div>
+            <div>
+              <p class="eyebrow">Overview</p>
+              <h1 class="hero-title" id="bizNameDisplay">Your business</h1>
+              <div class="meta-row">
+                <span class="pill success" id="bizStatusBadge">Live · Ready</span>
+                <span class="pill" id="bizCategoryText">Business category</span>
+                <span class="pill muted">Updated <span id="bizUpdatedAt">just now</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <button class="btn primary" data-action="portal-preview">Preview portal</button>
+            <button class="btn secondary" data-action="portal-open">Open live view</button>
+          </div>
         </div>
 
-        <!-- Empty state אם אין עדיין onboarding -->
-        <section id="emptyState" class="empty-state">
-          <div class="empty-title">Let’s finish your setup</div>
-          <p class="empty-text">
-            We didn’t find your business profile yet. Complete the onboarding form so we can build
-            your ReviewResQ portal for you.
-          </p>
-          <div class="empty-actions">
-            <button
-              class="btn-primary"
-              onclick="window.location.href='/onboarding.html'"
-            >
-              Complete onboarding
-            </button>
-            <button
-              class="btn-secondary"
-              onclick="window.location.href='/'"
-            >
-              Back to main site
-            </button>
+        <div class="grid stats-grid">
+          <div class="surface stat-card">
+            <p class="stat-label">Average rating</p>
+            <div class="stat-value" id="averageRatingValue">–</div>
+            <p class="stat-hint">Across public reviews</p>
           </div>
-        </section>
+          <div class="surface stat-card">
+            <p class="stat-label">Public reviews</p>
+            <div class="stat-value" id="totalReviewsValue">0</div>
+            <p class="stat-hint">Google and published feedback</p>
+          </div>
+          <div class="surface stat-card">
+            <p class="stat-label">Private feedback</p>
+            <div class="stat-value" id="privateFeedbackValue">0</div>
+            <p class="stat-hint">Shared privately via your portal</p>
+          </div>
+        </div>
 
-        <!-- תוכן הדשבורד הרגיל (JS יסתיר אם אין ביזנס) -->
-        <div id="dashContent">
-
-          <header class="page-header">
-            <h1 class="page-title">
-              <span id="bizNameDisplay">Your ReviewResQ dashboard</span>
-            </h1>
-            <p class="page-subtitle">
-              See your business profile, key stats and recent feedback. Use this page to keep your
-              Google rating protected and growing.
-            </p>
-          </header>
-
-          <div class="layout-main">
-            <!-- LEFT COLUMN: BUSINESS PROFILE + CUSTOMER PORTAL -->
-            <div class="layout-left">
-              <!-- BUSINESS PROFILE -->
-              <section class="card">
-                <div class="card-header">
-                  <div>
-                    <div class="card-title">Business profile</div>
-                    <div class="card-subtitle">
-                      This is how your ReviewResQ portal is configured.
-                    </div>
-                  </div>
-                  <span class="badge-soft" id="bizStatusBadge">Live · Ready</span>
-                </div>
-
-                <div class="biz-main-row">
-                  <div class="biz-logo">
-                    <img id="bizLogoImg" alt="Business logo" />
-                    <span id="bizLogoInitials">YB</span>
-                  </div>
-                  <div>
-                    <div class="biz-text-main" id="bizNameText">YOUR BUSINESS</div>
-                    <div class="biz-text-sub" id="bizCategoryText">
-                      Category will appear here…
-                    </div>
-                    <div class="biz-text-meta">
-                      Last updated <span id="bizUpdatedAt">just now</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="biz-link-row">
-                  <span class="label">Google review link</span>
-                  <a id="googleLinkDisplay" href="#" target="_blank" rel="noopener noreferrer">
-                    Not set yet
-                  </a>
-                </div>
-
-                <div class="biz-actions">
-                  <button
-                    class="btn-ghost"
-                    id="editBizBtn"
-                    type="button"
-                    onclick="window.location.href='/onboarding.html'"
-                  >
-                    Edit business details
-                  </button>
-                  <button
-                    class="btn-ghost"
-                    id="viewPortalBtn"
-                    type="button"
-                  >
-                    Open my customer portal
-                  </button>
-                </div>
-
-                <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted);">
-                  Need to change your Google link, logo or category?
-                  <a href="/onboarding.html">Update your onboarding details.</a>
-                </div>
-              </section>
-
-              <!-- CUSTOMER PORTAL CARD -->
-              <section class="card">
-                <div class="card-header">
-                  <div>
-                    <div class="card-title">Customer portal link</div>
-                    <div class="card-subtitle">
-                      This is the link you send to customers after each job or visit.
-                    </div>
-                  </div>
-                  <span class="badge-soft" id="planBadge">Basic plan</span>
-                </div>
-
-                <div style="font-size:12px;color:var(--text-sub);margin-bottom:6px;">
-                  Customers tap a star rating. Happy customers go to Google. Upset customers send private feedback.
-                </div>
-
-                <div
-                  style="
-                    display:flex;
-                    gap:8px;
-                    align-items:center;
-                    margin-bottom:8px;
-                    flex-wrap:wrap;
-                  "
-                >
-                  <input
-                    id="portalLinkInput"
-                    type="text"
-                    readonly
-                    style="
-                      flex:1;
-                      min-width:220px;
-                      padding:7px 9px;
-                      border-radius:12px;
-                      border:1px solid var(--border-soft);
-                      font-size:12px;
-                      background:#f9fafb;
-                    "
-                    value="Loading portal link…"
-                  />
-                  <button
-                    type="button"
-                    id="portalCopyBtn"
-                    class="btn-secondary"
-                    style="white-space:nowrap;"
-                  >
-                    Copy link
-                  </button>
-                  <button
-                    type="button"
-                    id="portalPreviewBtn"
-                    class="btn-primary"
-                    style="white-space:nowrap;padding:8px 14px;font-size:12px;"
-                  >
-                    Open portal
-                  </button>
-                </div>
-
-                <div
-                  style="
-                    font-size:11px;
-                    color:var(--text-muted);
-                    margin-bottom:8px;
-                  "
-                >
-                  Tip: Save this link on your phone (WhatsApp, SMS template or notes app) so your staff can send it in 1 tap.
-                </div>
-
-                <div
-                  style="
-                    margin-top:6px;
-                    padding:8px 10px;
-                    border-radius:10px;
-                    background:#eff6ff;
-                    border:1px solid #bfdbfe;
-                    font-size:11px;
-                    color:#1d4ed8;
-                    display:flex;
-                    justify-content:space-between;
-                    gap:8px;
-                    flex-wrap:wrap;
-                  "
-                >
-                  <span>
-                    You’re on the <strong>Basic</strong> plan. Get branded portal, logo, colors and more with
-                    <strong>Advanced</strong>.
-                  </span>
-                  <button
-                    type="button"
-                    id="startTrialBtn"
-                    class="btn-secondary"
-                    style="border-color:#93c5fd;color:#1d4ed8;"
-                  >
-                    Start 7-day Advanced trial
-                  </button>
-                </div>
-              </section>
+        <div class="grid main-grid">
+          <div class="surface card">
+            <div class="card-header">
+              <div>
+                <p class="eyebrow">Customer portal</p>
+                <h2>Share your portal link</h2>
+                <p class="card-sub">
+                  Send customers to your ReviewResQ portal to collect reviews and private feedback.
+                </p>
+              </div>
+              <span class="chip">Always-on</span>
             </div>
-
-            <!-- RIGHT: HOW TO USE -->
-            <section class="card">
-              <div class="card-header">
-                <div>
-                  <div class="card-title">How to use ReviewResQ daily</div>
-                  <div class="card-subtitle">
-                    Simple steps your staff can follow after each job or visit.
-                  </div>
-                </div>
-              </div>
-              <ol class="how-list">
-                <li>
-                  Open your ReviewResQ link on your phone or tablet (or print the QR code).
-                </li>
-                <li>
-                  After each job, show the page or text the link to the customer while you’re still
-                  with them.
-                </li>
-                <li>
-                  Ask them to tap a star rating and follow the instructions – it takes ~10 seconds.
-                </li>
-                <li>
-                  4–5★ customers are redirected to Google to leave a public review.
-                </li>
-                <li>
-                  1–3★ customers send private feedback to your email so you can fix issues first.
-                </li>
-              </ol>
-
-              <div class="how-highlight">
-                Tip: Add the ReviewResQ link to your invoice template, WhatsApp messages or SMS
-                follow-ups, and put a QR code at your front desk or in your service vehicles.
-              </div>
-            </section>
+            <div class="input-row">
+              <input id="portalLinkInput" type="text" readonly value="Loading portal link…" />
+              <button class="btn ghost" id="portalCopyBtn">Copy</button>
+            </div>
+            <div class="button-row">
+              <button class="btn primary" data-action="portal-preview">Preview as owner</button>
+              <button class="btn secondary" data-action="portal-open">Open shared link</button>
+            </div>
           </div>
 
-          <!-- STATS STRIP -->
-          <section class="section-block">
-            <header class="section-header">
+          <div class="surface card">
+            <div class="card-header">
               <div>
-                <div class="section-title">Funnel overview</div>
-                <div class="section-subtitle">
-                  High-level view of how customers are flowing through your ReviewResQ page.
-                </div>
+                <p class="eyebrow">Google review link</p>
+                <h2>Send customers to Google</h2>
+                <p class="card-sub">Use this link to drive customers directly to your Google review page.</p>
               </div>
-            </header>
-
-            <div class="stats-grid">
-              <article class="stat-card">
-                <div class="stat-label">Average rating (last 30 days)</div>
-                <div class="stat-main">
-                  <span class="stat-value" id="averageRatingValue">–</span>
-                  <span class="stat-unit">/ 5</span>
-                  <span class="stat-accent-stars">★★★★★</span>
-                </div>
-                <div class="stat-foot">
-                  Based on feedback submitted via your portal.
-                </div>
-              </article>
-
-              <article class="stat-card">
-                <div class="stat-label">Total public reviews sent to Google</div>
-                <div class="stat-main">
-                  <span class="stat-value" id="totalReviewsValue">–</span>
-                  <span class="stat-unit">customers</span>
-                </div>
-                <div class="stat-foot">
-                  Customers who rated 4–5★ and were redirected.
-                </div>
-              </article>
-
-              <article class="stat-card">
-                <div class="stat-label">Private feedback captured</div>
-                <div class="stat-main">
-                  <span class="stat-value" id="privateFeedbackValue">–</span>
-                  <span class="stat-unit">issues</span>
-                </div>
-                <div class="stat-foot">
-                  1–3★ customers who contacted you privately.
-                </div>
-              </article>
+              <span class="chip chip-soft">Visibility</span>
             </div>
-          </section>
+            <div class="link-box">
+              <span class="label">Google review URL</span>
+              <a id="googleLinkDisplay" href="#" target="_blank" rel="noopener" class="link-text">
+                Not set yet
+              </a>
+            </div>
+          </div>
+        </div>
 
-          <!-- RECENT FEEDBACK TABLE -->
-          <section class="section-block">
-            <header class="section-header">
+        <div class="grid main-grid">
+          <div class="surface card">
+            <div class="card-header">
               <div>
-                <div class="section-title">Recent feedback</div>
-                <div class="section-subtitle">
-                  A quick look at what customers are saying through your ReviewResQ portal.
-                </div>
+                <p class="eyebrow">Overview</p>
+                <h2>Your business profile</h2>
+                <p class="card-sub">Quick snapshot of your Basic plan settings.</p>
               </div>
-            </header>
+              <button class="btn ghost" id="startTrialBtn">Upgrade soon</button>
+            </div>
+            <div class="data-grid">
+              <div class="data-row">
+                <span class="label">Business name</span>
+                <span class="value" data-bind="bizName">Your business</span>
+              </div>
+              <div class="data-row">
+                <span class="label">Category</span>
+                <span class="value" data-bind="bizCategory">Business category</span>
+              </div>
+              <div class="data-row">
+                <span class="label">Status</span>
+                <span class="pill success" data-bind="bizStatus">Live · Ready</span>
+              </div>
+              <div class="data-row">
+                <span class="label">Last updated</span>
+                <span class="value" data-bind="bizUpdated">just now</span>
+              </div>
+            </div>
+          </div>
 
-            <div class="table-card">
-              <table aria-label="Recent feedback">
+          <div class="surface card feedback-card">
+            <div class="card-header">
+              <div>
+                <p class="eyebrow">Latest feedback</p>
+                <h2>Customer voices</h2>
+                <p class="card-sub">Recent public reviews and private submissions.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="feedback-table">
                 <thead>
                   <tr>
                     <th>Date</th>
@@ -972,38 +186,16 @@
                     <th>Message</th>
                   </tr>
                 </thead>
-                <tbody id="recentFeedbackBody">
-                  <!-- JS ימלא את השורות. אם אין כלום – נציג empty-row -->
-                </tbody>
+                <tbody id="recentFeedbackBody"></tbody>
               </table>
-
-              <div id="feedbackEmptyState" class="feedback-empty">
-                No feedback yet. Once customers start using your portal,
-                their feedback will appear here.
-              </div>
+              <div id="feedbackEmptyState" class="feedback-empty">No feedback yet. Start sharing your portal to collect responses.</div>
             </div>
-          </section>
+          </div>
         </div>
-      </div>
+      </section>
     </main>
-
-    <footer>
-      <div class="footer-inner">
-        <div>© <span id="year"></span> ReviewResQ. All rights reserved.</div>
-        <div>
-          Need help? Text us at
-          <a href="sms:+17542216803">+1 (754) 221-6803</a>.
-        </div>
-      </div>
-    </footer>
   </div>
 
-  <script>
-    // Year in footer
-    document.getElementById("year").textContent = new Date().getFullYear();
-  </script>
-
-  <!-- Dashboard logic -->
-  <script type="module" src="./dashboard.js"></script>
+  <script type="module" src="dashboard.js"></script>
 </body>
 </html>
