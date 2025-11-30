@@ -8,6 +8,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  serverTimestamp,
   storage,
   storageRef,
   uploadBytes,
@@ -30,6 +31,7 @@ const previewBizName = document.getElementById("previewBizName");
 // GLOBAL STATE
 let currentUser = null;
 let currentLogoUrl = "";
+let profileCreatedAt = null;
 
 // ===== LIVE PREVIEW FUNCTIONS =====
 function updatePreview() {
@@ -67,13 +69,27 @@ logoUpload.addEventListener("change", async () => {
   const file = logoUpload.files[0];
   const path = `logos/${currentUser.uid}.png`;
 
-  const ref = storageRef(storage, path);
+  try {
+    const ref = storageRef(storage, path);
 
-  await uploadBytes(ref, file);
-  const url = await getDownloadURL(ref);
+    await uploadBytes(ref, file);
+    const url = await getDownloadURL(ref);
 
-  currentLogoUrl = url;
-  updatePreview();
+    currentLogoUrl = url;
+    await setDoc(
+      doc(db, "businessProfiles", currentUser.uid),
+      {
+        logoUrl: url,
+        updatedAt: serverTimestamp(),
+        createdAt: profileCreatedAt || serverTimestamp(),
+      },
+      { merge: true }
+    );
+    updatePreview();
+  } catch (err) {
+    console.error("Failed to upload logo:", err);
+    alert("We couldn't upload your logo. Please try again.");
+  }
 });
 
 // ===== LOAD EXISTING DATA =====
@@ -88,6 +104,7 @@ async function loadPortalSettings(uid) {
   }
 
   const data = snap.data();
+  profileCreatedAt = data.createdAt || null;
 
   // Fill UI
   bizNameInput.value = data.businessName || "";
@@ -128,7 +145,8 @@ async function saveSettings() {
       brandColor: color,
       googleReviewLink: googleLink,
       logoUrl: currentLogoUrl || "",
-      updatedAt: new Date(),
+      updatedAt: serverTimestamp(),
+      createdAt: profileCreatedAt || serverTimestamp(),
       portalPath: `/portal.html?bid=${currentUser.uid}`,
     },
     { merge: true }

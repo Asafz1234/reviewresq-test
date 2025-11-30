@@ -58,6 +58,9 @@ const startTrialBtn = document.getElementById("startTrialBtn");
 const averageRatingValue = document.getElementById("averageRatingValue");
 const totalReviewsValue = document.getElementById("totalReviewsValue");
 const privateFeedbackValue = document.getElementById("privateFeedbackValue");
+const googleAverageValue = document.getElementById("googleAverageValue");
+const badAverageValue = document.getElementById("badAverageValue");
+const totalReviewsSinceValue = document.getElementById("totalReviewsSinceValue");
 
 // Table
 const recentFeedbackBody = document.getElementById("recentFeedbackBody");
@@ -403,7 +406,20 @@ async function loadFeedbackAndStats(uid) {
   let publicReviews = 0;
   let privateFeedback = 0;
   let ratingSum = 0;
+  let googleReviews = 0;
+  let googleRatingSum = 0;
+  let badReviews = 0;
+  let badRatingSum = 0;
+  let publicReviewsSinceJoin = 0;
   const feedbackRows = [];
+  const joinMs = businessJoinedAt
+    ? businessJoinedAt.toMillis
+      ? businessJoinedAt.toMillis()
+      : new Date(businessJoinedAt).getTime()
+    : null;
+
+  const toMillis = (ts) =>
+    ts?.toMillis ? ts.toMillis() : new Date(ts || 0).getTime();
 
   try {
     const ref = collection(db, "feedback");
@@ -411,8 +427,17 @@ async function loadFeedbackAndStats(uid) {
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      updateStatsUI({ publicReviews, privateFeedback, ratingSum });
-      updateReviewTotalsNote(publicReviews);
+      updateStatsUI({
+        publicReviews,
+        privateFeedback,
+        ratingSum,
+        googleReviews,
+        googleRatingSum,
+        badReviews,
+        badRatingSum,
+        publicReviewsSinceJoin,
+      });
+      updateReviewTotalsNote(publicReviews, publicReviewsSinceJoin);
       return;
     }
 
@@ -421,12 +446,25 @@ async function loadFeedbackAndStats(uid) {
       const rating = d.rating || 0;
       const type = (d.type || "").toLowerCase();
       const isPublic = type === "public" || type === "google" || rating >= 4;
+      const createdAtMs = toMillis(d.createdAt);
+      const countedForJoin = joinMs ? createdAtMs >= joinMs : true;
 
       if (isPublic) {
         publicReviews += 1;
         ratingSum += rating;
+        if (countedForJoin) publicReviewsSinceJoin += 1;
       } else {
         privateFeedback += 1;
+      }
+
+      if (type === "google") {
+        googleReviews += 1;
+        googleRatingSum += rating;
+      }
+
+      if (rating > 0 && rating <= 3) {
+        badReviews += 1;
+        badRatingSum += rating;
       }
 
       if (feedbackRows.length < 20) {
@@ -440,37 +478,77 @@ async function loadFeedbackAndStats(uid) {
     });
 
     const sortedRows = feedbackRows.sort((a, b) => {
-      const aTs = a.createdAt?.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt || 0).getTime();
-      const bTs = b.createdAt?.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt || 0).getTime();
+      const aTs = toMillis(a.createdAt);
+      const bTs = toMillis(b.createdAt);
       return bTs - aTs;
     });
 
     renderFeedbackTable(sortedRows);
-    updateStatsUI({ publicReviews, privateFeedback, ratingSum });
-    updateReviewTotalsNote(publicReviews);
+    updateStatsUI({
+      publicReviews,
+      privateFeedback,
+      ratingSum,
+      googleReviews,
+      googleRatingSum,
+      badReviews,
+      badRatingSum,
+      publicReviewsSinceJoin,
+    });
+    updateReviewTotalsNote(publicReviews, publicReviewsSinceJoin);
   } catch (err) {
     console.error("Feedback load error:", err);
 
     feedbackEmptyState.style.display = "block";
     feedbackEmptyState.textContent = "Could not load feedback.";
-    updateStatsUI({ publicReviews: 0, privateFeedback: 0, ratingSum: 0 });
+    updateStatsUI({
+      publicReviews: 0,
+      privateFeedback: 0,
+      ratingSum: 0,
+      googleReviews: 0,
+      googleRatingSum: 0,
+      badReviews: 0,
+      badRatingSum: 0,
+      publicReviewsSinceJoin: 0,
+    });
   }
 }
 
-function updateStatsUI({ publicReviews, privateFeedback, ratingSum }) {
+function updateStatsUI({
+  publicReviews,
+  privateFeedback,
+  ratingSum,
+  googleReviews,
+  googleRatingSum,
+  badReviews,
+  badRatingSum,
+  publicReviewsSinceJoin,
+}) {
   if (totalReviewsValue) totalReviewsValue.textContent = String(publicReviews);
   if (privateFeedbackValue) privateFeedbackValue.textContent = String(privateFeedback);
 
   const average = publicReviews > 0 ? ratingSum / publicReviews : 0;
   if (averageRatingValue)
     averageRatingValue.textContent = publicReviews ? average.toFixed(1) : "–";
+
+  const googleAverage = googleReviews > 0 ? googleRatingSum / googleReviews : 0;
+  if (googleAverageValue)
+    googleAverageValue.textContent = googleReviews ? googleAverage.toFixed(1) : "–";
+
+  const badAverage = badReviews > 0 ? badRatingSum / badReviews : 0;
+  if (badAverageValue)
+    badAverageValue.textContent = badReviews ? badAverage.toFixed(1) : "–";
+
+  if (totalReviewsSinceValue)
+    totalReviewsSinceValue.textContent = String(publicReviewsSinceJoin || 0);
 }
 
-function updateReviewTotalsNote(publicReviews) {
+function updateReviewTotalsNote(publicReviews, publicReviewsSinceJoin) {
   if (!reviewTotalsNote) return;
   const joinedText = businessJoinedAt ? formatDate(businessJoinedAt) : "you joined";
-  const suffix = businessJoinedAt ? `since ${joinedText}` : "since you joined ReviewResQ";
-  reviewTotalsNote.textContent = `${publicReviews} public reviews ${suffix}`;
+  const suffix = businessJoinedAt
+    ? `${publicReviewsSinceJoin || 0} collected since ${joinedText}`
+    : "collected since you joined ReviewResQ";
+  reviewTotalsNote.textContent = `${publicReviews} public reviews total · ${suffix}`;
 }
 
 function renderFeedbackTable(rows) {
