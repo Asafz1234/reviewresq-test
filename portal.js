@@ -38,6 +38,8 @@ const thankyouCopy = document.getElementById("thankyouCopy");
 const googleReviewButton = document.getElementById("googleReviewButton");
 
 const urlParams = new URLSearchParams(window.location.search);
+const ownerPreviewParam =
+  urlParams.get("ownerPreview") ?? urlParams.get("owner") ?? "";
 
 // ----- STATE -----
 let currentRating = 0;
@@ -45,7 +47,7 @@ let businessId = null;
 let businessName = "Your business";
 let googleReviewLink = null;
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
-  (urlParams.get("ownerPreview") || "").toLowerCase()
+  ownerPreviewParam.toString().toLowerCase()
 );
 
 // ----- HELPERS -----
@@ -59,6 +61,7 @@ function initialsFromName(name = "") {
 function showOwnerToolbarIfNeeded() {
   if (!ownerToolbar) return;
   ownerToolbar.classList.toggle("visible", isOwnerPreview);
+  ownerToolbar.setAttribute("aria-hidden", isOwnerPreview ? "false" : "true");
 
   if (isOwnerPreview && ownerDashboardLink) {
     ownerDashboardLink.href = "/dashboard.html";
