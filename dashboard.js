@@ -26,6 +26,7 @@ const logoutBtn = document.getElementById("logoutBtn");
 // Banners
 const globalBanner = document.getElementById("globalBanner");
 const globalBannerText = document.getElementById("globalBannerText");
+const bannerDismissBtn = document.getElementById("bannerDismiss");
 
 // Containers
 const emptyState = document.getElementById("emptyState");
@@ -36,16 +37,19 @@ const bizNameDisplay = document.getElementById("bizNameDisplay");
 const bizStatusBadge = document.getElementById("bizStatusBadge");
 const bizLogoImg = document.getElementById("bizLogoImg");
 const bizLogoInitials = document.getElementById("bizLogoInitials");
-const bizNameText = document.getElementById("bizNameText");
 const bizCategoryText = document.getElementById("bizCategoryText");
 const bizUpdatedAt = document.getElementById("bizUpdatedAt");
 const googleLinkDisplay = document.getElementById("googleLinkDisplay");
+const bindBizNameEls = document.querySelectorAll('[data-bind="bizName"]');
+const bindBizCategoryEls = document.querySelectorAll('[data-bind="bizCategory"]');
+const bindBizStatusEls = document.querySelectorAll('[data-bind="bizStatus"]');
+const bindBizUpdatedEls = document.querySelectorAll('[data-bind="bizUpdated"]');
 
 // Customer portal block
 const portalLinkInput = document.getElementById("portalLinkInput");
 const portalCopyBtn = document.getElementById("portalCopyBtn");
-const portalPreviewBtn = document.getElementById("portalPreviewBtn");
-const viewPortalBtn = document.getElementById("viewPortalBtn");
+const portalPreviewButtons = document.querySelectorAll('[data-action="portal-preview"]');
+const portalOpenButtons = document.querySelectorAll('[data-action="portal-open"]');
 const planBadge = document.getElementById("planBadge");
 const startTrialBtn = document.getElementById("startTrialBtn");
 
@@ -74,6 +78,10 @@ function hideBanner() {
   globalBannerText.textContent = "";
 }
 
+if (bannerDismissBtn) {
+  bannerDismissBtn.onclick = hideBanner;
+}
+
 // Create initials from business name
 function initialsFromName(name = "") {
   const parts = name.trim().split(/\s+/);
@@ -90,6 +98,13 @@ function formatDate(ts) {
     year: "numeric",
     month: "short",
     day: "numeric",
+  });
+}
+
+// Mirror text content to multiple bound elements
+function syncText(collection, value) {
+  collection.forEach((el) => {
+    if (el) el.textContent = value;
   });
 }
 
@@ -174,14 +189,20 @@ async function loadBusinessProfile(user) {
   // === Fill UI ===
 
   if (bizNameDisplay) bizNameDisplay.textContent = name;
-  if (bizNameText) bizNameText.textContent = name;
+  syncText(bindBizNameEls, name);
   if (bizCategoryText) bizCategoryText.textContent = category;
-  if (bizUpdatedAt) bizUpdatedAt.textContent = formatDate(updatedAt);
+  syncText(bindBizCategoryEls, category);
+
+  const formattedDate = formatDate(updatedAt);
+  if (bizUpdatedAt) bizUpdatedAt.textContent = formattedDate;
+  syncText(bindBizUpdatedEls, formattedDate);
 
   // Status badge
+  const statusText = "Live · Ready";
   if (bizStatusBadge) {
-    bizStatusBadge.textContent = "Live · Ready";
+    bizStatusBadge.textContent = statusText;
   }
+  syncText(bindBizStatusEls, statusText);
 
   // Logo
   if (logoUrl && bizLogoImg) {
@@ -238,10 +259,11 @@ function setPortalLinkInUI(url) {
 
   const previewUrl = buildOwnerPreviewUrl(url);
 
-  const openPortal = () => window.open(previewUrl, "_blank", "noopener");
+  const openPreview = () => window.open(previewUrl, "_blank", "noopener");
+  const openShared = () => window.open(url, "_blank", "noopener");
 
-  if (portalPreviewBtn) portalPreviewBtn.onclick = openPortal;
-  if (viewPortalBtn) viewPortalBtn.onclick = openPortal;
+  portalPreviewButtons.forEach((btn) => (btn.onclick = openPreview));
+  portalOpenButtons.forEach((btn) => (btn.onclick = openShared));
 
   if (portalCopyBtn) {
     portalCopyBtn.onclick = async () => {
