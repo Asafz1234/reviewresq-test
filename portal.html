@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rate Your Experience</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    :root {
+      --brand-color: #2563eb;
+    }
+
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f3f4f6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    header {
+      background: var(--brand-color);
+      color: white;
+      padding: 28px 18px;
+      border-radius: 18px;
+      text-align: center;
+      margin-bottom: 22px;
+    }
+
+    header img {
+      width: 70px;
+      height: 70px;
+      border-radius: 100%;
+      object-fit: cover;
+      display: none;
+      margin-bottom: 12px;
+    }
+
+    header h1 {
+      font-size: 22px;
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .stars {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 22px;
+    }
+
+    .star-btn {
+      font-size: 34px;
+      background: white;
+      border-radius: 16px;
+      padding: 12px 16px;
+      cursor: pointer;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
+      transition: 0.15s;
+    }
+    .star-btn:hover {
+      transform: scale(1.12);
+    }
+
+    /* Feedback form (hidden until needed) */
+    #feedbackBox {
+      display: none;
+      margin-top: 20px;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid #e5e7eb;
+    }
+
+    #feedbackBox textarea {
+      width: 100%;
+      height: 120px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+      resize: none;
+    }
+
+    #feedbackSubmit {
+      margin-top: 14px;
+      width: 100%;
+      padding: 12px;
+      background: var(--brand-color);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #thankYou {
+      display: none;
+      text-align: center;
+      font-size: 20px;
+      margin-top: 30px;
+      font-weight: 600;
+      color: #16a34a;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <!-- TOP AREA: LOGO + NAME -->
+    <header id="portalHeader">
+      <img id="portalLogo" alt="Business Logo" />
+      <h1 id="portalBizName">Your Business</h1>
+    </header>
+
+    <!-- RATING -->
+    <div class="stars">
+      <div class="star-btn" data-rating="1">★</div>
+      <div class="star-btn" data-rating="2">★</div>
+      <div class="star-btn" data-rating="3">★</div>
+      <div class="star-btn" data-rating="4">★</div>
+      <div class="star-btn" data-rating="5">★</div>
+    </div>
+
+    <!-- FEEDBACK FOR LOW RATING -->
+    <div id="feedbackBox">
+      <textarea id="feedbackMsg" placeholder="Tell us what went wrong…"></textarea>
+      <button id="feedbackSubmit">Send Feedback</button>
+    </div>
+
+    <!-- THANK YOU -->
+    <div id="thankYou">
+      Thank you for your feedback ❤️
+    </div>
+
+  </div>
+
+  <!-- MAIN LOGIC -->
+  <script type="module" src="./portal.js"></script>
+</body>
+</html>
