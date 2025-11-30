@@ -231,9 +231,19 @@
       gap: 14px;
     }
 
+    .layout-left {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
     @media (max-width: 800px) {
       .layout-main {
         grid-template-columns: minmax(0, 1fr);
+      }
+
+      .layout-left {
+        order: 1;
       }
     }
 
@@ -696,64 +706,165 @@
           </header>
 
           <div class="layout-main">
-            <!-- LEFT: BUSINESS PROFILE + STATS -->
-            <section class="card">
-              <div class="card-header">
-                <div>
-                  <div class="card-title">Business profile</div>
-                  <div class="card-subtitle">
-                    This is how your ReviewResQ portal is configured.
+            <!-- LEFT COLUMN: BUSINESS PROFILE + CUSTOMER PORTAL -->
+            <div class="layout-left">
+              <!-- BUSINESS PROFILE -->
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">Business profile</div>
+                    <div class="card-subtitle">
+                      This is how your ReviewResQ portal is configured.
+                    </div>
+                  </div>
+                  <span class="badge-soft" id="bizStatusBadge">Live · Ready</span>
+                </div>
+
+                <div class="biz-main-row">
+                  <div class="biz-logo">
+                    <img id="bizLogoImg" alt="Business logo" />
+                    <span id="bizLogoInitials">YB</span>
+                  </div>
+                  <div>
+                    <div class="biz-text-main" id="bizNameText">YOUR BUSINESS</div>
+                    <div class="biz-text-sub" id="bizCategoryText">
+                      Category will appear here…
+                    </div>
+                    <div class="biz-text-meta">
+                      Last updated <span id="bizUpdatedAt">just now</span>
+                    </div>
                   </div>
                 </div>
-                <span class="badge-soft" id="bizStatusBadge">Live · Ready</span>
-              </div>
 
-              <div class="biz-main-row">
-                <div class="biz-logo">
-                  <img id="bizLogoImg" alt="Business logo" />
-                  <span id="bizLogoInitials">YB</span>
+                <div class="biz-link-row">
+                  <span class="label">Google review link</span>
+                  <a id="googleLinkDisplay" href="#" target="_blank" rel="noopener noreferrer">
+                    Not set yet
+                  </a>
                 </div>
-                <div>
-                  <div class="biz-text-main" id="bizNameText">YOUR BUSINESS</div>
-                  <div class="biz-text-sub" id="bizCategoryText">
-                    Category will appear here…
-                  </div>
-                  <div class="biz-text-meta">
-                    Last updated <span id="bizUpdatedAt">just now</span>
-                  </div>
+
+                <div class="biz-actions">
+                  <button
+                    class="btn-ghost"
+                    id="editBizBtn"
+                    type="button"
+                    onclick="window.location.href='/onboarding.html'"
+                  >
+                    Edit business details
+                  </button>
+                  <button
+                    class="btn-ghost"
+                    id="viewPortalBtn"
+                    type="button"
+                  >
+                    Open my customer portal
+                  </button>
                 </div>
-              </div>
 
-              <div class="biz-link-row">
-                <span class="label">Google review link</span>
-                <a id="googleLinkDisplay" href="#" target="_blank" rel="noopener noreferrer">
-                  Not set yet
-                </a>
-              </div>
+                <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted);">
+                  Need to change your Google link, logo or category?
+                  <a href="/onboarding.html">Update your onboarding details.</a>
+                </div>
+              </section>
 
-              <div class="biz-actions">
-                <button
-                  class="btn-ghost"
-                  id="editBizBtn"
-                  type="button"
-                  onclick="window.location.href='/onboarding.html'"
+              <!-- CUSTOMER PORTAL CARD -->
+              <section class="card">
+                <div class="card-header">
+                  <div>
+                    <div class="card-title">Customer portal link</div>
+                    <div class="card-subtitle">
+                      This is the link you send to customers after each job or visit.
+                    </div>
+                  </div>
+                  <span class="badge-soft" id="planBadge">Basic plan</span>
+                </div>
+
+                <div style="font-size:12px;color:var(--text-sub);margin-bottom:6px;">
+                  Customers tap a star rating. Happy customers go to Google. Upset customers send private feedback.
+                </div>
+
+                <div
+                  style="
+                    display:flex;
+                    gap:8px;
+                    align-items:center;
+                    margin-bottom:8px;
+                    flex-wrap:wrap;
+                  "
                 >
-                  Edit business details
-                </button>
-                <button
-                  class="btn-ghost"
-                  id="viewPortalBtn"
-                  type="button"
-                >
-                  Open my customer portal
-                </button>
-              </div>
+                  <input
+                    id="portalLinkInput"
+                    type="text"
+                    readonly
+                    style="
+                      flex:1;
+                      min-width:220px;
+                      padding:7px 9px;
+                      border-radius:12px;
+                      border:1px solid var(--border-soft);
+                      font-size:12px;
+                      background:#f9fafb;
+                    "
+                    value="Loading portal link…"
+                  />
+                  <button
+                    type="button"
+                    id="portalCopyBtn"
+                    class="btn-secondary"
+                    style="white-space:nowrap;"
+                  >
+                    Copy link
+                  </button>
+                  <button
+                    type="button"
+                    id="portalPreviewBtn"
+                    class="btn-primary"
+                    style="white-space:nowrap;padding:8px 14px;font-size:12px;"
+                  >
+                    Open portal
+                  </button>
+                </div>
 
-              <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted);">
-                Need to change your Google link, logo or category?
-                <a href="/onboarding.html">Update your onboarding details.</a>
-              </div>
-            </section>
+                <div
+                  style="
+                    font-size:11px;
+                    color:var(--text-muted);
+                    margin-bottom:8px;
+                  "
+                >
+                  Tip: Save this link on your phone (WhatsApp, SMS template or notes app) so your staff can send it in 1 tap.
+                </div>
+
+                <div
+                  style="
+                    margin-top:6px;
+                    padding:8px 10px;
+                    border-radius:10px;
+                    background:#eff6ff;
+                    border:1px solid #bfdbfe;
+                    font-size:11px;
+                    color:#1d4ed8;
+                    display:flex;
+                    justify-content:space-between;
+                    gap:8px;
+                    flex-wrap:wrap;
+                  "
+                >
+                  <span>
+                    You’re on the <strong>Basic</strong> plan. Get branded portal, logo, colors and more with
+                    <strong>Advanced</strong>.
+                  </span>
+                  <button
+                    type="button"
+                    id="startTrialBtn"
+                    class="btn-secondary"
+                    style="border-color:#93c5fd;color:#1d4ed8;"
+                  >
+                    Start 7-day Advanced trial
+                  </button>
+                </div>
+              </section>
+            </div>
 
             <!-- RIGHT: HOW TO USE -->
             <section class="card">
