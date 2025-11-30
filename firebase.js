@@ -24,6 +24,7 @@ import {
   orderBy,
   limit,
   getDocs,
+  where,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -61,4 +62,5 @@ export {
   orderBy,
   limit,
   getDocs,
+  where,
 };
