@@ -1,6 +1,18 @@
 // firebase.js – מודול מרכזי לכל האפליקציה
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  initializeApp,
+  setLogLevel,
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+
+// Quiet repeated Firebase heartbeat debug logs that clutter the console
+const originalConsoleLog = console.log;
+console.log = (...args) => {
+  if (typeof args[0] === "string" && args[0].toLowerCase().trim() === "heartbeats") {
+    return;
+  }
+  originalConsoleLog(...args);
+};
 
 import {
   getAuth,
@@ -47,6 +59,8 @@ const firebaseConfig = {
 
 // Initialize the core Firebase services once and expose them as named exports
 export const app = initializeApp(firebaseConfig);
+// Silence noisy Firebase debug logs (e.g., heartbeat messages) while keeping errors visible
+setLogLevel("error");
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
