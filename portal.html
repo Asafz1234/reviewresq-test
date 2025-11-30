@@ -2,148 +2,765 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Rate Your Experience</title>
+  <title>ReviewResQ • Feedback Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
   <style>
     :root {
-      --brand-color: #2563eb;
+      --bg: #e9f1ff;
+      --card-bg: #ffffff;
+      --card-border: rgba(15, 23, 42, 0.06);
+      --accent: #2563eb;
+      --accent-soft: rgba(37, 99, 235, 0.08);
+      --accent-strong: #1d4ed8;
+      --star-gold: #ffc94a;
+      --danger: #b91c1c;
+      --text-main: #111827;
+      --text-sub: #6b7280;
+      --text-soft: #9ca3af;
+      --radius-xl: 26px;
+      --radius-lg: 18px;
+      --shadow-soft: 0 28px 70px rgba(15, 23, 42, 0.20);
+      --shadow-pill: 0 10px 35px rgba(37, 99, 235, 0.28);
+      --transition-fast: 160ms ease-out;
+      --transition-med: 220ms ease-out;
+      --focus-ring: 0 0 0 2px #eff6ff, 0 0 0 4px rgba(37, 99, 235, 0.65);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
-      font-family: "Inter", sans-serif;
+      min-height: 100vh;
       margin: 0;
-      padding: 0;
-      background: #f3f4f6;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .page {
-      max-width: 520px;
-      margin: 0 auto;
-      padding: 22px;
-    }
-
-    header {
-      background: var(--brand-color);
-      color: white;
-      padding: 28px 18px;
-      border-radius: 18px;
-      text-align: center;
-      margin-bottom: 22px;
-    }
-
-    header img {
-      width: 70px;
-      height: 70px;
-      border-radius: 100%;
-      object-fit: cover;
-      display: none;
-      margin-bottom: 12px;
-    }
-
-    header h1 {
-      font-size: 22px;
-      margin: 0;
-      font-weight: 700;
-    }
-
-    .stars {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #c7d2fe 0, #e5f0ff 32%, #f6f9ff 60%, #f9fafb 100%);
       display: flex;
-      gap: 12px;
+      align-items: center;
       justify-content: center;
-      margin-top: 22px;
+      color: var(--text-main);
+      padding: 24px 12px;
     }
 
-    .star-btn {
-      font-size: 34px;
-      background: white;
-      border-radius: 16px;
-      padding: 12px 16px;
-      cursor: pointer;
-      border: 1px solid #e5e7eb;
-      box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
-      transition: 0.15s;
-    }
-    .star-btn:hover {
-      transform: scale(1.12);
-    }
-
-    /* Feedback form (hidden until needed) */
-    #feedbackBox {
-      display: none;
-      margin-top: 20px;
-      background: #ffffff;
-      border-radius: 16px;
-      padding: 20px;
-      border: 1px solid #e5e7eb;
-    }
-
-    #feedbackBox textarea {
+    .portal-shell {
+      max-width: 480px;
       width: 100%;
-      height: 120px;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid #d1d5db;
+    }
+
+    .portal {
+      background: var(--card-bg);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--card-border);
+      padding: 24px 22px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .portal::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top left,
+          rgba(37, 99, 235, 0.12),
+          transparent 58%);
+      pointer-events: none;
+      opacity: 0.9;
+    }
+
+    .portal-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* HEADER */
+
+    .portal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .business-identity {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .business-logo {
+      flex-shrink: 0;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 0%, #eff6ff 0, #bfdbfe 40%, #60a5fa 100%);
+      border: 1px solid rgba(37, 99, 235, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 14px;
-      resize: none;
+      font-weight: 700;
+      color: #0f172a;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
     }
 
-    #feedbackSubmit {
+    .business-meta {
+      min-width: 0;
+    }
+
+    .business-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .business-subtitle {
+      font-size: 11px;
+      color: var(--text-soft);
+      text-transform: none;
+      margin-top: 1px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: #ecfdf3;
+      color: #166534;
+      font-size: 11px;
+      font-weight: 500;
+      box-shadow: 0 8px 22px rgba(21, 128, 61, 0.18);
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.4);
+    }
+
+    /* MAIN TITLE + TAGS */
+
+    .title-block {
+      margin-bottom: 20px;
+    }
+
+    .title-block h1 {
+      font-size: 22px;
+      line-height: 1.25;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .title-block p {
+      font-size: 14px;
+      line-height: 1.45;
+      color: var(--text-sub);
+    }
+
+    .tags-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
       margin-top: 14px;
-      width: 100%;
-      padding: 12px;
-      background: var(--brand-color);
-      border: none;
-      border-radius: 12px;
-      color: white;
-      font-size: 16px;
+    }
+
+    .tag-pill {
+      font-size: 11px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      color: #475569;
+      background: rgba(248, 250, 252, 0.95);
+      backdrop-filter: blur(10px);
+    }
+
+    /* RATING ROW */
+
+    .rating-section {
+      margin-bottom: 8px;
+    }
+
+    .rating-hint {
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .rating-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .rating-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: radial-gradient(circle at 30% 0%, #fefce8 0, #fef9c3 40%, #e5edf9 100%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform var(--transition-fast),
+        box-shadow var(--transition-fast),
+        border-color var(--transition-fast),
+        background var(--transition-fast);
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.10);
+    }
+
+    .rating-button .star-icon {
+      font-size: 19px;
+      color: #facc15;
+      text-shadow: 0 0 6px rgba(250, 204, 21, 0.55);
+      transition: color var(--transition-fast),
+        text-shadow var(--transition-fast),
+        transform var(--transition-fast),
+        opacity var(--transition-fast);
+      opacity: 0.85;
+    }
+
+    .rating-button:hover {
+      transform: translateY(-1px) scale(1.05);
+      border-color: rgba(245, 158, 11, 0.9);
+      box-shadow: 0 10px 26px rgba(245, 158, 11, 0.35);
+      background: radial-gradient(circle at 30% 0%, #fffbeb 0, #fef3c7 40%, #fed7aa 100%);
+    }
+
+    .rating-button:hover .star-icon {
+      opacity: 1;
+      text-shadow: 0 0 10px rgba(250, 204, 21, 0.85);
+      transform: scale(1.08);
+    }
+
+    .rating-button.selected {
+      border-color: rgba(245, 158, 11, 1);
+      background: radial-gradient(circle at 30% 0%, #fff7ed 0, #ffedd5 42%, #fed7aa 100%);
+      box-shadow: 0 12px 32px rgba(245, 158, 11, 0.45);
+    }
+
+    .rating-button.selected .star-icon {
+      color: var(--star-gold);
+      text-shadow: 0 0 14px rgba(250, 204, 21, 0.9);
+      transform: scale(1.1);
+      opacity: 1;
+    }
+
+    .current-rating-line {
+      display: none;
+      justify-content: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-top: 8px;
+      margin-bottom: 2px;
+    }
+
+    .current-rating-value {
+      font-weight: 600;
+      color: var(--accent-strong);
+    }
+
+    .change-rating-link {
+      color: var(--accent-strong);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
       cursor: pointer;
     }
 
-    #thankYou {
+    /* PANELS */
+
+    .panel {
       display: none;
-      text-align: center;
-      font-size: 20px;
-      margin-top: 30px;
+      margin-top: 16px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: radial-gradient(circle at top left,
+          rgba(239, 246, 255, 0.9),
+          #ffffff 42%);
+      padding: 16px 16px 14px;
+    }
+
+    .panel h2 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .panel p {
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-bottom: 10px;
+    }
+
+    .panel-low {
+      border-left: 3px solid rgba(220, 38, 38, 0.75);
+    }
+
+    .panel-high {
+      border-left: 3px solid rgba(22, 163, 74, 0.8);
+    }
+
+    .feedback-textarea {
+      width: 100%;
+      min-height: 74px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      padding: 9px 11px;
+      font-size: 13px;
+      resize: vertical;
+      outline: none;
+      margin-bottom: 8px;
+      font-family: inherit;
+      background: #f9fafb;
+    }
+
+    .feedback-textarea:focus {
+      border-color: var(--accent-strong);
+      box-shadow: var(--focus-ring);
+      background: #ffffff;
+    }
+
+    .field-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .field-input {
+      flex: 1;
+      min-width: 0;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      padding: 9px 11px;
+      font-size: 13px;
+      outline: none;
+      background: rgba(248, 250, 252, 0.9);
+    }
+
+    .field-input:focus {
+      border-color: var(--accent-strong);
+      box-shadow: var(--focus-ring);
+      background: #ffffff;
+    }
+
+    .primary-button {
+      width: 100%;
+      border: none;
+      border-radius: 999px;
+      padding: 11px 14px;
+      font-size: 14px;
       font-weight: 600;
-      color: #16a34a;
+      cursor: pointer;
+      background: radial-gradient(circle at top left, #60a5fa 0, #2563eb 42%, #1d4ed8 100%);
+      color: #ffffff;
+      box-shadow: var(--shadow-pill);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform var(--transition-fast),
+        box-shadow var(--transition-fast),
+        filter var(--transition-fast);
+    }
+
+    .primary-button span.star {
+      font-size: 16px;
+    }
+
+    .primary-button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+      box-shadow: 0 14px 36px rgba(37, 99, 235, 0.45);
+    }
+
+    .primary-button:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 22px rgba(37, 99, 235, 0.35);
+    }
+
+    .primary-button:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring), var(--shadow-pill);
+    }
+
+    .disclaimer {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-soft);
+      text-align: center;
+    }
+
+    /* FOOTER */
+
+    .powered-by {
+      margin-top: 14px;
+      font-size: 11px;
+      text-align: center;
+      color: var(--text-soft);
+      padding-top: 10px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.35);
+    }
+
+    .powered-by span {
+      display: block;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      margin-top: 2px;
+      color: var(--accent-strong);
+    }
+
+    /* STATE CLASSES */
+
+    .portal.has-rating .rating-row,
+    .portal.has-rating .rating-hint {
+      display: none;
+    }
+
+    .portal.has-rating .current-rating-line {
+      display: flex;
+    }
+
+    .portal.low-rating .panel-low {
+      display: block;
+    }
+
+    .portal.high-rating .panel-high {
+      display: block;
+    }
+
+    .thankyou-copy {
+      display: none;
+      margin-top: 10px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+
+    .portal.feedback-sent .panel-low form {
+      display: none;
+    }
+
+    .portal.feedback-sent .thankyou-copy {
+      display: block;
+    }
+
+    @media (max-width: 480px) {
+      .portal {
+        padding: 18px 16px 16px;
+      }
+      .portal-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .status-pill {
+        align-self: flex-start;
+      }
     }
   </style>
 </head>
-
 <body>
-  <div class="page">
+  <main class="portal-shell">
+    <section class="portal" id="portal">
+      <div class="portal-inner">
 
-    <!-- TOP AREA: LOGO + NAME -->
-    <header id="portalHeader">
-      <img id="portalLogo" alt="Business Logo" />
-      <h1 id="portalBizName">Your Business</h1>
-    </header>
+        <!-- אפשר להסיר את ה־Back אם אתה לא רוצה -->
+        <a href="/index.html" style="
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 18px;
+          font-size: 14px;
+          color: #2563eb;
+          text-decoration: none;
+          font-weight: 500;
+        ">
+          ← Back to landing page
+        </a>
 
-    <!-- RATING -->
-    <div class="stars">
-      <div class="star-btn" data-rating="1">★</div>
-      <div class="star-btn" data-rating="2">★</div>
-      <div class="star-btn" data-rating="3">★</div>
-      <div class="star-btn" data-rating="4">★</div>
-      <div class="star-btn" data-rating="5">★</div>
-    </div>
+        <header class="portal-header">
+          <div class="business-identity">
+            <div class="business-logo" id="bizLogoInitials">
+              YB
+            </div>
+            <div class="business-meta">
+              <div class="business-title" id="bizNameText">
+                YOUR BUSINESS NAME
+              </div>
+              <div class="business-subtitle">
+                Private Feedback Portal
+              </div>
+            </div>
+          </div>
+          <div class="status-pill">
+            <span class="status-dot"></span>
+            Feedback portal is online
+          </div>
+        </header>
 
-    <!-- FEEDBACK FOR LOW RATING -->
-    <div id="feedbackBox">
-      <textarea id="feedbackMsg" placeholder="Tell us what went wrong…"></textarea>
-      <button id="feedbackSubmit">Send Feedback</button>
-    </div>
+        <div class="title-block">
+          <h1>How was your experience today?</h1>
+          <p>Your feedback helps us improve and keeps our team on point.</p>
+        </div>
 
-    <!-- THANK YOU -->
-    <div id="thankYou">
-      Thank you for your feedback ❤️
-    </div>
+        <div class="tags-row">
+          <span class="tag-pill">Takes ~10 seconds</span>
+          <span class="tag-pill">No sign-in required</span>
+          <span class="tag-pill">For quality improvement</span>
+        </div>
 
-  </div>
+        <section class="rating-section">
+          <p class="rating-hint">Tap a rating to continue</p>
+          <div class="rating-row" aria-label="Rate your experience from 1 to 5 stars">
+            <button class="rating-button" data-rating="1" type="button">
+              <span class="star-icon" aria-hidden="true">★</span>
+            </button>
+            <button class="rating-button" data-rating="2" type="button">
+              <span class="star-icon" aria-hidden="true">★</span>
+            </button>
+            <button class="rating-button" data-rating="3" type="button">
+              <span class="star-icon" aria-hidden="true">★</span>
+            </button>
+            <button class="rating-button" data-rating="4" type="button">
+              <span class="star-icon" aria-hidden="true">★</span>
+            </button>
+            <button class="rating-button" data-rating="5" type="button">
+              <span class="star-icon" aria-hidden="true">★</span>
+            </button>
+          </div>
 
-  <!-- MAIN LOGIC -->
-  <script type="module" src="./portal.js"></script>
+          <div class="current-rating-line" id="currentRatingLine">
+            <span>Current rating:</span>
+            <span class="current-rating-value" id="currentRatingValue">–</span>
+            <span>·</span>
+            <a href="#" class="change-rating-link" id="changeRatingLink">Change rating</a>
+          </div>
+        </section>
+
+        <!-- LOW RATING PANEL (1–3) -->
+        <section class="panel panel-low" id="lowPanel">
+          <h2>Help us make this better</h2>
+          <p>Something wasn’t perfect? Tell us what happened so we can fix it for next time.</p>
+
+          <!-- פה אתה יכול לשים את ה-Formspree שלך או אימייל -->
+          <form id="feedbackForm" action="https://formspree.io/f/xkgyopoj" method="POST">
+            <textarea class="feedback-textarea" name="message" required
+              placeholder="Tell us what we could have done better..."></textarea>
+
+            <div class="field-row">
+              <input class="field-input" type="text" name="name" placeholder="Name (optional)" />
+              <input class="field-input" type="email" name="email" placeholder="Email (optional)" />
+            </div>
+
+            <input type="hidden" name="rating" id="ratingField" />
+            <input type="hidden" name="business" id="businessNameField" value="YOUR BUSINESS NAME" />
+
+            <button class="primary-button" type="submit">
+              <span>Send feedback</span>
+            </button>
+
+            <p class="disclaimer">We read every message and use it to improve. We won’t share your details with anyone.</p>
+          </form>
+
+          <p class="thankyou-copy">
+            Thank you for taking the time to tell us.<br />
+            Your feedback was received and will be reviewed by the business owner.
+          </p>
+        </section>
+
+        <!-- HIGH RATING PANEL (4–5) -->
+        <section class="panel panel-high" id="highPanel">
+          <h2>Thank you for the great rating! <span>⭐</span></h2>
+          <p>
+            We’re glad you had a good experience. Would you mind sharing it publicly?
+            It only takes a moment and really helps us reach more customers.
+          </p>
+
+          <a class="primary-button" id="googleReviewBtn" href="#" target="_blank" rel="noopener noreferrer">
+            <span class="star">⭐</span>
+            <span>Leave a Google review</span>
+          </a>
+
+          <p class="disclaimer">
+            A new tab will open for your review. You can close this page when you’re done.
+          </p>
+        </section>
+
+        <footer class="powered-by">
+          Powered by
+          <span>REVIEWRESQ</span>
+        </footer>
+      </div>
+    </section>
+  </main>
+
+  <!-- לוגיקת פורטל + טעינת נתוני העסק מה-Firestore -->
+  <script type="module">
+    import { db, doc, getDoc } from "./firebase.js";
+
+    const portal = document.getElementById("portal");
+    const ratingButtons = document.querySelectorAll(".rating-button");
+    const currentRatingValue = document.getElementById("currentRatingValue");
+    const changeRatingLink = document.getElementById("changeRatingLink");
+    const ratingField = document.getElementById("ratingField");
+    const lowPanel = document.getElementById("lowPanel");
+    const highPanel = document.getElementById("highPanel");
+    const feedbackForm = document.getElementById("feedbackForm");
+
+    const bizNameText = document.getElementById("bizNameText");
+    const bizLogoInitials = document.getElementById("bizLogoInitials");
+    const businessNameField = document.getElementById("businessNameField");
+    const googleReviewBtn = document.getElementById("googleReviewBtn");
+
+    let currentRating = 0;
+    let googleReviewLink = "#";
+
+    // ---- חישוב ראשי תיבות ללוגו ----
+    function initialsFromName(name = "") {
+      const parts = name.trim().split(/\s+/);
+      if (!parts.length) return "RB";
+      if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+      return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    }
+
+    // ---- טעינת נתוני העסק לפי ?bid= ----
+    async function loadBusinessFromFirestore() {
+      const params = new URLSearchParams(window.location.search);
+      const bid = params.get("bid");
+
+      if (!bid) {
+        console.warn("No bid in URL – showing generic portal");
+        return;
+      }
+
+      try {
+        const ref = doc(db, "businessProfiles", bid);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+          console.warn("Business profile not found for bid:", bid);
+          return;
+        }
+
+        const data = snap.data() || {};
+        const name = data.businessName || "Your business";
+
+        if (bizNameText) bizNameText.textContent = name.toUpperCase();
+        if (businessNameField) businessNameField.value = name;
+        if (bizLogoInitials) bizLogoInitials.textContent = initialsFromName(name);
+
+        if (data.googleReviewLink) {
+          googleReviewLink = data.googleReviewLink;
+          if (googleReviewBtn) {
+            googleReviewBtn.href = googleReviewLink;
+          }
+        }
+      } catch (err) {
+        console.error("Error loading business profile for portal:", err);
+      }
+    }
+
+    // ---- לוגיקת דירוג ----
+    function applyRatingState() {
+      portal.classList.add("has-rating");
+      if (currentRating <= 3) {
+        portal.classList.add("low-rating");
+        portal.classList.remove("high-rating");
+      } else {
+        portal.classList.add("high-rating");
+        portal.classList.remove("low-rating");
+      }
+
+      currentRatingValue.textContent = currentRating + "★";
+      ratingField.value = String(currentRating);
+
+      ratingButtons.forEach((btn) => {
+        const value = Number(btn.dataset.rating);
+        btn.classList.toggle("selected", value === currentRating);
+      });
+    }
+
+    ratingButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const value = Number(btn.dataset.rating);
+        if (!value) return;
+        currentRating = value;
+        applyRatingState();
+      });
+    });
+
+    changeRatingLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      currentRating = 0;
+      portal.classList.remove(
+        "has-rating",
+        "low-rating",
+        "high-rating",
+        "feedback-sent"
+      );
+      currentRatingValue.textContent = "–";
+      ratingField.value = "";
+      ratingButtons.forEach((btn) => btn.classList.remove("selected"));
+    });
+
+    // ---- שליחת פידבק (1–3 כוכבים) ----
+    if (feedbackForm) {
+      feedbackForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!currentRating) {
+          alert("Please select a rating first.");
+          return;
+        }
+
+        const formData = new FormData(feedbackForm);
+        formData.set("rating", String(currentRating));
+
+        try {
+          await fetch(feedbackForm.action, {
+            method: feedbackForm.method,
+            body: formData,
+            headers: {
+              Accept: "application/json",
+            },
+          });
+        } catch (err) {
+          console.error("Formspree error", err);
+        }
+
+        portal.classList.add("feedback-sent");
+      });
+    }
+
+    // ---- סטטוס כפתור גוגל אם אין לינק ----
+    if (googleReviewBtn) {
+      googleReviewBtn.addEventListener("click", (e) => {
+        if (!googleReviewLink || googleReviewLink === "#") {
+          e.preventDefault();
+          alert("Google review link is not set yet.");
+        }
+      });
+    }
+
+    // הפעלה
+    loadBusinessFromFirestore();
+  </script>
 </body>
 </html>
