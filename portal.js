@@ -12,6 +12,8 @@ import {
 
 // ----- DOM ELEMENTS -----
 const portalEl = document.getElementById("portal");
+const ownerToolbar = document.getElementById("ownerToolbar");
+const ownerDashboardLink = document.getElementById("ownerDashboardLink");
 
 const bizNameDisplay = document.getElementById("bizNameDisplay");
 const bizLogoInitials = document.getElementById("bizLogoInitials");
@@ -35,11 +37,16 @@ const sendFeedbackBtn = document.getElementById("sendFeedbackBtn");
 const thankyouCopy = document.getElementById("thankyouCopy");
 const googleReviewButton = document.getElementById("googleReviewButton");
 
+const urlParams = new URLSearchParams(window.location.search);
+
 // ----- STATE -----
 let currentRating = 0;
 let businessId = null;
 let businessName = "Your business";
 let googleReviewLink = null;
+const isOwnerPreview = ["1", "true", "yes", "on"].includes(
+  (urlParams.get("ownerPreview") || "").toLowerCase()
+);
 
 // ----- HELPERS -----
 function initialsFromName(name = "") {
@@ -47,6 +54,15 @@ function initialsFromName(name = "") {
   if (!parts.length) return "YB";
   if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
   return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+}
+
+function showOwnerToolbarIfNeeded() {
+  if (!ownerToolbar) return;
+  ownerToolbar.classList.toggle("visible", isOwnerPreview);
+
+  if (isOwnerPreview && ownerDashboardLink) {
+    ownerDashboardLink.href = "/dashboard.html";
+  }
 }
 
 function setPortalClasses() {
@@ -82,8 +98,7 @@ function resetRating() {
 
 // ----- LOAD BUSINESS PROFILE -----
 async function loadBusinessProfile() {
-  const params = new URLSearchParams(window.location.search);
-  businessId = params.get("bid");
+  businessId = urlParams.get("bid");
 
   if (!businessId) {
     console.warn("No bid parameter in URL. Portal will use default branding.");
@@ -224,4 +239,5 @@ if (feedbackForm) {
 }
 
 // ----- INIT -----
+showOwnerToolbarIfNeeded();
 loadBusinessProfile();
