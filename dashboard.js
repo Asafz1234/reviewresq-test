@@ -92,6 +92,13 @@ function formatDate(ts) {
     day: "numeric",
   });
 }
+
+// Build an owner-only preview URL without affecting the shareable link
+function buildOwnerPreviewUrl(baseUrl) {
+  const preview = new URL(baseUrl);
+  preview.searchParams.set("ownerPreview", "1");
+  return preview.toString();
+}
 // =========================
 // AUTH + LOAD BUSINESS PROFILE
 // =========================
@@ -229,11 +236,7 @@ async function loadBusinessProfile(user) {
 function setPortalLinkInUI(url) {
   if (portalLinkInput) portalLinkInput.value = url;
 
-  const previewUrl = (() => {
-    const preview = new URL(url);
-    preview.searchParams.set("ownerPreview", "1");
-    return preview.toString();
-  })();
+  const previewUrl = buildOwnerPreviewUrl(url);
 
   const openPortal = () => window.open(previewUrl, "_blank", "noopener");
 
