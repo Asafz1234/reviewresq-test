@@ -154,12 +154,12 @@ export function fileToOptimizedDataUrl(file, { maxSize = 640, quality = 0.85 } =
 export async function fileToCappedDataUrl(
   file,
   {
-    maxSize = 640,
-    quality = 0.82,
-    targetBytes = 900_000,
-    minSize = 240,
+    maxSize = 520,
+    quality = 0.8,
+    targetBytes = 280_000,
+    minSize = 220,
     qualityStep = 0.08,
-    minQuality = 0.5,
+    minQuality = 0.48,
   } = {}
 ) {
   let currentSize = maxSize;
@@ -195,7 +195,7 @@ export async function fileToCappedDataUrl(
 export async function uploadLogoWithFallback(
   file,
   userId,
-  { maxSize = 640, quality = 0.82, targetBytes = 900_000 } = {}
+  { maxSize = 520, quality = 0.8, targetBytes = 280_000 } = {}
 ) {
   if (!file || !userId) {
     throw new Error("File and userId are required to upload a logo.");

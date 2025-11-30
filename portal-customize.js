@@ -67,9 +67,9 @@ logoUpload.addEventListener("change", async () => {
 
   try {
     const { url, storedInStorage } = await uploadLogoWithFallback(file, currentUser.uid, {
-      maxSize: 560,
-      quality: 0.8,
-      targetBytes: 850_000,
+      maxSize: 520,
+      quality: 0.78,
+      targetBytes: 280_000,
     });
 
     currentLogoUrl = url;
@@ -93,9 +93,9 @@ logoUpload.addEventListener("change", async () => {
 
     try {
       const dataUrl = await fileToCappedDataUrl(file, {
-        maxSize: 560,
-        quality: 0.8,
-        targetBytes: 850_000,
+        maxSize: 520,
+        quality: 0.78,
+        targetBytes: 280_000,
       });
       currentLogoUrl = dataUrl;
       await setDoc(

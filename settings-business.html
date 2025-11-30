@@ -49,7 +49,7 @@
     import {
       db,
       auth,
-      uploadLogoAndGetURL,
+      uploadLogoWithFallback,
       doc,
       getDoc,
       setDoc,
@@ -79,8 +79,15 @@
         e.preventDefault();
 
         let logoURL = null;
+        let logoDataUrl = null;
         if (logoUpload.files.length > 0) {
-          logoURL = await uploadLogoAndGetURL(logoUpload.files[0], user.uid);
+          const { url, storedInStorage } = await uploadLogoWithFallback(
+            logoUpload.files[0],
+            user.uid,
+            { maxSize: 520, quality: 0.78, targetBytes: 280_000 }
+          );
+          logoURL = storedInStorage ? url : "";
+          logoDataUrl = url;
         }
 
         const payload = {
@@ -93,7 +100,8 @@
             primary: primaryColor.value,
             secondary: secondaryColor.value
           },
-          ...(logoURL && { logoURL })
+          ...(logoURL && { logoURL }),
+          ...(logoDataUrl && { logoDataUrl })
         };
 
         await setDoc(ref, payload, { merge: true });

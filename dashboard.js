@@ -190,10 +190,10 @@ async function uploadLogoForUser(file) {
     if (logoUploadStatus) logoUploadStatus.textContent = "Uploading logo…";
 
     const { url, storedInStorage } = await uploadLogoWithFallback(file, currentUser.uid, {
-      // Keep the inline payload comfortably below Firestore limits
-      maxSize: 560,
-      quality: 0.8,
-      targetBytes: 850_000,
+      // Keep the inline payload safely below Firestore's 1MB document cap
+      maxSize: 520,
+      quality: 0.78,
+      targetBytes: 280_000,
     });
 
     await saveLogoData(url);
@@ -216,9 +216,9 @@ async function uploadLogoForUser(file) {
 
     try {
       const dataUrl = await fileToCappedDataUrl(file, {
-        maxSize: 560,
-        quality: 0.8,
-        targetBytes: 850_000,
+        maxSize: 520,
+        quality: 0.78,
+        targetBytes: 280_000,
       });
       await saveLogoData(dataUrl);
 
