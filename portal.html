@@ -4,13 +4,16 @@
   <meta charset="UTF-8" />
   <title>ReviewResQ • Feedback Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    name="description"
+    content="Private feedback portal for your customers. Happy customers go to Google, upset customers send private feedback."
+  />
   <style>
     :root {
       --bg: #e9f1ff;
       --card-bg: #ffffff;
       --card-border: rgba(15, 23, 42, 0.06);
       --accent: #2563eb;
-      --accent-soft: rgba(37, 99, 235, 0.08);
       --accent-strong: #1d4ed8;
       --star-gold: #ffc94a;
       --danger: #b91c1c;
@@ -22,7 +25,6 @@
       --shadow-soft: 0 28px 70px rgba(15, 23, 42, 0.20);
       --shadow-pill: 0 10px 35px rgba(37, 99, 235, 0.28);
       --transition-fast: 160ms ease-out;
-      --transition-med: 220ms ease-out;
       --focus-ring: 0 0 0 2px #eff6ff, 0 0 0 4px rgba(37, 99, 235, 0.65);
     }
 
@@ -46,7 +48,7 @@
     }
 
     .portal-shell {
-      max-width: 480px;
+      max-width: 520px;
       width: 100%;
     }
 
@@ -93,20 +95,42 @@
       min-width: 0;
     }
 
-    .business-logo {
+    .business-logo-wrapper {
+      position: relative;
       flex-shrink: 0;
-      width: 34px;
-      height: 34px;
+      width: 36px;
+      height: 36px;
+    }
+
+    .business-logo-initials,
+    .business-logo-img {
+      position: absolute;
+      inset: 0;
       border-radius: 999px;
-      background: radial-gradient(circle at 30% 0%, #eff6ff 0, #bfdbfe 40%, #60a5fa 100%);
-      border: 1px solid rgba(37, 99, 235, 0.4);
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    .business-logo-initials {
+      background: radial-gradient(circle at 30% 0%, #eff6ff 0, #bfdbfe 40%, #60a5fa 100%);
+      border: 1px solid rgba(37, 99, 235, 0.4);
       font-size: 14px;
       font-weight: 700;
       color: #0f172a;
       box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+    }
+
+    .business-logo-img {
+      overflow: hidden;
+      border: 1px solid rgba(15, 23, 42, 0.20);
+    }
+
+    .business-logo-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: inherit;
     }
 
     .business-meta {
@@ -127,7 +151,6 @@
     .business-subtitle {
       font-size: 11px;
       color: var(--text-soft);
-      text-transform: none;
       margin-top: 1px;
     }
 
@@ -380,6 +403,7 @@
       transition: transform var(--transition-fast),
         box-shadow var(--transition-fast),
         filter var(--transition-fast);
+      text-decoration: none;
     }
 
     .primary-button span.star {
@@ -482,14 +506,18 @@
   <main class="portal-shell">
     <section class="portal" id="portal">
       <div class="portal-inner">
-
         <header class="portal-header">
           <div class="business-identity">
-            <div class="business-logo">
-              YB
+            <div class="business-logo-wrapper">
+              <div id="bizLogoInitials" class="business-logo-initials">
+                YB
+              </div>
+              <div id="bizLogoImgWrapper" class="business-logo-img" style="display:none;">
+                <img id="bizLogoImg" alt="Business logo" />
+              </div>
             </div>
             <div class="business-meta">
-              <div class="business-title">
+              <div class="business-title" id="bizNameDisplay">
                 YOUR BUSINESS NAME
               </div>
               <div class="business-subtitle">
@@ -547,27 +575,39 @@
           <h2>Help us make this better</h2>
           <p>Something wasn’t perfect? Tell us what happened so we can fix it for next time.</p>
 
-          <form id="feedbackForm" action="https://formspree.io/f/xkgyopoj" method="POST">
-            <textarea class="feedback-textarea" name="message" required
-              placeholder="Tell us what we could have done better..."></textarea>
+          <form id="feedbackForm">
+            <textarea
+              class="feedback-textarea"
+              id="feedbackMessage"
+              required
+              placeholder="Tell us what we could have done better..."
+            ></textarea>
 
             <div class="field-row">
-              <input class="field-input" type="text" name="name" placeholder="Name (optional)" />
-              <input class="field-input" type="email" name="email" placeholder="Email (optional)" />
+              <input
+                class="field-input"
+                type="text"
+                id="customerNameInput"
+                placeholder="Name (optional)"
+              />
+              <input
+                class="field-input"
+                type="email"
+                id="customerEmailInput"
+                placeholder="Email (optional)"
+              />
             </div>
 
-            <!-- נשמר בשביל המייל אם תרצה -->
-            <input type="hidden" name="rating" id="ratingField" />
-            <input type="hidden" name="business" id="businessField" value="YOUR BUSINESS NAME" />
-
-            <button class="primary-button" type="submit">
+            <button class="primary-button" id="sendFeedbackBtn" type="submit">
               <span>Send feedback</span>
             </button>
 
-            <p class="disclaimer">We read every message and use it to improve. We won’t share your details with anyone.</p>
+            <p class="disclaimer">
+              We read every message and use it to improve. We won’t share your details with anyone.
+            </p>
           </form>
 
-          <p class="thankyou-copy">
+          <p class="thankyou-copy" id="thankyouCopy">
             Thank you for taking the time to tell us.<br />
             Your feedback was received and will be reviewed by the business owner.
           </p>
@@ -581,7 +621,13 @@
             It only takes a moment and really helps us reach more customers.
           </p>
 
-          <a class="primary-button" id="googleReviewBtn" target="_blank" rel="noopener noreferrer">
+          <a
+            id="googleReviewButton"
+            class="primary-button"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <span class="star">⭐</span>
             <span>Leave a Google review</span>
           </a>
@@ -599,7 +645,7 @@
     </section>
   </main>
 
-  <!-- JS שמטפל בטעינת העסק והפידבק -->
+  <!-- Logic for loading business data + saving feedback -->
   <script type="module" src="./portal.js"></script>
 </body>
 </html>
