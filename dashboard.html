@@ -59,7 +59,7 @@
       <section id="dashContent" class="dash-content">
         <div class="surface hero">
           <div class="hero-meta">
-            <div class="avatar-group">
+            <div class="avatar-group" aria-hidden="true">
               <div class="avatar" id="bizLogoInitials">RR</div>
               <img id="bizLogoImg" class="avatar" alt="Business logo" />
             </div>
@@ -97,6 +97,8 @@
           </div>
         </div>
 
+        <p class="stats-note" id="reviewTotalsNote"></p>
+
         <div class="grid main-grid">
           <div class="surface card">
             <div class="card-header">
@@ -110,7 +112,13 @@
               <span class="chip">Always-on</span>
             </div>
             <div class="input-row">
-              <input id="portalLinkInput" type="text" readonly value="Loading portal link…" />
+              <input
+                id="portalLinkInput"
+                type="text"
+                readonly
+                value="Loading portal link…"
+                aria-label="Customer portal link"
+              />
               <button class="btn ghost" id="portalCopyBtn">Copy</button>
             </div>
             <div class="button-row">
@@ -123,14 +131,14 @@
             <div class="card-header">
               <div>
                 <p class="eyebrow">Google review link</p>
-                <h2>Send customers to Google</h2>
-                <p class="card-sub">Use this link to drive customers directly to your Google review page.</p>
+                <h2 class="subdued-title">Your Google review URL</h2>
+                <p class="card-sub">Supportive link for advanced users who want to drive reviews directly.</p>
               </div>
               <span class="chip chip-soft">Visibility</span>
             </div>
-            <div class="link-box">
+            <div class="link-box muted-link-box">
               <span class="label">Google review URL</span>
-              <a id="googleLinkDisplay" href="#" target="_blank" rel="noopener" class="link-text">
+              <a id="googleLinkDisplay" href="#" target="_blank" rel="noopener" class="link-text subtle">
                 Not set yet
               </a>
             </div>
@@ -187,6 +195,7 @@
                   </tr>
                 </thead>
                 <tbody id="recentFeedbackBody"></tbody>
+                <caption class="sr-only">Recent feedback from your customers</caption>
               </table>
               <div id="feedbackEmptyState" class="feedback-empty">No feedback yet. Start sharing your portal to collect responses.</div>
             </div>
@@ -194,6 +203,69 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <div id="feedbackModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="feedbackModalTitle">
+    <div class="modal-content">
+      <button class="icon-btn close-btn" id="feedbackModalClose" aria-label="Close details">✕</button>
+      <p class="eyebrow">Feedback details</p>
+      <h3 id="feedbackModalTitle">Customer voice</h3>
+      <div class="modal-grid">
+        <div>
+          <p class="label">Date</p>
+          <p class="value" id="modalDate">—</p>
+        </div>
+        <div>
+          <p class="label">Customer</p>
+          <p class="value" id="modalCustomer">—</p>
+        </div>
+        <div>
+          <p class="label">Rating</p>
+          <p class="value" id="modalRating">—</p>
+        </div>
+        <div>
+          <p class="label">Type</p>
+          <p class="value" id="modalType">—</p>
+        </div>
+        <div>
+          <p class="label">Business</p>
+          <p class="value" id="modalBusiness">—</p>
+        </div>
+        <div>
+          <p class="label">Follow-up status</p>
+          <p class="value" id="modalNextAction">To review</p>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <p class="label">Message</p>
+        <p class="value" id="modalMessage">—</p>
+      </div>
+
+      <div class="modal-grid">
+        <div>
+          <p class="label">Customer phone</p>
+          <p class="value" id="modalPhone">Not provided</p>
+        </div>
+        <div>
+          <p class="label">Customer email</p>
+          <p class="value" id="modalEmail">Not provided</p>
+        </div>
+        <div>
+          <p class="label">Internal notes</p>
+          <p class="value" id="modalNotes">No notes yet</p>
+        </div>
+      </div>
+
+      <div class="modal-section tips-box">
+        <p class="label">Tips for responding</p>
+        <p class="value">
+          Thank the customer for sharing, acknowledge their experience, and offer a clear next step.
+          Example: “Hi [Name], thanks for telling us. I’m sorry this fell short. I’d like to make it
+          right—can we connect today to fix this?”
+        </p>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="dashboard.js"></script>

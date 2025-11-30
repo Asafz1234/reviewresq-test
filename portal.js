@@ -129,10 +129,13 @@ async function loadBusinessProfile() {
     const logoUrl = data.logoUrl || null;
     if (logoUrl && bizLogoImg && bizLogoImgWrapper && bizLogoInitials) {
       bizLogoImg.src = logoUrl;
+      bizLogoImg.alt = `${businessName} logo`;
       bizLogoImgWrapper.style.display = "flex";
       bizLogoInitials.style.display = "none";
-    } else if (bizLogoInitials) {
+    } else if (bizLogoInitials && bizLogoImgWrapper) {
+      bizLogoImgWrapper.style.display = "none";
       bizLogoInitials.textContent = initialsFromName(businessName);
+      bizLogoInitials.style.display = "flex";
     }
 
     // Google review link
@@ -180,7 +183,7 @@ if (googleReviewButton) {
       event.preventDefault();
       alert("Google review link is not set yet for this business.");
     }
-    // אם יש לינק – הדפדפן כבר יפתח אותו בטאב חדש לפי ה-href
+    // When a link exists, the browser will open it in a new tab via the href.
   });
 }
 

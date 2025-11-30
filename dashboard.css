@@ -80,6 +80,18 @@ h2 {
   letter-spacing: -0.01em;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .page {
   min-height: 100vh;
   display: flex;
@@ -282,6 +294,7 @@ h2 {
   height: 100%;
   object-fit: cover;
   display: none;
+  border-radius: inherit;
 }
 
 .hero-title {
@@ -366,6 +379,13 @@ h2 {
 }
 
 .stat-hint {
+  color: var(--text-sub);
+  font-size: var(--text-sm);
+}
+
+.stats-note {
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-6);
   color: var(--text-sub);
   font-size: var(--text-sm);
 }
@@ -481,6 +501,11 @@ input[type="text"] {
   gap: var(--space-6);
 }
 
+.muted-link-box {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
 .link-text {
   color: #1d4ed8;
   text-decoration: underline;
@@ -488,10 +513,20 @@ input[type="text"] {
   font-weight: 600;
 }
 
+.link-text.subtle {
+  color: #334155;
+  text-decoration-color: #cbd5e1;
+}
+
 .label {
   color: var(--text-muted);
   font-size: var(--text-xs);
   letter-spacing: 0.01em;
+}
+
+.subdued-title {
+  font-size: var(--text-lg);
+  color: var(--text-sub);
 }
 
 .data-grid {
@@ -551,6 +586,15 @@ input[type="text"] {
   background: #f9fafb;
 }
 
+.feedback-table tbody tr {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.feedback-table tbody tr:hover {
+  background: #eef2ff;
+}
+
 .rating-pill {
   display: inline-flex;
   align-items: center;
@@ -576,6 +620,57 @@ input[type="text"] {
   color: var(--text-sub);
   font-size: var(--text-sm);
   background: #f8fafc;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  z-index: 100;
+}
+
+.modal.visible {
+  display: flex;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px 20px 18px;
+  width: min(640px, 100%);
+  border: 1px solid var(--border);
+  position: relative;
+  display: grid;
+  gap: var(--space-12);
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-12);
+}
+
+.modal-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-12);
+  background: #f8fafc;
+}
+
+.tips-box {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
 }
 
 .btn:hover {
