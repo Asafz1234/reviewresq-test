@@ -16,6 +16,7 @@ import {
   getDocs,
   where,
   uploadLogoAndGetURL,
+  fileToDataUrl,
   serverTimestamp,
 } from "./firebase.js";
 
@@ -170,6 +171,18 @@ function updateLogoPreview(url, bizName) {
   }
 }
 
+async function saveLogoData(url) {
+  await setDoc(
+    doc(db, "businessProfiles", currentUser.uid),
+    {
+      logoUrl: url.startsWith("data:") ? "" : url,
+      logoDataUrl: url,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
 async function uploadLogoForUser(file) {
   if (!file || !currentUser) return;
 
@@ -178,11 +191,7 @@ async function uploadLogoForUser(file) {
 
     const url = await uploadLogoAndGetURL(file, currentUser.uid);
 
-    await setDoc(
-      doc(db, "businessProfiles", currentUser.uid),
-      { logoUrl: url, updatedAt: serverTimestamp() },
-      { merge: true }
-    );
+    await saveLogoData(url);
 
     if (bizLogoImg) {
       bizLogoImg.src = url;
@@ -197,9 +206,30 @@ async function uploadLogoForUser(file) {
       logoUploadStatus.textContent = "Logo saved. Upload a new file to replace it.";
   } catch (err) {
     console.error("Logo upload failed:", err);
-    if (logoUploadStatus)
-      logoUploadStatus.textContent = "Could not upload logo. Please try again with a smaller image.";
-    alert("We could not upload your logo. Please try again with a smaller image.");
+
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      await saveLogoData(dataUrl);
+
+      if (bizLogoImg) {
+        bizLogoImg.src = dataUrl;
+        bizLogoImg.alt = `${currentBusinessName} logo`;
+        bizLogoImg.style.display = "block";
+      }
+      if (bizLogoInitials) bizLogoInitials.style.display = "none";
+
+      updateLogoPreview(dataUrl, currentBusinessName);
+
+      if (logoUploadStatus)
+        logoUploadStatus.textContent =
+          "Logo saved using a backup method. Upload a new file to replace it.";
+    } catch (fallbackError) {
+      console.error("Logo fallback failed:", fallbackError);
+      if (logoUploadStatus)
+        logoUploadStatus.textContent =
+          "Could not upload logo. Please try again with a smaller image.";
+      alert("We could not upload your logo. Please try again with a smaller image.");
+    }
   } finally {
     if (logoUploadInput) logoUploadInput.value = "";
   }
@@ -352,7 +382,7 @@ async function loadBusinessProfile(user) {
 
   const name = data.businessName || "Your business";
   const category = data.category || data.industry || "Business category";
-  const logoUrl = data.logoUrl || "";
+  const logoUrl = data.logoUrl || data.logoDataUrl || "";
   const updatedAt = data.updatedAt;
   const plan = data.plan || "basic";
   businessJoinedAt = data.createdAt || data.subscriptionStart || updatedAt || null;
