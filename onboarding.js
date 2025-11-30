@@ -1,6 +1,5 @@
 // =============================
-//  onboarding.js (ROBUST VERSION)
-//  Loads + saves onboarding data and *forces* handling submit
+//  onboarding.js – simple & robust
 // =============================
 
 import {
@@ -13,7 +12,7 @@ import {
   serverTimestamp,
 } from "./firebase.js";
 
-console.log("[onboarding] script loaded");
+console.log("[onboarding] file loaded");
 
 // ---------- HELPERS ----------
 
@@ -53,7 +52,7 @@ function getInputs() {
   };
 }
 
-// ---------- LOAD DATA ----------
+// ---------- LOAD EXISTING DATA ----------
 
 async function loadOnboarding(uid) {
   const {
@@ -71,12 +70,12 @@ async function loadOnboarding(uid) {
     const snap = await getDoc(ref);
 
     if (!snap.exists()) {
-      console.log("[onboarding] No onboarding data yet. User will fill the form.");
+      console.log("[onboarding] No onboarding data yet – empty form");
       return;
     }
 
     const data = snap.data() || {};
-    console.log("[onboarding] Loaded existing data:", data);
+    console.log("[onboarding] Loaded data:", data);
 
     if (bizNameInput) bizNameInput.value = data.businessName || "";
     if (bizCategoryInput) bizCategoryInput.value = data.category || "";
@@ -86,20 +85,15 @@ async function loadOnboarding(uid) {
     if (websiteInput) websiteInput.value = data.website || "";
     if (logoUrlInput) logoUrlInput.value = data.logoUrl || "";
   } catch (err) {
-    console.error("[onboarding] Error loading onboarding:", err);
+    console.error("[onboarding] Error loading data:", err);
     showError("Could not load your business details. Please try again.");
   }
 }
 
 // ---------- SAVE DATA ----------
 
-let saving = false;
-
 async function saveOnboarding(uid) {
-  if (saving) {
-    console.log("[onboarding] Already saving, ignoring extra submit");
-    return;
-  }
+  hideError();
 
   const {
     bizNameInput,
@@ -110,12 +104,6 @@ async function saveOnboarding(uid) {
     websiteInput,
     logoUrlInput,
   } = getInputs();
-
-  if (!bizNameInput || !bizCategoryInput || !bizPhoneInput || !bizEmailInput) {
-    console.warn("[onboarding] Missing some input elements in DOM");
-  }
-
-  hideError();
 
   const payload = {
     businessName: cleanValue(bizNameInput?.value),
@@ -131,7 +119,6 @@ async function saveOnboarding(uid) {
 
   console.log("[onboarding] Saving payload:", payload);
 
-  // נאתר את כפתור השמירה
   const saveBtn =
     document.getElementById("saveOnboardingBtn") ||
     document.getElementById("saveBtn") ||
@@ -144,24 +131,18 @@ async function saveOnboarding(uid) {
     saveBtn.textContent = "Saving…";
   }
 
-  saving = true;
-
   try {
     const ref = doc(db, "businessProfiles", uid);
     await setDoc(ref, payload, { merge: true });
-
-    console.log("[onboarding] Saved successfully, redirecting to dashboard");
+    console.log("[onboarding] Saved OK, redirecting to dashboard");
     window.location.href = "/dashboard.html";
   } catch (err) {
-    console.error("[onboarding] Save onboarding failed:", err);
+    console.error("[onboarding] Save failed:", err);
     showError("Could not save your business details. Please try again.");
-
     if (saveBtn) {
       saveBtn.disabled = false;
       saveBtn.textContent = originalText || "Save & Continue";
     }
-  } finally {
-    saving = false;
   }
 }
 
@@ -169,49 +150,50 @@ async function saveOnboarding(uid) {
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
-    console.log("[onboarding] No user, redirect to auth");
+    console.log("[onboarding] No user – redirecting to auth");
     window.location.href = "/auth.html";
     return;
   }
 
   console.log("[onboarding] Authenticated as", user.uid);
 
-  // לוודא שה-DOM כבר טעון
-  window.addEventListener("DOMContentLoaded", () => {
-    const form =
-      document.getElementById("onboardingForm") ||
-      document.querySelector("form");
+  // בשלב הזה ה־HTML כבר נטען (הסקריפט בסוף ה־body)
+  const form =
+    document.getElementById("onboardingForm") ||
+    document.querySelector("form");
+  const saveBtn =
+    document.getElementById("saveOnboardingBtn") ||
+    document.getElementById("saveBtn") ||
+    (form
+      ? form.querySelector("button[type='submit'], input[type='submit']")
+      : null);
 
-    const saveBtn =
-      document.getElementById("saveOnboardingBtn") ||
-      document.getElementById("saveBtn") ||
-      (form
-        ? form.querySelector("button[type='submit'], input[type='submit']")
-        : null);
+  console.log(
+    "[onboarding] form found?",
+    !!form,
+    "saveBtn found?",
+    !!saveBtn
+  );
 
-    console.log("[onboarding] form found?", !!form, "saveBtn found?", !!saveBtn);
+  // טוען נתונים קיימים
+  loadOnboarding(user.uid);
 
-    // נטען נתונים קיימים
-    loadOnboarding(user.uid);
+  // מאזין ל-submit של הטופס – כאן חייבים למנוע רענון
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      console.log("[onboarding] FORM SUBMIT");
+      e.preventDefault();
+      saveOnboarding(user.uid);
+    });
+  }
 
-    // מאזין ל-submit של הטופס
-    if (form) {
-      form.addEventListener("submit", (e) => {
-        console.log("[onboarding] FORM SUBMIT event");
-        e.preventDefault(); // מונע רענון דף
-        saveOnboarding(user.uid);
-      });
-    } else {
-      console.warn("[onboarding] No <form> element found in page");
-    }
-
-    // בנוסף – מאזין ל-click על הכפתור, למקרה שהוא לא מחובר לטופס
-    if (saveBtn) {
-      saveBtn.addEventListener("click", (e) => {
-        console.log("[onboarding] SAVE BUTTON CLICK");
-        e.preventDefault(); // שוב – לא לתת לדפדפן לרענן
-        saveOnboarding(user.uid);
-      });
-    }
-  });
+  // וגם ל-click על הכפתור, ליתר ביטחון
+  if (saveBtn) {
+    saveBtn.addEventListener("click", (e) => {
+      console.log("[onboarding] SAVE BUTTON CLICK");
+      e.preventDefault();
+      // אם הכפתור לא בתוך form, עדיין נקרא ל־save
+      saveOnboarding(user.uid);
+    });
+  }
 });
