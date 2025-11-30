@@ -5,7 +5,6 @@
   <title>Business Profile – ReviewResQ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="styles.css" />
-  <script type="module" src="firebase.js"></script>
 </head>
 
 <body>
@@ -46,8 +45,14 @@
   </div>
 
   <script type="module">
-    import { db, auth, uploadLogoAndGetURL } from "./firebase.js";
-    import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      db,
+      auth,
+      uploadLogoAndGetURL,
+      doc,
+      getDoc,
+      setDoc,
+    } from "./firebase.js";
 
     auth.onAuthStateChanged(async (user) => {
       if (!user) {
