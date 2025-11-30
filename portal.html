@@ -453,6 +453,49 @@
       color: var(--accent-strong);
     }
 
+    /* OWNER TOOLBAR (only when opened from dashboard) */
+    .owner-toolbar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      border-radius: 14px;
+      background: rgba(37, 99, 235, 0.08);
+      border: 1px solid rgba(37, 99, 235, 0.18);
+      color: #0f172a;
+      font-size: 13px;
+    }
+
+    .owner-toolbar.visible {
+      display: flex;
+    }
+
+    .owner-toolbar a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: #1d4ed8;
+      color: #ffffff;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .owner-toolbar a:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 26px rgba(37, 99, 235, 0.45);
+    }
+
+    .owner-toolbar a:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
+    }
+
     /* STATE CLASSES */
 
     .portal.has-rating .rating-row,
@@ -506,6 +549,13 @@
   <main class="portal-shell">
     <section class="portal" id="portal">
       <div class="portal-inner">
+        <div class="owner-toolbar" id="ownerToolbar">
+          <span>You’re previewing your portal.</span>
+          <a href="/dashboard.html" id="ownerDashboardLink">
+            <span aria-hidden="true">←</span>
+            <span>Back to dashboard</span>
+          </a>
+        </div>
         <header class="portal-header">
           <div class="business-identity">
             <div class="business-logo-wrapper">

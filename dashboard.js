@@ -229,7 +229,13 @@ async function loadBusinessProfile(user) {
 function setPortalLinkInUI(url) {
   if (portalLinkInput) portalLinkInput.value = url;
 
-  const openPortal = () => window.open(url, "_blank", "noopener");
+  const previewUrl = (() => {
+    const preview = new URL(url);
+    preview.searchParams.set("ownerPreview", "1");
+    return preview.toString();
+  })();
+
+  const openPortal = () => window.open(previewUrl, "_blank", "noopener");
 
   if (portalPreviewBtn) portalPreviewBtn.onclick = openPortal;
   if (viewPortalBtn) viewPortalBtn.onclick = openPortal;
