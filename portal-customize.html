@@ -203,16 +203,11 @@ import {
   doc,
   getDoc,
   setDoc,
-} from "./firebase.js";
-
-import {
-  getStorage,
-  ref as storageRef,
+  storage,
+  storageRef,
   uploadBytes,
   getDownloadURL,
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
-
-const storage = getStorage();
+} from "./firebase.js";
 
 // ===== DOM ELEMENTS =====
 const bizNameInput = document.getElementById("bizNameInput");

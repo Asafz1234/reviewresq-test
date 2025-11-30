@@ -25,7 +25,15 @@ import {
   limit,
   getDocs,
   where,
+  arrayUnion,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
@@ -41,6 +49,7 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 export {
   onAuthStateChanged,
@@ -60,4 +69,18 @@ export {
   limit,
   getDocs,
   where,
+  arrayUnion,
+  storageRef,
+  uploadBytes,
+  getDownloadURL,
 };
+
+export async function uploadLogoAndGetURL(file, userId) {
+  if (!file || !userId) {
+    throw new Error("File and userId are required to upload a logo.");
+  }
+
+  const logoRef = storageRef(storage, `logos/${userId}/${file.name}`);
+  const snapshot = await uploadBytes(logoRef, file);
+  return getDownloadURL(snapshot.ref);
+}
