@@ -10,7 +10,7 @@ import {
   setDoc,
   serverTimestamp,
   uploadLogoWithFallback,
-  fileToOptimizedDataUrl,
+  fileToCappedDataUrl,
 } from "./firebase.js";
 
 // ===== DOM ELEMENTS =====
@@ -66,10 +66,11 @@ logoUpload.addEventListener("change", async () => {
   const file = logoUpload.files[0];
 
   try {
-    const { url, storedInStorage } = await uploadLogoWithFallback(
-      file,
-      currentUser.uid
-    );
+    const { url, storedInStorage } = await uploadLogoWithFallback(file, currentUser.uid, {
+      maxSize: 560,
+      quality: 0.8,
+      targetBytes: 850_000,
+    });
 
     currentLogoUrl = url;
     await setDoc(
@@ -91,7 +92,11 @@ logoUpload.addEventListener("change", async () => {
     console.error("Failed to upload logo:", err);
 
     try {
-      const dataUrl = await fileToOptimizedDataUrl(file, { maxSize: 640, quality: 0.82 });
+      const dataUrl = await fileToCappedDataUrl(file, {
+        maxSize: 560,
+        quality: 0.8,
+        targetBytes: 850_000,
+      });
       currentLogoUrl = dataUrl;
       await setDoc(
         doc(db, "businessProfiles", currentUser.uid),

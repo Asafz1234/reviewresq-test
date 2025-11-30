@@ -148,10 +148,55 @@ export function fileToOptimizedDataUrl(file, { maxSize = 640, quality = 0.85 } =
   });
 }
 
+// Compress a logo to a data URL while keeping the payload small enough for Firestore
+// documents (1MB limit). We gradually decrease dimensions and quality until the
+// encoded size is within the target threshold.
+export async function fileToCappedDataUrl(
+  file,
+  {
+    maxSize = 640,
+    quality = 0.82,
+    targetBytes = 900_000,
+    minSize = 240,
+    qualityStep = 0.08,
+    minQuality = 0.5,
+  } = {}
+) {
+  let currentSize = maxSize;
+  let currentQuality = quality;
+
+  // Attempt a few times with smaller settings until the data URL fits comfortably
+  for (let i = 0; i < 5; i += 1) {
+    const dataUrl = await fileToOptimizedDataUrl(file, {
+      maxSize: currentSize,
+      quality: currentQuality,
+    });
+
+    // Roughly estimate the byte size of the base64 payload
+    const approxBytes = Math.round((dataUrl.length * 3) / 4);
+    if (approxBytes <= targetBytes) {
+      return dataUrl;
+    }
+
+    currentSize = Math.max(minSize, Math.round(currentSize * 0.85));
+    currentQuality = Math.max(minQuality, Number((currentQuality - qualityStep).toFixed(2)));
+  }
+
+  // Final attempt with the smallest allowed settings
+  return fileToOptimizedDataUrl(file, {
+    maxSize: minSize,
+    quality: minQuality,
+  });
+}
+
 // Attempt to upload a logo to Firebase Storage. If Storage is blocked (e.g., CORS
 // or permission issues) we fall back to an inlined, optimized data URL so the UI
 // can still persist and render the logo.
-export async function uploadLogoWithFallback(file, userId, { maxSize = 640, quality = 0.82 } = {}) {
+export async function uploadLogoWithFallback(
+  file,
+  userId,
+  { maxSize = 640, quality = 0.82, targetBytes = 900_000 } = {}
+) {
   if (!file || !userId) {
     throw new Error("File and userId are required to upload a logo.");
   }
@@ -162,7 +207,11 @@ export async function uploadLogoWithFallback(file, userId, { maxSize = 640, qual
   } catch (storageError) {
     console.error("Storage upload failed, falling back to data URL:", storageError);
 
-    const dataUrl = await fileToOptimizedDataUrl(file, { maxSize, quality });
+    const dataUrl = await fileToCappedDataUrl(file, {
+      maxSize,
+      quality,
+      targetBytes,
+    });
     return { url: dataUrl, storedInStorage: false, originalError: storageError };
   }
 }

@@ -16,7 +16,7 @@ import {
   getDocs,
   where,
   uploadLogoWithFallback,
-  fileToOptimizedDataUrl,
+  fileToCappedDataUrl,
   serverTimestamp,
 } from "./firebase.js";
 
@@ -189,10 +189,12 @@ async function uploadLogoForUser(file) {
   try {
     if (logoUploadStatus) logoUploadStatus.textContent = "Uploading logo…";
 
-    const { url, storedInStorage } = await uploadLogoWithFallback(
-      file,
-      currentUser.uid
-    );
+    const { url, storedInStorage } = await uploadLogoWithFallback(file, currentUser.uid, {
+      // Keep the inline payload comfortably below Firestore limits
+      maxSize: 560,
+      quality: 0.8,
+      targetBytes: 850_000,
+    });
 
     await saveLogoData(url);
 
@@ -213,7 +215,11 @@ async function uploadLogoForUser(file) {
     console.error("Logo upload failed:", err);
 
     try {
-      const dataUrl = await fileToOptimizedDataUrl(file, { maxSize: 640, quality: 0.82 });
+      const dataUrl = await fileToCappedDataUrl(file, {
+        maxSize: 560,
+        quality: 0.8,
+        targetBytes: 850_000,
+      });
       await saveLogoData(dataUrl);
 
       if (bizLogoImg) {
