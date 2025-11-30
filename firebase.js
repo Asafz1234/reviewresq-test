@@ -37,14 +37,12 @@ const firebaseConfig = {
   measurementId: "G-G3P2BX845N"
 };
 
-const app = initializeApp(firebaseConfig);
-
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Initialize the core Firebase services once and expose them as named exports
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 
 export {
-  app,
-  auth,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
