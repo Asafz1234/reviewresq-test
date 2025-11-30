@@ -10,7 +10,6 @@ import {
   setDoc,
   serverTimestamp,
   uploadLogoAndGetURL,
-  fileToDataUrl,
 } from "./firebase.js";
 
 // ===== DOM ELEMENTS =====
@@ -154,8 +153,7 @@ async function saveSettings() {
     {
       businessName: name,
       brandColor: color,
-      logoUrl: currentLogoUrl && !currentLogoUrl.startsWith("data:") ? currentLogoUrl : "",
-      logoDataUrl: currentLogoUrl || "",
+      logoUrl: currentLogoUrl || "",
       updatedAt: serverTimestamp(),
       createdAt: profileCreatedAt || serverTimestamp(),
       portalPath: `/portal.html?bid=${currentUser.uid}`,

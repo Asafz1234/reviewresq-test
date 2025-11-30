@@ -16,7 +16,6 @@ import {
   getDocs,
   where,
   uploadLogoAndGetURL,
-  fileToDataUrl,
   serverTimestamp,
 } from "./firebase.js";
 
@@ -191,7 +190,11 @@ async function uploadLogoForUser(file) {
 
     const url = await uploadLogoAndGetURL(file, currentUser.uid);
 
-    await saveLogoData(url);
+    await setDoc(
+      doc(db, "businessProfiles", currentUser.uid),
+      { logoUrl: url, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
 
     if (bizLogoImg) {
       bizLogoImg.src = url;
@@ -382,7 +385,7 @@ async function loadBusinessProfile(user) {
 
   const name = data.businessName || "Your business";
   const category = data.category || data.industry || "Business category";
-  const logoUrl = data.logoUrl || data.logoDataUrl || "";
+  const logoUrl = data.logoUrl || "";
   const updatedAt = data.updatedAt;
   const plan = data.plan || "basic";
   businessJoinedAt = data.createdAt || data.subscriptionStart || updatedAt || null;
