@@ -90,11 +90,11 @@ function initialsFromName(name = "") {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-// Format timestamps
+// Format timestamps with an English locale for consistency
 function formatDate(ts) {
   if (!ts) return "just now";
   const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -124,7 +124,6 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // הצג אימייל למעלה
   if (userEmailDisplay) {
     userEmailDisplay.textContent = user.email || "My account";
   }
@@ -325,16 +324,16 @@ async function loadRecentFeedback(uid) {
   recentFeedbackBody.innerHTML = "";
 
   try {
-    // אם אתה שומר קולקציה לכל עסק — תפעיל את זה:
+    // If you store feedback per business, use this collection path instead:
     // const ref = collection(db, "businesses", uid, "feedback");
 
-    // כרגע — קולקציה גלובלית:
+    // Current approach — global collection:
     const ref = collection(db, "feedback");
 
     const q = query(
       ref,
-        // אם אתה משתמש ב־businessId
-        // where("businessId", "==", uid),
+      // If you store a businessId field, you can filter here:
+      // where("businessId", "==", uid),
       orderBy("createdAt", "desc"),
       limit(10)
     );
