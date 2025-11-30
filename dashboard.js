@@ -59,6 +59,7 @@ const editModal = document.getElementById("editProfileModal");
 const editForm = document.getElementById("editProfileForm");
 const editClose = document.getElementById("editModalClose");
 const editCancelBtn = document.getElementById("editCancelBtn");
+
 const editFields = {
   name: document.getElementById("editBizName"),
   category: document.getElementById("editBizCategory"),
@@ -84,6 +85,7 @@ let businessJoinedAt = null;
 let lastPortalUrl = "";
 let currentUser = null;
 let currentProfile = {};
+
 const feedbackModal = document.getElementById("feedbackModal");
 const feedbackModalClose = document.getElementById("feedbackModalClose");
 const modalDate = document.getElementById("modalDate");
@@ -97,6 +99,7 @@ const modalEmail = document.getElementById("modalEmail");
 const modalNotes = document.getElementById("modalNotes");
 const modalNextAction = document.getElementById("modalNextAction");
 const reviewTotalsNote = document.getElementById("reviewTotalsNote");
+
 const logoUploadInput = document.getElementById("dashLogoUpload");
 const logoUploadPreview = document.getElementById("logoUploadPreview");
 const logoUploadPlaceholder = document.getElementById("logoUploadPlaceholder");
@@ -104,14 +107,12 @@ const logoUploadStatus = document.getElementById("logoUploadStatus");
 
 // -------- HELPERS --------
 
-// Show banner
 function showBanner(text, type = "info") {
   if (!globalBanner) return;
   globalBannerText.textContent = text;
   globalBanner.className = "global-banner visible " + type;
 }
 
-// Hide banner
 function hideBanner() {
   if (!globalBanner) return;
   globalBanner.className = "global-banner";
@@ -122,15 +123,13 @@ if (bannerDismissBtn) {
   bannerDismissBtn.onclick = hideBanner;
 }
 
-// Create initials from business name
 function initialsFromName(name = "") {
   const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return "B";
+  if (!parts.length) return "B";
   if (parts.length === 1) return parts[0][0].toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-// Format timestamps with an English locale for consistency
 function formatDate(ts) {
   if (!ts) return "just now";
   const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -141,14 +140,12 @@ function formatDate(ts) {
   });
 }
 
-// Mirror text content to multiple bound elements
 function syncText(collection, value) {
   collection.forEach((el) => {
     if (el) el.textContent = value;
   });
 }
 
-// Update logo preview in the branding card
 function updateLogoPreview(url, bizName) {
   if (!logoUploadPlaceholder || !logoUploadPreview || !logoUploadStatus) return;
 
@@ -179,7 +176,7 @@ function fileToDataUrl(file) {
   });
 }
 
-const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024; // 2MB ceiling to avoid oversized inline docs
+const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024;
 
 async function uploadLogoForUser(file) {
   if (!file || !currentUser) return;
@@ -201,7 +198,7 @@ async function uploadLogoForUser(file) {
     try {
       logoUrlToSave = await uploadLogoAndGetURL(file, currentUser.uid);
     } catch (storageErr) {
-      console.error("Primary logo upload failed, falling back to inline storage:", storageErr);
+      console.error("Primary logo upload failed:", storageErr);
       usedFallback = true;
       logoUrlToSave = await fileToDataUrl(file);
     }
@@ -222,18 +219,14 @@ async function uploadLogoForUser(file) {
     updateLogoPreview(logoUrlToSave, currentBusinessName);
 
     if (logoUploadStatus) {
-      const successMsg = usedFallback
+      logoUploadStatus.textContent = usedFallback
         ? "Logo saved with fallback. It will stay until you upload another file."
         : "Logo saved. Upload a new file to replace it.";
-      logoUploadStatus.textContent = successMsg;
-    }
-    if (usedFallback) {
-      showBanner("We saved your logo using a fallback method.", "warn");
     }
   } catch (err) {
     console.error("Logo upload failed:", err);
     if (logoUploadStatus)
-      logoUploadStatus.textContent = "Could not upload logo. Please try again with a smaller image.";
+      logoUploadStatus.textContent = "Could not upload logo. Please try again.";
     showBanner("We could not upload your logo. Please try again.", "warn");
     updateLogoPreview(null, currentBusinessName);
   } finally {
@@ -241,7 +234,6 @@ async function uploadLogoForUser(file) {
   }
 }
 
-// Build an owner-only preview URL without affecting the shareable link
 function buildOwnerPreviewUrl(baseUrl) {
   const preview = new URL(baseUrl);
   preview.searchParams.set("ownerPreview", "1");
@@ -254,10 +246,7 @@ function formatDisplayPortalUrl(fullUrl, businessId) {
     if (businessId) {
       return new URL(`/p/${businessId}`, urlObj.origin).toString();
     }
-
-    if (urlObj.search) {
-      urlObj.search = "";
-    }
+    if (urlObj.search) urlObj.search = "";
     return urlObj.toString();
   } catch (err) {
     console.warn("Could not format portal URL", err);
@@ -272,12 +261,12 @@ function renderRatingLabel(rating) {
 function populateEditForm(data = {}) {
   if (!editForm) return;
 
-  if (editFields.name) editFields.name.value = data.businessName || "";
-  if (editFields.category) editFields.category.value = data.category || "";
-  if (editFields.phone) editFields.phone.value = data.phone || "";
-  if (editFields.email) editFields.email.value = data.contactEmail || "";
-  if (editFields.website) editFields.website.value = data.website || "";
-  if (editFields.plan) editFields.plan.value = data.plan || "basic";
+  editFields.name.value = data.businessName || "";
+  editFields.category.value = data.category || "";
+  editFields.phone.value = data.phone || "";
+  editFields.email.value = data.contactEmail || "";
+  editFields.website.value = data.website || "";
+  editFields.plan.value = data.plan || "basic";
 }
 
 function toggleEditModal(show) {
@@ -285,7 +274,6 @@ function toggleEditModal(show) {
   editModal.classList.toggle("visible", show);
   editModal.setAttribute("aria-hidden", show ? "false" : "true");
 }
-
 async function saveProfileEdits(event) {
   event?.preventDefault();
   if (!currentUser) return;
@@ -323,6 +311,7 @@ async function setPlanToAdvanced() {
   if (editFields.plan) editFields.plan.value = "advanced";
   currentProfile.plan = "advanced";
 }
+
 // =========================
 // AUTH + LOAD BUSINESS PROFILE
 // =========================
@@ -337,7 +326,6 @@ onAuthStateChanged(auth, async (user) => {
     userEmailDisplay.textContent = user.email || "My account";
   }
 
-  // Logout
   if (logoutBtn) {
     logoutBtn.onclick = async () => {
       await signOut(auth);
@@ -349,8 +337,6 @@ onAuthStateChanged(auth, async (user) => {
 
   try {
     const profile = await loadBusinessProfile(user);
-
-    // If onboarding is complete, load stats + feedback in parallel for faster render
     if (profile) {
       await loadFeedbackAndStats(user.uid);
     }
@@ -359,7 +345,6 @@ onAuthStateChanged(auth, async (user) => {
     showBanner("We had trouble loading your dashboard. Please refresh.", "warn");
   }
 });
-
 
 // =========================
 // LOAD BUSINESS PROFILE
@@ -370,15 +355,12 @@ async function loadBusinessProfile(user) {
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
-    // No onboarding yet → show empty state
     if (emptyState) emptyState.classList.add("visible");
     if (dashContent) dashContent.style.display = "none";
-
     showBanner("Finish onboarding so we can build your ReviewResQ portal.", "info");
     return null;
   }
 
-  // Show dashboard
   if (emptyState) emptyState.classList.remove("visible");
   if (dashContent) dashContent.style.display = "";
 
@@ -391,8 +373,10 @@ async function loadBusinessProfile(user) {
   const logoUrl = data.logoUrl || "";
   const updatedAt = data.updatedAt;
   const plan = data.plan || "basic";
+
   businessJoinedAt = data.createdAt || data.subscriptionStart || updatedAt || null;
   currentBusinessName = name;
+
   currentProfile = {
     businessName: name,
     category,
@@ -402,10 +386,9 @@ async function loadBusinessProfile(user) {
     plan,
   };
 
-  // === Fill UI ===
-
   if (bizNameDisplay) bizNameDisplay.textContent = name;
   syncText(bindBizNameEls, name);
+
   if (bizCategoryText) bizCategoryText.textContent = category;
   syncText(bindBizCategoryEls, category);
 
@@ -413,14 +396,10 @@ async function loadBusinessProfile(user) {
   if (bizUpdatedAt) bizUpdatedAt.textContent = formattedDate;
   syncText(bindBizUpdatedEls, formattedDate);
 
-  // Status badge
   const statusText = "Live · Ready";
-  if (bizStatusBadge) {
-    bizStatusBadge.textContent = statusText;
-  }
+  if (bizStatusBadge) bizStatusBadge.textContent = statusText;
   syncText(bindBizStatusEls, statusText);
 
-  // Logo
   if (logoUrl && bizLogoImg) {
     bizLogoImg.src = logoUrl;
     bizLogoImg.alt = `${name} logo`;
@@ -436,17 +415,13 @@ async function loadBusinessProfile(user) {
 
   updateLogoPreview(logoUrl, name);
 
-  // Plan badge
   if (planBadge) {
     planBadge.textContent = plan === "advanced" ? "Advanced plan" : "Basic plan";
   }
 
   populateEditForm(currentProfile);
 
-  // === Build Portal URL ===
-  let portalPath =
-    data.portalPath || `/portal.html?bid=${encodeURIComponent(user.uid)}`;
-
+  let portalPath = data.portalPath || `/portal.html?bid=${encodeURIComponent(user.uid)}`;
   const portalUrl = new URL(portalPath, window.location.origin).toString();
   lastPortalUrl = portalUrl;
 
@@ -455,13 +430,13 @@ async function loadBusinessProfile(user) {
   return data;
 }
 
-
 // =========================
 // SET PORTAL LINK IN UI
 // =========================
 
 function setPortalLinkInUI(url, businessId) {
   const displayValue = formatDisplayPortalUrl(url, businessId);
+
   if (portalLinkInput) {
     portalLinkInput.value = displayValue;
     portalLinkInput.title = url;
@@ -469,7 +444,6 @@ function setPortalLinkInUI(url, businessId) {
   }
 
   const previewUrl = buildOwnerPreviewUrl(url);
-
   const openPreview = () => window.open(previewUrl, "_blank", "noopener");
   const openShared = () => window.open(url, "_blank", "noopener");
 
@@ -490,6 +464,7 @@ function setPortalLinkInUI(url, businessId) {
     };
   }
 }
+
 // =========================
 // LOAD FEEDBACK + STATS
 // =========================
@@ -508,7 +483,9 @@ async function loadFeedbackAndStats(uid) {
   let badReviews = 0;
   let badRatingSum = 0;
   let publicReviewsSinceJoin = 0;
+
   const feedbackRows = [];
+
   const joinMs = businessJoinedAt
     ? businessJoinedAt.toMillis
       ? businessJoinedAt.toMillis()
@@ -543,24 +520,25 @@ async function loadFeedbackAndStats(uid) {
       const rating = d.rating || 0;
       const type = (d.type || "").toLowerCase();
       const isPublic = type === "public" || type === "google" || rating >= 4;
+
       const createdAtMs = toMillis(d.createdAt);
       const countedForJoin = joinMs ? createdAtMs >= joinMs : true;
 
       if (isPublic) {
-        publicReviews += 1;
+        publicReviews++;
         ratingSum += rating;
-        if (countedForJoin) publicReviewsSinceJoin += 1;
+        if (countedForJoin) publicReviewsSinceJoin++;
       } else {
-        privateFeedback += 1;
+        privateFeedback++;
       }
 
       if (type === "google") {
-        googleReviews += 1;
+        googleReviews++;
         googleRatingSum += rating;
       }
 
       if (rating > 0 && rating <= 3) {
-        badReviews += 1;
+        badReviews++;
         badRatingSum += rating;
       }
 
@@ -574,13 +552,14 @@ async function loadFeedbackAndStats(uid) {
       }
     });
 
-    const sortedRows = feedbackRows.sort((a, b) => {
+    const sorted = feedbackRows.sort((a, b) => {
       const aTs = toMillis(a.createdAt);
       const bTs = toMillis(b.createdAt);
       return bTs - aTs;
     });
 
-    renderFeedbackTable(sortedRows);
+    renderFeedbackTable(sorted);
+
     updateStatsUI({
       publicReviews,
       privateFeedback,
@@ -591,12 +570,14 @@ async function loadFeedbackAndStats(uid) {
       badRatingSum,
       publicReviewsSinceJoin,
     });
+
     updateReviewTotalsNote(publicReviews, publicReviewsSinceJoin);
   } catch (err) {
     console.error("Feedback load error:", err);
 
     feedbackEmptyState.style.display = "block";
     feedbackEmptyState.textContent = "Could not load feedback.";
+
     updateStatsUI({
       publicReviews: 0,
       privateFeedback: 0,
@@ -609,7 +590,6 @@ async function loadFeedbackAndStats(uid) {
     });
   }
 }
-
 function updateStatsUI({
   publicReviews,
   privateFeedback,
@@ -645,8 +625,13 @@ function updateReviewTotalsNote(publicReviews, publicReviewsSinceJoin) {
   const suffix = businessJoinedAt
     ? `${publicReviewsSinceJoin || 0} collected since ${joinedText}`
     : "collected since you joined ReviewResQ";
+
   reviewTotalsNote.textContent = `${publicReviews} public reviews total · ${suffix}`;
 }
+
+// =========================
+// RENDER FEEDBACK TABLE
+// =========================
 
 function renderFeedbackTable(rows) {
   if (!recentFeedbackBody || !feedbackEmptyState) return;
@@ -692,6 +677,10 @@ function renderFeedbackTable(rows) {
   });
 }
 
+// =========================
+// FEEDBACK MODAL
+// =========================
+
 function openFeedbackModal(feedback) {
   if (!feedbackModal) return;
 
@@ -726,6 +715,10 @@ if (feedbackModal) {
   });
 }
 
+// =========================
+// LOGO UPLOAD
+// =========================
+
 if (logoUploadInput) {
   logoUploadInput.addEventListener("change", () => {
     const file = logoUploadInput.files?.[0];
@@ -738,6 +731,10 @@ if (logoUploadInput) {
   });
 }
 
+// =========================
+// EDIT PROFILE MODAL
+// =========================
+
 if (editProfileBtn) {
   editProfileBtn.addEventListener("click", () => {
     populateEditForm(currentProfile);
@@ -745,13 +742,8 @@ if (editProfileBtn) {
   });
 }
 
-if (editClose) {
-  editClose.addEventListener("click", () => toggleEditModal(false));
-}
-
-if (editCancelBtn) {
-  editCancelBtn.addEventListener("click", () => toggleEditModal(false));
-}
+if (editClose) editClose.addEventListener("click", () => toggleEditModal(false));
+if (editCancelBtn) editCancelBtn.addEventListener("click", () => toggleEditModal(false));
 
 if (editModal) {
   editModal.addEventListener("click", (event) => {
@@ -763,13 +755,16 @@ if (editForm) {
   editForm.addEventListener("submit", saveProfileEdits);
 }
 
-if (startTrialBtn) {
-  startTrialBtn.onclick = setPlanToAdvanced;
-}
+// =========================
+// PLAN UPGRADE CTA
+// =========================
 
-if (upgradeCtaBtn) {
-  upgradeCtaBtn.onclick = setPlanToAdvanced;
-}
+if (startTrialBtn) startTrialBtn.onclick = setPlanToAdvanced;
+if (upgradeCtaBtn) upgradeCtaBtn.onclick = setPlanToAdvanced;
+
+// =========================
+// ESC SHORTCUT
+// =========================
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
