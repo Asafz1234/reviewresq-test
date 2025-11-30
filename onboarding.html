@@ -346,20 +346,28 @@
         <div class="top-tag">Step 1 · Setup</div>
       </div>
 
-      <div id="global-message" class="global-message" role="alert"></div>
+      <!-- error banner שה־JS משתמש בו -->
+      <div
+        id="errorBanner"
+        class="global-message error"
+        role="alert"
+        style="display:none;"
+      >
+        <span id="errorBannerText"></span>
+      </div>
 
-      <form id="onboarding-form">
+      <form id="onboardingForm">
         <div class="field-group">
           <div class="field">
-            <label for="biz-name">Business name</label>
-            <input id="biz-name" type="text" autocomplete="organization" />
+            <label for="bizNameInput">Business name</label>
+            <input id="bizNameInput" type="text" autocomplete="organization" />
             <div id="biz-name-error" class="error-text"></div>
           </div>
 
           <div class="field">
-            <label for="biz-category">Main service / category</label>
+            <label for="bizCategoryInput">Main service / category</label>
             <input
-              id="biz-category"
+              id="bizCategoryInput"
               type="text"
               placeholder="e.g. Handyman, barber shop, plumber"
             />
@@ -369,24 +377,28 @@
 
         <div class="field-group">
           <div class="field">
-            <label for="biz-phone">Business phone</label>
-            <input id="biz-phone" type="tel" autocomplete="tel" />
-            <div class="small-hint">This is what customers call when they see you on Google.</div>
+            <label for="bizPhoneInput">Business phone</label>
+            <input id="bizPhoneInput" type="tel" autocomplete="tel" />
+            <div class="small-hint">
+              This is what customers call when they see you on Google.
+            </div>
             <div id="biz-phone-error" class="error-text"></div>
           </div>
 
           <div class="field">
-            <label for="biz-email">Contact email</label>
-            <input id="biz-email" type="email" autocomplete="email" />
-            <div class="small-hint">Where we send private feedback from unhappy customers.</div>
+            <label for="bizEmailInput">Contact email</label>
+            <input id="bizEmailInput" type="email" autocomplete="email" />
+            <div class="small-hint">
+              Where we send private feedback from unhappy customers.
+            </div>
             <div id="biz-email-error" class="error-text"></div>
           </div>
         </div>
 
         <div class="field">
-          <label for="google-link">Google review link</label>
+          <label for="googleLinkInput">Google review link</label>
           <input
-            id="google-link"
+            id="googleLinkInput"
             type="url"
             placeholder="https://g.page/r/your-google-review-link"
           />
@@ -398,16 +410,20 @@
 
         <div class="google-help">
           Don’t know how to find your Google review link?
-          <a href="https://support.google.com/business/answer/7035772" target="_blank" rel="noopener noreferrer">
+          <a
+            href="https://support.google.com/business/answer/7035772"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Click here for a quick guide.
           </a>
         </div>
 
         <div class="field-group">
           <div class="field">
-            <label for="website-url">Website (optional)</label>
+            <label for="websiteInput">Website (optional)</label>
             <input
-              id="website-url"
+              id="websiteInput"
               type="url"
               placeholder="https://yourwebsite.com"
             />
@@ -415,17 +431,20 @@
           </div>
 
           <div class="field">
-            <label for="logo-url">Logo URL (optional)</label>
+            <label for="logoUrlInput">Logo URL (optional)</label>
             <input
-              id="logo-url"
+              id="logoUrlInput"
               type="url"
               placeholder="https://…/your-logo.png"
             />
-            <div class="small-hint">If you don’t have one, we’ll use your initials.</div>
+            <div class="small-hint">
+              If you don’t have one, we’ll use your initials.
+            </div>
             <div id="logo-url-error" class="error-text"></div>
           </div>
         </div>
 
+        <!-- השדות הבאים כרגע קוסמטיים בלבד (ה־JS לא שומר אותם) -->
         <div class="field-group">
           <div class="field">
             <label for="biz-city">City / area</label>
@@ -453,7 +472,7 @@
           <div id="notes-error" class="error-text"></div>
         </div>
 
-        <button id="submit-btn" class="btn-primary" type="submit">
+        <button id="saveBtn" class="btn-primary" type="submit">
           Save and continue to dashboard
         </button>
       </form>
@@ -493,6 +512,7 @@
     </aside>
   </div>
 
+  <!-- מחבר את הקובץ ל־onboarding.js החדש -->
   <script type="module" src="./onboarding.js"></script>
 </body>
 </html>
