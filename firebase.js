@@ -100,3 +100,12 @@ export async function uploadLogoAndGetURL(file, userId) {
   const snapshot = await uploadBytes(logoRef, file);
   return getDownloadURL(snapshot.ref);
 }
+
+export function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Failed to read the image file"));
+    reader.readAsDataURL(file);
+  });
+}
