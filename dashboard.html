@@ -76,6 +76,7 @@
           <div class="hero-actions">
             <button class="btn primary" data-action="portal-preview">Preview portal</button>
             <button class="btn secondary" data-action="portal-open">Open live view</button>
+            <button class="btn ghost" id="editProfileBtn">Edit profile</button>
           </div>
         </div>
 
@@ -142,20 +143,21 @@
             </div>
           </div>
 
-          <div class="surface card">
+          <div class="surface card upgrade-card">
             <div class="card-header">
               <div>
-                <p class="eyebrow">Google review link</p>
-                <h2 class="subdued-title">Your Google review URL</h2>
-                <p class="card-sub">Supportive link for advanced users who want to drive reviews directly.</p>
+                <p class="eyebrow">Upgrade</p>
+                <h2 class="subdued-title">Unlock the Advanced plan</h2>
+                <p class="card-sub">Get priority support, faster alerts, and premium branding controls.</p>
               </div>
-              <span class="chip chip-soft">Visibility</span>
+              <span class="chip chip-soft">Recommended</span>
             </div>
-            <div class="link-box muted-link-box">
-              <span class="label">Google review URL</span>
-              <a id="googleLinkDisplay" href="#" target="_blank" rel="noopener" class="link-text subtle">
-                Not set yet
-              </a>
+            <p class="card-sub">
+              Customers on Advanced keep happier reviewers flowing to their portal and see faster follow-ups for
+              low ratings.
+            </p>
+            <div class="button-row">
+              <button class="btn primary" id="upgradeCtaBtn">Upgrade to Advanced</button>
             </div>
           </div>
         </div>
@@ -245,6 +247,47 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <div id="editProfileModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="editProfileTitle">
+    <div class="modal-content">
+      <button class="icon-btn close-btn" id="editModalClose" aria-label="Close edit dialog">✕</button>
+      <p class="eyebrow">Business details</p>
+      <h3 id="editProfileTitle">Edit profile</h3>
+      <form id="editProfileForm" class="modal-grid">
+        <div class="field">
+          <p class="label">Business name</p>
+          <input id="editBizName" type="text" placeholder="My company" required />
+        </div>
+        <div class="field">
+          <p class="label">Category</p>
+          <input id="editBizCategory" type="text" placeholder="Plumber, spa, salon" />
+        </div>
+        <div class="field">
+          <p class="label">Phone</p>
+          <input id="editBizPhone" type="tel" placeholder="555-555-5555" />
+        </div>
+        <div class="field">
+          <p class="label">Contact email</p>
+          <input id="editBizEmail" type="email" placeholder="you@example.com" />
+        </div>
+        <div class="field">
+          <p class="label">Website</p>
+          <input id="editBizWebsite" type="url" placeholder="https://yourdomain.com" />
+        </div>
+        <div class="field">
+          <p class="label">Plan</p>
+          <select id="editPlanSelect">
+            <option value="basic">Basic</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn ghost" id="editCancelBtn">Cancel</button>
+          <button type="submit" class="btn primary">Save changes</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div id="feedbackModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="feedbackModalTitle">

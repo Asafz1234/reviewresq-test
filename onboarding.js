@@ -46,7 +46,6 @@ function getInputs() {
     bizCategoryInput: document.getElementById("bizCategoryInput"),
     bizPhoneInput: document.getElementById("bizPhoneInput"),
     bizEmailInput: document.getElementById("bizEmailInput"),
-    googleLinkInput: document.getElementById("googleLinkInput"),
     websiteInput: document.getElementById("websiteInput"),
     logoUrlInput: document.getElementById("logoUrlInput"),
   };
@@ -60,7 +59,6 @@ async function loadOnboarding(uid) {
     bizCategoryInput,
     bizPhoneInput,
     bizEmailInput,
-    googleLinkInput,
     websiteInput,
     logoUrlInput,
   } = getInputs();
@@ -81,7 +79,6 @@ async function loadOnboarding(uid) {
     if (bizCategoryInput) bizCategoryInput.value = data.category || "";
     if (bizPhoneInput) bizPhoneInput.value = data.phone || "";
     if (bizEmailInput) bizEmailInput.value = data.contactEmail || "";
-    if (googleLinkInput) googleLinkInput.value = data.googleReviewLink || "";
     if (websiteInput) websiteInput.value = data.website || "";
     if (logoUrlInput) logoUrlInput.value = data.logoUrl || "";
   } catch (err) {
@@ -100,7 +97,6 @@ async function saveOnboarding(uid) {
     bizCategoryInput,
     bizPhoneInput,
     bizEmailInput,
-    googleLinkInput,
     websiteInput,
     logoUrlInput,
   } = getInputs();
@@ -110,7 +106,6 @@ async function saveOnboarding(uid) {
     category: cleanValue(bizCategoryInput?.value),
     phone: cleanValue(bizPhoneInput?.value),
     contactEmail: cleanValue(bizEmailInput?.value),
-    googleReviewLink: cleanValue(googleLinkInput?.value),
     website: cleanValue(websiteInput?.value),
     logoUrl: cleanValue(logoUrlInput?.value),
     onboardingComplete: true,

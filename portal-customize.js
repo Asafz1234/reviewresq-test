@@ -9,10 +9,7 @@ import {
   getDoc,
   setDoc,
   serverTimestamp,
-  storage,
-  storageRef,
-  uploadBytes,
-  getDownloadURL,
+  uploadLogoAndGetURL,
 } from "./firebase.js";
 
 // ===== DOM ELEMENTS =====
@@ -20,7 +17,6 @@ const bizNameInput = document.getElementById("bizNameInput");
 const brandColorInput = document.getElementById("brandColorInput");
 const brandColorHex = document.getElementById("brandColorHex");
 const logoUpload = document.getElementById("logoUpload");
-const googleLinkInput = document.getElementById("googleLinkInput");
 const saveBtn = document.getElementById("saveBtn");
 
 // PREVIEW
@@ -67,13 +63,9 @@ logoUpload.addEventListener("change", async () => {
   if (!logoUpload.files.length || !currentUser) return;
 
   const file = logoUpload.files[0];
-  const path = `logos/${currentUser.uid}.png`;
 
   try {
-    const ref = storageRef(storage, path);
-
-    await uploadBytes(ref, file);
-    const url = await getDownloadURL(ref);
+    const url = await uploadLogoAndGetURL(file, currentUser.uid);
 
     currentLogoUrl = url;
     await setDoc(
@@ -108,7 +100,6 @@ async function loadPortalSettings(uid) {
 
   // Fill UI
   bizNameInput.value = data.businessName || "";
-  googleLinkInput.value = data.googleReviewLink || "";
 
   // Color
   const color = data.brandColor || "#2563eb";
@@ -129,7 +120,6 @@ async function saveSettings() {
 
   const name = bizNameInput.value.trim();
   const color = brandColorHex.value.trim();
-  const googleLink = googleLinkInput.value.trim();
 
   if (!name) {
     alert("Business name is required.");
@@ -143,7 +133,6 @@ async function saveSettings() {
     {
       businessName: name,
       brandColor: color,
-      googleReviewLink: googleLink,
       logoUrl: currentLogoUrl || "",
       updatedAt: serverTimestamp(),
       createdAt: profileCreatedAt || serverTimestamp(),
