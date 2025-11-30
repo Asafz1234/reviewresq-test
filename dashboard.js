@@ -15,7 +15,6 @@ import {
   query,
   getDocs,
   where,
-  uploadLogoAndGetURL,
   serverTimestamp,
 } from "./firebase.js";
 
