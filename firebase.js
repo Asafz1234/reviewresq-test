@@ -48,7 +48,6 @@ export {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   signOut,
-  db,
   doc,
   getDoc,
   setDoc,
