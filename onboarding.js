@@ -1,5 +1,5 @@
 // =============================
-//  onboarding.js (NEW)
+//  onboarding.js (FIXED)
 //  Handles loading + saving onboarding data
 // =============================
 
@@ -10,12 +10,14 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
   serverTimestamp,
 } from "./firebase.js";
 
 // ------------- DOM ELEMENTS -------------
-const form = document.getElementById("onboardingForm");
+// ננסה קודם לפי ID, ואם אין – ניקח את ה<form> הראשון בעמוד
+const form =
+  document.getElementById("onboardingForm") ||
+  document.querySelector("form");
 
 const bizNameInput = document.getElementById("bizNameInput");
 const bizCategoryInput = document.getElementById("bizCategoryInput");
@@ -28,30 +30,38 @@ const logoUrlInput = document.getElementById("logoUrlInput");
 const errorBanner = document.getElementById("errorBanner");
 const errorBannerText = document.getElementById("errorBannerText");
 
-const saveBtn = document.getElementById("saveBtn");
+// ננסה למצוא את כפתור השמירה בכמה דרכים שונות
+let saveBtn =
+  document.getElementById("saveOnboardingBtn") || // אם יש כזה
+  document.getElementById("saveBtn") ||            // או זה
+  (form
+    ? form.querySelector("button[type='submit'], input[type='submit']")
+    : null);
 
 // ------------ HELPERS -------------
 
 function showError(msg) {
-  if (errorBanner) {
+  if (errorBanner && errorBannerText) {
     errorBanner.style.display = "block";
     errorBannerText.textContent = msg;
+  } else {
+    alert(msg);
   }
 }
 
 function hideError() {
-  if (errorBanner) {
+  if (errorBanner && errorBannerText) {
     errorBanner.style.display = "none";
     errorBannerText.textContent = "";
   }
 }
 
-// Convert blank to null
+// הופך מחרוזת ריקה ל-null
 function cleanValue(value) {
   return value && value.trim() !== "" ? value.trim() : null;
 }
 
-// ------------ LOAD ONBOARDING DATA --------------
+// --------- LOAD ONBOARDING DATA ----------
 
 async function loadOnboarding(uid) {
   try {
@@ -63,16 +73,15 @@ async function loadOnboarding(uid) {
       return;
     }
 
-    const data = snap.data();
+    const data = snap.data() || {};
 
-    bizNameInput.value = data.businessName || "";
-    bizCategoryInput.value = data.category || "";
-    bizPhoneInput.value = data.phone || "";
-    bizEmailInput.value = data.contactEmail || "";
-    googleLinkInput.value = data.googleReviewLink || "";
-    websiteInput.value = data.website || "";
-    logoUrlInput.value = data.logoUrl || "";
-
+    if (bizNameInput) bizNameInput.value = data.businessName || "";
+    if (bizCategoryInput) bizCategoryInput.value = data.category || "";
+    if (bizPhoneInput) bizPhoneInput.value = data.phone || "";
+    if (bizEmailInput) bizEmailInput.value = data.contactEmail || "";
+    if (googleLinkInput) googleLinkInput.value = data.googleReviewLink || "";
+    if (websiteInput) websiteInput.value = data.website || "";
+    if (logoUrlInput) logoUrlInput.value = data.logoUrl || "";
   } catch (err) {
     console.error("Error loading onboarding:", err);
     showError("Could not load your business details. Please try again.");
@@ -82,34 +91,52 @@ async function loadOnboarding(uid) {
 // --------------- SAVE ONBOARDING ----------------
 
 async function saveOnboarding(uid) {
+  if (!form) {
+    console.error("Onboarding form not found in DOM.");
+    return;
+  }
+
   hideError();
 
+  // אם הדפדפן תומך, נשמור את כפתור הסאבמיט האמיתי
+  if (!saveBtn && window.event && window.event.submitter) {
+    saveBtn = window.event.submitter;
+  }
+
   const payload = {
-    businessName: cleanValue(bizNameInput.value),
-    category: cleanValue(bizCategoryInput.value),
-    phone: cleanValue(bizPhoneInput.value),
-    contactEmail: cleanValue(bizEmailInput.value),
-    googleReviewLink: cleanValue(googleLinkInput.value),
-    website: cleanValue(websiteInput.value),
-    logoUrl: cleanValue(logoUrlInput.value),
+    businessName: cleanValue(bizNameInput?.value),
+    category: cleanValue(bizCategoryInput?.value),
+    phone: cleanValue(bizPhoneInput?.value),
+    contactEmail: cleanValue(bizEmailInput?.value),
+    googleReviewLink: cleanValue(googleLinkInput?.value),
+    website: cleanValue(websiteInput?.value),
+    logoUrl: cleanValue(logoUrlInput?.value),
     onboardingComplete: true,
     updatedAt: serverTimestamp(),
   };
+
+  // ננעל את הכפתור לפני השמירה
+  const originalText = saveBtn ? saveBtn.textContent : "";
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
+  }
 
   try {
     const ref = doc(db, "businessProfiles", uid);
     await setDoc(ref, payload, { merge: true });
 
-    saveBtn.disabled = true;
-    saveBtn.textContent = "Saving…";
-
-    setTimeout(() => {
-      window.location.href = "/dashboard.html";
-    }, 500);
-
+    // אחרי שמירה – נעבור לדשבורד
+    window.location.href = "/dashboard.html";
   } catch (err) {
     console.error("Save onboarding failed:", err);
     showError("Could not save your business details. Please try again.");
+
+    // במקרה של שגיאה נחזיר את הכפתור למצב רגיל
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalText || "Save & Continue";
+    }
   }
 }
 
@@ -121,12 +148,16 @@ onAuthStateChanged(auth, (user) => {
     return;
   }
 
+  // טוענים נתוני אונבורדינג (אם יש)
   loadOnboarding(user.uid);
 
+  // מאזין לסאבמיט של הטופס
   if (form) {
     form.addEventListener("submit", (e) => {
-      e.preventDefault();
+      e.preventDefault(); // מונע רענון של הדף
       saveOnboarding(user.uid);
     });
+  } else {
+    console.warn("Onboarding form not found. Make sure you have a <form> element.");
   }
 });
