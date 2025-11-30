@@ -597,3 +597,57 @@ async function loadRecentFeedback(user) {
     console.warn("Feedback load error:", err);
   }
 }
+// ========= CUSTOMER PORTAL WIRING (SMALL ADD-ON) =========
+
+// נוודא שה-DOM נטען
+document.addEventListener("DOMContentLoaded", () => {
+  const portalLinkInput = document.getElementById("portalLinkInput");
+  const portalCopyBtn = document.getElementById("portalCopyBtn");
+  const portalPreviewBtn = document.getElementById("portalPreviewBtn");
+  const viewPortalBtn = document.getElementById("viewPortalBtn");
+
+  // אם האלמנטים בכלל לא קיימים – לא עושים כלום
+  if (!portalLinkInput) return;
+
+  // מחכים למשתמש מחובר
+  onAuthStateChanged(auth, (user) => {
+    if (!user) return;
+
+    // בגרסה בסיסית – הפורטל נבנה מה-uid של המשתמש
+    const portalUrl =
+      `${window.location.origin}/portal.html?bid=` +
+      encodeURIComponent(user.uid);
+
+    // מציגים את הלינק בשדה
+    portalLinkInput.value = portalUrl;
+
+    // פונקציה לפתיחת הפורטל
+    const openPortal = () => {
+      window.open(portalUrl, "_blank", "noopener");
+    };
+
+    if (portalPreviewBtn) {
+      portalPreviewBtn.onclick = openPortal;
+    }
+    if (viewPortalBtn) {
+      viewPortalBtn.onclick = openPortal;
+    }
+
+    // כפתור קופי
+    if (portalCopyBtn) {
+      portalCopyBtn.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(portalUrl);
+          const original = portalCopyBtn.textContent;
+          portalCopyBtn.textContent = "Copied!";
+          setTimeout(() => {
+            portalCopyBtn.textContent = original;
+          }, 1500);
+        } catch (err) {
+          console.error("Clipboard error:", err);
+          alert("Could not copy. Please copy the link manually.");
+        }
+      };
+    }
+  });
+});
