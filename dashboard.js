@@ -16,6 +16,7 @@ import {
   getDocs,
   where,
   uploadLogoAndGetURL,
+  serverTimestamp,
 } from "./firebase.js";
 
 // -------- DOM ELEMENTS --------
@@ -40,7 +41,6 @@ const bizLogoImg = document.getElementById("bizLogoImg");
 const bizLogoInitials = document.getElementById("bizLogoInitials");
 const bizCategoryText = document.getElementById("bizCategoryText");
 const bizUpdatedAt = document.getElementById("bizUpdatedAt");
-const googleLinkDisplay = document.getElementById("googleLinkDisplay");
 const bindBizNameEls = document.querySelectorAll('[data-bind="bizName"]');
 const bindBizCategoryEls = document.querySelectorAll('[data-bind="bizCategory"]');
 const bindBizStatusEls = document.querySelectorAll('[data-bind="bizStatus"]');
@@ -53,6 +53,20 @@ const portalPreviewButtons = document.querySelectorAll('[data-action="portal-pre
 const portalOpenButtons = document.querySelectorAll('[data-action="portal-open"]');
 const planBadge = document.getElementById("planBadge");
 const startTrialBtn = document.getElementById("startTrialBtn");
+const upgradeCtaBtn = document.getElementById("upgradeCtaBtn");
+const editProfileBtn = document.getElementById("editProfileBtn");
+const editModal = document.getElementById("editProfileModal");
+const editForm = document.getElementById("editProfileForm");
+const editClose = document.getElementById("editModalClose");
+const editCancelBtn = document.getElementById("editCancelBtn");
+const editFields = {
+  name: document.getElementById("editBizName"),
+  category: document.getElementById("editBizCategory"),
+  phone: document.getElementById("editBizPhone"),
+  email: document.getElementById("editBizEmail"),
+  website: document.getElementById("editBizWebsite"),
+  plan: document.getElementById("editPlanSelect"),
+};
 
 // Stats
 const averageRatingValue = document.getElementById("averageRatingValue");
@@ -69,6 +83,7 @@ let currentBusinessName = "Your business";
 let businessJoinedAt = null;
 let lastPortalUrl = "";
 let currentUser = null;
+let currentProfile = {};
 const feedbackModal = document.getElementById("feedbackModal");
 const feedbackModalClose = document.getElementById("feedbackModalClose");
 const modalDate = document.getElementById("modalDate");
@@ -165,7 +180,7 @@ async function uploadLogoForUser(file) {
 
     await setDoc(
       doc(db, "businessProfiles", currentUser.uid),
-      { logoUrl: url, updatedAt: new Date() },
+      { logoUrl: url, updatedAt: serverTimestamp() },
       { merge: true }
     );
 
@@ -216,6 +231,61 @@ function formatDisplayPortalUrl(fullUrl, businessId) {
 
 function renderRatingLabel(rating) {
   return rating ? `${rating}★` : "–";
+}
+
+function populateEditForm(data = {}) {
+  if (!editForm) return;
+
+  if (editFields.name) editFields.name.value = data.businessName || "";
+  if (editFields.category) editFields.category.value = data.category || "";
+  if (editFields.phone) editFields.phone.value = data.phone || "";
+  if (editFields.email) editFields.email.value = data.contactEmail || "";
+  if (editFields.website) editFields.website.value = data.website || "";
+  if (editFields.plan) editFields.plan.value = data.plan || "basic";
+}
+
+function toggleEditModal(show) {
+  if (!editModal) return;
+  editModal.classList.toggle("visible", show);
+  editModal.setAttribute("aria-hidden", show ? "false" : "true");
+}
+
+async function saveProfileEdits(event) {
+  event?.preventDefault();
+  if (!currentUser) return;
+
+  const payload = {
+    businessName: editFields.name?.value.trim() || null,
+    category: editFields.category?.value.trim() || null,
+    phone: editFields.phone?.value.trim() || null,
+    contactEmail: editFields.email?.value.trim() || null,
+    website: editFields.website?.value.trim() || null,
+    plan: editFields.plan?.value || "basic",
+    updatedAt: serverTimestamp(),
+  };
+
+  try {
+    await setDoc(doc(db, "businessProfiles", currentUser.uid), payload, { merge: true });
+    showBanner("Business details updated.", "success");
+    toggleEditModal(false);
+    await loadBusinessProfile(currentUser);
+  } catch (err) {
+    console.error("Profile update failed", err);
+    showBanner("Could not save changes. Please try again.", "warn");
+  }
+}
+
+async function setPlanToAdvanced() {
+  if (!currentUser) return;
+  await setDoc(
+    doc(db, "businessProfiles", currentUser.uid),
+    { plan: "advanced", updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+  showBanner("Advanced plan enabled. Enjoy upgraded features!", "success");
+  if (planBadge) planBadge.textContent = "Advanced plan";
+  if (editFields.plan) editFields.plan.value = "advanced";
+  currentProfile.plan = "advanced";
 }
 // =========================
 // AUTH + LOAD BUSINESS PROFILE
@@ -282,12 +352,19 @@ async function loadBusinessProfile(user) {
 
   const name = data.businessName || "Your business";
   const category = data.category || data.industry || "Business category";
-  const googleReviewLink = data.googleReviewLink || "";
   const logoUrl = data.logoUrl || "";
   const updatedAt = data.updatedAt;
   const plan = data.plan || "basic";
   businessJoinedAt = data.createdAt || data.subscriptionStart || updatedAt || null;
   currentBusinessName = name;
+  currentProfile = {
+    businessName: name,
+    category,
+    phone: data.phone || "",
+    contactEmail: data.contactEmail || "",
+    website: data.website || "",
+    plan,
+  };
 
   // === Fill UI ===
 
@@ -323,21 +400,12 @@ async function loadBusinessProfile(user) {
 
   updateLogoPreview(logoUrl, name);
 
-  // Google review link
-  if (googleLinkDisplay) {
-    if (googleReviewLink) {
-      googleLinkDisplay.href = googleReviewLink;
-      googleLinkDisplay.textContent = googleReviewLink;
-    } else {
-      googleLinkDisplay.href = "#";
-      googleLinkDisplay.textContent = "Not set yet";
-    }
-  }
-
   // Plan badge
   if (planBadge) {
     planBadge.textContent = plan === "advanced" ? "Advanced plan" : "Basic plan";
   }
+
+  populateEditForm(currentProfile);
 
   // === Build Portal URL ===
   let portalPath =
@@ -347,13 +415,6 @@ async function loadBusinessProfile(user) {
   lastPortalUrl = portalUrl;
 
   setPortalLinkInUI(portalUrl, user.uid);
-
-  // Trial button (placeholder)
-  if (startTrialBtn) {
-    startTrialBtn.onclick = () => {
-      alert("Advanced plan will be available soon.");
-    };
-  }
 
   return data;
 }
@@ -641,8 +702,42 @@ if (logoUploadInput) {
   });
 }
 
+if (editProfileBtn) {
+  editProfileBtn.addEventListener("click", () => {
+    populateEditForm(currentProfile);
+    toggleEditModal(true);
+  });
+}
+
+if (editClose) {
+  editClose.addEventListener("click", () => toggleEditModal(false));
+}
+
+if (editCancelBtn) {
+  editCancelBtn.addEventListener("click", () => toggleEditModal(false));
+}
+
+if (editModal) {
+  editModal.addEventListener("click", (event) => {
+    if (event.target === editModal) toggleEditModal(false);
+  });
+}
+
+if (editForm) {
+  editForm.addEventListener("submit", saveProfileEdits);
+}
+
+if (startTrialBtn) {
+  startTrialBtn.onclick = setPlanToAdvanced;
+}
+
+if (upgradeCtaBtn) {
+  upgradeCtaBtn.onclick = setPlanToAdvanced;
+}
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeFeedbackModal();
+    toggleEditModal(false);
   }
 });

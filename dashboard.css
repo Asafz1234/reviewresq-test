@@ -414,6 +414,11 @@ h2 {
   line-height: 1.5;
 }
 
+.upgrade-card {
+  background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+  border: 1px solid #bfdbfe;
+}
+
 .input-row {
   display: grid;
   grid-template-columns: 1fr auto;
