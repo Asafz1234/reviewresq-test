@@ -482,15 +482,14 @@
   <main class="portal-shell">
     <section class="portal" id="portal">
       <div class="portal-inner">
-        <!-- אין Back to landing page כדי שהלקוח לא יברח לדף אחר -->
 
         <header class="portal-header">
           <div class="business-identity">
-            <div class="business-logo" id="bizLogoInitials">
+            <div class="business-logo">
               YB
             </div>
             <div class="business-meta">
-              <div class="business-title" id="bizNameDisplay">
+              <div class="business-title">
                 YOUR BUSINESS NAME
               </div>
               <div class="business-subtitle">
@@ -557,8 +556,9 @@
               <input class="field-input" type="email" name="email" placeholder="Email (optional)" />
             </div>
 
+            <!-- נשמר בשביל המייל אם תרצה -->
             <input type="hidden" name="rating" id="ratingField" />
-            <input type="hidden" name="business" id="businessNameField" value="YOUR BUSINESS NAME" />
+            <input type="hidden" name="business" id="businessField" value="YOUR BUSINESS NAME" />
 
             <button class="primary-button" type="submit">
               <span>Send feedback</span>
@@ -581,7 +581,7 @@
             It only takes a moment and really helps us reach more customers.
           </p>
 
-          <a class="primary-button" id="googleReviewBtn" href="#" target="_blank" rel="noopener noreferrer">
+          <a class="primary-button" id="googleReviewBtn" target="_blank" rel="noopener noreferrer">
             <span class="star">⭐</span>
             <span>Leave a Google review</span>
           </a>
@@ -599,153 +599,7 @@
     </section>
   </main>
 
-  <!-- סקריפט התנהגות הכוכבים + הטופס -->
-  <script>
-    (function () {
-      const portal = document.getElementById("portal");
-      const ratingButtons = document.querySelectorAll(".rating-button");
-      const currentRatingValue = document.getElementById("currentRatingValue");
-      const changeRatingLink = document.getElementById("changeRatingLink");
-      const ratingField = document.getElementById("ratingField");
-      const lowPanel = document.getElementById("lowPanel");
-      const highPanel = document.getElementById("highPanel");
-      const feedbackForm = document.getElementById("feedbackForm");
-
-      let currentRating = 0;
-
-      function applyRatingState() {
-        portal.classList.add("has-rating");
-
-        if (currentRating <= 3) {
-          portal.classList.add("low-rating");
-          portal.classList.remove("high-rating");
-        } else {
-          portal.classList.add("high-rating");
-          portal.classList.remove("low-rating");
-        }
-
-        currentRatingValue.textContent = currentRating + "★";
-        ratingField.value = String(currentRating);
-
-        ratingButtons.forEach((btn) => {
-          const value = Number(btn.dataset.rating);
-          btn.classList.toggle("selected", value === currentRating);
-        });
-      }
-
-      ratingButtons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const value = Number(btn.dataset.rating);
-          if (!value) return;
-          currentRating = value;
-          applyRatingState();
-        });
-      });
-
-      changeRatingLink.addEventListener("click", (event) => {
-        event.preventDefault();
-        currentRating = 0;
-        portal.classList.remove("has-rating", "low-rating", "high-rating", "feedback-sent");
-        currentRatingValue.textContent = "–";
-        ratingField.value = "";
-        ratingButtons.forEach((btn) => btn.classList.remove("selected"));
-      });
-
-      if (feedbackForm) {
-        feedbackForm.addEventListener("submit", async (event) => {
-          event.preventDefault();
-          if (!currentRating) {
-            alert("Please select a rating first.");
-            return;
-          }
-
-          const formData = new FormData(feedbackForm);
-          formData.set("rating", String(currentRating));
-
-          try {
-            await fetch(feedbackForm.action, {
-              method: feedbackForm.method,
-              body: formData,
-              headers: {
-                Accept: "application/json",
-              },
-            });
-          } catch (err) {
-            console.error("Formspree error", err);
-          }
-
-          portal.classList.add("feedback-sent");
-        });
-      }
-    })();
-  </script>
-
-  <!-- סקריפט שמושך את נתוני העסק מה-Firestore לפי bid -->
-  <script type="module">
-    import { db } from "./firebase.js";
-    import {
-      doc,
-      getDoc
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    function initialsFromName(name = "") {
-      const parts = name.trim().split(/\s+/);
-      if (!parts.length) return "YB";
-      if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-      return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-    }
-
-    async function loadBusinessForPortal() {
-      const params = new URLSearchParams(window.location.search);
-      const bid = params.get("bid");
-
-      if (!bid) {
-        console.warn("No 'bid' parameter in URL – portal will use demo text only.");
-        return;
-      }
-
-      try {
-        const ref = doc(db, "businessProfiles", bid);
-        const snap = await getDoc(ref);
-
-        if (!snap.exists()) {
-          console.warn("No business profile found for bid:", bid);
-          return;
-        }
-
-        const data = snap.data();
-        const name = data.businessName || "Your business";
-        const googleReviewLink = data.googleReviewLink || "";
-
-        // שם העסק
-        const nameEl = document.getElementById("bizNameDisplay");
-        const hiddenBiz = document.getElementById("businessNameField");
-        if (nameEl) nameEl.textContent = name.toUpperCase();
-        if (hiddenBiz) hiddenBiz.value = name;
-
-        // ראשי תיבות
-        const initialsEl = document.getElementById("bizLogoInitials");
-        if (initialsEl) initialsEl.textContent = initialsFromName(name);
-
-        // כפתור גוגל
-        const googleBtn = document.getElementById("googleReviewBtn");
-        if (googleBtn) {
-          if (googleReviewLink) {
-            googleBtn.href = googleReviewLink;
-          } else {
-            googleBtn.href = "#";
-            googleBtn.addEventListener("click", (e) => {
-              e.preventDefault();
-              alert("Google review link is not set yet for this business.");
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load business profile for portal:", err);
-      }
-    }
-
-    loadBusinessForPortal();
-  </script>
+  <!-- JS שמטפל בטעינת העסק והפידבק -->
+  <script type="module" src="./portal.js"></script>
 </body>
 </html>
