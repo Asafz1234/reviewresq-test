@@ -94,7 +94,9 @@ export async function uploadLogoAndGetURL(file, userId) {
     throw new Error("File and userId are required to upload a logo.");
   }
 
-  const logoRef = storageRef(storage, `logos/${userId}/${file.name}`);
+  const ext = (file.name || "").split(".").pop();
+  const safeExt = ext && ext.length < 8 ? `.${ext}` : "";
+  const logoRef = storageRef(storage, `logos/${userId}/portal-logo${safeExt}`);
   const snapshot = await uploadBytes(logoRef, file);
   return getDownloadURL(snapshot.ref);
 }
