@@ -799,3 +799,19 @@ input[type="text"] {
     padding: var(--space-16);
   }
 }
+/* Dashboard – main logo in header */
+#bizLogoImg {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 12px; /* אם אתה רוצה שהוא יהיה עגול – תשנה ל-50% */
+  display: block;
+}
+
+/* Dashboard – logo preview inside "Upload your logo" card */
+#logoUploadPreview {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 12px;
+}
