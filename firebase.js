@@ -1,6 +1,5 @@
 // firebase.js – מודול מרכזי לכל האפליקציה
 
-// --- IMPORTS מה-CDN של Firebase v10 (מודולרי) ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 
 import {
@@ -27,27 +26,21 @@ import {
   getDocs,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-
-// --- CONFIG שלך (מועתק בדיוק כפי ששלחת) ---
 const firebaseConfig = {
   apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
   authDomain: "reviewresq-app.firebaseapp.com",
   projectId: "reviewresq-app",
-  storageBucket: "reviewresq-app.firebasestorage.app",
+  storageBucket: "reviewresq-app.appspot.com",
   messagingSenderId: "863497920392",
   appId: "1:863497920392:web:ca99060b42a50711b9e43d",
   measurementId: "G-G3P2BX845N"
 };
 
-
-// --- INIT ---
 const app = initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-
-// --- EXPORTS (מייצא לשאר הקבצים) ---
 export {
   app,
   auth,
