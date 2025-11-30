@@ -271,9 +271,9 @@ h2 {
 }
 
 .avatar {
-  width: 54px;
-  height: 54px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: #e5edff;
   color: #1d4ed8;
   font-weight: 700;
@@ -707,8 +707,8 @@ input[type="text"] {
 }
 
 .logo-preview-circle {
-  width: 78px;
-  height: 78px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   background: #eef2ff;
   display: flex;
