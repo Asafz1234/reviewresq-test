@@ -116,7 +116,15 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   try {
-    await loadBusinessProfile(user);
+    const profile = await loadBusinessProfile(user);
+
+    // If onboarding is complete, load stats + feedback in parallel for faster render
+    if (profile) {
+      await Promise.all([
+        loadStats(user.uid),
+        loadRecentFeedback(user.uid),
+      ]);
+    }
   } catch (err) {
     console.error("Dashboard load error:", err);
     showBanner("We had trouble loading your dashboard. Please refresh.", "warn");
@@ -138,7 +146,7 @@ async function loadBusinessProfile(user) {
     if (dashContent) dashContent.style.display = "none";
 
     showBanner("Finish onboarding so we can build your ReviewResQ portal.", "info");
-    return;
+    return null;
   }
 
   // Show dashboard
@@ -209,6 +217,8 @@ async function loadBusinessProfile(user) {
       alert("Advanced plan will be available soon.");
     };
   }
+
+  return data;
 }
 
 
@@ -241,9 +251,9 @@ function setPortalLinkInUI(url) {
 // LOAD STATS (optional)
 // =========================
 
-async function loadStats(user) {
+async function loadStats(uid) {
   try {
-    const statsRef = doc(db, "portalStats", user.uid);
+    const statsRef = doc(db, "portalStats", uid);
     const snap = await getDoc(statsRef);
 
     if (!snap.exists()) {
@@ -276,7 +286,7 @@ async function loadStats(user) {
 // LOAD RECENT FEEDBACK
 // =========================
 
-async function loadRecentFeedback(user) {
+async function loadRecentFeedback(uid) {
   if (!recentFeedbackBody || !feedbackEmptyState) return;
 
   // Default: empty visible
@@ -285,15 +295,15 @@ async function loadRecentFeedback(user) {
 
   try {
     // אם אתה שומר קולקציה לכל עסק — תפעיל את זה:
-    // const ref = collection(db, "businesses", user.uid, "feedback");
+    // const ref = collection(db, "businesses", uid, "feedback");
 
     // כרגע — קולקציה גלובלית:
     const ref = collection(db, "feedback");
 
     const q = query(
       ref,
-      // אם אתה משתמש ב־businessId
-      // where("businessId", "==", user.uid),
+        // אם אתה משתמש ב־businessId
+        // where("businessId", "==", uid),
       orderBy("createdAt", "desc"),
       limit(10)
     );
