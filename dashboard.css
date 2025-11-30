@@ -260,7 +260,7 @@ h2 {
 
 .hero-meta {
   display: flex;
-  gap: var(--space-10);
+  gap: var(--space-8);
   align-items: center;
 }
 
@@ -271,12 +271,13 @@ h2 {
 }
 
 .avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   background: #e5edff;
   color: #1d4ed8;
   font-weight: 700;
+  font-size: 14px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -284,7 +285,7 @@ h2 {
 }
 
 .avatar + .avatar {
-  margin-left: -12px;
+  margin-left: -8px;
   border: 2px solid var(--bg-surface);
 }
 
@@ -707,8 +708,8 @@ input[type="text"] {
 }
 
 .logo-preview-circle {
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: #eef2ff;
   display: flex;
