@@ -53,6 +53,7 @@ const portalOpenButtons = document.querySelectorAll('[data-action="portal-open"]
 const planBadge = document.getElementById("planBadge");
 const startTrialBtn = document.getElementById("startTrialBtn");
 const upgradeCtaBtn = document.getElementById("upgradeCtaBtn");
+const advancedDashboardBtn = document.getElementById("advancedDashboardBtn");
 const editProfileBtn = document.getElementById("editProfileBtn");
 const editModal = document.getElementById("editProfileModal");
 const editForm = document.getElementById("editProfileForm");
@@ -416,6 +417,9 @@ async function loadBusinessProfile(user) {
 
   if (planBadge) {
     planBadge.textContent = plan === "advanced" ? "Advanced plan" : "Basic plan";
+  }
+  if (advancedDashboardBtn) {
+    advancedDashboardBtn.style.display = plan === "advanced" ? "inline-flex" : "none";
   }
 
   populateEditForm(currentProfile);
