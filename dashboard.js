@@ -1,5 +1,5 @@
 // =========================
-// dashboard.js — CLEAN VERSION
+// dashboard.js — CLEAN VERSION (data URL logo)
 // =========================
 
 // -------- IMPORTS --------
@@ -58,7 +58,6 @@ const editModal = document.getElementById("editProfileModal");
 const editForm = document.getElementById("editProfileForm");
 const editClose = document.getElementById("editModalClose");
 const editCancelBtn = document.getElementById("editCancelBtn");
-
 const editFields = {
   name: document.getElementById("editBizName"),
   category: document.getElementById("editBizCategory"),
@@ -175,10 +174,13 @@ function fileToDataUrl(file) {
   });
 }
 
+// 2MB ceiling so שלא תהיה תמונה מפלצת ב-Firestore
+const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024;
+
+// שמירת לוגו כ-data URL ב-Firestore (בלי Firebase Storage)
 async function uploadLogoForUser(file) {
   if (!file || !currentUser) return;
 
-  // הגבלת גודל – כדי שלא נעמיס על Firestore
   if (file.size > MAX_LOGO_SIZE_BYTES) {
     if (logoUploadStatus) {
       logoUploadStatus.textContent =
@@ -192,7 +194,6 @@ async function uploadLogoForUser(file) {
   try {
     if (logoUploadStatus) logoUploadStatus.textContent = "Saving logo…";
 
-    // במקום Firebase Storage – קוראים את הקובץ כ-data URL ושומרים אותו ישירות ב-Firestore
     const logoUrlToSave = await fileToDataUrl(file);
 
     await setDoc(
@@ -200,12 +201,11 @@ async function uploadLogoForUser(file) {
       {
         logoUrl: logoUrlToSave,
         updatedAt: serverTimestamp(),
-        logoUploadFallback: true, // מציין שאנחנו בשיטת ה-fallback
+        logoUploadFallback: true,
       },
       { merge: true }
     );
 
-    // עדכון לוגו בדשבורד
     if (bizLogoImg) {
       bizLogoImg.src = logoUrlToSave;
       bizLogoImg.alt = `${currentBusinessName} logo`;
@@ -213,7 +213,6 @@ async function uploadLogoForUser(file) {
     }
     if (bizLogoInitials) bizLogoInitials.style.display = "none";
 
-    // עדכון כרטיס ה-Branding
     updateLogoPreview(logoUrlToSave, currentBusinessName);
 
     if (logoUploadStatus) {
@@ -273,6 +272,7 @@ function toggleEditModal(show) {
   editModal.classList.toggle("visible", show);
   editModal.setAttribute("aria-hidden", show ? "false" : "true");
 }
+
 async function saveProfileEdits(event) {
   event?.preventDefault();
   if (!currentUser) return;
@@ -589,6 +589,7 @@ async function loadFeedbackAndStats(uid) {
     });
   }
 }
+
 function updateStatsUI({
   publicReviews,
   privateFeedback,
