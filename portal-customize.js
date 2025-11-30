@@ -9,7 +9,8 @@ import {
   getDoc,
   setDoc,
   serverTimestamp,
-  uploadLogoAndGetURL,
+  uploadLogoWithFallback,
+  fileToOptimizedDataUrl,
 } from "./firebase.js";
 
 // ===== DOM ELEMENTS =====
@@ -65,22 +66,49 @@ logoUpload.addEventListener("change", async () => {
   const file = logoUpload.files[0];
 
   try {
-    const url = await uploadLogoAndGetURL(file, currentUser.uid);
+    const { url, storedInStorage } = await uploadLogoWithFallback(
+      file,
+      currentUser.uid
+    );
 
     currentLogoUrl = url;
     await setDoc(
       doc(db, "businessProfiles", currentUser.uid),
       {
-        logoUrl: url,
+        logoUrl: storedInStorage ? url : "",
+        logoDataUrl: url,
         updatedAt: serverTimestamp(),
         createdAt: profileCreatedAt || serverTimestamp(),
       },
       { merge: true }
     );
     updatePreview();
+
+    if (!storedInStorage) {
+      alert("Logo saved using a backup method.");
+    }
   } catch (err) {
     console.error("Failed to upload logo:", err);
-    alert("We couldn't upload your logo. Please try again.");
+
+    try {
+      const dataUrl = await fileToOptimizedDataUrl(file, { maxSize: 640, quality: 0.82 });
+      currentLogoUrl = dataUrl;
+      await setDoc(
+        doc(db, "businessProfiles", currentUser.uid),
+        {
+          logoUrl: "",
+          logoDataUrl: dataUrl,
+          updatedAt: serverTimestamp(),
+          createdAt: profileCreatedAt || serverTimestamp(),
+        },
+        { merge: true }
+      );
+      updatePreview();
+      alert("Logo saved using a backup method.");
+    } catch (fallbackError) {
+      console.error("Logo fallback failed:", fallbackError);
+      alert("We couldn't upload your logo. Please try again.");
+    }
   }
 });
 
@@ -107,8 +135,8 @@ async function loadPortalSettings(uid) {
   brandColorHex.value = color;
 
   // Logo
-  if (data.logoUrl) {
-    currentLogoUrl = data.logoUrl;
+  if (data.logoUrl || data.logoDataUrl) {
+    currentLogoUrl = data.logoUrl || data.logoDataUrl;
   }
 
   updatePreview();
@@ -133,7 +161,8 @@ async function saveSettings() {
     {
       businessName: name,
       brandColor: color,
-      logoUrl: currentLogoUrl || "",
+      logoUrl: currentLogoUrl && !currentLogoUrl.startsWith("data:") ? currentLogoUrl : "",
+      logoDataUrl: currentLogoUrl || "",
       updatedAt: serverTimestamp(),
       createdAt: profileCreatedAt || serverTimestamp(),
       portalPath: `/portal.html?bid=${currentUser.uid}`,

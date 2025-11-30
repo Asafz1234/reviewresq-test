@@ -100,3 +100,69 @@ export async function uploadLogoAndGetURL(file, userId) {
   const snapshot = await uploadBytes(logoRef, file);
   return getDownloadURL(snapshot.ref);
 }
+
+export function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Failed to read the image file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+export function fileToOptimizedDataUrl(file, { maxSize = 640, quality = 0.85 } = {}) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // Preserve aspect ratio while constraining the longest edge
+        let { width, height } = img;
+        if (width > height && width > maxSize) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else if (height > maxSize) {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
+        const dataUrl = canvas.toDataURL(mime, quality);
+        resolve(dataUrl);
+      };
+
+      img.onerror = () => reject(new Error("Failed to process the image file"));
+      img.src = reader.result;
+    };
+
+    reader.onerror = () => reject(new Error("Failed to read the image file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Attempt to upload a logo to Firebase Storage. If Storage is blocked (e.g., CORS
+// or permission issues) we fall back to an inlined, optimized data URL so the UI
+// can still persist and render the logo.
+export async function uploadLogoWithFallback(file, userId, { maxSize = 640, quality = 0.82 } = {}) {
+  if (!file || !userId) {
+    throw new Error("File and userId are required to upload a logo.");
+  }
+
+  try {
+    const url = await uploadLogoAndGetURL(file, userId);
+    return { url, storedInStorage: true };
+  } catch (storageError) {
+    console.error("Storage upload failed, falling back to data URL:", storageError);
+
+    const dataUrl = await fileToOptimizedDataUrl(file, { maxSize, quality });
+    return { url: dataUrl, storedInStorage: false, originalError: storageError };
+  }
+}

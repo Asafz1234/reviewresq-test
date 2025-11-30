@@ -124,7 +124,7 @@ async function loadBusinessProfile() {
     }
 
     // Logo
-    const logoUrl = data.logoUrl || null;
+    const logoUrl = data.logoUrl || data.logoDataUrl || null;
     if (logoUrl && bizLogoImg && bizLogoImgWrapper && bizLogoInitials) {
       bizLogoImg.src = logoUrl;
       bizLogoImg.alt = `${businessName} logo`;
