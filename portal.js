@@ -35,7 +35,6 @@ const customerEmailInput = document.getElementById("customerEmailInput");
 const sendFeedbackBtn = document.getElementById("sendFeedbackBtn");
 
 const thankyouCopy = document.getElementById("thankyouCopy");
-const googleReviewButton = document.getElementById("googleReviewButton");
 
 const urlParams = new URLSearchParams(window.location.search);
 const ownerPreviewParam =
@@ -45,7 +44,6 @@ const ownerPreviewParam =
 let currentRating = 0;
 let businessId = null;
 let businessName = "Your business";
-let googleReviewLink = null;
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
 );
@@ -138,19 +136,6 @@ async function loadBusinessProfile() {
       bizLogoInitials.style.display = "flex";
     }
 
-    // Google review link
-    if (data.googleReviewLink && typeof data.googleReviewLink === "string") {
-      googleReviewLink = data.googleReviewLink;
-      if (googleReviewButton) {
-        googleReviewButton.href = googleReviewLink;
-      }
-    } else {
-      googleReviewLink = null;
-      if (googleReviewButton) {
-        googleReviewButton.href = "#";
-      }
-    }
-
     // Update document title
     document.title = `${businessName} • Feedback Portal`;
 
@@ -173,17 +158,6 @@ if (changeRatingLink) {
   changeRatingLink.addEventListener("click", (event) => {
     event.preventDefault();
     resetRating();
-  });
-}
-
-// ----- GOOGLE REVIEW BUTTON -----
-if (googleReviewButton) {
-  googleReviewButton.addEventListener("click", (event) => {
-    if (!googleReviewLink) {
-      event.preventDefault();
-      alert("Google review link is not set yet for this business.");
-    }
-    // When a link exists, the browser will open it in a new tab via the href.
   });
 }
 
