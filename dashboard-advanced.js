@@ -625,45 +625,100 @@ function updateKPIs() {
 
 function renderTrendChart(trendMap) {
   if (!trendChart) return;
+  const card = trendChart.closest(".chart-card") || trendChart.parentElement;
+  let messageEl = card?.querySelector(".chart-empty");
+  if (!messageEl && card) {
+    messageEl = document.createElement("div");
+    messageEl.className = "chart-empty";
+    card.appendChild(messageEl);
+  }
+  if (messageEl) {
+    messageEl.textContent = "";
+    messageEl.style.display = "none";
+  }
+
+  const trendTable = document.getElementById("trendTable");
+  if (trendTable) trendTable.innerHTML = "";
+
   const ctx = trendChart.getContext("2d");
   if (!ctx) return;
 
   const entries = Array.from(trendMap.entries()).sort((a, b) =>
     a[0] > b[0] ? 1 : -1
   );
-  const labels = entries.map((e) => e[0]);
   const values = entries.map((e) => e[1]);
   const max = Math.max(...values, 5);
 
-  const width = trendChart.width;
-  const height = trendChart.height;
+  const width = trendChart.width || trendChart.clientWidth;
+  const height = trendChart.height || trendChart.clientHeight;
   ctx.clearRect(0, 0, width, height);
-  if (!entries.length) return;
+  if (trendTable) {
+    const tableEntries = entries
+      .slice()
+      .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+      .slice(0, 5);
 
-  const stepX = width / Math.max(values.length - 1, 1);
+    if (!tableEntries.length) {
+      trendTable.innerHTML = `<div class="trend-row"><span>No reviews yet</span><span class="count">–</span></div>`;
+    } else {
+      const rows = tableEntries
+        .map(([date, count]) => {
+          const label = new Date(`${date}T00:00:00`);
+          const formatted = label.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          return `<div class="trend-row"><span>${formatted}</span><span class="count">${count}</span></div>`;
+        })
+        .join("");
+      trendTable.innerHTML = rows;
+    }
+  }
+
+  if (!entries.length) {
+    if (messageEl) {
+      messageEl.textContent = "No reviews yet in this date range.";
+      messageEl.style.display = "flex";
+    }
+    return;
+  }
+
+  const stepX = values.length > 1 ? width / (values.length - 1) : 0;
 
   ctx.strokeStyle = "rgba(124, 58, 237, 0.7)";
   ctx.lineWidth = 2;
-  ctx.beginPath();
-  values.forEach((v, i) => {
-    const x = i * stepX + 10;
-    const y = height - (v / max) * (height - 30) - 10;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
+  if (values.length > 1) {
+    ctx.beginPath();
+    values.forEach((v, i) => {
+      const x = i * stepX;
+      const y = height - (v / max) * (height - 30) - 10;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
 
   values.forEach((v, i) => {
-    const x = i * stepX + 10;
+    const x = values.length === 1 ? width / 2 : i * stepX;
     const y = height - (v / max) * (height - 30) - 10;
     ctx.fillStyle = "#c4b5fd";
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#9ca3af";
-    ctx.font = "12px Inter";
-    ctx.fillText(labels[i], x - 18, height - 6);
   });
+
+  if (values.length === 1 && messageEl) {
+    const [singleDate, singleCount] = entries[0];
+    const labelDate = new Date(`${singleDate}T00:00:00`);
+    const formatted = labelDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    messageEl.textContent = `${singleCount} review${singleCount === 1 ? "" : "s"} on ${formatted}`;
+    messageEl.style.display = "flex";
+  }
 }
 
 function renderDistribution(dist, total) {
