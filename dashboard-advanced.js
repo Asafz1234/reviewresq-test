@@ -1572,31 +1572,31 @@ async function loadReviewRequests() {
 refreshInsightsBtn?.addEventListener("click", refreshInsights);
 refreshInsightsSecondary?.addEventListener("click", refreshInsights);
 
-// ---------- ASK FOR REVIEWS BUTTON (GO TO REVIEW REQUESTS) ----------
+// ---------- ASK FOR REVIEWS BUTTON ----------
 
 function goToReviewRequestsSection() {
-  // 1) mark "Review requests" as active in the left nav
+  // highlight the "Review requests" tab in the left nav
   const requestsNav = document.querySelector('.nav-link[data-target="requests"]');
   if (requestsNav) {
     navButtons.forEach((btn) => btn.classList.remove("active"));
     requestsNav.classList.add("active");
   }
 
-  // 2) scroll to the section
+  // scroll to the Review requests section
   const requestsSection = document.getElementById("section-requests");
   if (requestsSection) {
     requestsSection.scrollIntoView({ behavior: "smooth", block: "start" });
   } else if (reviewRequestForm) {
-    // fallback – scroll directly to the form
     reviewRequestForm.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // 3) focus the "Customer name" input
+  // put the cursor in the "Customer name" field
   if (reqName) {
     reqName.focus();
   }
 }
 
+// make the purple button use this behavior
 askReviewsBtn?.addEventListener("click", (event) => {
   event.preventDefault();
   goToReviewRequestsSection();
