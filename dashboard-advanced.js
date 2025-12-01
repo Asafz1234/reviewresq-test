@@ -171,7 +171,7 @@ async function loadProfile() {
   const data = snap.data();
   if (data.plan !== "advanced") {
     showBanner("Advanced features require the Advanced plan. Redirecting to Basic view…", "warn");
-    setTimeout(() => (window.location.href = "/dashboard.html"), 1800);
+    window.location.href = "/dashboard.html";
     return false;
   }
 
