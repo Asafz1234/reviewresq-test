@@ -40,8 +40,19 @@ const mobileMoreSheet = document.getElementById("mobileMoreSheet");
 const mobileSheetClose = document.getElementById("mobileSheetClose");
 const insightsUpdated = document.getElementById("insightsUpdated");
 
-// כל הסקשנים – לטאבים
+// כל סקשני הדשבורד
 const sections = document.querySelectorAll(".section");
+
+// מציג רק סקשן אחד ומסתיר את השאר
+function showSection(sectionId) {
+  sections.forEach((sec) => {
+    if (sec.id === sectionId) {
+      sec.classList.remove("hidden-section");
+    } else {
+      sec.classList.add("hidden-section");
+    }
+  });
+}
 
 // KPIs + charts
 const kpiPublicReviews = document.getElementById("kpiPublicReviews");
@@ -326,29 +337,18 @@ function keywordsForFeedback(message = "") {
 
 // ---------- NAVIGATION BUTTONS ----------
 
-// helper – scroll כל הדף לסקשן הרלוונטי (גם בדסקטופ וגם במובייל)
-function scrollToSection(targetId) {
-  const target = document.getElementById(targetId);
-  if (!target) return;
-
-  const rect = target.getBoundingClientRect();
-  const absoluteTop = rect.top + window.scrollY;
-
-  window.scrollTo({
-    top: absoluteTop - 80, // מרווח קטן מתחת לטופ-בר
-    behavior: "smooth",
-  });
-}
+// בהתחלה – להציג רק את ה-Overview
+showSection("section-overview");
 
 navButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
-    // עדכון ה־active בסיידבר
+    // מעדכן מצב active בסיידבר
     navButtons.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
 
-    // גלילה לסקשן הנכון
+    // מציג רק את הסקשן המתאים
     const sectionId = `section-${btn.dataset.target}`;
-    scrollToSection(sectionId);
+    showSection(sectionId);
   });
 });
 
@@ -1546,18 +1546,18 @@ refreshInsightsSecondary?.addEventListener("click", refreshInsights);
 // ---------- ASK FOR REVIEWS BUTTON ----------
 
 askReviewsBtn?.addEventListener("click", () => {
-  // לסמן בצד שהטאב Review requests פעיל
+  // בטאב־סרגל – לעבור ל-Review requests
   navButtons.forEach((b) => b.classList.remove("active"));
   const reviewNav = document.querySelector('.nav-link[data-target="requests"]');
   reviewNav?.classList.add("active");
 
-  // לגלול לסקשן של Review requests
-  scrollToSection("section-requests");
+  // להציג רק את הסקשן של Review requests
+  showSection("section-requests");
 
-  // לתת לגלילה להתחיל ואז לעשות focus על שם הלקוח
+  // אחרי שהעמוד מוצג – פוקוס לשם הלקוח
   setTimeout(() => {
     reqName?.focus();
-  }, 400);
+  }, 200);
 });
 
 // Module marker so the file is treated as an ES module.
