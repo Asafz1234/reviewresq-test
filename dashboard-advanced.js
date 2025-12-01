@@ -115,9 +115,19 @@ const ratingDistribution = document.getElementById("ratingDistribution");
 
 // AI insights
 const aiSummary = document.getElementById("aiSummary");
-const aiThemes = document.getElementById("aiThemes");
-const aiRecommendations = document.getElementById("aiRecommendations");
 const aiSentiment = document.getElementById("aiSentiment");
+const aiSentimentCard = document.getElementById("aiSentimentCard");
+const aiTotalCount = document.getElementById("aiTotalCount");
+const aiPositiveCount = document.getElementById("aiPositiveCount");
+const aiNegativeCount = document.getElementById("aiNegativeCount");
+const aiNeutralCount = document.getElementById("aiNeutralCount");
+const aiPosNegRatio = document.getElementById("aiPosNegRatio");
+const aiPriorityAlert = document.getElementById("aiPriorityAlert");
+const aiThemes = document.getElementById("aiThemes");
+const aiKeywords = document.getElementById("aiKeywords");
+const aiRecommendations = document.getElementById("aiRecommendations");
+const aiTrendCanvas = document.getElementById("sentimentTrendChart");
+const aiTrendEmpty = document.getElementById("aiTrendEmpty");
 const refreshInsightsBtn = document.getElementById("refreshInsightsBtn");
 const refreshInsightsSecondary = document.getElementById(
   "refreshInsightsSecondary"
@@ -207,9 +217,12 @@ let currentModalFeedback = null;
 const AIService = {
   async generateInsights(feedbackList) {
     const themesMap = new Map();
+    const keywordCounts = new Map();
+    const trendMap = new Map();
     let sentimentTotal = 0;
     let positives = 0;
     let negatives = 0;
+    let neutrals = 0;
 
     const keywords = [
       { label: "price", tokens: ["price", "expensive", "cheap", "cost"] },
@@ -227,6 +240,15 @@ const AIService = {
       sentimentTotal += sentimentFromRating(rating);
       if (rating >= 4) positives += 1;
       if (rating <= 2) negatives += 1;
+      if (rating === 3) neutrals += 1;
+
+      const dateKey = formatDateKey(fb.createdAt || Date.now());
+      const sentiment = sentimentFromRating(rating);
+
+      const trendEntry = trendMap.get(dateKey) || { sum: 0, count: 0 };
+      trendEntry.sum += sentiment;
+      trendEntry.count += 1;
+      trendMap.set(dateKey, trendEntry);
 
       const matched = [];
       keywords.forEach((k) => {
@@ -234,6 +256,9 @@ const AIService = {
       });
       if (!matched.length) matched.push("general experience");
       matched.forEach((m) => themesMap.set(m, (themesMap.get(m) || 0) + 1));
+
+      const keywordTags = keywordsForFeedback(message);
+      keywordTags.forEach((tag) => keywordCounts.set(tag, (keywordCounts.get(tag) || 0) + 1));
     });
 
     const topThemes = Array.from(themesMap.entries())
@@ -245,10 +270,12 @@ const AIService = {
       ? Number((sentimentTotal / feedbackList.length).toFixed(2))
       : 0;
 
+    const totalCount = feedbackList.length;
+
     const summaryParts = [];
     if (feedbackList.length) {
       summaryParts.push(
-        `You received ${feedbackList.length} feedback items recently (${positives} positive, ${negatives} negative).`
+        `You received ${totalCount} feedback items recently (${positives} positive, ${negatives} negative).`
       );
       if (topThemes.length) {
         summaryParts.push(`Top themes: ${topThemes.map((t) => t.label).join(", ")}.`);
@@ -264,6 +291,19 @@ const AIService = {
       summaryParts.push("Not enough feedback yet for insights.");
     }
 
+    const sentimentTrend = Array.from(trendMap.entries())
+      .map(([dateKey, val]) => ({
+        dateKey,
+        avgSentiment: Number((val.sum / val.count).toFixed(2)),
+        count: val.count,
+      }))
+      .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+
+    const keywordsList = Array.from(keywordCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([label, count]) => ({ label, count }));
+
     const recommendations = [];
     if (negatives) recommendations.push("Call low-rating customers within 24h and acknowledge their issues.");
     if (positives) recommendations.push("Invite happy customers to leave a Google review using your portal link.");
@@ -277,6 +317,12 @@ const AIService = {
 
     return {
       summary: summaryParts.join(" "),
+      totalCount,
+      positiveCount: positives,
+      negativeCount: negatives,
+      neutralCount: neutrals,
+      sentimentTrend,
+      keywords: keywordsList,
       topThemes,
       sentimentScore,
       topRecommendations: recommendations.slice(0, 5),
@@ -829,30 +875,126 @@ async function refreshInsights() {
 }
 
 function renderInsights(data) {
+  const totalCount =
+    data.totalCount ?? data.feedbackCount ?? data.total ?? feedbackCache.length;
+  const positiveCount = data.positiveCount ?? 0;
+  const negativeCount = data.negativeCount ?? 0;
+  const neutralCount = data.neutralCount ?? 0;
+  const sentimentScore =
+    data.sentimentScore != null ? Number(data.sentimentScore) : null;
+
   if (aiSummary) aiSummary.textContent = data.summary || "Not enough data yet.";
+
+  if (aiTotalCount) aiTotalCount.textContent = totalCount || "0";
+  if (aiPositiveCount) aiPositiveCount.textContent = positiveCount || "0";
+  if (aiNegativeCount) aiNegativeCount.textContent = negativeCount || "0";
+  if (aiNeutralCount) aiNeutralCount.textContent = neutralCount || "0";
+
+  if (aiPosNegRatio) {
+    if (totalCount > 0) {
+      const ratio = Math.round((positiveCount / totalCount) * 100);
+      aiPosNegRatio.textContent = `${ratio}% positive`;
+    } else {
+      aiPosNegRatio.textContent = "–";
+    }
+  }
+
+  if (aiPriorityAlert) {
+    if (negativeCount >= 2) {
+      aiPriorityAlert.textContent =
+        "You’ve received several low ratings recently — prioritize outreach to unhappy customers.";
+    } else if (positiveCount >= 3) {
+      aiPriorityAlert.textContent =
+        "Your customers are mostly happy — ask for more Google reviews this week.";
+    } else {
+      aiPriorityAlert.textContent =
+        "Collect more feedback to unlock stronger insights.";
+    }
+  }
 
   if (aiThemes) {
     aiThemes.innerHTML = "";
-    (data.topThemes || []).forEach((t) => {
+    const themes = data.topThemes || [];
+    if (themes.length === 0) {
       const li = document.createElement("li");
-      li.textContent = `${t.label} (${t.count})`;
+      li.textContent = "Not enough data yet.";
       aiThemes.appendChild(li);
-    });
+    } else {
+      themes.forEach((t) => {
+        const li = document.createElement("li");
+        li.textContent = `${t.label} (${t.count})`;
+        aiThemes.appendChild(li);
+      });
+    }
+  }
+
+  if (aiKeywords) {
+    aiKeywords.innerHTML = "";
+    const keywords = data.keywords || [];
+    if (!keywords.length) {
+      const empty = document.createElement("div");
+      empty.className = "muted-text";
+      empty.textContent = "No keyword signals yet.";
+      aiKeywords.appendChild(empty);
+    } else {
+      keywords.forEach((k) => {
+        const chip = document.createElement("span");
+        chip.className = "keyword-chip";
+        chip.textContent = `${k.label} (${k.count})`;
+        aiKeywords.appendChild(chip);
+      });
+    }
   }
 
   if (aiRecommendations) {
     aiRecommendations.innerHTML = "";
-    (data.topRecommendations || []).forEach((r) => {
+    const recs = data.topRecommendations || [];
+    if (!recs.length) {
       const li = document.createElement("li");
-      li.textContent = r;
+      li.textContent = "Once you receive a bit more feedback, we’ll suggest specific actions here.";
       aiRecommendations.appendChild(li);
-    });
+    } else {
+      recs.forEach((r) => {
+        const li = document.createElement("li");
+        li.textContent = r;
+        aiRecommendations.appendChild(li);
+      });
+    }
   }
 
   if (aiSentiment) {
-    aiSentiment.textContent =
-      data.sentimentScore != null ? data.sentimentScore : "–";
+    if (sentimentScore == null) {
+      aiSentiment.textContent = "–";
+      aiSentiment.className = "sentiment-pill";
+    } else {
+      aiSentiment.textContent = sentimentScore.toFixed(2);
+      aiSentiment.className =
+        "sentiment-pill " +
+        (sentimentScore >= 0.2
+          ? "sentiment-positive"
+          : sentimentScore <= -0.2
+          ? "sentiment-negative"
+          : "sentiment-neutral");
+    }
   }
+
+  if (aiSentimentCard) {
+    if (sentimentScore == null) {
+      aiSentimentCard.textContent = "–";
+      aiSentimentCard.className = "ai-metric-value sentiment-value";
+    } else {
+      aiSentimentCard.textContent = sentimentScore.toFixed(2);
+      aiSentimentCard.className =
+        "ai-metric-value sentiment-value " +
+        (sentimentScore >= 0.2
+          ? "sentiment-positive"
+          : sentimentScore <= -0.2
+          ? "sentiment-negative"
+          : "sentiment-neutral");
+    }
+  }
+
+  renderSentimentTrend(data.sentimentTrend || []);
 
   if (data.generatedAt && insightsUpdated) {
     const d = data.generatedAt.toDate
@@ -860,6 +1002,70 @@ function renderInsights(data) {
       : new Date(data.generatedAt);
     insightsUpdated.textContent = `Last updated ${d.toLocaleString()}`;
   }
+}
+
+function renderSentimentTrend(points) {
+  if (!aiTrendCanvas || !aiTrendEmpty) return;
+
+  const ctx = aiTrendCanvas.getContext("2d");
+  const hasData = points && points.length;
+
+  aiTrendCanvas.classList.toggle("hidden", !hasData);
+  aiTrendEmpty.classList.toggle("hidden", hasData);
+
+  if (!hasData) {
+    ctx.clearRect(0, 0, aiTrendCanvas.width, aiTrendCanvas.height);
+    return;
+  }
+
+  const deviceRatio = window.devicePixelRatio || 1;
+  const width = aiTrendCanvas.clientWidth * deviceRatio;
+  const height = aiTrendCanvas.clientHeight * deviceRatio;
+  aiTrendCanvas.width = width;
+  aiTrendCanvas.height = height;
+  ctx.clearRect(0, 0, width, height);
+
+  const padding = 20 * deviceRatio;
+  const usableWidth = width - padding * 2;
+  const usableHeight = height - padding * 2;
+
+  const sentiments = points.map((p) => p.avgSentiment);
+  const maxVal = Math.max(...sentiments, 1);
+  const minVal = Math.min(...sentiments, -1);
+  const range = maxVal - minVal || 1;
+
+  ctx.strokeStyle = "rgba(99, 102, 241, 0.6)";
+  ctx.lineWidth = 2 * deviceRatio;
+  ctx.beginPath();
+
+  points.forEach((p, idx) => {
+    const x = padding + (usableWidth * idx) / Math.max(points.length - 1, 1);
+    const y = padding + usableHeight * (1 - (p.avgSentiment - minVal) / range);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(99, 102, 241, 0.15)";
+  ctx.beginPath();
+  points.forEach((p, idx) => {
+    const x = padding + (usableWidth * idx) / Math.max(points.length - 1, 1);
+    const y = padding + usableHeight * (1 - (p.avgSentiment - minVal) / range);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.lineTo(padding + usableWidth, height - padding);
+  ctx.lineTo(padding, height - padding);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+  ctx.font = `${12 * deviceRatio}px Inter, system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = "left";
+  ctx.fillText("Date", padding, height - 4 * deviceRatio);
+  ctx.textAlign = "right";
+  ctx.fillText("Sentiment", width - padding, padding);
 }
 
 // ---------- FEEDBACK MODAL ----------
