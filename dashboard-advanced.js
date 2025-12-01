@@ -324,62 +324,33 @@ function keywordsForFeedback(message = "") {
   return tags;
 }
 
-// ---------- NAVIGATION (tabs behavior) ----------
+// ---------- NAVIGATION BUTTONS ----------
 
-function showSection(targetKey) {
-  const targetId = `section-${targetKey}`;
-  sections.forEach((sec) => {
-    if (sec.id === targetId) {
-      sec.classList.remove("section-hidden");
-    } else {
-      sec.classList.add("section-hidden");
-    }
+// helper – scroll כל הדף לסקשן הרלוונטי (גם בדסקטופ וגם במובייל)
+function scrollToSection(targetId) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+
+  const rect = target.getBoundingClientRect();
+  const absoluteTop = rect.top + window.scrollY;
+
+  window.scrollTo({
+    top: absoluteTop - 80, // מרווח קטן מתחת לטופ-בר
+    behavior: "smooth",
   });
 }
 
-function setActiveNav(targetKey) {
-  navButtons.forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.target === targetKey);
+navButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    // עדכון ה־active בסיידבר
+    navButtons.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // גלילה לסקשן הנכון
+    const sectionId = `section-${btn.dataset.target}`;
+    scrollToSection(sectionId);
   });
-}
-
-function closeMobileSheet() {
-  if (mobileMoreSheet) {
-    mobileMoreSheet.classList.remove("open");
-    mobileMoreSheet.setAttribute("aria-hidden", "true");
-  }
-}
-
-function navigateTo(targetKey) {
-  if (!targetKey) return;
-  setActiveNav(targetKey);
-  showSection(targetKey);
-  closeMobileSheet();
-}
-
-navTriggers.forEach((trigger) => {
-  trigger.addEventListener("click", () => navigateTo(trigger.dataset.target));
 });
-
-if (mobileMoreBtn && mobileMoreSheet) {
-  mobileMoreBtn.addEventListener("click", () => {
-    mobileMoreSheet.classList.add("open");
-    mobileMoreSheet.setAttribute("aria-hidden", "false");
-  });
-}
-
-if (mobileMoreSheet) {
-  mobileMoreSheet.addEventListener("click", (event) => {
-    if (event.target === mobileMoreSheet) closeMobileSheet();
-  });
-}
-
-if (mobileSheetClose) {
-  mobileSheetClose.addEventListener("click", closeMobileSheet);
-}
-
-// מצב התחלתי – רק Overview
-navigateTo("overview");
 
 // ---------- AUTH & INITIAL LOAD ----------
 
@@ -1574,32 +1545,19 @@ refreshInsightsSecondary?.addEventListener("click", refreshInsights);
 
 // ---------- ASK FOR REVIEWS BUTTON ----------
 
-function goToReviewRequestsSection() {
-  // highlight the "Review requests" tab in the left nav
-  const requestsNav = document.querySelector('.nav-link[data-target="requests"]');
-  if (requestsNav) {
-    navButtons.forEach((btn) => btn.classList.remove("active"));
-    requestsNav.classList.add("active");
-  }
+askReviewsBtn?.addEventListener("click", () => {
+  // לסמן בצד שהטאב Review requests פעיל
+  navButtons.forEach((b) => b.classList.remove("active"));
+  const reviewNav = document.querySelector('.nav-link[data-target="requests"]');
+  reviewNav?.classList.add("active");
 
-  // scroll to the Review requests section
-  const requestsSection = document.getElementById("section-requests");
-  if (requestsSection) {
-    requestsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-  } else if (reviewRequestForm) {
-    reviewRequestForm.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  // לגלול לסקשן של Review requests
+  scrollToSection("section-requests");
 
-  // put the cursor in the "Customer name" field
-  if (reqName) {
-    reqName.focus();
-  }
-}
-
-// make the purple button use this behavior
-askReviewsBtn?.addEventListener("click", (event) => {
-  event.preventDefault();
-  goToReviewRequestsSection();
+  // לתת לגלילה להתחיל ואז לעשות focus על שם הלקוח
+  setTimeout(() => {
+    reqName?.focus();
+  }, 400);
 });
 
 // Module marker so the file is treated as an ES module.
