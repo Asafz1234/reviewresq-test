@@ -441,6 +441,10 @@ h3 {
   box-shadow: var(--card-shadow);
 }
 
+.chart-card {
+  position: relative;
+}
+
 .card {
   display: flex;
   flex-direction: column;
@@ -511,6 +515,52 @@ h3 {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+}
+
+/* Trend table */
+
+.trend-table {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+}
+
+.trend-table .trend-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.trend-table .trend-row:last-child {
+  border-bottom: none;
+}
+
+.trend-table .count {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.desktop-only {
+  display: block;
+}
+
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 16px;
+  color: var(--muted);
+  font-weight: 600;
+  pointer-events: none;
 }
 
 /* Tables */
@@ -867,6 +917,42 @@ h3 {
 
 /* Responsive */
 
+@media (min-width: 981px) {
+  .charts-grid {
+    grid-template-columns: 1.4fr 1fr;
+    grid-auto-rows: 1fr;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .charts-grid .card {
+    height: 100%;
+  }
+
+  .chart-card {
+    gap: 12px;
+    padding-bottom: 14px;
+  }
+
+  #trendChart {
+    width: 100%;
+    flex: 1;
+  }
+
+  .rating-card {
+    padding: 14px 16px 12px;
+    gap: 12px;
+  }
+
+  .rating-card .rating-bars {
+    gap: 10px;
+  }
+
+  .rating-card #ratingDistribution {
+    margin-top: 4px;
+  }
+}
+
 @media (max-width: 980px) {
   .app-layout {
     grid-template-columns: 1fr;
@@ -894,6 +980,10 @@ h3 {
   .topbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .desktop-only {
+    display: none !important;
   }
 }
 
