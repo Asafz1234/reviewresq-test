@@ -29,6 +29,7 @@
         <button class="nav-link" data-target="automations">Automations</button>
         <button class="nav-link" data-target="tasks">Follow-ups</button>
         <button class="nav-link" data-target="requests">Review requests</button>
+        <button class="nav-link" data-target="portal">Portal branding</button>
         <button class="nav-link" data-target="notifications">Alerts</button>
         <a class="nav-link ghost" href="/dashboard.html">Basic dashboard</a>
       </nav>
@@ -159,13 +160,13 @@
               <option value="private">Private</option>
               <option value="google">Google</option>
             </select>
-            <select id="filterStatus" class="chip chip-soft">
-              <option value="all">Any status</option>
-              <option value="unread">Unread</option>
-              <option value="needs_reply">Needs reply</option>
-              <option value="replied">Replied</option>
-              <option value="follow_up">Follow-up created</option>
-            </select>
+          <select id="filterStatus" class="chip chip-soft">
+            <option value="all">Any status</option>
+            <option value="new">New</option>
+            <option value="needs_reply">Needs reply</option>
+            <option value="replied">Replied</option>
+            <option value="followup">Follow-up open</option>
+          </select>
           </div>
         </div>
         <div class="surface card">
@@ -362,6 +363,49 @@
             <label><input type="checkbox" id="prefSmsHigh" /> SMS alert for 5★ feedback</label>
             <button type="submit" class="btn primary">Save preferences</button>
           </form>
+        </div>
+      </section>
+
+      <section class="section" id="section-portal">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Branding</p>
+            <h2>Portal branding & text</h2>
+            <p class="section-sub">Tune the customer portal to match your brand.</p>
+          </div>
+        </div>
+        <div class="grid main-grid portal-grid">
+          <div class="surface card portal-card">
+            <form id="portalSettingsForm" class="simple-grid">
+              <label class="label">Primary color</label>
+              <input type="color" id="portalPrimary" value="#2563eb" />
+              <label class="label">Accent / button color</label>
+              <input type="color" id="portalAccent" value="#7c3aed" />
+              <label class="label">Layout</label>
+              <select id="portalBackground">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="gradient">Gradient</option>
+              </select>
+              <label class="label">Headline</label>
+              <input type="text" id="portalHeadline" placeholder="Share your experience" />
+              <label class="label">Subheadline</label>
+              <textarea id="portalSubheadline" rows="2" placeholder="We read every note"></textarea>
+              <label class="label">High-rating button label</label>
+              <input type="text" id="portalCtaHigh" placeholder="Leave a Google review" />
+              <label class="label">Low-rating button label</label>
+              <input type="text" id="portalCtaLow" placeholder="Send private feedback" />
+              <label class="label">Thank-you title</label>
+              <input type="text" id="portalThanksTitle" placeholder="Thank you!" />
+              <label class="label">Thank-you body</label>
+              <textarea id="portalThanksBody" rows="3" placeholder="We appreciate your time"></textarea>
+              <button type="submit" class="btn primary">Save portal settings</button>
+            </form>
+          </div>
+          <div class="surface card portal-preview-card">
+            <div class="list-header">Live preview</div>
+            <iframe id="portalPreviewFrame" title="Portal preview" loading="lazy"></iframe>
+          </div>
         </div>
       </section>
     </div>

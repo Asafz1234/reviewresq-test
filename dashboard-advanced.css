@@ -315,6 +315,10 @@ h1 {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+.portal-grid {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
 .surface {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
@@ -394,6 +398,14 @@ h1 {
 .table-wrap {
   width: 100%;
   overflow: auto;
+}
+
+.portal-preview-card iframe {
+  width: 100%;
+  height: 520px;
+  border: none;
+  border-radius: 12px;
+  background: #0f172a;
 }
 
 .feedback-table {

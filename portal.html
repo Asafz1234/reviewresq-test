@@ -587,8 +587,8 @@
         </header>
 
         <div class="title-block">
-          <h1>How was your experience today?</h1>
-          <p>Your feedback helps us improve and keeps our team on point.</p>
+          <h1 id="portalHeadlineText">How was your experience today?</h1>
+          <p id="portalSubheadlineText">Your feedback helps us improve and keeps our team on point.</p>
         </div>
 
         <div class="tags-row">
@@ -654,7 +654,7 @@
             </div>
 
             <button class="primary-button" id="sendFeedbackBtn" type="submit">
-              <span>Send feedback</span>
+              <span id="lowCtaLabel">Send feedback</span>
             </button>
 
             <p class="disclaimer">
@@ -663,8 +663,8 @@
           </form>
 
           <p class="thankyou-copy" id="thankyouCopy">
-            Thank you for taking the time to tell us.<br />
-            Your feedback was received and will be reviewed by the business owner.
+            <strong id="thankyouTitleText">Thank you for taking the time to tell us.</strong><br />
+            <span id="thankyouBodyText">Your feedback was received and will be reviewed by the business owner.</span>
           </p>
         </section>
 
@@ -675,6 +675,9 @@
             We’re glad you had a good experience. Your feedback helps us keep the team motivated
             and focused on the right things.
           </p>
+          <button class="secondary-button" type="button" id="highCtaButton">
+            <span id="highCtaLabel">Leave a Google review</span>
+          </button>
           <p class="disclaimer">
             Thanks for supporting the business. If you ever want to update anything you shared
             with us, simply return to this page.
