@@ -74,6 +74,7 @@
         <button class="icon-btn" id="bannerDismiss" aria-label="Dismiss alert">✕</button>
       </div>
 
+      <!-- OVERVIEW -->
       <section class="section" id="section-overview">
         <div class="section-header">
           <div>
@@ -138,6 +139,7 @@
         </div>
       </section>
 
+      <!-- INBOX -->
       <section class="section" id="section-inbox">
         <div class="section-header">
           <div>
@@ -160,13 +162,13 @@
               <option value="private">Private</option>
               <option value="google">Google</option>
             </select>
-          <select id="filterStatus" class="chip chip-soft">
-            <option value="all">Any status</option>
-            <option value="new">New</option>
-            <option value="needs_reply">Needs reply</option>
-            <option value="replied">Replied</option>
-            <option value="followup">Follow-up open</option>
-          </select>
+            <select id="filterStatus" class="chip chip-soft">
+              <option value="all">Any status</option>
+              <option value="new">New</option>
+              <option value="needs_reply">Needs reply</option>
+              <option value="replied">Replied</option>
+              <option value="followup">Follow-up open</option>
+            </select>
           </div>
         </div>
         <div class="surface card">
@@ -190,6 +192,7 @@
         </div>
       </section>
 
+      <!-- AI INSIGHTS -->
       <section class="section" id="section-ai">
         <div class="section-header">
           <div>
@@ -221,6 +224,7 @@
         </div>
       </section>
 
+      <!-- AUTOMATIONS -->
       <section class="section" id="section-automations">
         <div class="section-header">
           <div>
@@ -257,7 +261,12 @@
               <label class="label">No follow-up days (for no_response_x_days)</label>
               <input type="number" id="automationNoResponseDays" min="0" placeholder="3" />
               <label class="label">Template</label>
-              <textarea id="automationTemplate" rows="4" placeholder="Hi {{customerName}}, thanks for your feedback..." required></textarea>
+              <textarea
+                id="automationTemplate"
+                rows="4"
+                placeholder="Hi {{customerName}}, thanks for your feedback..."
+                required
+              ></textarea>
               <div class="preview" id="automationPreview">Preview will appear here.</div>
               <div class="form-actions">
                 <button type="submit" class="btn primary">Save automation</button>
@@ -269,12 +278,15 @@
         </div>
       </section>
 
+      <!-- TASKS -->
       <section class="section" id="section-tasks">
         <div class="section-header">
           <div>
             <p class="eyebrow">Customer follow-ups</p>
             <h2>Tasks</h2>
-            <p class="section-sub">Track what needs attention and keep customers delighted.</p>
+            <p class="section-sub">
+              Track what needs attention and keep customers delighted.
+            </p>
           </div>
           <div class="filters-row">
             <select id="taskStatusFilter" class="chip chip-soft">
@@ -303,6 +315,7 @@
         </div>
       </section>
 
+      <!-- REVIEW REQUESTS -->
       <section class="section" id="section-requests">
         <div class="section-header">
           <div>
@@ -344,6 +357,7 @@
         </div>
       </section>
 
+      <!-- NOTIFICATIONS -->
       <section class="section" id="section-notifications">
         <div class="section-header">
           <div>
@@ -366,6 +380,7 @@
         </div>
       </section>
 
+      <!-- PORTAL -->
       <section class="section" id="section-portal">
         <div class="section-header">
           <div>
@@ -411,9 +426,22 @@
     </div>
   </div>
 
-  <div id="feedbackModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="feedbackModalTitle">
+  <!-- FEEDBACK MODAL -->
+  <div
+    id="feedbackModal"
+    class="modal"
+    aria-hidden="true"
+    role="dialog"
+    aria-labelledby="feedbackModalTitle"
+  >
     <div class="modal-content">
-      <button class="icon-btn close-btn" id="feedbackModalClose" aria-label="Close details">✕</button>
+      <button
+        class="icon-btn close-btn"
+        id="feedbackModalClose"
+        aria-label="Close details"
+      >
+        ✕
+      </button>
       <p class="eyebrow">Feedback details</p>
       <h3 id="feedbackModalTitle">Customer voice</h3>
       <div class="modal-grid">
