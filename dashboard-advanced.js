@@ -28,6 +28,8 @@ const dateRangeSelect = document.getElementById("dateRangeSelect");
 const globalBanner = document.getElementById("globalBanner");
 const globalBannerText = document.getElementById("globalBannerText");
 const bannerDismiss = document.getElementById("bannerDismiss");
+const navButtons = document.querySelectorAll(".nav-link[data-target]");
+const insightsUpdated = document.getElementById("insightsUpdated");
 
 const kpiPublicReviews = document.getElementById("kpiPublicReviews");
 const kpiAvgRating = document.getElementById("kpiAvgRating");
@@ -48,6 +50,9 @@ const askReviewsBtn = document.getElementById("askReviewsBtn");
 
 const advancedFeedbackBody = document.getElementById("advancedFeedbackBody");
 const advancedFeedbackEmpty = document.getElementById("advancedFeedbackEmpty");
+const filterRating = document.getElementById("filterRating");
+const filterType = document.getElementById("filterType");
+const filterStatus = document.getElementById("filterStatus");
 const feedbackModal = document.getElementById("feedbackModal");
 const feedbackModalClose = document.getElementById("feedbackModalClose");
 const modalDate = document.getElementById("modalDate");
@@ -56,8 +61,10 @@ const modalRating = document.getElementById("modalRating");
 const modalType = document.getElementById("modalType");
 const modalMessage = document.getElementById("modalMessage");
 const modalAiReply = document.getElementById("modalAiReply");
+const modalNextAction = document.getElementById("modalNextAction");
 const copyReplyBtn = document.getElementById("copyReplyBtn");
 const createTaskBtn = document.getElementById("createTaskBtn");
+const markRepliedBtn = document.getElementById("markRepliedBtn");
 
 const automationList = document.getElementById("automationList");
 const automationForm = document.getElementById("automationForm");
@@ -73,6 +80,8 @@ const automationDelete = document.getElementById("automationDelete");
 
 const tasksList = document.getElementById("tasksList");
 const taskDetail = document.getElementById("taskDetail");
+const taskStatusFilter = document.getElementById("taskStatusFilter");
+const taskPriorityFilter = document.getElementById("taskPriorityFilter");
 
 const notificationForm = document.getElementById("notificationForm");
 const prefEmailLow = document.getElementById("prefEmailLow");
@@ -96,6 +105,103 @@ let feedbackCache = [];
 let automationCache = [];
 let taskCache = [];
 let currentModalFeedback = null;
+
+const AIService = {
+  async generateInsights(feedbackList) {
+    const themesMap = new Map();
+    let sentimentTotal = 0;
+    let positives = 0;
+    let negatives = 0;
+    const keywords = [
+      { label: "price", tokens: ["price", "expensive", "cheap", "cost"] },
+      { label: "speed", tokens: ["wait", "slow", "fast", "delay", "time"] },
+      { label: "staff", tokens: ["staff", "team", "employee", "support", "service"] },
+      { label: "quality", tokens: ["quality", "excellent", "poor", "bad", "amazing"] },
+      { label: "cleanliness", tokens: ["clean", "dirty", "mess"] },
+      { label: "booking", tokens: ["book", "schedule", "appointment"] },
+    ];
+
+    feedbackList.forEach((fb) => {
+      const message = (fb.message || "").toLowerCase();
+      const rating = Number(fb.rating || 0);
+      sentimentTotal += sentimentFromRating(rating);
+      if (rating >= 4) positives += 1;
+      if (rating <= 2) negatives += 1;
+      const matched = [];
+      keywords.forEach((k) => {
+        if (k.tokens.some((t) => message.includes(t))) matched.push(k.label);
+      });
+      if (!matched.length) matched.push("general experience");
+      matched.forEach((m) => themesMap.set(m, (themesMap.get(m) || 0) + 1));
+    });
+
+    const topThemes = Array.from(themesMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([label, count]) => ({ label, count }));
+
+    const sentimentScore = feedbackList.length
+      ? Number((sentimentTotal / feedbackList.length).toFixed(2))
+      : 0;
+
+    const summaryParts = [];
+    if (feedbackList.length) {
+      summaryParts.push(
+        `You received ${feedbackList.length} feedback items recently (${positives} positive, ${negatives} negative).`
+      );
+      if (topThemes.length) summaryParts.push(`Top themes: ${topThemes.map((t) => t.label).join(", ")}.`);
+      summaryParts.push(
+        sentimentScore >= 0.2
+          ? "Overall sentiment is trending positive—keep reinforcing what people praise."
+          : sentimentScore <= -0.2
+          ? "Sentiment is dipping—prioritize outreach to unhappy customers."
+          : "Sentiment is mixed—stay close to customers and close the loop quickly."
+      );
+    } else {
+      summaryParts.push("Not enough feedback yet for insights.");
+    }
+
+    const recommendations = [];
+    if (negatives) recommendations.push("Call low-rating customers within 24h and acknowledge their issues.");
+    if (positives) recommendations.push("Invite happy customers to leave a Google review using your portal link.");
+    if (topThemes.some((t) => t.label === "speed")) recommendations.push("Audit wait times and set clear SLAs.");
+    if (topThemes.some((t) => t.label === "staff"))
+      recommendations.push("Celebrate staff shout-outs publicly and coach where service dipped.");
+    if (!recommendations.length) recommendations.push("Collect more feedback to unlock tailored actions.");
+
+    return {
+      summary: summaryParts.join(" "),
+      topThemes,
+      sentimentScore,
+      topRecommendations: recommendations.slice(0, 5),
+    };
+  },
+
+  async suggestReply(feedback) {
+    const name = feedback.customerName || "there";
+    const rating = Number(feedback.rating || 0);
+    const keywords = keywordsForFeedback(feedback.message || "").join(", ");
+    if (rating <= 3) {
+      return `Hi ${name}, I'm sorry we fell short. I hear your concerns about ${keywords}. I'd love to fix this—please reply or call me directly so we can make it right.`;
+    }
+    return `Hi ${name}, thank you for the ${rating}★ feedback! Your notes about ${keywords} made our day. We’d appreciate a Google review and look forward to welcoming you back.`;
+  },
+
+  async suggestNextAction(feedback) {
+    const rating = Number(feedback.rating || 0);
+    const tags = keywordsForFeedback(feedback.message || "");
+    if (rating <= 2) {
+      return "Call the customer within 24h, acknowledge the issue, and offer a make-good (credit or priority booking).";
+    }
+    if (rating === 3) {
+      return "Send a quick check-in email to learn what would turn this into a 5★ experience and schedule a follow-up.";
+    }
+    if (tags.includes("staff")) {
+      return "Share praise with the team member mentioned and invite the customer back to meet them again.";
+    }
+    return "Thank them personally and invite them to share the story on Google—include your portal link.";
+  },
+};
 
 function showBanner(text, type = "info") {
   if (!globalBanner) return;
@@ -138,6 +244,33 @@ function sentimentFromRating(rating) {
   if (rating === 3) return 0;
   return rating >= 5 ? 1 : 0.6;
 }
+
+function keywordsForFeedback(message = "") {
+  const lower = message.toLowerCase();
+  const tags = [];
+  const themes = [
+    { key: "price", words: ["price", "expensive", "cheap", "cost"] },
+    { key: "speed", words: ["wait", "slow", "fast", "delay", "time"] },
+    { key: "staff", words: ["staff", "service", "team", "employee", "support"] },
+    { key: "quality", words: ["quality", "excellent", "poor", "bad", "amazing"] },
+    { key: "clean", words: ["clean", "dirty", "mess"] },
+    { key: "booking", words: ["book", "schedule", "appointment"] },
+  ];
+  themes.forEach((t) => {
+    if (t.words.some((w) => lower.includes(w))) tags.push(t.key);
+  });
+  if (!tags.length) tags.push("general");
+  return tags;
+}
+
+navButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    navButtons.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    const target = document.getElementById(`section-${btn.dataset.target}`);
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+});
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -198,16 +331,32 @@ async function loadFeedback() {
   const ref = collection(db, "feedback");
   const q = query(ref, where("businessId", "==", currentUser.uid), orderBy("createdAt", "desc"));
   const snap = await getDocs(q);
-  feedbackCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  feedbackCache = snap.docs.map((d) => ({
+    id: d.id,
+    status: "unread",
+    ...d.data(),
+    statusOverride: d.data().status,
+  }));
+  feedbackCache = feedbackCache.map((f) => ({ ...f, status: f.statusOverride || f.status || "unread" }));
   renderFeedback();
   evaluateAutomations(feedbackCache);
   updateKPIs();
 }
 
+function getFilteredFeedback() {
+  const byRange = filterFeedbackByRange(dateRangeSelect?.value || "7");
+  return byRange.filter((f) => {
+    const ratingOk = filterRating.value === "all" || Number(filterRating.value) === Number(f.rating);
+    const typeOk = filterType.value === "all" || (f.type || "private").toLowerCase() === filterType.value;
+    const statusOk = filterStatus.value === "all" || (f.status || "unread") === filterStatus.value;
+    return ratingOk && typeOk && statusOk;
+  });
+}
+
 function renderFeedback() {
   if (!advancedFeedbackBody) return;
   advancedFeedbackBody.innerHTML = "";
-  const filtered = filterFeedbackByRange(dateRangeSelect?.value || "7");
+  const filtered = getFilteredFeedback();
   if (!filtered.length) {
     advancedFeedbackEmpty.style.display = "block";
     return;
@@ -221,15 +370,30 @@ function renderFeedback() {
       <td><span class="rating-pill ${f.rating >= 4 ? "rating-high" : "rating-low"}">${formatRating(f.rating)}</span></td>
       <td>${f.type || "private"}</td>
       <td>${(f.message || "").slice(0, 80)}${(f.message || "").length > 80 ? "…" : ""}</td>
-      <td><button class="btn ghost" data-action="ai" data-id="${f.id}">AI reply</button></td>
+      <td><span class="status-chip status-${f.status || "unread"}">${(f.status || "unread").replace("_", " ")}</span></td>
+      <td class="actions-cell">
+        <button class="btn ghost" data-action="reply" data-id="${f.id}">Open</button>
+        <button class="btn ghost" data-action="markFollow" data-id="${f.id}">Follow-up</button>
+      </td>
     `;
-    tr.querySelector("button")?.addEventListener("click", (e) => {
+    tr.querySelector('[data-action="reply"]')?.addEventListener("click", (e) => {
       e.stopPropagation();
       openFeedbackModal(f);
+    });
+    tr.querySelector('[data-action="markFollow"]')?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await updateFeedbackStatus(f.id, "follow_up");
+      await loadTasks();
+      renderFeedback();
     });
     tr.addEventListener("click", () => openFeedbackModal(f));
     advancedFeedbackBody.appendChild(tr);
   });
+}
+
+async function updateFeedbackStatus(id, status) {
+  await updateDoc(doc(db, "feedback", id), { status, updatedAt: serverTimestamp() });
+  feedbackCache = feedbackCache.map((f) => (f.id === id ? { ...f, status } : f));
 }
 
 function updateKPIs() {
@@ -303,6 +467,9 @@ function renderTrendChart(trendMap) {
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = "#9ca3af";
+    ctx.font = "12px Inter";
+    ctx.fillText(labels[i], x - 18, height - 6);
   });
 }
 
@@ -325,46 +492,6 @@ function renderDistribution(dist, total) {
     });
 }
 
-function keywordsForFeedback(message = "") {
-  const lower = message.toLowerCase();
-  const tags = [];
-  const themes = [
-    { key: "price", words: ["price", "expensive", "cheap", "cost"] },
-    { key: "speed", words: ["wait", "slow", "fast", "delay"] },
-    { key: "staff", words: ["staff", "service", "team", "employee", "support"] },
-    { key: "quality", words: ["quality", "excellent", "poor", "bad"] },
-    { key: "clean", words: ["clean", "dirty", "mess"] },
-  ];
-  themes.forEach((t) => {
-    if (t.words.some((w) => lower.includes(w))) tags.push(t.key);
-  });
-  if (!tags.length) tags.push("general");
-  return tags;
-}
-
-function buildInsights(feedbackList) {
-  const themesCount = new Map();
-  let sentimentTotal = 0;
-  feedbackList.forEach((f) => {
-    const tags = keywordsForFeedback(f.message || "");
-    tags.forEach((t) => themesCount.set(t, (themesCount.get(t) || 0) + 1));
-    sentimentTotal += sentimentFromRating(Number(f.rating || 0));
-  });
-
-  const sortedThemes = Array.from(themesCount.entries()).sort((a, b) => b[1] - a[1]);
-  const topThemes = sortedThemes.slice(0, 5).map(([label, count]) => ({ label, count }));
-  const overallSentiment = feedbackList.length
-    ? Number((sentimentTotal / feedbackList.length).toFixed(2))
-    : 0;
-  const summary = feedbackList.length
-    ? `Customers recently mentioned ${topThemes.map((t) => t.label).join(", ")} with an overall sentiment of ${overallSentiment}.`
-    : "Not enough feedback yet for insights.";
-  const recommendations = topThemes.map((t) => `Act on ${t.label} mentions; respond within the same day.`);
-  if (!recommendations.length) recommendations.push("Collect more feedback to unlock insights.");
-
-  return { summary, topThemes, sentimentScore: overallSentiment, recommendations };
-}
-
 async function loadAiInsights() {
   const ref = doc(db, "aiInsights", currentUser.uid);
   const snap = await getDoc(ref);
@@ -377,17 +504,14 @@ async function loadAiInsights() {
 
 async function refreshInsights() {
   const feedbackSample = feedbackCache.slice(0, 100);
-  const insights = buildInsights(feedbackSample);
+  const insights = await AIService.generateInsights(feedbackSample);
   const payload = {
     businessId: currentUser.uid,
     generatedAt: serverTimestamp(),
-    summary: insights.summary,
-    topThemes: insights.topThemes,
-    sentimentScore: insights.sentimentScore,
-    topRecommendations: insights.recommendations,
+    ...insights,
   };
   await setDoc(doc(db, "aiInsights", currentUser.uid), payload, { merge: true });
-  renderInsights(payload);
+  renderInsights({ ...insights, generatedAt: new Date() });
   console.log("AI insights refreshed (heuristic)", payload);
 }
 
@@ -406,28 +530,27 @@ function renderInsights(data) {
     aiRecommendations.appendChild(li);
   });
   aiSentiment.textContent = data.sentimentScore != null ? data.sentimentScore : "–";
-}
-
-function generateAIReply(feedback) {
-  const rating = Number(feedback.rating || 0);
-  const message = feedback.message || "";
-  const keywords = keywordsForFeedback(message).join(", ");
-  if (rating <= 3) {
-    return `Hi ${feedback.customerName || "there"}, I appreciate you sharing this. I'm sorry about the issues (${keywords}). I want to fix this for you immediately—please reply or call us so we can make it right.`;
+  if (data.generatedAt && insightsUpdated) {
+    const d = data.generatedAt.toDate ? data.generatedAt.toDate() : new Date(data.generatedAt);
+    insightsUpdated.textContent = `Last updated ${d.toLocaleString()}`;
   }
-  return `Hi ${feedback.customerName || "there"}, thank you for the ${rating}★ feedback! We love hearing about ${keywords}. We'd be grateful if you shared this on Google and we hope to see you again soon.`;
 }
 
-function openFeedbackModal(feedback) {
+async function openFeedbackModal(feedback) {
   currentModalFeedback = feedback;
   modalDate.textContent = formatDate(feedback.createdAt);
   modalCustomer.textContent = feedback.customerName || "Customer";
   modalRating.textContent = formatRating(feedback.rating);
   modalType.textContent = feedback.type || "private";
   modalMessage.textContent = feedback.message || "—";
-  modalAiReply.value = generateAIReply(feedback);
+  modalAiReply.value = await AIService.suggestReply(feedback);
+  modalNextAction.textContent = await AIService.suggestNextAction(feedback);
   feedbackModal.classList.add("visible");
   feedbackModal.setAttribute("aria-hidden", "false");
+  if (feedback.status === "unread") {
+    await updateFeedbackStatus(feedback.id, "needs_reply");
+    renderFeedback();
+  }
 }
 
 function closeFeedbackModal() {
@@ -440,6 +563,10 @@ feedbackModal?.addEventListener("click", (e) => {
   if (e.target === feedbackModal) closeFeedbackModal();
 });
 
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeFeedbackModal();
+});
+
 copyReplyBtn?.addEventListener("click", async () => {
   if (!modalAiReply.value) return;
   try {
@@ -449,6 +576,13 @@ copyReplyBtn?.addEventListener("click", async () => {
   } catch (err) {
     alert("Could not copy reply");
   }
+});
+
+markRepliedBtn?.addEventListener("click", async () => {
+  if (!currentModalFeedback) return;
+  await updateFeedbackStatus(currentModalFeedback.id, "replied");
+  renderFeedback();
+  closeFeedbackModal();
 });
 
 createTaskBtn?.addEventListener("click", async () => {
@@ -467,6 +601,7 @@ createTaskBtn?.addEventListener("click", async () => {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  await updateFeedbackStatus(f.id, "follow_up");
   await loadTasks();
   closeFeedbackModal();
   console.log("Created follow-up task from feedback", f.id);
@@ -475,6 +610,10 @@ createTaskBtn?.addEventListener("click", async () => {
 dateRangeSelect?.addEventListener("change", () => {
   renderFeedback();
   updateKPIs();
+});
+
+[filterRating, filterType, filterStatus].forEach((el) => {
+  el?.addEventListener("change", renderFeedback);
 });
 
 function fillTemplate(template, sample) {
@@ -551,6 +690,21 @@ async function loadAutomations() {
   renderAutomations();
 }
 
+function describeTrigger(auto) {
+  switch (auto.trigger) {
+    case "low_rating":
+      return "Low rating (1–3★)";
+    case "high_rating":
+      return "High rating (4–5★)";
+    case "new_google_review":
+      return "New Google review";
+    case "no_response_x_days":
+      return `No follow-up after ${auto.noResponseDays || 3} days`;
+    default:
+      return auto.trigger;
+  }
+}
+
 function renderAutomations() {
   automationList.innerHTML = "";
   if (!automationCache.length) {
@@ -561,7 +715,7 @@ function renderAutomations() {
     const div = document.createElement("div");
     div.className = "list-item";
     div.innerHTML = `
-      <div class="title">${auto.trigger} → ${auto.type}</div>
+      <div class="title">${describeTrigger(auto)} → ${auto.type.toUpperCase()}</div>
       <div class="meta">${(auto.template || "").split("\n")[0]}</div>
       <div class="meta">${auto.enabled ? "On" : "Off"} · Updated ${formatDate(auto.updatedAt)}</div>
     `;
@@ -635,11 +789,16 @@ async function loadTasks() {
 
 function renderTasks() {
   tasksList.innerHTML = "";
-  if (!taskCache.length) {
+  const filtered = taskCache.filter((t) => {
+    const statusOk = taskStatusFilter.value === "all" || t.status === taskStatusFilter.value;
+    const priorityOk = taskPriorityFilter.value === "all" || t.priority === taskPriorityFilter.value;
+    return statusOk && priorityOk;
+  });
+  if (!filtered.length) {
     tasksList.textContent = "No tasks yet.";
     return;
   }
-  taskCache.forEach((t) => {
+  filtered.forEach((t) => {
     const div = document.createElement("div");
     const due = t.dueDate ? formatDate(t.dueDate) : "No due date";
     div.className = "list-item" + (isOverdue(t) ? " task-overdue" : "");
@@ -658,7 +817,12 @@ function isOverdue(task) {
   return dueMs < Date.now();
 }
 
-function showTaskDetail(task) {
+async function updateTaskField(taskId, payload) {
+  await updateDoc(doc(db, "tasks", taskId), { ...payload, updatedAt: serverTimestamp() });
+  await loadTasks();
+}
+
+async function showTaskDetail(task) {
   taskDetail.innerHTML = "";
   const feedback = feedbackCache.find((f) => f.id === task.feedbackId);
   const statusSelect = document.createElement("select");
@@ -670,8 +834,18 @@ function showTaskDetail(task) {
     statusSelect.appendChild(opt);
   });
   statusSelect.addEventListener("change", async () => {
-    await updateDoc(doc(db, "tasks", task.id), { status: statusSelect.value, updatedAt: serverTimestamp() });
-    await loadTasks();
+    await updateTaskField(task.id, { status: statusSelect.value });
+  });
+
+  const dueInput = document.createElement("input");
+  dueInput.type = "date";
+  if (task.dueDate) {
+    const d = task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate);
+    dueInput.value = d.toISOString().slice(0, 10);
+  }
+  dueInput.addEventListener("change", async () => {
+    const newDate = dueInput.value ? new Date(`${dueInput.value}T12:00:00`) : null;
+    await updateTaskField(task.id, { dueDate: newDate });
   });
 
   const detail = document.createElement("div");
@@ -683,12 +857,19 @@ function showTaskDetail(task) {
     <div class="meta">Customer: ${feedback?.customerName || ""}</div>
   `;
   taskDetail.appendChild(detail);
-  taskDetail.appendChild(statusSelect);
+  const controls = document.createElement("div");
+  controls.className = "button-row";
+  controls.appendChild(statusSelect);
+  controls.appendChild(dueInput);
+  taskDetail.appendChild(controls);
   const aiNext = document.createElement("div");
   aiNext.className = "ai-summary";
-  aiNext.textContent = generateAIReply(feedback || { rating: 3, customerName: "customer" });
+  aiNext.textContent = await AIService.suggestNextAction(feedback || { rating: 3, customerName: "customer" });
   taskDetail.appendChild(aiNext);
 }
+
+taskStatusFilter?.addEventListener("change", renderTasks);
+taskPriorityFilter?.addEventListener("change", renderTasks);
 
 notificationForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -734,7 +915,8 @@ reviewRequestForm?.addEventListener("submit", async (e) => {
     updatedAt: serverTimestamp(),
   };
   await addDoc(collection(db, "reviewRequests"), payload);
-  console.log(`Would send ${payload.channel} review request to`, payload.customerName);
+  const portalLink = `${window.location.origin}/portal.html?b=${currentUser.uid}`;
+  console.log(`Would send ${payload.channel} review request to`, payload.customerName, "with link", portalLink);
   reviewRequestForm.reset();
   await loadReviewRequests();
 });
@@ -764,11 +946,12 @@ async function loadReviewRequests() {
       <td>${r.customerName || "Customer"}</td>
       <td>${r.channel}</td>
       <td><span class="rating-chip-small">${r.status}</span></td>
-      <td><button class="btn ghost" data-id="${r.id}">Mark sent</button></td>
+      <td><button class="btn ghost" data-id="${r.id}">${r.status === "sent" ? "Mark completed" : "Mark sent"}</button></td>
     `;
     tr.querySelector("button")?.addEventListener("click", async () => {
-      await updateDoc(doc(db, "reviewRequests", r.id), { status: "sent", updatedAt: serverTimestamp() });
-      console.log(`Marked request ${r.id} as sent`);
+      const newStatus = r.status === "sent" ? "completed" : "sent";
+      await updateDoc(doc(db, "reviewRequests", r.id), { status: newStatus, updatedAt: serverTimestamp() });
+      console.log(`Marked request ${r.id} as ${newStatus}`);
       await loadReviewRequests();
     });
     reviewRequestsBody.appendChild(tr);
@@ -777,11 +960,5 @@ async function loadReviewRequests() {
 
 refreshInsightsBtn?.addEventListener("click", refreshInsights);
 refreshInsightsSecondary?.addEventListener("click", refreshInsights);
-
-if (feedbackModal) {
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeFeedbackModal();
-  });
-}
 
 export {};
