@@ -36,6 +36,9 @@ const bannerDismiss = document.getElementById("bannerDismiss");
 const navButtons = document.querySelectorAll(".nav-link[data-target]");
 const insightsUpdated = document.getElementById("insightsUpdated");
 
+// כל הסקשנים – לטאבים
+const sections = document.querySelectorAll(".section");
+
 // KPIs + charts
 const kpiPublicReviews = document.getElementById("kpiPublicReviews");
 const kpiAvgRating = document.getElementById("kpiAvgRating");
@@ -52,7 +55,9 @@ const aiThemes = document.getElementById("aiThemes");
 const aiRecommendations = document.getElementById("aiRecommendations");
 const aiSentiment = document.getElementById("aiSentiment");
 const refreshInsightsBtn = document.getElementById("refreshInsightsBtn");
-const refreshInsightsSecondary = document.getElementById("refreshInsightsSecondary");
+const refreshInsightsSecondary = document.getElementById(
+  "refreshInsightsSecondary"
+);
 const askReviewsBtn = document.getElementById("askReviewsBtn");
 
 // Feedback inbox
@@ -81,7 +86,9 @@ const automationId = document.getElementById("automationId");
 const automationTrigger = document.getElementById("automationTrigger");
 const automationChannel = document.getElementById("automationChannel");
 const automationDelay = document.getElementById("automationDelay");
-const automationNoResponseDays = document.getElementById("automationNoResponseDays");
+const automationNoResponseDays = document.getElementById(
+  "automationNoResponseDays"
+);
 const automationTemplate = document.getElementById("automationTemplate");
 const automationPreview = document.getElementById("automationPreview");
 const automationCancel = document.getElementById("automationCancel");
@@ -309,16 +316,32 @@ function keywordsForFeedback(message = "") {
   return tags;
 }
 
-// ---------- NAVIGATION BUTTONS ----------
+// ---------- NAVIGATION (tabs behavior) ----------
+
+function showSection(targetKey) {
+  const targetId = `section-${targetKey}`;
+  sections.forEach((sec) => {
+    if (sec.id === targetId) {
+      sec.classList.remove("section-hidden");
+    } else {
+      sec.classList.add("section-hidden");
+    }
+  });
+}
 
 navButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
+    const target = btn.dataset.target;
+    if (!target) return;
+
     navButtons.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
-    const target = document.getElementById(`section-${btn.dataset.target}`);
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    showSection(target);
   });
 });
+
+// מצב התחלתי – רק Overview
+showSection("overview");
 
 // ---------- AUTH & INITIAL LOAD ----------
 
@@ -362,6 +385,7 @@ onAuthStateChanged(auth, async (user) => {
 
 async function loadProfile() {
   try {
+    if (!currentUser) return false;
     const ref = doc(db, "businessProfiles", currentUser.uid);
     const snap = await getDoc(ref);
 
@@ -411,6 +435,7 @@ function filterFeedbackByRange(rangeValue) {
 
 async function loadFeedback() {
   try {
+    if (!currentUser) return;
     const ref = collection(db, "feedback");
     const q = query(
       ref,
@@ -444,13 +469,16 @@ function getFilteredFeedback() {
   const byRange = filterFeedbackByRange(dateRangeSelect?.value || "7");
   return byRange.filter((f) => {
     const ratingOk =
-      !filterRating || filterRating.value === "all" ||
+      !filterRating ||
+      filterRating.value === "all" ||
       Number(filterRating.value) === Number(f.rating);
     const typeOk =
-      !filterType || filterType.value === "all" ||
+      !filterType ||
+      filterType.value === "all" ||
       (f.type || "private").toLowerCase() === filterType.value;
     const statusOk =
-      !filterStatus || filterStatus.value === "all" ||
+      !filterStatus ||
+      filterStatus.value === "all" ||
       (f.status || "new") === filterStatus.value;
     return ratingOk && typeOk && statusOk;
   });
@@ -473,10 +501,13 @@ function renderFeedback() {
     const tr = document.createElement("tr");
     const statusLabel = (f.status || "new").replace("_", " ");
 
+    const rating = Number(f.rating || 0);
+    const ratingClass = rating >= 4 ? "rating-high" : "rating-low";
+
     tr.innerHTML = `
       <td>${formatDate(f.createdAt)}</td>
       <td>${f.customerName || "Customer"}</td>
-      <td><span class="rating-pill ${f.rating >= 4 ? "rating-high" : "rating-low"}">${formatRating(
+      <td><span class="rating-pill ${ratingClass}">${formatRating(
         f.rating
       )}</span></td>
       <td>${f.type || "private"}</td>
@@ -563,7 +594,9 @@ function renderTrendChart(trendMap) {
   const ctx = trendChart.getContext("2d");
   if (!ctx) return;
 
-  const entries = Array.from(trendMap.entries()).sort((a, b) => (a[0] > b[0] ? 1 : -1));
+  const entries = Array.from(trendMap.entries()).sort((a, b) =>
+    a[0] > b[0] ? 1 : -1
+  );
   const labels = entries.map((e) => e[0]);
   const values = entries.map((e) => e[1]);
   const max = Math.max(...values, 5);
@@ -623,6 +656,7 @@ function renderDistribution(dist, total) {
 
 async function loadAiInsights() {
   try {
+    if (!currentUser) return;
     const ref = doc(db, "aiInsights", currentUser.uid);
     const snap = await getDoc(ref);
     if (snap.exists()) {
@@ -700,9 +734,10 @@ async function openFeedbackModal(feedback) {
   if (modalType) modalType.textContent = feedback.type || "private";
   if (modalMessage) modalMessage.textContent = feedback.message || "—";
 
-  if (modalAiReply) modalAiReply.value = await AIService.suggestReply(feedback);
-  if (modalNextAction) modalNextAction.textContent =
-    await AIService.suggestNextAction(feedback);
+  if (modalAiReply)
+    modalAiReply.value = await AIService.suggestReply(feedback);
+  if (modalNextAction)
+    modalNextAction.textContent = await AIService.suggestNextAction(feedback);
 
   feedbackModal.classList.add("visible");
   feedbackModal.setAttribute("aria-hidden", "false");
@@ -747,7 +782,7 @@ markRepliedBtn?.addEventListener("click", async () => {
 });
 
 createTaskBtn?.addEventListener("click", async () => {
-  if (!currentModalFeedback) return;
+  if (!currentModalFeedback || !currentUser) return;
   const f = currentModalFeedback;
   const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
 
@@ -841,24 +876,25 @@ function automationPreviewText(templateOverride) {
 }
 
 automationTemplate?.addEventListener("input", () => {
-  if (automationPreview)
-    automationPreview.textContent = automationPreviewText();
+  if (automationPreview) automationPreview.textContent = automationPreviewText();
 });
 
 automationCancel?.addEventListener("click", () => {
   automationForm?.reset();
   if (automationId) automationId.value = "";
-  if (automationPreview) automationPreview.textContent = "Preview will appear here.";
+  if (automationPreview)
+    automationPreview.textContent = "Preview will appear here.";
 });
 
 // ---------- AUTOMATIONS ----------
 
 automationDelete?.addEventListener("click", async () => {
-  if (!automationId?.value) return;
+  if (!automationId?.value || !currentUser) return;
   try {
     await updateDoc(doc(db, "automations", automationId.value), {
       deleted: true,
       enabled: false,
+      updatedAt: serverTimestamp(),
     });
     automationForm?.reset();
     automationId.value = "";
@@ -904,13 +940,13 @@ automationForm?.addEventListener("submit", async (e) => {
 });
 
 async function loadAutomations() {
-  if (!automationList) return;
+  if (!automationList || !currentUser) return;
   try {
-    const q = query(
+    const qObj = query(
       collection(db, "automations"),
       where("businessId", "==", currentUser.uid)
     );
-    const snap = await getDocs(q);
+    const snap = await getDocs(qObj);
     automationCache = snap.docs
       .filter((d) => !d.data().deleted)
       .map((d) => ({ id: d.id, ...d.data() }));
@@ -953,8 +989,8 @@ function renderAutomations() {
       <div class="title">${describeTrigger(auto)} → ${auto.type.toUpperCase()}</div>
       <div class="meta">${(auto.template || "").split("\n")[0]}</div>
       <div class="meta">${auto.enabled ? "On" : "Off"} · Updated ${formatDate(
-        auto.updatedAt
-      )}</div>
+      auto.updatedAt
+    )}</div>
     `;
 
     div.addEventListener("click", () => {
@@ -1040,14 +1076,14 @@ function evaluateAutomations(feedbackList) {
 // ---------- TASKS ----------
 
 async function loadTasks() {
-  if (!tasksList) return;
+  if (!tasksList || !currentUser) return;
   try {
-    const q = query(
+    const qObj = query(
       collection(db, "tasks"),
       where("businessId", "==", currentUser.uid),
       orderBy("createdAt", "desc")
     );
-    const snap = await getDocs(q);
+    const snap = await getDocs(qObj);
     taskCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderTasks();
   } catch (err) {
@@ -1061,10 +1097,12 @@ function renderTasks() {
 
   const filtered = taskCache.filter((t) => {
     const statusOk =
-      !taskStatusFilter || taskStatusFilter.value === "all" ||
+      !taskStatusFilter ||
+      taskStatusFilter.value === "all" ||
       t.status === taskStatusFilter.value;
     const priorityOk =
-      !taskPriorityFilter || taskPriorityFilter.value === "all" ||
+      !taskPriorityFilter ||
+      taskPriorityFilter.value === "all" ||
       t.priority === taskPriorityFilter.value;
     return statusOk && priorityOk;
   });
@@ -1196,7 +1234,7 @@ notificationForm?.addEventListener("submit", async (e) => {
 });
 
 async function loadNotifications() {
-  if (!notificationForm) return;
+  if (!notificationForm || !currentUser) return;
   try {
     const snap = await getDoc(doc(db, "notificationPrefs", currentUser.uid));
     if (!snap.exists()) return;
@@ -1207,7 +1245,8 @@ async function loadNotifications() {
     if (prefEmailHigh)
       prefEmailHigh.checked = !!(d.emailHighRating ?? d.emailAlertsHighRating);
     if (prefEmailGoogle)
-      prefEmailGoogle.checked = !!(d.emailGoogle ?? d.emailAlertsNewGoogleReview);
+      prefEmailGoogle.checked =
+        !!(d.emailGoogle ?? d.emailAlertsNewGoogleReview);
     if (prefSmsLow)
       prefSmsLow.checked = !!(d.smsLowRating ?? d.smsAlertsLowRating);
     if (prefSmsHigh)
@@ -1357,13 +1396,13 @@ askReviewsBtn?.addEventListener("click", () => {
 async function loadReviewRequests() {
   if (!reviewRequestsBody || !currentUser) return;
   try {
-    const q = query(
+    const qObj = query(
       collection(db, "reviewRequests"),
       where("businessId", "==", currentUser.uid),
       orderBy("createdAt", "desc"),
       limit(10)
     );
-    const snap = await getDocs(q);
+    const snap = await getDocs(qObj);
     const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     reviewRequestsBody.innerHTML = "";
