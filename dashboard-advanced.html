@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Advanced Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="dashboard-advanced.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <div class="brand-mark">RR</div>
+        <div class="brand-text">
+          <p class="brand-name">ReviewResQ</p>
+          <p class="brand-sub">Advanced</p>
+        </div>
+      </div>
+      <nav class="side-nav" id="sideNav">
+        <button class="nav-link active" data-target="overview">Overview</button>
+        <button class="nav-link" data-target="inbox">Reviews inbox</button>
+        <button class="nav-link" data-target="ai">AI Insights</button>
+        <button class="nav-link" data-target="automations">Automations</button>
+        <button class="nav-link" data-target="tasks">Follow-ups</button>
+        <button class="nav-link" data-target="requests">Review requests</button>
+        <button class="nav-link" data-target="notifications">Alerts</button>
+        <a class="nav-link ghost" href="/dashboard.html">Basic dashboard</a>
+      </nav>
+      <div class="side-footer">
+        <div class="user-block">
+          <p class="user-label">Signed in</p>
+          <p class="user-email" id="userEmailDisplay">Loading…</p>
+          <p class="user-plan" id="planBadge">Advanced plan</p>
+        </div>
+        <button class="btn ghost full" id="logoutBtn">Log out</button>
+      </div>
+    </aside>
+
+    <div class="content">
+      <header class="topbar">
+        <div class="biz-meta">
+          <div class="avatar" id="bizAvatar">RR</div>
+          <div>
+            <p class="eyebrow">Advanced overview</p>
+            <h1 id="bizNameDisplay">Your business</h1>
+            <div class="meta-row">
+              <span class="pill success" id="bizStatusBadge">Live</span>
+              <span class="pill" id="bizCategoryText">Category</span>
+              <span class="pill muted">Updated <span id="bizUpdatedAt">just now</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="top-actions">
+          <select id="dateRangeSelect" class="chip chip-soft">
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="all">All time</option>
+          </select>
+          <button class="btn secondary" id="refreshInsightsBtn">Refresh insights</button>
+          <button class="btn primary" id="askReviewsBtn">Ask for reviews</button>
+        </div>
+      </header>
+
+      <div id="globalBanner" class="global-banner">
+        <div class="banner-text" id="globalBannerText"></div>
+        <button class="icon-btn" id="bannerDismiss" aria-label="Dismiss alert">✕</button>
+      </div>
+
+      <section class="section" id="section-overview">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Pulse</p>
+            <h2>Overview</h2>
+            <p class="section-sub">Key metrics based on your selected date range.</p>
+          </div>
+        </div>
+        <div class="grid stats-grid" id="kpiGrid">
+          <div class="surface stat-card">
+            <p class="stat-label">Total public reviews</p>
+            <div class="stat-value" id="kpiPublicReviews">0</div>
+            <p class="stat-hint">Rating ≥ 4</p>
+          </div>
+          <div class="surface stat-card">
+            <p class="stat-label">Average rating</p>
+            <div class="stat-value" id="kpiAvgRating">–</div>
+            <p class="stat-hint">Selected date range</p>
+          </div>
+          <div class="surface stat-card">
+            <p class="stat-label">Low-rating feedback</p>
+            <div class="stat-value" id="kpiLowRating">0</div>
+            <p class="stat-hint">1–3★ private feedback</p>
+          </div>
+          <div class="surface stat-card">
+            <p class="stat-label">High-rating feedback</p>
+            <div class="stat-value" id="kpiHighRating">0</div>
+            <p class="stat-hint">4–5★ feedback</p>
+          </div>
+          <div class="surface stat-card">
+            <p class="stat-label">New Google-tagged</p>
+            <div class="stat-value" id="kpiGoogleTagged">0</div>
+            <p class="stat-hint">Google reviews in range</p>
+          </div>
+          <div class="surface stat-card">
+            <p class="stat-label">Average sentiment</p>
+            <div class="stat-value" id="kpiSentiment">–</div>
+            <p class="stat-hint">Based on ratings</p>
+          </div>
+        </div>
+        <div class="grid charts-grid">
+          <div class="surface card">
+            <div class="card-header">
+              <div>
+                <p class="eyebrow">Trends</p>
+                <h3>Reviews over time</h3>
+              </div>
+              <div class="card-hint">Daily/weekly activity</div>
+            </div>
+            <canvas id="trendChart" height="240"></canvas>
+          </div>
+          <div class="surface card">
+            <div class="card-header">
+              <div>
+                <p class="eyebrow">Distribution</p>
+                <h3>Rating breakdown</h3>
+              </div>
+              <div class="card-hint">1–5★ across the range</div>
+            </div>
+            <div id="ratingDistribution" class="rating-bars"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="section-inbox">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Inbox</p>
+            <h2>Reviews inbox</h2>
+            <p class="section-sub">Respond quickly, triage, and create follow-ups.</p>
+          </div>
+          <div class="filters-row">
+            <select id="filterRating" class="chip chip-soft">
+              <option value="all">All ratings</option>
+              <option value="5">5★</option>
+              <option value="4">4★</option>
+              <option value="3">3★</option>
+              <option value="2">2★</option>
+              <option value="1">1★</option>
+            </select>
+            <select id="filterType" class="chip chip-soft">
+              <option value="all">All types</option>
+              <option value="public">Public</option>
+              <option value="private">Private</option>
+              <option value="google">Google</option>
+            </select>
+            <select id="filterStatus" class="chip chip-soft">
+              <option value="all">Any status</option>
+              <option value="unread">Unread</option>
+              <option value="needs_reply">Needs reply</option>
+              <option value="replied">Replied</option>
+              <option value="follow_up">Follow-up created</option>
+            </select>
+          </div>
+        </div>
+        <div class="surface card">
+          <div class="table-wrap">
+            <table class="feedback-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th>Rating</th>
+                  <th>Type</th>
+                  <th>Message</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="advancedFeedbackBody"></tbody>
+            </table>
+            <div id="advancedFeedbackEmpty" class="feedback-empty">No feedback yet.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="section-ai">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Intelligence</p>
+            <h2>AI Insights</h2>
+            <p class="section-sub">Themes, sentiment, and recommended actions.</p>
+          </div>
+          <div class="section-actions">
+            <div id="insightsUpdated" class="muted-text"></div>
+            <button class="btn ghost" id="refreshInsightsSecondary">Refresh</button>
+          </div>
+        </div>
+        <div class="surface card ai-card">
+          <div id="aiSummary" class="ai-summary">Loading insights…</div>
+          <div class="ai-columns">
+            <div>
+              <p class="label">Top themes</p>
+              <ul id="aiThemes" class="bullet-list"></ul>
+            </div>
+            <div>
+              <p class="label">Recommendations</p>
+              <ul id="aiRecommendations" class="bullet-list"></ul>
+            </div>
+            <div>
+              <p class="label">Overall sentiment</p>
+              <div id="aiSentiment" class="sentiment-pill">–</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="section-automations">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Automation engine</p>
+            <h2>Rules</h2>
+            <p class="section-sub">Trigger messages or tasks automatically.</p>
+          </div>
+        </div>
+        <div class="grid main-grid">
+          <div class="surface card automation-card">
+            <div class="list-header">Existing automations</div>
+            <div id="automationList"></div>
+          </div>
+          <div class="surface card automation-card">
+            <div class="list-header">Create / edit rule</div>
+            <form id="automationForm" class="form-grid">
+              <input type="hidden" id="automationId" />
+              <label class="label">Trigger</label>
+              <select id="automationTrigger" required>
+                <option value="low_rating">Low rating (1–3★ private feedback)</option>
+                <option value="high_rating">High rating (4–5★)</option>
+                <option value="new_google_review">New Google review</option>
+                <option value="no_response_x_days">No follow-up after X days</option>
+              </select>
+              <label class="label">Channel</label>
+              <select id="automationChannel" required>
+                <option value="sms">SMS</option>
+                <option value="email">Email</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="internal_task">Internal task</option>
+              </select>
+              <label class="label">Delay (hours, optional)</label>
+              <input type="number" id="automationDelay" min="0" placeholder="0" />
+              <label class="label">No follow-up days (for no_response_x_days)</label>
+              <input type="number" id="automationNoResponseDays" min="0" placeholder="3" />
+              <label class="label">Template</label>
+              <textarea id="automationTemplate" rows="4" placeholder="Hi {{customerName}}, thanks for your feedback..." required></textarea>
+              <div class="preview" id="automationPreview">Preview will appear here.</div>
+              <div class="form-actions">
+                <button type="submit" class="btn primary">Save automation</button>
+                <button type="button" class="btn ghost" id="automationCancel">Cancel</button>
+                <button type="button" class="btn secondary" id="automationDelete">Delete</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="section-tasks">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Customer follow-ups</p>
+            <h2>Tasks</h2>
+            <p class="section-sub">Track what needs attention and keep customers delighted.</p>
+          </div>
+          <div class="filters-row">
+            <select id="taskStatusFilter" class="chip chip-soft">
+              <option value="all">All statuses</option>
+              <option value="open">Open</option>
+              <option value="in_progress">In progress</option>
+              <option value="done">Done</option>
+            </select>
+            <select id="taskPriorityFilter" class="chip chip-soft">
+              <option value="all">Any priority</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid main-grid">
+          <div class="surface card tasks-card">
+            <div class="list-header">Open tasks</div>
+            <div id="tasksList"></div>
+          </div>
+          <div class="surface card tasks-card detail">
+            <div class="list-header">Task detail</div>
+            <div class="tasks-detail" id="taskDetail">Select a task to see details.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="section-requests">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Outbound</p>
+            <h2>Review requests</h2>
+            <p class="section-sub">Invite happy customers to share their experience.</p>
+          </div>
+        </div>
+        <div class="grid main-grid">
+          <div class="surface card">
+            <form id="reviewRequestForm" class="simple-grid">
+              <input type="text" id="reqName" placeholder="Customer name" required />
+              <input type="tel" id="reqPhone" placeholder="Phone" />
+              <input type="email" id="reqEmail" placeholder="Email" />
+              <select id="reqChannel">
+                <option value="sms">SMS</option>
+                <option value="email">Email</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+              <button type="submit" class="btn primary full">Send request</button>
+            </form>
+          </div>
+          <div class="surface card">
+            <div class="list-header">Recent requests</div>
+            <div class="table-wrap compact">
+              <table class="feedback-table mini">
+                <thead>
+                  <tr>
+                    <th>Customer</th>
+                    <th>Channel</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="reviewRequestsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="section-notifications">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Alerts</p>
+            <h2>Alerts & notifications</h2>
+            <p class="section-sub">Never miss a critical review.</p>
+          </div>
+        </div>
+        <div class="surface card">
+          <form id="notificationForm" class="checkbox-grid">
+            <label><input type="checkbox" id="prefEmailLow" /> Email me for 1–2★ feedback</label>
+            <label><input type="checkbox" id="prefEmailHigh" /> Email me for 5★ feedback</label>
+            <label><input type="checkbox" id="prefEmailGoogle" /> Email me for new Google reviews</label>
+            <label><input type="checkbox" id="prefDaily" /> Send me a daily summary email</label>
+            <label><input type="checkbox" id="prefWeekly" /> Send me a weekly summary email</label>
+            <label><input type="checkbox" id="prefSmsLow" /> SMS alert for 1–2★ feedback</label>
+            <label><input type="checkbox" id="prefSmsHigh" /> SMS alert for 5★ feedback</label>
+            <button type="submit" class="btn primary">Save preferences</button>
+          </form>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="feedbackModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="feedbackModalTitle">
+    <div class="modal-content">
+      <button class="icon-btn close-btn" id="feedbackModalClose" aria-label="Close details">✕</button>
+      <p class="eyebrow">Feedback details</p>
+      <h3 id="feedbackModalTitle">Customer voice</h3>
+      <div class="modal-grid">
+        <div>
+          <p class="label">Date</p>
+          <p class="value" id="modalDate">—</p>
+        </div>
+        <div>
+          <p class="label">Customer</p>
+          <p class="value" id="modalCustomer">—</p>
+        </div>
+        <div>
+          <p class="label">Rating</p>
+          <p class="value" id="modalRating">—</p>
+        </div>
+        <div>
+          <p class="label">Type</p>
+          <p class="value" id="modalType">—</p>
+        </div>
+        <div>
+          <p class="label">Message</p>
+          <p class="value" id="modalMessage">—</p>
+        </div>
+        <div>
+          <p class="label">AI next action</p>
+          <p class="value" id="modalNextAction">—</p>
+        </div>
+      </div>
+      <div class="modal-section">
+        <p class="label">AI reply suggestion</p>
+        <textarea id="modalAiReply" rows="4" readonly></textarea>
+        <div class="button-row">
+          <button class="btn secondary" id="copyReplyBtn">Copy reply</button>
+          <button class="btn ghost" id="markRepliedBtn">Mark replied</button>
+          <button class="btn ghost" id="createTaskBtn">Create follow-up task</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="dashboard-advanced.js"></script>
+</body>
+</html>
