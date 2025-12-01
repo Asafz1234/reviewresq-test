@@ -48,6 +48,7 @@ function getInputs() {
     bizEmailInput: document.getElementById("bizEmailInput"),
     websiteInput: document.getElementById("websiteInput"),
     logoUrlInput: document.getElementById("logoUrlInput"),
+    planSelect: document.getElementById("plan"),
   };
 }
 
@@ -61,6 +62,7 @@ async function loadOnboarding(uid) {
     bizEmailInput,
     websiteInput,
     logoUrlInput,
+    planSelect,
   } = getInputs();
 
   try {
@@ -81,6 +83,7 @@ async function loadOnboarding(uid) {
     if (bizEmailInput) bizEmailInput.value = data.contactEmail || "";
     if (websiteInput) websiteInput.value = data.website || "";
     if (logoUrlInput) logoUrlInput.value = data.logoUrl || "";
+    if (planSelect) planSelect.value = data.plan || "basic";
   } catch (err) {
     console.error("[onboarding] Error loading data:", err);
     showError("Could not load your business details. Please try again.");
@@ -99,7 +102,10 @@ async function saveOnboarding(uid) {
     bizEmailInput,
     websiteInput,
     logoUrlInput,
+    planSelect,
   } = getInputs();
+
+  const selectedPlan = planSelect?.value === "advanced" ? "advanced" : "basic";
 
   const payload = {
     businessName: cleanValue(bizNameInput?.value),
@@ -108,6 +114,7 @@ async function saveOnboarding(uid) {
     contactEmail: cleanValue(bizEmailInput?.value),
     website: cleanValue(websiteInput?.value),
     logoUrl: cleanValue(logoUrlInput?.value),
+    plan: selectedPlan,
     onboardingComplete: true,
     updatedAt: serverTimestamp(),
   };
@@ -129,8 +136,12 @@ async function saveOnboarding(uid) {
   try {
     const ref = doc(db, "businessProfiles", uid);
     await setDoc(ref, payload, { merge: true });
-    console.log("[onboarding] Saved OK, redirecting to dashboard");
-    window.location.href = "/dashboard.html";
+    console.log(
+      `[onboarding] Saved OK with plan="${selectedPlan}" – redirecting to dashboard`
+    );
+    const redirectPath =
+      selectedPlan === "advanced" ? "/dashboard-advanced.html" : "/dashboard.html";
+    window.location.href = redirectPath;
   } catch (err) {
     console.error("[onboarding] Save failed:", err);
     showError("Could not save your business details. Please try again.");
