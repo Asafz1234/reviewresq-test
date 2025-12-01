@@ -50,6 +50,10 @@ const kpiLowRating = document.getElementById("kpiLowRating");
 const kpiHighRating = document.getElementById("kpiHighRating");
 const kpiGoogleTagged = document.getElementById("kpiGoogleTagged");
 const kpiSentiment = document.getElementById("kpiSentiment");
+const kpiSavedPositives = document.getElementById("kpiSavedPositives");
+const kpiPreventedNegatives = document.getElementById("kpiPreventedNegatives");
+const kpiPrivateFeedback = document.getElementById("kpiPrivateFeedback");
+const kpiConversionRate = document.getElementById("kpiConversionRate");
 const trendChart = document.getElementById("trendChart");
 const ratingDistribution = document.getElementById("ratingDistribution");
 
@@ -587,11 +591,34 @@ function updateKPIs() {
   let googleCount = 0;
   let ratingSum = 0;
   let sentimentTotal = 0;
+  let savedPositives = 0;
+  let preventedNegatives = 0;
+  let privateFeedbackCount = 0;
+  let googleHigh = 0;
+  let happyViaPortal = 0;
   const trendMap = new Map();
   const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
   filtered.forEach((f) => {
     const rating = Number(f.rating || 0);
+    const type = (f.type || "private").toLowerCase();
+
+    if (type !== "google") {
+      privateFeedbackCount += 1;
+    }
+
+    if (rating >= 4 && type !== "google") {
+      savedPositives += 1;
+      happyViaPortal += 1;
+    }
+
+    if (rating > 0 && rating <= 3 && type !== "google") {
+      preventedNegatives += 1;
+    }
+
+    if (type === "google" && rating >= 4) {
+      googleHigh += 1;
+    }
     if (rating) distribution[rating] = (distribution[rating] || 0) + 1;
     ratingSum += rating;
     sentimentTotal += sentimentFromRating(rating);
@@ -603,7 +630,7 @@ function updateKPIs() {
       lowCount += 1;
     }
 
-    if ((f.type || "").toLowerCase() === "google") googleCount += 1;
+    if (type === "google") googleCount += 1;
 
     const key = formatDateKey(f.createdAt);
     trendMap.set(key, (trendMap.get(key) || 0) + 1);
@@ -611,6 +638,12 @@ function updateKPIs() {
 
   const avgRating = filtered.length ? (ratingSum / filtered.length).toFixed(2) : "–";
   const avgSentiment = filtered.length ? (sentimentTotal / filtered.length).toFixed(2) : "–";
+  const totalHappy = happyViaPortal + googleHigh;
+  let conversionRateText = "–";
+  if (totalHappy > 0) {
+    const conversionPercent = Math.round((googleHigh / totalHappy) * 100);
+    conversionRateText = `${conversionPercent}%`;
+  }
 
   if (kpiPublicReviews) kpiPublicReviews.textContent = String(publicCount);
   if (kpiAvgRating) kpiAvgRating.textContent = avgRating;
@@ -618,6 +651,11 @@ function updateKPIs() {
   if (kpiHighRating) kpiHighRating.textContent = String(highCount);
   if (kpiGoogleTagged) kpiGoogleTagged.textContent = String(googleCount);
   if (kpiSentiment) kpiSentiment.textContent = avgSentiment;
+  if (kpiSavedPositives) kpiSavedPositives.textContent = String(savedPositives);
+  if (kpiPreventedNegatives)
+    kpiPreventedNegatives.textContent = String(preventedNegatives);
+  if (kpiPrivateFeedback) kpiPrivateFeedback.textContent = String(privateFeedbackCount);
+  if (kpiConversionRate) kpiConversionRate.textContent = conversionRateText;
 
   renderTrendChart(trendMap);
   renderDistribution(distribution, filtered.length || 1);
