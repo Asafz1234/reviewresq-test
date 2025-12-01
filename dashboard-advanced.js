@@ -34,6 +34,10 @@ const globalBanner = document.getElementById("globalBanner");
 const globalBannerText = document.getElementById("globalBannerText");
 const bannerDismiss = document.getElementById("bannerDismiss");
 const navButtons = document.querySelectorAll(".nav-link[data-target]");
+const navTriggers = document.querySelectorAll("[data-target]");
+const mobileMoreBtn = document.getElementById("mobileMoreBtn");
+const mobileMoreSheet = document.getElementById("mobileMoreSheet");
+const mobileSheetClose = document.getElementById("mobileSheetClose");
 const insightsUpdated = document.getElementById("insightsUpdated");
 
 // כל הסקשנים – לטאבים
@@ -329,19 +333,49 @@ function showSection(targetKey) {
   });
 }
 
-navButtons.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const target = btn.dataset.target;
-    if (!target) return;
-
-    navButtons.forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    showSection(target);
+function setActiveNav(targetKey) {
+  navButtons.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.target === targetKey);
   });
+}
+
+function closeMobileSheet() {
+  if (mobileMoreSheet) {
+    mobileMoreSheet.classList.remove("open");
+    mobileMoreSheet.setAttribute("aria-hidden", "true");
+  }
+}
+
+function navigateTo(targetKey) {
+  if (!targetKey) return;
+  setActiveNav(targetKey);
+  showSection(targetKey);
+  closeMobileSheet();
+}
+
+navTriggers.forEach((trigger) => {
+  trigger.addEventListener("click", () => navigateTo(trigger.dataset.target));
 });
 
+if (mobileMoreBtn && mobileMoreSheet) {
+  mobileMoreBtn.addEventListener("click", () => {
+    mobileMoreSheet.classList.add("open");
+    mobileMoreSheet.setAttribute("aria-hidden", "false");
+  });
+}
+
+if (mobileMoreSheet) {
+  mobileMoreSheet.addEventListener("click", (event) => {
+    if (event.target === mobileMoreSheet) closeMobileSheet();
+  });
+}
+
+if (mobileSheetClose) {
+  mobileSheetClose.addEventListener("click", closeMobileSheet);
+}
+
 // מצב התחלתי – רק Overview
-showSection("overview");
+navigateTo("overview");
 
 // ---------- AUTH & INITIAL LOAD ----------
 

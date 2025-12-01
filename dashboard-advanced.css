@@ -97,6 +97,83 @@ body {
   font-size: 14px;
 }
 
+.mobile-tabs {
+  display: none;
+}
+
+.mobile-info-card {
+  display: none;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin: 8px 0 4px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.mobile-info-card .info-link {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-weight: 700;
+  padding: 0 2px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.mobile-more-sheet {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 20;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 12px 20px;
+}
+
+.mobile-more-sheet.open {
+  display: flex;
+}
+
+.mobile-more-sheet .sheet-surface {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: var(--card-shadow);
+  padding: 16px;
+}
+
+.mobile-more-sheet .sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.mobile-more-sheet .sheet-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.mobile-more-sheet .sheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-more-sheet .nav-link {
+  width: 100%;
+  text-align: left;
+}
+
+.mobile-more-sheet .nav-link.ghost {
+  text-align: left;
+}
+
 .nav-link:hover,
 .nav-link.active {
   background: var(--panel-soft);
@@ -817,5 +894,60 @@ h3 {
   .topbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .content {
+    padding: 16px 14px 32px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .top-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .top-actions .btn,
+  .top-actions select {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .mobile-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px 0;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 8px;
+  }
+
+  .mobile-tabs .nav-link {
+    flex: 0 0 auto;
+    background: var(--panel);
+    border-color: var(--border);
+  }
+
+  .mobile-tabs .nav-link.active {
+    background: var(--panel-soft);
+  }
+
+  .mobile-info-card {
+    display: block;
   }
 }

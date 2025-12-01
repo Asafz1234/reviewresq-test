@@ -69,6 +69,41 @@
         </div>
       </header>
 
+      <div class="mobile-info-card" id="mobileInfoCard">
+        <strong>Your Advanced tools:</strong>
+        <button class="info-link" type="button" data-target="inbox">Inbox</button>,
+        <button class="info-link" type="button" data-target="ai">AI Insights</button>,
+        <button class="info-link" type="button" data-target="automations">Automations</button>,
+        <button class="info-link" type="button" data-target="tasks">Follow-ups</button>,
+        <button class="info-link" type="button" data-target="requests">Review requests</button>,
+        <button class="info-link" type="button" data-target="portal">Portal branding</button>,
+        <button class="info-link" type="button" data-target="notifications">Alerts</button>.
+      </div>
+
+      <div class="mobile-tabs" id="mobileTabs">
+        <button class="nav-link" type="button" data-target="overview">Overview</button>
+        <button class="nav-link" type="button" data-target="inbox">Inbox</button>
+        <button class="nav-link" type="button" data-target="ai">AI</button>
+        <button class="nav-link" type="button" data-target="automations">Automations</button>
+        <button class="nav-link" type="button" id="mobileMoreBtn">More ▾</button>
+      </div>
+
+      <div class="mobile-more-sheet" id="mobileMoreSheet" aria-hidden="true">
+        <div class="sheet-surface">
+          <div class="sheet-header">
+            <p class="sheet-title">More tools</p>
+            <button class="btn ghost" type="button" id="mobileSheetClose">Close</button>
+          </div>
+          <div class="sheet-list">
+            <button class="nav-link" type="button" data-target="tasks">Follow-ups</button>
+            <button class="nav-link" type="button" data-target="requests">Review requests</button>
+            <button class="nav-link" type="button" data-target="portal">Portal branding</button>
+            <button class="nav-link" type="button" data-target="notifications">Alerts</button>
+            <a class="nav-link ghost" href="/dashboard.html">Basic dashboard</a>
+          </div>
+        </div>
+      </div>
+
       <div id="globalBanner" class="global-banner">
         <div class="banner-text" id="globalBannerText"></div>
         <button class="icon-btn" id="bannerDismiss" aria-label="Dismiss alert">✕</button>
