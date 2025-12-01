@@ -1515,9 +1515,30 @@ reviewRequestForm?.addEventListener("submit", async (e) => {
   }
 });
 
-askReviewsBtn?.addEventListener("click", () => {
-  reviewRequestForm?.scrollIntoView({ behavior: "smooth" });
-  reqName?.focus();
+askReviewsBtn?.addEventListener("click", (event) => {
+  event.preventDefault();
+
+  // 1) Activate the "Review requests" nav item
+  const requestsNav = document.querySelector('.nav-link[data-target="requests"]');
+  if (requestsNav) {
+    // remove active from others
+    navButtons.forEach((btn) => btn.classList.remove("active"));
+    requestsNav.classList.add("active");
+  }
+
+  // 2) Scroll to the Review requests section
+  const requestsSection = document.getElementById("section-requests");
+  if (requestsSection) {
+    requestsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else if (reviewRequestForm) {
+    // fallback – scroll directly to the form if section id changes
+    reviewRequestForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // 3) Focus the "Customer name" field
+  if (reqName) {
+    reqName.focus();
+  }
 });
 
 async function loadReviewRequests() {
