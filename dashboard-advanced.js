@@ -40,8 +40,19 @@ const mobileMoreSheet = document.getElementById("mobileMoreSheet");
 const mobileSheetClose = document.getElementById("mobileSheetClose");
 const insightsUpdated = document.getElementById("insightsUpdated");
 
-// כל הסקשנים – לטאבים
+// כל סקשני הדשבורד
 const sections = document.querySelectorAll(".section");
+
+// מציג רק סקשן אחד ומסתיר את השאר
+function showSection(sectionId) {
+  sections.forEach((sec) => {
+    if (sec.id === sectionId) {
+      sec.classList.remove("hidden-section");
+    } else {
+      sec.classList.add("hidden-section");
+    }
+  });
+}
 
 // KPIs + charts
 const kpiPublicReviews = document.getElementById("kpiPublicReviews");
@@ -324,62 +335,22 @@ function keywordsForFeedback(message = "") {
   return tags;
 }
 
-// ---------- NAVIGATION (tabs behavior) ----------
+// ---------- NAVIGATION BUTTONS ----------
 
-function showSection(targetKey) {
-  const targetId = `section-${targetKey}`;
-  sections.forEach((sec) => {
-    if (sec.id === targetId) {
-      sec.classList.remove("section-hidden");
-    } else {
-      sec.classList.add("section-hidden");
-    }
+// בהתחלה – להציג רק את ה-Overview
+showSection("section-overview");
+
+navButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    // מעדכן מצב active בסיידבר
+    navButtons.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // מציג רק את הסקשן המתאים
+    const sectionId = `section-${btn.dataset.target}`;
+    showSection(sectionId);
   });
-}
-
-function setActiveNav(targetKey) {
-  navButtons.forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.target === targetKey);
-  });
-}
-
-function closeMobileSheet() {
-  if (mobileMoreSheet) {
-    mobileMoreSheet.classList.remove("open");
-    mobileMoreSheet.setAttribute("aria-hidden", "true");
-  }
-}
-
-function navigateTo(targetKey) {
-  if (!targetKey) return;
-  setActiveNav(targetKey);
-  showSection(targetKey);
-  closeMobileSheet();
-}
-
-navTriggers.forEach((trigger) => {
-  trigger.addEventListener("click", () => navigateTo(trigger.dataset.target));
 });
-
-if (mobileMoreBtn && mobileMoreSheet) {
-  mobileMoreBtn.addEventListener("click", () => {
-    mobileMoreSheet.classList.add("open");
-    mobileMoreSheet.setAttribute("aria-hidden", "false");
-  });
-}
-
-if (mobileMoreSheet) {
-  mobileMoreSheet.addEventListener("click", (event) => {
-    if (event.target === mobileMoreSheet) closeMobileSheet();
-  });
-}
-
-if (mobileSheetClose) {
-  mobileSheetClose.addEventListener("click", closeMobileSheet);
-}
-
-// מצב התחלתי – רק Overview
-navigateTo("overview");
 
 // ---------- AUTH & INITIAL LOAD ----------
 
@@ -1574,32 +1545,19 @@ refreshInsightsSecondary?.addEventListener("click", refreshInsights);
 
 // ---------- ASK FOR REVIEWS BUTTON ----------
 
-function goToReviewRequestsSection() {
-  // highlight the "Review requests" tab in the left nav
-  const requestsNav = document.querySelector('.nav-link[data-target="requests"]');
-  if (requestsNav) {
-    navButtons.forEach((btn) => btn.classList.remove("active"));
-    requestsNav.classList.add("active");
-  }
+askReviewsBtn?.addEventListener("click", () => {
+  // בטאב־סרגל – לעבור ל-Review requests
+  navButtons.forEach((b) => b.classList.remove("active"));
+  const reviewNav = document.querySelector('.nav-link[data-target="requests"]');
+  reviewNav?.classList.add("active");
 
-  // scroll to the Review requests section
-  const requestsSection = document.getElementById("section-requests");
-  if (requestsSection) {
-    requestsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-  } else if (reviewRequestForm) {
-    reviewRequestForm.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  // להציג רק את הסקשן של Review requests
+  showSection("section-requests");
 
-  // put the cursor in the "Customer name" field
-  if (reqName) {
-    reqName.focus();
-  }
-}
-
-// make the purple button use this behavior
-askReviewsBtn?.addEventListener("click", (event) => {
-  event.preventDefault();
-  goToReviewRequestsSection();
+  // אחרי שהעמוד מוצג – פוקוס לשם הלקוח
+  setTimeout(() => {
+    reqName?.focus();
+  }, 200);
 });
 
 // Module marker so the file is treated as an ES module.
