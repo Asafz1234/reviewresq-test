@@ -40,8 +40,64 @@ const mobileMoreSheet = document.getElementById("mobileMoreSheet");
 const mobileSheetClose = document.getElementById("mobileSheetClose");
 const insightsUpdated = document.getElementById("insightsUpdated");
 
-// כל הסקשנים – לטאבים
+// כל סקשני הדשבורד
 const sections = document.querySelectorAll(".section");
+
+// מציג רק סקשן אחד ומסתיר את השאר
+function showSection(sectionId) {
+  sections.forEach((sec) => {
+    if (sec.id === sectionId) {
+      sec.classList.remove("hidden-section");
+    } else {
+      sec.classList.add("hidden-section");
+    }
+  });
+}
+
+// יוצר משימת follow-up מקושרת ל-feedback
+async function createFollowupTaskForFeedback(feedback, options = { openTasksAfter: false }) {
+  if (!currentUser || !feedback) return;
+
+  const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // עוד 3 ימים
+
+  try {
+    await addDoc(collection(db, "tasks"), {
+      businessId: currentUser.uid,
+      feedbackId: feedback.id,
+      title: `Follow up with ${feedback.customerName || "customer"} (${feedback.rating}★)`,
+      description: feedback.message || "",
+      status: "open",
+      assignee: null,
+      priority: feedback.rating <= 2 ? "high" : "medium",
+      dueDate,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // מעדכן את ה-feedback כ-followup
+    await updateFeedbackStatus(feedback.id, "followup");
+    await loadFeedback(); // <-- חדש: מרענן את רשימת הביקורות מיד
+    await loadTasks();
+
+    if (currentModalFeedback?.id === feedback.id) {
+      currentModalFeedback.status = "followup";
+      refreshFeedbackModal();
+    }
+
+    // פותח את מסך ה-Follow-ups אם ביקשנו
+    if (options.openTasksAfter) {
+      navButtons.forEach((b) => b.classList.remove("active"));
+      const followNav = document.querySelector('.nav-link[data-target="tasks"]');
+      followNav?.classList.add("active");
+      showSection("section-tasks");
+    }
+
+    showBanner("Follow-up task created.", "success");
+  } catch (err) {
+    console.error("createFollowupTaskForFeedback error:", err);
+    showBanner("Could not create follow-up task.", "warn");
+  }
+}
 
 // KPIs + charts
 const kpiPublicReviews = document.getElementById("kpiPublicReviews");
@@ -324,62 +380,22 @@ function keywordsForFeedback(message = "") {
   return tags;
 }
 
-// ---------- NAVIGATION (tabs behavior) ----------
+// ---------- NAVIGATION BUTTONS ----------
 
-function showSection(targetKey) {
-  const targetId = `section-${targetKey}`;
-  sections.forEach((sec) => {
-    if (sec.id === targetId) {
-      sec.classList.remove("section-hidden");
-    } else {
-      sec.classList.add("section-hidden");
-    }
+// בהתחלה – להציג רק את ה-Overview
+showSection("section-overview");
+
+navButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    // מעדכן מצב active בסיידבר
+    navButtons.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // מציג רק את הסקשן המתאים
+    const sectionId = `section-${btn.dataset.target}`;
+    showSection(sectionId);
   });
-}
-
-function setActiveNav(targetKey) {
-  navButtons.forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.target === targetKey);
-  });
-}
-
-function closeMobileSheet() {
-  if (mobileMoreSheet) {
-    mobileMoreSheet.classList.remove("open");
-    mobileMoreSheet.setAttribute("aria-hidden", "true");
-  }
-}
-
-function navigateTo(targetKey) {
-  if (!targetKey) return;
-  setActiveNav(targetKey);
-  showSection(targetKey);
-  closeMobileSheet();
-}
-
-navTriggers.forEach((trigger) => {
-  trigger.addEventListener("click", () => navigateTo(trigger.dataset.target));
 });
-
-if (mobileMoreBtn && mobileMoreSheet) {
-  mobileMoreBtn.addEventListener("click", () => {
-    mobileMoreSheet.classList.add("open");
-    mobileMoreSheet.setAttribute("aria-hidden", "false");
-  });
-}
-
-if (mobileMoreSheet) {
-  mobileMoreSheet.addEventListener("click", (event) => {
-    if (event.target === mobileMoreSheet) closeMobileSheet();
-  });
-}
-
-if (mobileSheetClose) {
-  mobileSheetClose.addEventListener("click", closeMobileSheet);
-}
-
-// מצב התחלתי – רק Overview
-navigateTo("overview");
 
 // ---------- AUTH & INITIAL LOAD ----------
 
@@ -564,9 +580,7 @@ function renderFeedback() {
 
     tr.querySelector('[data-action="markFollow"]')?.addEventListener("click", async (e) => {
       e.stopPropagation();
-      await updateFeedbackStatus(f.id, "followup");
-      await loadTasks();
-      renderFeedback();
+      await createFollowupTaskForFeedback(f, { openTasksAfter: true });
     });
 
     tr.addEventListener("click", () => openFeedbackModal(f));
@@ -875,6 +889,24 @@ async function openFeedbackModal(feedback) {
   }
 }
 
+function refreshFeedbackModal() {
+  if (!feedbackModal || !currentModalFeedback) return;
+
+  if (modalDate) modalDate.textContent = formatDate(currentModalFeedback.createdAt);
+  if (modalCustomer)
+    modalCustomer.textContent = currentModalFeedback.customerName || "Customer";
+  if (modalRating) modalRating.textContent = formatRating(currentModalFeedback.rating);
+  if (modalType) modalType.textContent = currentModalFeedback.type || "private";
+  if (modalMessage) modalMessage.textContent = currentModalFeedback.message || "—";
+
+  const statusChip = feedbackModal.querySelector(".status-chip");
+  if (statusChip) {
+    const statusLabel = (currentModalFeedback.status || "new").replace("_", " ");
+    statusChip.textContent = statusLabel;
+    statusChip.className = `status-chip status-${currentModalFeedback.status || "new"}`;
+  }
+}
+
 function closeFeedbackModal() {
   if (!feedbackModal) return;
   feedbackModal.classList.remove("visible");
@@ -909,31 +941,9 @@ markRepliedBtn?.addEventListener("click", async () => {
 });
 
 createTaskBtn?.addEventListener("click", async () => {
-  if (!currentModalFeedback || !currentUser) return;
-  const f = currentModalFeedback;
-  const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-
-  try {
-    await addDoc(collection(db, "tasks"), {
-      businessId: currentUser.uid,
-      feedbackId: f.id,
-      title: `Follow up with ${f.customerName || "customer"} (${f.rating}★)`,
-      description: f.message || "",
-      status: "open",
-      assignee: null,
-      priority: f.rating <= 2 ? "high" : "medium",
-      dueDate,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    await updateFeedbackStatus(f.id, "followup");
-    await loadTasks();
-    closeFeedbackModal();
-    console.log("Created follow-up task from feedback", f.id);
-  } catch (err) {
-    console.error("createTask error:", err);
-  }
+  if (!currentModalFeedback) return;
+  await createFollowupTaskForFeedback(currentModalFeedback, { openTasksAfter: true });
+  closeFeedbackModal();
 });
 
 // Filters
@@ -1574,32 +1584,19 @@ refreshInsightsSecondary?.addEventListener("click", refreshInsights);
 
 // ---------- ASK FOR REVIEWS BUTTON ----------
 
-function goToReviewRequestsSection() {
-  // highlight the "Review requests" tab in the left nav
-  const requestsNav = document.querySelector('.nav-link[data-target="requests"]');
-  if (requestsNav) {
-    navButtons.forEach((btn) => btn.classList.remove("active"));
-    requestsNav.classList.add("active");
-  }
+askReviewsBtn?.addEventListener("click", () => {
+  // בטאב־סרגל – לעבור ל-Review requests
+  navButtons.forEach((b) => b.classList.remove("active"));
+  const reviewNav = document.querySelector('.nav-link[data-target="requests"]');
+  reviewNav?.classList.add("active");
 
-  // scroll to the Review requests section
-  const requestsSection = document.getElementById("section-requests");
-  if (requestsSection) {
-    requestsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-  } else if (reviewRequestForm) {
-    reviewRequestForm.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  // להציג רק את הסקשן של Review requests
+  showSection("section-requests");
 
-  // put the cursor in the "Customer name" field
-  if (reqName) {
-    reqName.focus();
-  }
-}
-
-// make the purple button use this behavior
-askReviewsBtn?.addEventListener("click", (event) => {
-  event.preventDefault();
-  goToReviewRequestsSection();
+  // אחרי שהעמוד מוצג – פוקוס לשם הלקוח
+  setTimeout(() => {
+    reqName?.focus();
+  }, 200);
 });
 
 // Module marker so the file is treated as an ES module.
