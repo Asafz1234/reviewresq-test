@@ -54,6 +54,45 @@ function showSection(sectionId) {
   });
 }
 
+// יוצר משימת follow-up מקושרת ל-feedback
+async function createFollowupTaskForFeedback(feedback, options = { openTasksAfter: false }) {
+  if (!currentUser || !feedback) return;
+
+  const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // עוד 3 ימים
+
+  try {
+    await addDoc(collection(db, "tasks"), {
+      businessId: currentUser.uid,
+      feedbackId: feedback.id,
+      title: `Follow up with ${feedback.customerName || "customer"} (${feedback.rating}★)`,
+      description: feedback.message || "",
+      status: "open",
+      assignee: null,
+      priority: feedback.rating <= 2 ? "high" : "medium",
+      dueDate,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // מעדכן את ה-feedback כ-followup
+    await updateFeedbackStatus(feedback.id, "followup");
+    await loadTasks();
+
+    // פותח את מסך ה-Follow-ups אם ביקשנו
+    if (options.openTasksAfter) {
+      navButtons.forEach((b) => b.classList.remove("active"));
+      const followNav = document.querySelector('.nav-link[data-target="tasks"]');
+      followNav?.classList.add("active");
+      showSection("section-tasks");
+    }
+
+    showBanner("Follow-up task created.", "success");
+  } catch (err) {
+    console.error("createFollowupTaskForFeedback error:", err);
+    showBanner("Could not create follow-up task.", "warn");
+  }
+}
+
 // KPIs + charts
 const kpiPublicReviews = document.getElementById("kpiPublicReviews");
 const kpiAvgRating = document.getElementById("kpiAvgRating");
@@ -535,9 +574,7 @@ function renderFeedback() {
 
     tr.querySelector('[data-action="markFollow"]')?.addEventListener("click", async (e) => {
       e.stopPropagation();
-      await updateFeedbackStatus(f.id, "followup");
-      await loadTasks();
-      renderFeedback();
+      await createFollowupTaskForFeedback(f, { openTasksAfter: true });
     });
 
     tr.addEventListener("click", () => openFeedbackModal(f));
@@ -880,31 +917,9 @@ markRepliedBtn?.addEventListener("click", async () => {
 });
 
 createTaskBtn?.addEventListener("click", async () => {
-  if (!currentModalFeedback || !currentUser) return;
-  const f = currentModalFeedback;
-  const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-
-  try {
-    await addDoc(collection(db, "tasks"), {
-      businessId: currentUser.uid,
-      feedbackId: f.id,
-      title: `Follow up with ${f.customerName || "customer"} (${f.rating}★)`,
-      description: f.message || "",
-      status: "open",
-      assignee: null,
-      priority: f.rating <= 2 ? "high" : "medium",
-      dueDate,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    await updateFeedbackStatus(f.id, "followup");
-    await loadTasks();
-    closeFeedbackModal();
-    console.log("Created follow-up task from feedback", f.id);
-  } catch (err) {
-    console.error("createTask error:", err);
-  }
+  if (!currentModalFeedback) return;
+  await createFollowupTaskForFeedback(currentModalFeedback, { openTasksAfter: true });
+  closeFeedbackModal();
 });
 
 // Filters
