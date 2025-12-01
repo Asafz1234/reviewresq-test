@@ -76,7 +76,13 @@ async function createFollowupTaskForFeedback(feedback, options = { openTasksAfte
 
     // מעדכן את ה-feedback כ-followup
     await updateFeedbackStatus(feedback.id, "followup");
+    await loadFeedback(); // <-- חדש: מרענן את רשימת הביקורות מיד
     await loadTasks();
+
+    if (currentModalFeedback?.id === feedback.id) {
+      currentModalFeedback.status = "followup";
+      refreshFeedbackModal();
+    }
 
     // פותח את מסך ה-Follow-ups אם ביקשנו
     if (options.openTasksAfter) {
@@ -880,6 +886,24 @@ async function openFeedbackModal(feedback) {
   if (feedback.status === "new") {
     await updateFeedbackStatus(feedback.id, "needs_reply");
     renderFeedback();
+  }
+}
+
+function refreshFeedbackModal() {
+  if (!feedbackModal || !currentModalFeedback) return;
+
+  if (modalDate) modalDate.textContent = formatDate(currentModalFeedback.createdAt);
+  if (modalCustomer)
+    modalCustomer.textContent = currentModalFeedback.customerName || "Customer";
+  if (modalRating) modalRating.textContent = formatRating(currentModalFeedback.rating);
+  if (modalType) modalType.textContent = currentModalFeedback.type || "private";
+  if (modalMessage) modalMessage.textContent = currentModalFeedback.message || "—";
+
+  const statusChip = feedbackModal.querySelector(".status-chip");
+  if (statusChip) {
+    const statusLabel = (currentModalFeedback.status || "new").replace("_", " ");
+    statusChip.textContent = statusLabel;
+    statusChip.className = `status-chip status-${currentModalFeedback.status || "new"}`;
   }
 }
 
