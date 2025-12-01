@@ -1515,11 +1515,6 @@ reviewRequestForm?.addEventListener("submit", async (e) => {
   }
 });
 
-askReviewsBtn?.addEventListener("click", () => {
-  reviewRequestForm?.scrollIntoView({ behavior: "smooth" });
-  reqName?.focus();
-});
-
 async function loadReviewRequests() {
   if (!reviewRequestsBody || !currentUser) return;
   try {
@@ -1576,6 +1571,36 @@ async function loadReviewRequests() {
 
 refreshInsightsBtn?.addEventListener("click", refreshInsights);
 refreshInsightsSecondary?.addEventListener("click", refreshInsights);
+
+// ---------- ASK FOR REVIEWS BUTTON ----------
+
+function goToReviewRequestsSection() {
+  // highlight the "Review requests" tab in the left nav
+  const requestsNav = document.querySelector('.nav-link[data-target="requests"]');
+  if (requestsNav) {
+    navButtons.forEach((btn) => btn.classList.remove("active"));
+    requestsNav.classList.add("active");
+  }
+
+  // scroll to the Review requests section
+  const requestsSection = document.getElementById("section-requests");
+  if (requestsSection) {
+    requestsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else if (reviewRequestForm) {
+    reviewRequestForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // put the cursor in the "Customer name" field
+  if (reqName) {
+    reqName.focus();
+  }
+}
+
+// make the purple button use this behavior
+askReviewsBtn?.addEventListener("click", (event) => {
+  event.preventDefault();
+  goToReviewRequestsSection();
+});
 
 // Module marker so the file is treated as an ES module.
 export {};
