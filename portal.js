@@ -35,6 +35,13 @@ const customerEmailInput = document.getElementById("customerEmailInput");
 const sendFeedbackBtn = document.getElementById("sendFeedbackBtn");
 
 const thankyouCopy = document.getElementById("thankyouCopy");
+const portalHeadlineText = document.getElementById("portalHeadlineText");
+const portalSubheadlineText = document.getElementById("portalSubheadlineText");
+const lowCtaLabel = document.getElementById("lowCtaLabel");
+const highCtaButton = document.getElementById("highCtaButton");
+const highCtaLabel = document.getElementById("highCtaLabel");
+const thankyouTitleText = document.getElementById("thankyouTitleText");
+const thankyouBodyText = document.getElementById("thankyouBodyText");
 
 const urlParams = new URLSearchParams(window.location.search);
 const ownerPreviewParam =
@@ -44,6 +51,7 @@ const ownerPreviewParam =
 let currentRating = 0;
 let businessId = null;
 let businessName = "Your business";
+let portalSettings = null;
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
 );
@@ -99,7 +107,7 @@ function resetRating() {
 
 // ----- LOAD BUSINESS PROFILE -----
 async function loadBusinessProfile() {
-  businessId = urlParams.get("bid");
+  businessId = urlParams.get("bid") || urlParams.get("b");
 
   if (!businessId) {
     console.warn("No bid parameter in URL. Portal will use default branding.");
@@ -136,12 +144,52 @@ async function loadBusinessProfile() {
       bizLogoInitials.style.display = "flex";
     }
 
-    // Update document title
     document.title = `${businessName} • Feedback Portal`;
+
+    await loadPortalSettings();
 
   } catch (err) {
     console.error("Failed to load business profile:", err);
   }
+}
+
+async function loadPortalSettings() {
+  if (!businessId) return;
+  const ref = doc(db, "portalSettings", businessId);
+  const snap = await getDoc(ref);
+  portalSettings = snap.exists()
+    ? snap.data()
+    : {
+        primaryColor: "#2563eb",
+        accentColor: "#7c3aed",
+        backgroundStyle: "gradient",
+        headline: "How was your experience today?",
+        subheadline: "Your feedback helps us improve and keeps our team on point.",
+        ctaLabelHighRating: "Leave a Google review",
+        ctaLabelLowRating: "Send private feedback",
+        thankYouTitle: "Thank you for the feedback!",
+        thankYouBody: "We read every note and follow up where needed.",
+      };
+  applyPortalSettings();
+}
+
+function applyPortalSettings() {
+  if (!portalSettings) return;
+  const root = document.documentElement;
+  if (portalSettings.primaryColor) root.style.setProperty("--accent", portalSettings.primaryColor);
+  if (portalSettings.accentColor) root.style.setProperty("--accent-strong", portalSettings.accentColor);
+  if (portalSettings.backgroundStyle === "dark") {
+    root.style.setProperty("--bg", "#0b1224");
+    document.body.classList.add("dark-portal");
+  } else if (portalSettings.backgroundStyle === "light") {
+    document.body.classList.remove("dark-portal");
+  }
+  if (portalHeadlineText) portalHeadlineText.textContent = portalSettings.headline || portalHeadlineText.textContent;
+  if (portalSubheadlineText) portalSubheadlineText.textContent = portalSettings.subheadline || portalSubheadlineText.textContent;
+  if (lowCtaLabel) lowCtaLabel.textContent = portalSettings.ctaLabelLowRating || lowCtaLabel.textContent;
+  if (highCtaLabel) highCtaLabel.textContent = portalSettings.ctaLabelHighRating || highCtaLabel.textContent;
+  if (thankyouTitleText) thankyouTitleText.textContent = portalSettings.thankYouTitle || thankyouTitleText.textContent;
+  if (thankyouBodyText) thankyouBodyText.textContent = portalSettings.thankYouBody || thankyouBodyText.textContent;
 }
 
 // ----- RATING HANDLERS -----
@@ -153,6 +201,13 @@ ratingButtons.forEach((btn) => {
     setPortalClasses();
   });
 });
+
+if (highCtaButton) {
+  highCtaButton.addEventListener("click", () => {
+    console.log("Would open public review link for", businessName);
+    thankyouCopy?.scrollIntoView({ behavior: "smooth" });
+  });
+}
 
 if (changeRatingLink) {
   changeRatingLink.addEventListener("click", (event) => {

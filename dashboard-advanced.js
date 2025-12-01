@@ -99,6 +99,18 @@ const reqEmail = document.getElementById("reqEmail");
 const reqChannel = document.getElementById("reqChannel");
 const reviewRequestsBody = document.getElementById("reviewRequestsBody");
 
+const portalSettingsForm = document.getElementById("portalSettingsForm");
+const portalPrimary = document.getElementById("portalPrimary");
+const portalAccent = document.getElementById("portalAccent");
+const portalBackground = document.getElementById("portalBackground");
+const portalHeadline = document.getElementById("portalHeadline");
+const portalSubheadline = document.getElementById("portalSubheadline");
+const portalCtaHigh = document.getElementById("portalCtaHigh");
+const portalCtaLow = document.getElementById("portalCtaLow");
+const portalThanksTitle = document.getElementById("portalThanksTitle");
+const portalThanksBody = document.getElementById("portalThanksBody");
+const portalPreviewFrame = document.getElementById("portalPreviewFrame");
+
 let currentUser = null;
 let currentProfile = null;
 let feedbackCache = [];
@@ -289,7 +301,14 @@ onAuthStateChanged(auth, async (user) => {
 
   await loadAutomations();
   await loadFeedback();
-  await Promise.all([loadTasks(), loadNotifications(), loadReviewRequests(), loadAiInsights()]);
+  updatePortalPreviewSrc();
+  await Promise.all([
+    loadTasks(),
+    loadNotifications(),
+    loadReviewRequests(),
+    loadAiInsights(),
+    loadPortalSettings(),
+  ]);
 });
 
 async function loadProfile() {
@@ -333,11 +352,11 @@ async function loadFeedback() {
   const snap = await getDocs(q);
   feedbackCache = snap.docs.map((d) => ({
     id: d.id,
-    status: "unread",
+    status: "new",
     ...d.data(),
     statusOverride: d.data().status,
   }));
-  feedbackCache = feedbackCache.map((f) => ({ ...f, status: f.statusOverride || f.status || "unread" }));
+  feedbackCache = feedbackCache.map((f) => ({ ...f, status: f.statusOverride || f.status || "new" }));
   renderFeedback();
   evaluateAutomations(feedbackCache);
   updateKPIs();
@@ -348,7 +367,7 @@ function getFilteredFeedback() {
   return byRange.filter((f) => {
     const ratingOk = filterRating.value === "all" || Number(filterRating.value) === Number(f.rating);
     const typeOk = filterType.value === "all" || (f.type || "private").toLowerCase() === filterType.value;
-    const statusOk = filterStatus.value === "all" || (f.status || "unread") === filterStatus.value;
+    const statusOk = filterStatus.value === "all" || (f.status || "new") === filterStatus.value;
     return ratingOk && typeOk && statusOk;
   });
 }
@@ -364,13 +383,14 @@ function renderFeedback() {
   advancedFeedbackEmpty.style.display = "none";
   filtered.forEach((f) => {
     const tr = document.createElement("tr");
+    const statusLabel = (f.status || "new").replace("_", " ");
     tr.innerHTML = `
       <td>${formatDate(f.createdAt)}</td>
       <td>${f.customerName || "Customer"}</td>
       <td><span class="rating-pill ${f.rating >= 4 ? "rating-high" : "rating-low"}">${formatRating(f.rating)}</span></td>
       <td>${f.type || "private"}</td>
       <td>${(f.message || "").slice(0, 80)}${(f.message || "").length > 80 ? "…" : ""}</td>
-      <td><span class="status-chip status-${f.status || "unread"}">${(f.status || "unread").replace("_", " ")}</span></td>
+      <td><span class="status-chip status-${f.status || "new"}">${statusLabel}</span></td>
       <td class="actions-cell">
         <button class="btn ghost" data-action="reply" data-id="${f.id}">Open</button>
         <button class="btn ghost" data-action="markFollow" data-id="${f.id}">Follow-up</button>
@@ -382,7 +402,7 @@ function renderFeedback() {
     });
     tr.querySelector('[data-action="markFollow"]')?.addEventListener("click", async (e) => {
       e.stopPropagation();
-      await updateFeedbackStatus(f.id, "follow_up");
+      await updateFeedbackStatus(f.id, "followup");
       await loadTasks();
       renderFeedback();
     });
@@ -547,7 +567,7 @@ async function openFeedbackModal(feedback) {
   modalNextAction.textContent = await AIService.suggestNextAction(feedback);
   feedbackModal.classList.add("visible");
   feedbackModal.setAttribute("aria-hidden", "false");
-  if (feedback.status === "unread") {
+  if (feedback.status === "new") {
     await updateFeedbackStatus(feedback.id, "needs_reply");
     renderFeedback();
   }
@@ -601,7 +621,7 @@ createTaskBtn?.addEventListener("click", async () => {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  await updateFeedbackStatus(f.id, "follow_up");
+  await updateFeedbackStatus(f.id, "followup");
   await loadTasks();
   closeFeedbackModal();
   console.log("Created follow-up task from feedback", f.id);
@@ -614,6 +634,30 @@ dateRangeSelect?.addEventListener("change", () => {
 
 [filterRating, filterType, filterStatus].forEach((el) => {
   el?.addEventListener("change", renderFeedback);
+});
+
+portalSettingsForm?.addEventListener("input", applyPortalPreviewStyling);
+portalPreviewFrame?.addEventListener("load", applyPortalPreviewStyling);
+
+portalSettingsForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const payload = {
+    businessId: currentUser.uid,
+    primaryColor: portalPrimary.value,
+    accentColor: portalAccent.value,
+    backgroundStyle: portalBackground.value,
+    headline: portalHeadline.value,
+    subheadline: portalSubheadline.value,
+    ctaLabelHighRating: portalCtaHigh.value,
+    ctaLabelLowRating: portalCtaLow.value,
+    thankYouTitle: portalThanksTitle.value,
+    thankYouBody: portalThanksBody.value,
+    updatedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  };
+  await setDoc(doc(db, "portalSettings", currentUser.uid), payload, { merge: true });
+  applyPortalPreviewStyling();
+  showBanner("Portal settings saved", "success");
 });
 
 function fillTemplate(template, sample) {
@@ -875,13 +919,13 @@ notificationForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const payload = {
     businessId: currentUser.uid,
-    emailAlertsLowRating: prefEmailLow.checked,
-    emailAlertsHighRating: prefEmailHigh.checked,
-    emailAlertsNewGoogleReview: prefEmailGoogle.checked,
-    smsAlertsLowRating: prefSmsLow.checked,
-    smsAlertsHighRating: prefSmsHigh.checked,
-    dailySummaryEmail: prefDaily.checked,
-    weeklySummaryEmail: prefWeekly.checked,
+    emailLowRating: prefEmailLow.checked,
+    emailHighRating: prefEmailHigh.checked,
+    emailGoogle: prefEmailGoogle.checked,
+    smsLowRating: prefSmsLow.checked,
+    smsHighRating: prefSmsHigh.checked,
+    emailDailySummary: prefDaily.checked,
+    emailWeeklySummary: prefWeekly.checked,
     updatedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
   };
@@ -893,13 +937,78 @@ async function loadNotifications() {
   const snap = await getDoc(doc(db, "notificationPrefs", currentUser.uid));
   if (!snap.exists()) return;
   const d = snap.data();
-  prefEmailLow.checked = !!d.emailAlertsLowRating;
-  prefEmailHigh.checked = !!d.emailAlertsHighRating;
-  prefEmailGoogle.checked = !!d.emailAlertsNewGoogleReview;
-  prefSmsLow.checked = !!d.smsAlertsLowRating;
-  prefSmsHigh.checked = !!d.smsAlertsHighRating;
-  prefDaily.checked = !!d.dailySummaryEmail;
-  prefWeekly.checked = !!d.weeklySummaryEmail;
+  prefEmailLow.checked = !!(d.emailLowRating ?? d.emailAlertsLowRating);
+  prefEmailHigh.checked = !!(d.emailHighRating ?? d.emailAlertsHighRating);
+  prefEmailGoogle.checked = !!(d.emailGoogle ?? d.emailAlertsNewGoogleReview);
+  prefSmsLow.checked = !!(d.smsLowRating ?? d.smsAlertsLowRating);
+  prefSmsHigh.checked = !!(d.smsHighRating ?? d.smsAlertsHighRating);
+  prefDaily.checked = !!(d.emailDailySummary ?? d.dailySummaryEmail);
+  prefWeekly.checked = !!(d.emailWeeklySummary ?? d.weeklySummaryEmail);
+}
+
+async function loadPortalSettings() {
+  if (!portalSettingsForm) return;
+  const snap = await getDoc(doc(db, "portalSettings", currentUser.uid));
+  const data = snap.exists()
+    ? snap.data()
+    : {
+        primaryColor: "#2563eb",
+        accentColor: "#7c3aed",
+        backgroundStyle: "gradient",
+        headline: "Share your experience",
+        subheadline: "Your voice shapes how we improve.",
+        ctaLabelHighRating: "Leave a Google review",
+        ctaLabelLowRating: "Send private feedback",
+        thankYouTitle: "Thank you!",
+        thankYouBody: "We appreciate you taking the time to help us improve.",
+      };
+  portalPrimary.value = data.primaryColor || "#2563eb";
+  portalAccent.value = data.accentColor || "#7c3aed";
+  portalBackground.value = data.backgroundStyle || "gradient";
+  portalHeadline.value = data.headline || "";
+  portalSubheadline.value = data.subheadline || "";
+  portalCtaHigh.value = data.ctaLabelHighRating || "";
+  portalCtaLow.value = data.ctaLabelLowRating || "";
+  portalThanksTitle.value = data.thankYouTitle || "";
+  portalThanksBody.value = data.thankYouBody || "";
+  applyPortalPreviewStyling();
+}
+
+function updatePortalPreviewSrc() {
+  if (!portalPreviewFrame) return;
+  const params = new URLSearchParams({ ownerPreview: "1", bid: currentUser?.uid || "" });
+  portalPreviewFrame.src = `/portal.html?${params.toString()}`;
+}
+
+function applyPortalPreviewStyling() {
+  if (!portalPreviewFrame?.contentWindow) return;
+  try {
+    const docRef = portalPreviewFrame.contentWindow.document;
+    const root = docRef.documentElement;
+    root.style.setProperty("--accent", portalPrimary.value || "#2563eb");
+    root.style.setProperty("--accent-strong", portalAccent.value || "#7c3aed");
+    if (portalBackground.value === "dark") {
+      root.style.setProperty("--bg", "#0b1224");
+      root.body?.classList.add("custom-dark");
+    } else {
+      root.style.removeProperty("--bg");
+      root.body?.classList.remove("custom-dark");
+    }
+    const headlineEl = docRef.getElementById("portalHeadlineText");
+    if (headlineEl) headlineEl.textContent = portalHeadline.value || "Share your experience";
+    const subEl = docRef.getElementById("portalSubheadlineText");
+    if (subEl) subEl.textContent = portalSubheadline.value || "We value your honesty.";
+    const lowBtn = docRef.getElementById("lowCtaLabel");
+    if (lowBtn) lowBtn.textContent = portalCtaLow.value || "Send private feedback";
+    const highBtn = docRef.getElementById("highCtaLabel");
+    if (highBtn) highBtn.textContent = portalCtaHigh.value || "Leave a Google review";
+    const thanksTitle = docRef.getElementById("thankyouTitleText");
+    if (thanksTitle) thanksTitle.textContent = portalThanksTitle.value || "Thank you";
+    const thanksBody = docRef.getElementById("thankyouBodyText");
+    if (thanksBody) thanksBody.textContent = portalThanksBody.value || "We appreciate your feedback.";
+  } catch (err) {
+    console.warn("Preview styling not applied", err);
+  }
 }
 
 reviewRequestForm?.addEventListener("submit", async (e) => {
@@ -915,7 +1024,7 @@ reviewRequestForm?.addEventListener("submit", async (e) => {
     updatedAt: serverTimestamp(),
   };
   await addDoc(collection(db, "reviewRequests"), payload);
-  const portalLink = `${window.location.origin}/portal.html?b=${currentUser.uid}`;
+  const portalLink = `${window.location.origin}/portal.html?bid=${currentUser.uid}`;
   console.log(`Would send ${payload.channel} review request to`, payload.customerName, "with link", portalLink);
   reviewRequestForm.reset();
   await loadReviewRequests();
