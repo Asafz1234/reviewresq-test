@@ -20,10 +20,18 @@ const saveStatus = document.getElementById("saveStatus");
 
 let selectedPlaceId = null;
 
-/* ---------------------------------------------------
-   1. חיפוש אוטומטי ב-Google Places API
---------------------------------------------------- */
-findBusinessBtn.addEventListener("click", async () => {
+function getInputs() {
+  return {
+    bizNameInput: document.getElementById("bizNameInput"),
+    bizCategoryInput: document.getElementById("bizCategoryInput"),
+    bizPhoneInput: document.getElementById("bizPhoneInput"),
+    bizEmailInput: document.getElementById("bizEmailInput"),
+    websiteInput: document.getElementById("websiteInput"),
+    logoUrlInput: document.getElementById("logoUrlInput"),
+    googleReviewUrlInput: document.getElementById("googleReviewUrlInput"),
+    planSelect: document.getElementById("plan"),
+  };
+}
 
   const query = businessNameInput.value.trim();
   if (!query) {
@@ -35,9 +43,17 @@ findBusinessBtn.addEventListener("click", async () => {
   resultsWrapper.style.display = "none";
   resultsList.innerHTML = "";
 
-  const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(
-    query
-  )}&inputtype=textquery&fields=place_id,name,formatted_address&key=${googleApiKey}`;
+async function loadOnboarding(uid) {
+  const {
+    bizNameInput,
+    bizCategoryInput,
+    bizPhoneInput,
+    bizEmailInput,
+    websiteInput,
+    logoUrlInput,
+    googleReviewUrlInput,
+    planSelect,
+  } = getInputs();
 
   try {
     const response = await fetch(url);
@@ -67,20 +83,87 @@ findBusinessBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------------------------------------------------
-   2. בחירת עסק → יצירת Google Review Link
---------------------------------------------------- */
-function selectBusiness(biz) {
-  selectedPlaceId = biz.place_id;
+// ---------- SAVE DATA ----------
 
-  const reviewUrl =
-    "https://search.google.com/local/writereview?placeid=" + selectedPlaceId;
+async function saveOnboarding(uid) {
+  hideError();
 
-  googleReviewUrlInput.value = reviewUrl;
+  const {
+    bizNameInput,
+    bizCategoryInput,
+    bizPhoneInput,
+    bizEmailInput,
+    websiteInput,
+    logoUrlInput,
+    googleReviewUrlInput,
+    planSelect,
+  } = getInputs();
 
-  resultsWrapper.style.display = "none";
+  const selectedPlan = planSelect?.value === "advanced" ? "advanced" : "basic";
 
-  alert("Business selected! Review link added automatically.");
+  const payload = {
+    businessName: cleanValue(bizNameInput?.value),
+    category: cleanValue(bizCategoryInput?.value),
+    phone: cleanValue(bizPhoneInput?.value),
+    contactEmail: cleanValue(bizEmailInput?.value),
+    website: cleanValue(websiteInput?.value),
+    logoUrl: cleanValue(logoUrlInput?.value),
+    plan: selectedPlan,
+    onboardingComplete: true,
+    updatedAt: serverTimestamp(),
+  };
+
+  console.log("[onboarding] Saving payload:", payload);
+
+  const saveBtn =
+    document.getElementById("saveOnboardingBtn") ||
+    document.getElementById("saveBtn") ||
+    document.querySelector("button[type='submit'], input[type='submit']");
+
+  const originalText = saveBtn ? saveBtn.textContent : "";
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
+  }
+
+  try {
+    const ref = doc(db, "businessProfiles", uid);
+    await setDoc(ref, payload, { merge: true });
+
+    const portalSettingsRef = doc(db, "portalSettings", uid);
+    const portalSettingsSnap = await getDoc(portalSettingsRef);
+
+    // כאשר נרשם עסק חדש ושמרנו את businessProfile
+    if (!portalSettingsSnap.exists()) {
+      await setDoc(portalSettingsRef, {
+        googleReviewUrl: googleReviewUrlInput?.value || "",
+        primaryColor: "#2563eb",
+        accentColor: "#7c3aed",
+        backgroundStyle: "gradient",
+        headline: "How was your experience?",
+        subheadline: "Your feedback helps us improve.",
+        ctaLabelHighRating: "Leave a Google review",
+        ctaLabelLowRating: "Send private feedback",
+        thankYouTitle: "Thank you!",
+        thankYouBody: "We review every message.",
+        updatedAt: serverTimestamp(),
+      });
+    }
+    console.log(
+      `[onboarding] Saved OK with plan="${selectedPlan}" – redirecting to dashboard`
+    );
+    const redirectPath =
+      selectedPlan === "advanced" ? "/dashboard-advanced.html" : "/dashboard.html";
+    window.location.href = redirectPath;
+  } catch (err) {
+    console.error("[onboarding] Save failed:", err);
+    showError("Could not save your business details. Please try again.");
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalText || "Save & Continue";
+    }
+  }
 }
 
 /* ---------------------------------------------------
