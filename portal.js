@@ -203,9 +203,29 @@ ratingButtons.forEach((btn) => {
 });
 
 if (highCtaButton) {
-  highCtaButton.addEventListener("click", () => {
-    console.log("Would open public review link for", businessName);
-    thankyouCopy?.scrollIntoView({ behavior: "smooth" });
+  highCtaButton.addEventListener("click", async () => {
+    try {
+      const settingsRef = doc(db, "portalSettings", businessId);
+      const settingsSnap = await getDoc(settingsRef);
+
+      if (!settingsSnap.exists()) {
+        alert("Google Review link not set yet.");
+        return;
+      }
+
+      const data = settingsSnap.data();
+      const googleUrl = data.googleReviewUrl;
+
+      if (!googleUrl || googleUrl.trim() === "") {
+        alert("This business has not set a Google Review link yet.");
+        return;
+      }
+
+      // Open Google Review page
+      window.location.href = googleUrl;
+    } catch (err) {
+      console.error("Failed to open Google review link:", err);
+    }
   });
 }
 

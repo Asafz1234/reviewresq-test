@@ -262,20 +262,66 @@
           </div>
         </div>
         <div class="surface card ai-card">
-          <div id="aiSummary" class="ai-summary">Loading insights…</div>
-          <div class="ai-columns">
-            <div>
-              <p class="label">Top themes</p>
-              <ul id="aiThemes" class="bullet-list"></ul>
-            </div>
-            <div>
-              <p class="label">Recommendations</p>
-              <ul id="aiRecommendations" class="bullet-list"></ul>
-            </div>
-            <div>
-              <p class="label">Overall sentiment</p>
+          <div class="ai-summary-row">
+            <div id="aiSummary" class="ai-summary">Loading insights…</div>
+            <div class="sentiment-display">
+              <div class="label">Overall sentiment</div>
               <div id="aiSentiment" class="sentiment-pill">–</div>
             </div>
+          </div>
+
+          <div class="ai-metrics-grid">
+            <div class="surface subcard ai-metric-card">
+              <p class="label">Feedback volume</p>
+              <div class="ai-metric-value" id="aiTotalCount">0</div>
+              <p class="muted-text">Items in selected date range</p>
+            </div>
+            <div class="surface subcard ai-metric-card">
+              <p class="label">Positive vs negative</p>
+              <div class="ai-pos-neg">
+                <div class="ai-count"><span id="aiPositiveCount">0</span> <small>Positive (≥4★)</small></div>
+                <div class="ai-count"><span id="aiNegativeCount">0</span> <small>Negative (≤2★)</small></div>
+                <div class="ai-count"><span id="aiNeutralCount">0</span> <small>Neutral (3★)</small></div>
+              </div>
+              <p class="muted-text" id="aiPosNegRatio">–</p>
+            </div>
+            <div class="surface subcard ai-metric-card">
+              <p class="label">Overall sentiment</p>
+              <div class="ai-metric-value sentiment-value" id="aiSentimentCard">–</div>
+              <p class="muted-text">Average mood (−1 to 1)</p>
+            </div>
+            <div class="surface subcard ai-metric-card">
+              <p class="label">Priority alert</p>
+              <p class="ai-priority" id="aiPriorityAlert">Collect more feedback to unlock stronger insights.</p>
+            </div>
+          </div>
+
+          <div class="ai-row">
+            <div class="surface subcard ai-trend-card">
+              <div class="ai-card-header">Sentiment over time</div>
+              <div class="ai-trend-body">
+                <canvas id="sentimentTrendChart" height="180"></canvas>
+                <div id="aiTrendEmpty" class="muted-text">We’ll show sentiment trends here once you receive more feedback.</div>
+              </div>
+            </div>
+            <div class="surface subcard ai-themes-card">
+              <div class="ai-card-header">Top themes &amp; keywords</div>
+              <div class="ai-themes-body">
+                <div>
+                  <p class="label">Top themes</p>
+                  <ul id="aiThemes" class="bullet-list"></ul>
+                </div>
+                <div>
+                  <p class="label">Keywords</p>
+                  <div id="aiKeywords" class="keyword-list"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="surface subcard ai-actions-card">
+            <div class="ai-card-header">Action plan for the next 7 days</div>
+            <ul id="aiRecommendations" class="bullet-list"></ul>
           </div>
         </div>
       </section>

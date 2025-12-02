@@ -40,8 +40,64 @@ const mobileMoreSheet = document.getElementById("mobileMoreSheet");
 const mobileSheetClose = document.getElementById("mobileSheetClose");
 const insightsUpdated = document.getElementById("insightsUpdated");
 
-// כל הסקשנים – לטאבים
+// כל סקשני הדשבורד
 const sections = document.querySelectorAll(".section");
+
+// מציג רק סקשן אחד ומסתיר את השאר
+function showSection(sectionId) {
+  sections.forEach((sec) => {
+    if (sec.id === sectionId) {
+      sec.classList.remove("hidden-section");
+    } else {
+      sec.classList.add("hidden-section");
+    }
+  });
+}
+
+// יוצר משימת follow-up מקושרת ל-feedback
+async function createFollowupTaskForFeedback(feedback, options = { openTasksAfter: false }) {
+  if (!currentUser || !feedback) return;
+
+  const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // עוד 3 ימים
+
+  try {
+    await addDoc(collection(db, "tasks"), {
+      businessId: currentUser.uid,
+      feedbackId: feedback.id,
+      title: `Follow up with ${feedback.customerName || "customer"} (${feedback.rating}★)`,
+      description: feedback.message || "",
+      status: "open",
+      assignee: null,
+      priority: feedback.rating <= 2 ? "high" : "medium",
+      dueDate,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // מעדכן את ה-feedback כ-followup
+    await updateFeedbackStatus(feedback.id, "followup");
+    await loadFeedback(); // <-- חדש: מרענן את רשימת הביקורות מיד
+    await loadTasks();
+
+    if (currentModalFeedback?.id === feedback.id) {
+      currentModalFeedback.status = "followup";
+      refreshFeedbackModal();
+    }
+
+    // פותח את מסך ה-Follow-ups אם ביקשנו
+    if (options.openTasksAfter) {
+      navButtons.forEach((b) => b.classList.remove("active"));
+      const followNav = document.querySelector('.nav-link[data-target="tasks"]');
+      followNav?.classList.add("active");
+      showSection("section-tasks");
+    }
+
+    showBanner("Follow-up task created.", "success");
+  } catch (err) {
+    console.error("createFollowupTaskForFeedback error:", err);
+    showBanner("Could not create follow-up task.", "warn");
+  }
+}
 
 // KPIs + charts
 const kpiPublicReviews = document.getElementById("kpiPublicReviews");
@@ -59,9 +115,19 @@ const ratingDistribution = document.getElementById("ratingDistribution");
 
 // AI insights
 const aiSummary = document.getElementById("aiSummary");
-const aiThemes = document.getElementById("aiThemes");
-const aiRecommendations = document.getElementById("aiRecommendations");
 const aiSentiment = document.getElementById("aiSentiment");
+const aiSentimentCard = document.getElementById("aiSentimentCard");
+const aiTotalCount = document.getElementById("aiTotalCount");
+const aiPositiveCount = document.getElementById("aiPositiveCount");
+const aiNegativeCount = document.getElementById("aiNegativeCount");
+const aiNeutralCount = document.getElementById("aiNeutralCount");
+const aiPosNegRatio = document.getElementById("aiPosNegRatio");
+const aiPriorityAlert = document.getElementById("aiPriorityAlert");
+const aiThemes = document.getElementById("aiThemes");
+const aiKeywords = document.getElementById("aiKeywords");
+const aiRecommendations = document.getElementById("aiRecommendations");
+const aiTrendCanvas = document.getElementById("sentimentTrendChart");
+const aiTrendEmpty = document.getElementById("aiTrendEmpty");
 const refreshInsightsBtn = document.getElementById("refreshInsightsBtn");
 const refreshInsightsSecondary = document.getElementById(
   "refreshInsightsSecondary"
@@ -151,9 +217,12 @@ let currentModalFeedback = null;
 const AIService = {
   async generateInsights(feedbackList) {
     const themesMap = new Map();
+    const keywordCounts = new Map();
+    const trendMap = new Map();
     let sentimentTotal = 0;
     let positives = 0;
     let negatives = 0;
+    let neutrals = 0;
 
     const keywords = [
       { label: "price", tokens: ["price", "expensive", "cheap", "cost"] },
@@ -171,6 +240,15 @@ const AIService = {
       sentimentTotal += sentimentFromRating(rating);
       if (rating >= 4) positives += 1;
       if (rating <= 2) negatives += 1;
+      if (rating === 3) neutrals += 1;
+
+      const dateKey = formatDateKey(fb.createdAt || Date.now());
+      const sentiment = sentimentFromRating(rating);
+
+      const trendEntry = trendMap.get(dateKey) || { sum: 0, count: 0 };
+      trendEntry.sum += sentiment;
+      trendEntry.count += 1;
+      trendMap.set(dateKey, trendEntry);
 
       const matched = [];
       keywords.forEach((k) => {
@@ -178,6 +256,9 @@ const AIService = {
       });
       if (!matched.length) matched.push("general experience");
       matched.forEach((m) => themesMap.set(m, (themesMap.get(m) || 0) + 1));
+
+      const keywordTags = keywordsForFeedback(message);
+      keywordTags.forEach((tag) => keywordCounts.set(tag, (keywordCounts.get(tag) || 0) + 1));
     });
 
     const topThemes = Array.from(themesMap.entries())
@@ -189,10 +270,12 @@ const AIService = {
       ? Number((sentimentTotal / feedbackList.length).toFixed(2))
       : 0;
 
+    const totalCount = feedbackList.length;
+
     const summaryParts = [];
     if (feedbackList.length) {
       summaryParts.push(
-        `You received ${feedbackList.length} feedback items recently (${positives} positive, ${negatives} negative).`
+        `You received ${totalCount} feedback items recently (${positives} positive, ${negatives} negative).`
       );
       if (topThemes.length) {
         summaryParts.push(`Top themes: ${topThemes.map((t) => t.label).join(", ")}.`);
@@ -208,6 +291,19 @@ const AIService = {
       summaryParts.push("Not enough feedback yet for insights.");
     }
 
+    const sentimentTrend = Array.from(trendMap.entries())
+      .map(([dateKey, val]) => ({
+        dateKey,
+        avgSentiment: Number((val.sum / val.count).toFixed(2)),
+        count: val.count,
+      }))
+      .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+
+    const keywordsList = Array.from(keywordCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([label, count]) => ({ label, count }));
+
     const recommendations = [];
     if (negatives) recommendations.push("Call low-rating customers within 24h and acknowledge their issues.");
     if (positives) recommendations.push("Invite happy customers to leave a Google review using your portal link.");
@@ -221,6 +317,12 @@ const AIService = {
 
     return {
       summary: summaryParts.join(" "),
+      totalCount,
+      positiveCount: positives,
+      negativeCount: negatives,
+      neutralCount: neutrals,
+      sentimentTrend,
+      keywords: keywordsList,
       topThemes,
       sentimentScore,
       topRecommendations: recommendations.slice(0, 5),
@@ -324,62 +426,22 @@ function keywordsForFeedback(message = "") {
   return tags;
 }
 
-// ---------- NAVIGATION (tabs behavior) ----------
+// ---------- NAVIGATION BUTTONS ----------
 
-function showSection(targetKey) {
-  const targetId = `section-${targetKey}`;
-  sections.forEach((sec) => {
-    if (sec.id === targetId) {
-      sec.classList.remove("section-hidden");
-    } else {
-      sec.classList.add("section-hidden");
-    }
+// בהתחלה – להציג רק את ה-Overview
+showSection("section-overview");
+
+navButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    // מעדכן מצב active בסיידבר
+    navButtons.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // מציג רק את הסקשן המתאים
+    const sectionId = `section-${btn.dataset.target}`;
+    showSection(sectionId);
   });
-}
-
-function setActiveNav(targetKey) {
-  navButtons.forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.target === targetKey);
-  });
-}
-
-function closeMobileSheet() {
-  if (mobileMoreSheet) {
-    mobileMoreSheet.classList.remove("open");
-    mobileMoreSheet.setAttribute("aria-hidden", "true");
-  }
-}
-
-function navigateTo(targetKey) {
-  if (!targetKey) return;
-  setActiveNav(targetKey);
-  showSection(targetKey);
-  closeMobileSheet();
-}
-
-navTriggers.forEach((trigger) => {
-  trigger.addEventListener("click", () => navigateTo(trigger.dataset.target));
 });
-
-if (mobileMoreBtn && mobileMoreSheet) {
-  mobileMoreBtn.addEventListener("click", () => {
-    mobileMoreSheet.classList.add("open");
-    mobileMoreSheet.setAttribute("aria-hidden", "false");
-  });
-}
-
-if (mobileMoreSheet) {
-  mobileMoreSheet.addEventListener("click", (event) => {
-    if (event.target === mobileMoreSheet) closeMobileSheet();
-  });
-}
-
-if (mobileSheetClose) {
-  mobileSheetClose.addEventListener("click", closeMobileSheet);
-}
-
-// מצב התחלתי – רק Overview
-navigateTo("overview");
 
 // ---------- AUTH & INITIAL LOAD ----------
 
@@ -564,9 +626,7 @@ function renderFeedback() {
 
     tr.querySelector('[data-action="markFollow"]')?.addEventListener("click", async (e) => {
       e.stopPropagation();
-      await updateFeedbackStatus(f.id, "followup");
-      await loadTasks();
-      renderFeedback();
+      await createFollowupTaskForFeedback(f, { openTasksAfter: true });
     });
 
     tr.addEventListener("click", () => openFeedbackModal(f));
@@ -815,30 +875,126 @@ async function refreshInsights() {
 }
 
 function renderInsights(data) {
+  const totalCount =
+    data.totalCount ?? data.feedbackCount ?? data.total ?? feedbackCache.length;
+  const positiveCount = data.positiveCount ?? 0;
+  const negativeCount = data.negativeCount ?? 0;
+  const neutralCount = data.neutralCount ?? 0;
+  const sentimentScore =
+    data.sentimentScore != null ? Number(data.sentimentScore) : null;
+
   if (aiSummary) aiSummary.textContent = data.summary || "Not enough data yet.";
+
+  if (aiTotalCount) aiTotalCount.textContent = totalCount || "0";
+  if (aiPositiveCount) aiPositiveCount.textContent = positiveCount || "0";
+  if (aiNegativeCount) aiNegativeCount.textContent = negativeCount || "0";
+  if (aiNeutralCount) aiNeutralCount.textContent = neutralCount || "0";
+
+  if (aiPosNegRatio) {
+    if (totalCount > 0) {
+      const ratio = Math.round((positiveCount / totalCount) * 100);
+      aiPosNegRatio.textContent = `${ratio}% positive`;
+    } else {
+      aiPosNegRatio.textContent = "–";
+    }
+  }
+
+  if (aiPriorityAlert) {
+    if (negativeCount >= 2) {
+      aiPriorityAlert.textContent =
+        "You’ve received several low ratings recently — prioritize outreach to unhappy customers.";
+    } else if (positiveCount >= 3) {
+      aiPriorityAlert.textContent =
+        "Your customers are mostly happy — ask for more Google reviews this week.";
+    } else {
+      aiPriorityAlert.textContent =
+        "Collect more feedback to unlock stronger insights.";
+    }
+  }
 
   if (aiThemes) {
     aiThemes.innerHTML = "";
-    (data.topThemes || []).forEach((t) => {
+    const themes = data.topThemes || [];
+    if (themes.length === 0) {
       const li = document.createElement("li");
-      li.textContent = `${t.label} (${t.count})`;
+      li.textContent = "Not enough data yet.";
       aiThemes.appendChild(li);
-    });
+    } else {
+      themes.forEach((t) => {
+        const li = document.createElement("li");
+        li.textContent = `${t.label} (${t.count})`;
+        aiThemes.appendChild(li);
+      });
+    }
+  }
+
+  if (aiKeywords) {
+    aiKeywords.innerHTML = "";
+    const keywords = data.keywords || [];
+    if (!keywords.length) {
+      const empty = document.createElement("div");
+      empty.className = "muted-text";
+      empty.textContent = "No keyword signals yet.";
+      aiKeywords.appendChild(empty);
+    } else {
+      keywords.forEach((k) => {
+        const chip = document.createElement("span");
+        chip.className = "keyword-chip";
+        chip.textContent = `${k.label} (${k.count})`;
+        aiKeywords.appendChild(chip);
+      });
+    }
   }
 
   if (aiRecommendations) {
     aiRecommendations.innerHTML = "";
-    (data.topRecommendations || []).forEach((r) => {
+    const recs = data.topRecommendations || [];
+    if (!recs.length) {
       const li = document.createElement("li");
-      li.textContent = r;
+      li.textContent = "Once you receive a bit more feedback, we’ll suggest specific actions here.";
       aiRecommendations.appendChild(li);
-    });
+    } else {
+      recs.forEach((r) => {
+        const li = document.createElement("li");
+        li.textContent = r;
+        aiRecommendations.appendChild(li);
+      });
+    }
   }
 
   if (aiSentiment) {
-    aiSentiment.textContent =
-      data.sentimentScore != null ? data.sentimentScore : "–";
+    if (sentimentScore == null) {
+      aiSentiment.textContent = "–";
+      aiSentiment.className = "sentiment-pill";
+    } else {
+      aiSentiment.textContent = sentimentScore.toFixed(2);
+      aiSentiment.className =
+        "sentiment-pill " +
+        (sentimentScore >= 0.2
+          ? "sentiment-positive"
+          : sentimentScore <= -0.2
+          ? "sentiment-negative"
+          : "sentiment-neutral");
+    }
   }
+
+  if (aiSentimentCard) {
+    if (sentimentScore == null) {
+      aiSentimentCard.textContent = "–";
+      aiSentimentCard.className = "ai-metric-value sentiment-value";
+    } else {
+      aiSentimentCard.textContent = sentimentScore.toFixed(2);
+      aiSentimentCard.className =
+        "ai-metric-value sentiment-value " +
+        (sentimentScore >= 0.2
+          ? "sentiment-positive"
+          : sentimentScore <= -0.2
+          ? "sentiment-negative"
+          : "sentiment-neutral");
+    }
+  }
+
+  renderSentimentTrend(data.sentimentTrend || []);
 
   if (data.generatedAt && insightsUpdated) {
     const d = data.generatedAt.toDate
@@ -846,6 +1002,70 @@ function renderInsights(data) {
       : new Date(data.generatedAt);
     insightsUpdated.textContent = `Last updated ${d.toLocaleString()}`;
   }
+}
+
+function renderSentimentTrend(points) {
+  if (!aiTrendCanvas || !aiTrendEmpty) return;
+
+  const ctx = aiTrendCanvas.getContext("2d");
+  const hasData = points && points.length;
+
+  aiTrendCanvas.classList.toggle("hidden", !hasData);
+  aiTrendEmpty.classList.toggle("hidden", hasData);
+
+  if (!hasData) {
+    ctx.clearRect(0, 0, aiTrendCanvas.width, aiTrendCanvas.height);
+    return;
+  }
+
+  const deviceRatio = window.devicePixelRatio || 1;
+  const width = aiTrendCanvas.clientWidth * deviceRatio;
+  const height = aiTrendCanvas.clientHeight * deviceRatio;
+  aiTrendCanvas.width = width;
+  aiTrendCanvas.height = height;
+  ctx.clearRect(0, 0, width, height);
+
+  const padding = 20 * deviceRatio;
+  const usableWidth = width - padding * 2;
+  const usableHeight = height - padding * 2;
+
+  const sentiments = points.map((p) => p.avgSentiment);
+  const maxVal = Math.max(...sentiments, 1);
+  const minVal = Math.min(...sentiments, -1);
+  const range = maxVal - minVal || 1;
+
+  ctx.strokeStyle = "rgba(99, 102, 241, 0.6)";
+  ctx.lineWidth = 2 * deviceRatio;
+  ctx.beginPath();
+
+  points.forEach((p, idx) => {
+    const x = padding + (usableWidth * idx) / Math.max(points.length - 1, 1);
+    const y = padding + usableHeight * (1 - (p.avgSentiment - minVal) / range);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(99, 102, 241, 0.15)";
+  ctx.beginPath();
+  points.forEach((p, idx) => {
+    const x = padding + (usableWidth * idx) / Math.max(points.length - 1, 1);
+    const y = padding + usableHeight * (1 - (p.avgSentiment - minVal) / range);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.lineTo(padding + usableWidth, height - padding);
+  ctx.lineTo(padding, height - padding);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+  ctx.font = `${12 * deviceRatio}px Inter, system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = "left";
+  ctx.fillText("Date", padding, height - 4 * deviceRatio);
+  ctx.textAlign = "right";
+  ctx.fillText("Sentiment", width - padding, padding);
 }
 
 // ---------- FEEDBACK MODAL ----------
@@ -872,6 +1092,24 @@ async function openFeedbackModal(feedback) {
   if (feedback.status === "new") {
     await updateFeedbackStatus(feedback.id, "needs_reply");
     renderFeedback();
+  }
+}
+
+function refreshFeedbackModal() {
+  if (!feedbackModal || !currentModalFeedback) return;
+
+  if (modalDate) modalDate.textContent = formatDate(currentModalFeedback.createdAt);
+  if (modalCustomer)
+    modalCustomer.textContent = currentModalFeedback.customerName || "Customer";
+  if (modalRating) modalRating.textContent = formatRating(currentModalFeedback.rating);
+  if (modalType) modalType.textContent = currentModalFeedback.type || "private";
+  if (modalMessage) modalMessage.textContent = currentModalFeedback.message || "—";
+
+  const statusChip = feedbackModal.querySelector(".status-chip");
+  if (statusChip) {
+    const statusLabel = (currentModalFeedback.status || "new").replace("_", " ");
+    statusChip.textContent = statusLabel;
+    statusChip.className = `status-chip status-${currentModalFeedback.status || "new"}`;
   }
 }
 
@@ -909,31 +1147,9 @@ markRepliedBtn?.addEventListener("click", async () => {
 });
 
 createTaskBtn?.addEventListener("click", async () => {
-  if (!currentModalFeedback || !currentUser) return;
-  const f = currentModalFeedback;
-  const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-
-  try {
-    await addDoc(collection(db, "tasks"), {
-      businessId: currentUser.uid,
-      feedbackId: f.id,
-      title: `Follow up with ${f.customerName || "customer"} (${f.rating}★)`,
-      description: f.message || "",
-      status: "open",
-      assignee: null,
-      priority: f.rating <= 2 ? "high" : "medium",
-      dueDate,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    await updateFeedbackStatus(f.id, "followup");
-    await loadTasks();
-    closeFeedbackModal();
-    console.log("Created follow-up task from feedback", f.id);
-  } catch (err) {
-    console.error("createTask error:", err);
-  }
+  if (!currentModalFeedback) return;
+  await createFollowupTaskForFeedback(currentModalFeedback, { openTasksAfter: true });
+  closeFeedbackModal();
 });
 
 // Filters
@@ -1574,32 +1790,19 @@ refreshInsightsSecondary?.addEventListener("click", refreshInsights);
 
 // ---------- ASK FOR REVIEWS BUTTON ----------
 
-function goToReviewRequestsSection() {
-  // highlight the "Review requests" tab in the left nav
-  const requestsNav = document.querySelector('.nav-link[data-target="requests"]');
-  if (requestsNav) {
-    navButtons.forEach((btn) => btn.classList.remove("active"));
-    requestsNav.classList.add("active");
-  }
+askReviewsBtn?.addEventListener("click", () => {
+  // בטאב־סרגל – לעבור ל-Review requests
+  navButtons.forEach((b) => b.classList.remove("active"));
+  const reviewNav = document.querySelector('.nav-link[data-target="requests"]');
+  reviewNav?.classList.add("active");
 
-  // scroll to the Review requests section
-  const requestsSection = document.getElementById("section-requests");
-  if (requestsSection) {
-    requestsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-  } else if (reviewRequestForm) {
-    reviewRequestForm.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  // להציג רק את הסקשן של Review requests
+  showSection("section-requests");
 
-  // put the cursor in the "Customer name" field
-  if (reqName) {
-    reqName.focus();
-  }
-}
-
-// make the purple button use this behavior
-askReviewsBtn?.addEventListener("click", (event) => {
-  event.preventDefault();
-  goToReviewRequestsSection();
+  // אחרי שהעמוד מוצג – פוקוס לשם הלקוח
+  setTimeout(() => {
+    reqName?.focus();
+  }, 200);
 });
 
 // Module marker so the file is treated as an ES module.
