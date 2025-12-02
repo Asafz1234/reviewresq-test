@@ -48,6 +48,7 @@ function getInputs() {
     bizEmailInput: document.getElementById("bizEmailInput"),
     websiteInput: document.getElementById("websiteInput"),
     logoUrlInput: document.getElementById("logoUrlInput"),
+    googleReviewUrlInput: document.getElementById("googleReviewUrlInput"),
     planSelect: document.getElementById("plan"),
   };
 }
@@ -62,6 +63,7 @@ async function loadOnboarding(uid) {
     bizEmailInput,
     websiteInput,
     logoUrlInput,
+    googleReviewUrlInput,
     planSelect,
   } = getInputs();
 
@@ -102,6 +104,7 @@ async function saveOnboarding(uid) {
     bizEmailInput,
     websiteInput,
     logoUrlInput,
+    googleReviewUrlInput,
     planSelect,
   } = getInputs();
 
@@ -136,6 +139,26 @@ async function saveOnboarding(uid) {
   try {
     const ref = doc(db, "businessProfiles", uid);
     await setDoc(ref, payload, { merge: true });
+
+    const portalSettingsRef = doc(db, "portalSettings", uid);
+    const portalSettingsSnap = await getDoc(portalSettingsRef);
+
+    // כאשר נרשם עסק חדש ושמרנו את businessProfile
+    if (!portalSettingsSnap.exists()) {
+      await setDoc(portalSettingsRef, {
+        googleReviewUrl: googleReviewUrlInput?.value || "",
+        primaryColor: "#2563eb",
+        accentColor: "#7c3aed",
+        backgroundStyle: "gradient",
+        headline: "How was your experience?",
+        subheadline: "Your feedback helps us improve.",
+        ctaLabelHighRating: "Leave a Google review",
+        ctaLabelLowRating: "Send private feedback",
+        thankYouTitle: "Thank you!",
+        thankYouBody: "We review every message.",
+        updatedAt: serverTimestamp(),
+      });
+    }
     console.log(
       `[onboarding] Saved OK with plan="${selectedPlan}" – redirecting to dashboard`
     );

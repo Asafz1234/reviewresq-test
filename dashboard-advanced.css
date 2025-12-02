@@ -725,6 +725,16 @@ h3 {
 
 .ai-card {
   gap: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-summary-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .ai-summary {
@@ -734,12 +744,104 @@ h3 {
   border: 1px solid var(--border);
   line-height: 1.5;
   color: #d1d5db;
+  flex: 1;
+  min-width: 240px;
 }
 
-.ai-columns {
+.sentiment-display {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  min-width: 160px;
+}
+
+.ai-metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
+}
+
+.ai-metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ai-metric-value {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.ai-pos-neg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-count {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-weight: 700;
+}
+
+.ai-count small {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ai-priority {
+  margin: 0;
+  line-height: 1.5;
+  color: #e5e7eb;
+}
+
+.ai-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.ai-card-header {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.ai-trend-body,
+.ai-themes-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-themes-body {
+  gap: 16px;
+}
+
+.keyword-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.keyword-chip {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.ai-actions-card .bullet-list {
+  padding-left: 20px;
+}
+
+.ai-actions-card li:not(:last-child) {
+  margin-bottom: 6px;
 }
 
 .label {
@@ -759,7 +861,8 @@ h3 {
   color: #d1d5db;
 }
 
-.sentiment-pill {
+.sentiment-pill,
+.sentiment-value {
   padding: 10px 12px;
   border-radius: 12px;
   background: rgba(99, 102, 241, 0.15);
@@ -767,6 +870,53 @@ h3 {
   display: inline-block;
   min-width: 80px;
   text-align: center;
+}
+
+.sentiment-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+}
+
+.sentiment-positive {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.35);
+  color: #bbf7d0;
+}
+
+.sentiment-neutral {
+  background: rgba(234, 179, 8, 0.12);
+  border-color: rgba(234, 179, 8, 0.3);
+  color: #fef9c3;
+}
+
+.sentiment-negative {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fecdd3;
+}
+
+.ai-trend-body canvas {
+  width: 100%;
+  max-width: 100%;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.ai-trend-body .muted-text {
+  text-align: center;
+}
+
+.subcard {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.hidden {
+  display: none !important;
 }
 
 /* Checkboxes */
