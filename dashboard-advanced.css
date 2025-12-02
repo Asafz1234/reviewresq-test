@@ -1191,3 +1191,7 @@ h3 {
     display: block;
   }
 }
+/* מסתיר סקשנים שלא פעילים */
+.section.hidden-section {
+  display: none;
+}

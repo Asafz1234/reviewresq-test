@@ -1,44 +1,24 @@
-// =============================
-//  onboarding.js – simple & robust
-// =============================
-
 import {
-  auth,
-  onAuthStateChanged,
   db,
   doc,
-  getDoc,
   setDoc,
-  serverTimestamp,
+  serverTimestamp
 } from "./firebase.js";
 
-console.log("[onboarding] file loaded");
+const googleApiKey = "YOUR_GOOGLE_API_KEY"; // תחליף פעם אחת – וזהו.
 
-// ---------- HELPERS ----------
+const businessNameInput = document.getElementById("businessNameInput");
+const googleReviewUrlInput = document.getElementById("googleReviewUrlInput");
 
-function showError(msg) {
-  const errorBanner = document.getElementById("errorBanner");
-  const errorBannerText = document.getElementById("errorBannerText");
-  if (errorBanner && errorBannerText) {
-    errorBanner.style.display = "block";
-    errorBannerText.textContent = msg;
-  } else {
-    alert(msg);
-  }
-}
+const findBusinessBtn = document.getElementById("findBusinessBtn");
+const saveBtn = document.getElementById("saveBtn");
 
-function hideError() {
-  const errorBanner = document.getElementById("errorBanner");
-  const errorBannerText = document.getElementById("errorBannerText");
-  if (errorBanner && errorBannerText) {
-    errorBanner.style.display = "none";
-    errorBannerText.textContent = "";
-  }
-}
+const loadingEl = document.getElementById("loading");
+const resultsWrapper = document.getElementById("resultsWrapper");
+const resultsList = document.getElementById("resultsList");
+const saveStatus = document.getElementById("saveStatus");
 
-function cleanValue(value) {
-  return value && value.trim() !== "" ? value.trim() : null;
-}
+let selectedPlaceId = null;
 
 function getInputs() {
   return {
@@ -53,7 +33,15 @@ function getInputs() {
   };
 }
 
-// ---------- LOAD EXISTING DATA ----------
+  const query = businessNameInput.value.trim();
+  if (!query) {
+    alert("Please enter a business name");
+    return;
+  }
+
+  loadingEl.style.display = "block";
+  resultsWrapper.style.display = "none";
+  resultsList.innerHTML = "";
 
 async function loadOnboarding(uid) {
   const {
@@ -68,29 +56,32 @@ async function loadOnboarding(uid) {
   } = getInputs();
 
   try {
-    const ref = doc(db, "businessProfiles", uid);
-    const snap = await getDoc(ref);
+    const response = await fetch(url);
+    const data = await response.json();
 
-    if (!snap.exists()) {
-      console.log("[onboarding] No onboarding data yet – empty form");
+    loadingEl.style.display = "none";
+
+    if (!data.candidates || data.candidates.length === 0) {
+      alert("No matching business was found. Try adding city or address.");
       return;
     }
 
-    const data = snap.data() || {};
-    console.log("[onboarding] Loaded data:", data);
+    resultsWrapper.style.display = "block";
 
-    if (bizNameInput) bizNameInput.value = data.businessName || "";
-    if (bizCategoryInput) bizCategoryInput.value = data.category || "";
-    if (bizPhoneInput) bizPhoneInput.value = data.phone || "";
-    if (bizEmailInput) bizEmailInput.value = data.contactEmail || "";
-    if (websiteInput) websiteInput.value = data.website || "";
-    if (logoUrlInput) logoUrlInput.value = data.logoUrl || "";
-    if (planSelect) planSelect.value = data.plan || "basic";
+    // Make selectable list
+    data.candidates.forEach((biz) => {
+      const div = document.createElement("div");
+      div.className = "result-item";
+      div.innerHTML = `<strong>${biz.name}</strong><br><small>${biz.formatted_address}</small>`;
+      div.onclick = () => selectBusiness(biz);
+      resultsList.appendChild(div);
+    });
+
   } catch (err) {
-    console.error("[onboarding] Error loading data:", err);
-    showError("Could not load your business details. Please try again.");
+    console.error(err);
+    alert("Failed to search Google.");
   }
-}
+});
 
 // ---------- SAVE DATA ----------
 
@@ -175,54 +166,38 @@ async function saveOnboarding(uid) {
   }
 }
 
-// ---------- AUTH + EVENT WIRING ----------
+/* ---------------------------------------------------
+   3. שמירת העסק ל-Firestore
+--------------------------------------------------- */
+saveBtn.addEventListener("click", async () => {
+  const businessName = businessNameInput.value.trim();
+  const googleReviewUrl = googleReviewUrlInput.value.trim();
 
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    console.log("[onboarding] No user – redirecting to auth");
-    window.location.href = "/auth.html";
+  if (!businessName) {
+    alert("Business name is required.");
     return;
   }
 
-  console.log("[onboarding] Authenticated as", user.uid);
-
-  // בשלב הזה ה־HTML כבר נטען (הסקריפט בסוף ה־body)
-  const form =
-    document.getElementById("onboardingForm") ||
-    document.querySelector("form");
-  const saveBtn =
-    document.getElementById("saveOnboardingBtn") ||
-    document.getElementById("saveBtn") ||
-    (form
-      ? form.querySelector("button[type='submit'], input[type='submit']")
-      : null);
-
-  console.log(
-    "[onboarding] form found?",
-    !!form,
-    "saveBtn found?",
-    !!saveBtn
-  );
-
-  // טוען נתונים קיימים
-  loadOnboarding(user.uid);
-
-  // מאזין ל-submit של הטופס – כאן חייבים למנוע רענון
-  if (form) {
-    form.addEventListener("submit", (e) => {
-      console.log("[onboarding] FORM SUBMIT");
-      e.preventDefault();
-      saveOnboarding(user.uid);
-    });
+  if (!googleReviewUrl) {
+    alert("Google Review URL is required.");
+    return;
   }
 
-  // וגם ל-click על הכפתור, ליתר ביטחון
-  if (saveBtn) {
-    saveBtn.addEventListener("click", (e) => {
-      console.log("[onboarding] SAVE BUTTON CLICK");
-      e.preventDefault();
-      // אם הכפתור לא בתוך form, עדיין נקרא ל־save
-      saveOnboarding(user.uid);
+  saveStatus.textContent = "Saving…";
+
+  const businessId = crypto.randomUUID();
+
+  try {
+    await setDoc(doc(db, "businessProfiles", businessId), {
+      businessId,
+      businessName,
+      googleReviewUrl,
+      createdAt: serverTimestamp(),
     });
+
+    saveStatus.textContent = "Saved successfully!";
+  } catch (err) {
+    console.error(err);
+    saveStatus.textContent = "Error while saving.";
   }
 });
