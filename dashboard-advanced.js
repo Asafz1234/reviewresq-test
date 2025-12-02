@@ -1799,6 +1799,11 @@ askReviewsBtn?.addEventListener("click", () => {
   // להציג רק את הסקשן של Review requests
   showSection("section-requests");
 
+  const section = document.getElementById("section-review-requests");
+  if (section) {
+    section.scrollIntoView({ behavior: "smooth" });
+  }
+
   // אחרי שהעמוד מוצג – פוקוס לשם הלקוח
   setTimeout(() => {
     reqName?.focus();
