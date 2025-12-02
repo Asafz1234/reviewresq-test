@@ -1,205 +1,120 @@
-// =============================
-//  onboarding.js – simple & robust
-// =============================
-
 import {
-  auth,
-  onAuthStateChanged,
   db,
   doc,
-  getDoc,
   setDoc,
-  serverTimestamp,
+  serverTimestamp
 } from "./firebase.js";
 
-console.log("[onboarding] file loaded");
+const googleApiKey = "YOUR_GOOGLE_API_KEY"; // תחליף פעם אחת – וזהו.
 
-// ---------- HELPERS ----------
+const businessNameInput = document.getElementById("businessNameInput");
+const googleReviewUrlInput = document.getElementById("googleReviewUrlInput");
 
-function showError(msg) {
-  const errorBanner = document.getElementById("errorBanner");
-  const errorBannerText = document.getElementById("errorBannerText");
-  if (errorBanner && errorBannerText) {
-    errorBanner.style.display = "block";
-    errorBannerText.textContent = msg;
-  } else {
-    alert(msg);
-  }
-}
+const findBusinessBtn = document.getElementById("findBusinessBtn");
+const saveBtn = document.getElementById("saveBtn");
 
-function hideError() {
-  const errorBanner = document.getElementById("errorBanner");
-  const errorBannerText = document.getElementById("errorBannerText");
-  if (errorBanner && errorBannerText) {
-    errorBanner.style.display = "none";
-    errorBannerText.textContent = "";
-  }
-}
+const loadingEl = document.getElementById("loading");
+const resultsWrapper = document.getElementById("resultsWrapper");
+const resultsList = document.getElementById("resultsList");
+const saveStatus = document.getElementById("saveStatus");
 
-function cleanValue(value) {
-  return value && value.trim() !== "" ? value.trim() : null;
-}
+let selectedPlaceId = null;
 
-function getInputs() {
-  return {
-    bizNameInput: document.getElementById("bizNameInput"),
-    bizCategoryInput: document.getElementById("bizCategoryInput"),
-    bizPhoneInput: document.getElementById("bizPhoneInput"),
-    bizEmailInput: document.getElementById("bizEmailInput"),
-    websiteInput: document.getElementById("websiteInput"),
-    logoUrlInput: document.getElementById("logoUrlInput"),
-    planSelect: document.getElementById("plan"),
-  };
-}
+/* ---------------------------------------------------
+   1. חיפוש אוטומטי ב-Google Places API
+--------------------------------------------------- */
+findBusinessBtn.addEventListener("click", async () => {
 
-// ---------- LOAD EXISTING DATA ----------
-
-async function loadOnboarding(uid) {
-  const {
-    bizNameInput,
-    bizCategoryInput,
-    bizPhoneInput,
-    bizEmailInput,
-    websiteInput,
-    logoUrlInput,
-    planSelect,
-  } = getInputs();
-
-  try {
-    const ref = doc(db, "businessProfiles", uid);
-    const snap = await getDoc(ref);
-
-    if (!snap.exists()) {
-      console.log("[onboarding] No onboarding data yet – empty form");
-      return;
-    }
-
-    const data = snap.data() || {};
-    console.log("[onboarding] Loaded data:", data);
-
-    if (bizNameInput) bizNameInput.value = data.businessName || "";
-    if (bizCategoryInput) bizCategoryInput.value = data.category || "";
-    if (bizPhoneInput) bizPhoneInput.value = data.phone || "";
-    if (bizEmailInput) bizEmailInput.value = data.contactEmail || "";
-    if (websiteInput) websiteInput.value = data.website || "";
-    if (logoUrlInput) logoUrlInput.value = data.logoUrl || "";
-    if (planSelect) planSelect.value = data.plan || "basic";
-  } catch (err) {
-    console.error("[onboarding] Error loading data:", err);
-    showError("Could not load your business details. Please try again.");
-  }
-}
-
-// ---------- SAVE DATA ----------
-
-async function saveOnboarding(uid) {
-  hideError();
-
-  const {
-    bizNameInput,
-    bizCategoryInput,
-    bizPhoneInput,
-    bizEmailInput,
-    websiteInput,
-    logoUrlInput,
-    planSelect,
-  } = getInputs();
-
-  const selectedPlan = planSelect?.value === "advanced" ? "advanced" : "basic";
-
-  const payload = {
-    businessName: cleanValue(bizNameInput?.value),
-    category: cleanValue(bizCategoryInput?.value),
-    phone: cleanValue(bizPhoneInput?.value),
-    contactEmail: cleanValue(bizEmailInput?.value),
-    website: cleanValue(websiteInput?.value),
-    logoUrl: cleanValue(logoUrlInput?.value),
-    plan: selectedPlan,
-    onboardingComplete: true,
-    updatedAt: serverTimestamp(),
-  };
-
-  console.log("[onboarding] Saving payload:", payload);
-
-  const saveBtn =
-    document.getElementById("saveOnboardingBtn") ||
-    document.getElementById("saveBtn") ||
-    document.querySelector("button[type='submit'], input[type='submit']");
-
-  const originalText = saveBtn ? saveBtn.textContent : "";
-
-  if (saveBtn) {
-    saveBtn.disabled = true;
-    saveBtn.textContent = "Saving…";
-  }
-
-  try {
-    const ref = doc(db, "businessProfiles", uid);
-    await setDoc(ref, payload, { merge: true });
-    console.log(
-      `[onboarding] Saved OK with plan="${selectedPlan}" – redirecting to dashboard`
-    );
-    const redirectPath =
-      selectedPlan === "advanced" ? "/dashboard-advanced.html" : "/dashboard.html";
-    window.location.href = redirectPath;
-  } catch (err) {
-    console.error("[onboarding] Save failed:", err);
-    showError("Could not save your business details. Please try again.");
-    if (saveBtn) {
-      saveBtn.disabled = false;
-      saveBtn.textContent = originalText || "Save & Continue";
-    }
-  }
-}
-
-// ---------- AUTH + EVENT WIRING ----------
-
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    console.log("[onboarding] No user – redirecting to auth");
-    window.location.href = "/auth.html";
+  const query = businessNameInput.value.trim();
+  if (!query) {
+    alert("Please enter a business name");
     return;
   }
 
-  console.log("[onboarding] Authenticated as", user.uid);
+  loadingEl.style.display = "block";
+  resultsWrapper.style.display = "none";
+  resultsList.innerHTML = "";
 
-  // בשלב הזה ה־HTML כבר נטען (הסקריפט בסוף ה־body)
-  const form =
-    document.getElementById("onboardingForm") ||
-    document.querySelector("form");
-  const saveBtn =
-    document.getElementById("saveOnboardingBtn") ||
-    document.getElementById("saveBtn") ||
-    (form
-      ? form.querySelector("button[type='submit'], input[type='submit']")
-      : null);
+  const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(
+    query
+  )}&inputtype=textquery&fields=place_id,name,formatted_address&key=${googleApiKey}`;
 
-  console.log(
-    "[onboarding] form found?",
-    !!form,
-    "saveBtn found?",
-    !!saveBtn
-  );
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
 
-  // טוען נתונים קיימים
-  loadOnboarding(user.uid);
+    loadingEl.style.display = "none";
 
-  // מאזין ל-submit של הטופס – כאן חייבים למנוע רענון
-  if (form) {
-    form.addEventListener("submit", (e) => {
-      console.log("[onboarding] FORM SUBMIT");
-      e.preventDefault();
-      saveOnboarding(user.uid);
+    if (!data.candidates || data.candidates.length === 0) {
+      alert("No matching business was found. Try adding city or address.");
+      return;
+    }
+
+    resultsWrapper.style.display = "block";
+
+    // Make selectable list
+    data.candidates.forEach((biz) => {
+      const div = document.createElement("div");
+      div.className = "result-item";
+      div.innerHTML = `<strong>${biz.name}</strong><br><small>${biz.formatted_address}</small>`;
+      div.onclick = () => selectBusiness(biz);
+      resultsList.appendChild(div);
     });
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to search Google.");
+  }
+});
+
+/* ---------------------------------------------------
+   2. בחירת עסק → יצירת Google Review Link
+--------------------------------------------------- */
+function selectBusiness(biz) {
+  selectedPlaceId = biz.place_id;
+
+  const reviewUrl =
+    "https://search.google.com/local/writereview?placeid=" + selectedPlaceId;
+
+  googleReviewUrlInput.value = reviewUrl;
+
+  resultsWrapper.style.display = "none";
+
+  alert("Business selected! Review link added automatically.");
+}
+
+/* ---------------------------------------------------
+   3. שמירת העסק ל-Firestore
+--------------------------------------------------- */
+saveBtn.addEventListener("click", async () => {
+  const businessName = businessNameInput.value.trim();
+  const googleReviewUrl = googleReviewUrlInput.value.trim();
+
+  if (!businessName) {
+    alert("Business name is required.");
+    return;
   }
 
-  // וגם ל-click על הכפתור, ליתר ביטחון
-  if (saveBtn) {
-    saveBtn.addEventListener("click", (e) => {
-      console.log("[onboarding] SAVE BUTTON CLICK");
-      e.preventDefault();
-      // אם הכפתור לא בתוך form, עדיין נקרא ל־save
-      saveOnboarding(user.uid);
+  if (!googleReviewUrl) {
+    alert("Google Review URL is required.");
+    return;
+  }
+
+  saveStatus.textContent = "Saving…";
+
+  const businessId = crypto.randomUUID();
+
+  try {
+    await setDoc(doc(db, "businessProfiles", businessId), {
+      businessId,
+      businessName,
+      googleReviewUrl,
+      createdAt: serverTimestamp(),
     });
+
+    saveStatus.textContent = "Saved successfully!";
+  } catch (err) {
+    console.error(err);
+    saveStatus.textContent = "Error while saving.";
   }
 });
