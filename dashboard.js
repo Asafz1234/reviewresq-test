@@ -84,6 +84,7 @@ let businessJoinedAt = null;
 let lastPortalUrl = "";
 let currentUser = null;
 let currentProfile = {};
+let currentPortalSettings = {};
 
 const feedbackModal = document.getElementById("feedbackModal");
 const feedbackModalClose = document.getElementById("feedbackModalClose");
@@ -120,6 +121,13 @@ function hideBanner() {
 
 if (bannerDismissBtn) {
   bannerDismissBtn.onclick = hideBanner;
+}
+
+function checkGoogleReviewStatus() {
+  const hasUrl = currentProfile?.googleReviewUrl || currentPortalSettings?.googleReviewUrl;
+  if (!hasUrl) {
+    showBanner("⚠️ You still need to add your Google Review link", "warn");
+  }
 }
 
 function initialsFromName(name = "") {
@@ -344,6 +352,7 @@ onAuthStateChanged(auth, async (user) => {
   try {
     const profile = await loadBusinessProfile(user);
     if (profile) {
+      await loadPortalSettings(user.uid);
       await loadFeedbackAndStats(user.uid);
     }
   } catch (err) {
@@ -394,6 +403,7 @@ async function loadBusinessProfile(user) {
     phone: data.phone || "",
     contactEmail: data.contactEmail || "",
     website: data.website || "",
+    googleReviewUrl: data.googleReviewUrl || "",
     plan,
   };
 
@@ -435,6 +445,8 @@ async function loadBusinessProfile(user) {
 
   populateEditForm(currentProfile);
 
+  checkGoogleReviewStatus();
+
   let portalPath = data.portalPath || `/portal.html?bid=${encodeURIComponent(user.uid)}`;
   const portalUrl = new URL(portalPath, window.location.origin).toString();
   lastPortalUrl = portalUrl;
@@ -442,6 +454,24 @@ async function loadBusinessProfile(user) {
   setPortalLinkInUI(portalUrl, user.uid);
 
   return data;
+}
+
+// =========================
+// LOAD PORTAL SETTINGS
+// =========================
+
+async function loadPortalSettings(uid) {
+  try {
+    const ref = doc(db, "portalSettings", uid);
+    const snap = await getDoc(ref);
+    currentPortalSettings = snap.exists() ? snap.data() || {} : {};
+  } catch (err) {
+    console.error("Error loading portal settings:", err);
+  }
+
+  checkGoogleReviewStatus();
+
+  return currentPortalSettings;
 }
 
 // =========================
