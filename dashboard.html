@@ -23,14 +23,14 @@
         </div>
       </div>
       <nav class="side-nav" id="sideNav">
-        <button class="nav-link active" data-target="overview">Overview</button>
-        <button class="nav-link" data-target="inbox">Reviews inbox</button>
-        <button class="nav-link" data-target="ai">AI Insights</button>
-        <button class="nav-link" data-target="automations">Automations</button>
-        <button class="nav-link" data-target="tasks">Follow-ups</button>
-        <button class="nav-link" data-target="requests">Review requests</button>
-        <button class="nav-link" data-target="portal">Portal branding</button>
-        <button class="nav-link" data-target="notifications">Alerts</button>
+        <button class="nav-link active" data-view="view-overview">Overview</button>
+        <button class="nav-link" data-view="view-inbox">Reviews inbox</button>
+        <button class="nav-link" data-view="view-ai-insights">AI Insights</button>
+        <button class="nav-link" data-view="view-automations">Automations</button>
+        <button class="nav-link" data-view="view-followups">Follow-ups</button>
+        <button class="nav-link" data-view="view-review-requests">Review requests</button>
+        <button class="nav-link" data-view="view-portal-branding">Portal branding</button>
+        <button class="nav-link" data-view="view-alerts">Alerts</button>
       </nav>
       <div class="side-footer">
         <div class="user-block">
@@ -69,22 +69,22 @@
         </div>
       </header>
 
-        <div class="mobile-info-card" id="mobileInfoCard">
-          <strong>Your tools:</strong>
-        <button class="info-link" type="button" data-target="inbox">Inbox</button>,
-        <button class="info-link" type="button" data-target="ai">AI Insights</button>,
-        <button class="info-link" type="button" data-target="automations">Automations</button>,
-        <button class="info-link" type="button" data-target="tasks">Follow-ups</button>,
-        <button class="info-link" type="button" data-target="requests">Review requests</button>,
-        <button class="info-link" type="button" data-target="portal">Portal branding</button>,
-        <button class="info-link" type="button" data-target="notifications">Alerts</button>.
+      <div class="mobile-info-card" id="mobileInfoCard">
+        <strong>Your tools:</strong>
+        <button class="info-link" type="button" data-view="view-inbox">Inbox</button>,
+        <button class="info-link" type="button" data-view="view-ai-insights">AI Insights</button>,
+        <button class="info-link" type="button" data-view="view-automations">Automations</button>,
+        <button class="info-link" type="button" data-view="view-followups">Follow-ups</button>,
+        <button class="info-link" type="button" data-view="view-review-requests">Review requests</button>,
+        <button class="info-link" type="button" data-view="view-portal-branding">Portal branding</button>,
+        <button class="info-link" type="button" data-view="view-alerts">Alerts</button>.
       </div>
 
       <div class="mobile-tabs" id="mobileTabs">
-        <button class="nav-link" type="button" data-target="overview">Overview</button>
-        <button class="nav-link" type="button" data-target="inbox">Inbox</button>
-        <button class="nav-link" type="button" data-target="ai">AI</button>
-        <button class="nav-link" type="button" data-target="automations">Automations</button>
+        <button class="nav-link" type="button" data-view="view-overview">Overview</button>
+        <button class="nav-link" type="button" data-view="view-inbox">Inbox</button>
+        <button class="nav-link" type="button" data-view="view-ai-insights">AI</button>
+        <button class="nav-link" type="button" data-view="view-automations">Automations</button>
         <button class="nav-link" type="button" id="mobileMoreBtn">More ▾</button>
       </div>
 
@@ -95,10 +95,10 @@
             <button class="btn ghost" type="button" id="mobileSheetClose">Close</button>
           </div>
             <div class="sheet-list">
-              <button class="nav-link" type="button" data-target="tasks">Follow-ups</button>
-              <button class="nav-link" type="button" data-target="requests">Review requests</button>
-              <button class="nav-link" type="button" data-target="portal">Portal branding</button>
-              <button class="nav-link" type="button" data-target="notifications">Alerts</button>
+              <button class="nav-link" type="button" data-view="view-followups">Follow-ups</button>
+              <button class="nav-link" type="button" data-view="view-review-requests">Review requests</button>
+              <button class="nav-link" type="button" data-view="view-portal-branding">Portal branding</button>
+              <button class="nav-link" type="button" data-view="view-alerts">Alerts</button>
             </div>
         </div>
       </div>
@@ -109,7 +109,7 @@
       </div>
 
       <!-- OVERVIEW -->
-      <section class="section" id="section-overview">
+      <section class="section dashboard-view" id="view-overview">
         <div class="section-header">
           <div>
             <p class="eyebrow">Pulse</p>
@@ -195,7 +195,7 @@
       </section>
 
       <!-- INBOX -->
-      <section class="section" id="section-inbox">
+      <section class="section dashboard-view" id="view-inbox">
         <div class="section-header">
           <div>
             <p class="eyebrow">Inbox</p>
@@ -248,7 +248,7 @@
       </section>
 
       <!-- AI INSIGHTS -->
-      <section class="section" id="section-ai">
+      <section class="section dashboard-view" id="view-ai-insights">
         <div class="section-header">
           <div>
             <p class="eyebrow">Intelligence</p>
@@ -295,39 +295,7 @@
               <p class="label">Priority alert</p>
               <p class="ai-priority" id="aiPriorityAlert">Collect more feedback to unlock stronger insights.</p>
             </div>
-            <div class="surface subcard ai-metric-card">
-              <p class="label">Priority alert</p>
-              <p class="ai-priority" id="aiPriorityAlert">Collect more feedback to unlock stronger insights.</p>
-            </div>
             <div id="ratingDistribution" class="rating-bars"></div>
-          </div>
-
-          <div class="ai-row">
-            <div class="surface subcard ai-trend-card">
-              <div class="ai-card-header">Sentiment over time</div>
-              <div class="ai-trend-body">
-                <canvas id="sentimentTrendChart" height="180"></canvas>
-                <div id="aiTrendEmpty" class="muted-text">We’ll show sentiment trends here once you receive more feedback.</div>
-              </div>
-            </div>
-            <div class="surface subcard ai-themes-card">
-              <div class="ai-card-header">Top themes &amp; keywords</div>
-              <div class="ai-themes-body">
-                <div>
-                  <p class="label">Top themes</p>
-                  <ul id="aiThemes" class="bullet-list"></ul>
-                </div>
-                <div>
-                  <p class="label">Keywords</p>
-                  <div id="aiKeywords" class="keyword-list"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="surface subcard ai-actions-card">
-            <div class="ai-card-header">Action plan for the next 7 days</div>
-            <ul id="aiRecommendations" class="bullet-list"></ul>
           </div>
 
           <div class="ai-row">
@@ -361,7 +329,7 @@
       </section>
 
       <!-- AUTOMATIONS -->
-      <section class="section" id="section-automations">
+      <section class="section dashboard-view" id="view-automations">
         <div class="section-header">
           <div>
             <p class="eyebrow">Automation engine</p>
@@ -453,7 +421,7 @@
       </section>
 
       <!-- TASKS -->
-      <section class="section" id="section-tasks">
+      <section class="section dashboard-view" id="view-followups">
         <div class="section-header">
           <div>
             <p class="eyebrow">Customer follow-ups</p>
@@ -489,7 +457,7 @@
         </div>
       </section>
       <!-- REVIEW REQUESTS -->
-      <section class="section" id="section-requests">
+      <section class="section dashboard-view" id="view-review-requests">
         <div class="section-header">
           <div>
             <p class="eyebrow">Outbound</p>
@@ -531,7 +499,7 @@
       </section>
 
       <!-- NOTIFICATIONS -->
-      <section class="section" id="section-notifications">
+      <section class="section dashboard-view" id="view-alerts">
         <div class="section-header">
           <div>
             <p class="eyebrow">Alerts</p>
@@ -554,7 +522,7 @@
       </section>
 
       <!-- PORTAL -->
-      <section class="section" id="section-portal">
+      <section class="section dashboard-view" id="view-portal-branding">
         <div class="section-header">
           <div>
             <p class="eyebrow">Branding</p>

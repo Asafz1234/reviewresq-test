@@ -1466,3 +1466,7 @@ h3 {
 .section.hidden-section {
   display: none;
 }
+
+.dashboard-view.hidden {
+  display: none;
+}

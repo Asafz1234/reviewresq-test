@@ -33,8 +33,8 @@ const dateRangeSelect = document.getElementById("dateRangeSelect");
 const globalBanner = document.getElementById("globalBanner");
 const globalBannerText = document.getElementById("globalBannerText");
 const bannerDismiss = document.getElementById("bannerDismiss");
-const navButtons = document.querySelectorAll(".nav-link[data-target]");
-const navTriggers = document.querySelectorAll("[data-target]");
+const navButtons = Array.from(document.querySelectorAll(".nav-link[data-view]"));
+const navTriggers = Array.from(document.querySelectorAll("[data-view]"));
 const mobileMoreBtn = document.getElementById("mobileMoreBtn");
 const mobileMoreSheet = document.getElementById("mobileMoreSheet");
 const mobileSheetClose = document.getElementById("mobileSheetClose");
@@ -47,32 +47,67 @@ const upgradeModalBtn = document.getElementById("upgradeModalBtn");
 const FEATURE_FLAGS = {
   aiInsights: {
     plan: "advanced",
-    selector: "#section-ai",
+    selector: "#view-ai-insights",
   },
   automations: {
     plan: "advanced",
-    selector: "#section-automations",
+    selector: "#view-automations",
   },
   tasks: {
     plan: "advanced",
-    selector: "#section-tasks",
+    selector: "#view-followups",
   },
 };
 
 let currentBusiness = null;
 let currentPlan = "basic";
+let currentView = "view-overview";
 
-// כל סקשני הדשבורד
-const sections = document.querySelectorAll(".section");
+const dashboardViews = Array.from(document.querySelectorAll(".dashboard-view"));
 
-// מציג רק סקשן אחד ומסתיר את השאר
-function showSection(sectionId) {
-  sections.forEach((sec) => {
-    if (sec.id === sectionId) {
-      sec.classList.remove("hidden-section");
-    } else {
-      sec.classList.add("hidden-section");
-    }
+function setActiveNav(viewId) {
+  navButtons.forEach((btn) => {
+    const isActive = btn.dataset.view === viewId;
+    btn.classList.toggle("active", isActive);
+  });
+}
+
+function showView(viewId, { updateHash = true } = {}) {
+  if (!viewId) return;
+  currentView = viewId;
+
+  dashboardViews.forEach((view) => {
+    view.classList.toggle("hidden", view.id !== viewId);
+  });
+
+  setActiveNav(viewId);
+
+  if (updateHash) {
+    const hashValue = viewId.replace(/^view-/, "");
+    history.replaceState(null, "", `#${hashValue}`);
+  }
+}
+
+function initNavigation() {
+  const hash = window.location.hash.replace("#", "");
+  const hashedView = dashboardViews.find(
+    (view) => view.id === hash || view.id === `view-${hash}`
+  );
+  const initialView = hashedView?.id || "view-overview";
+
+  showView(initialView, { updateHash: false });
+
+  navTriggers.forEach((trigger) => {
+    trigger.addEventListener("click", (e) => {
+      e.preventDefault();
+      const targetView = trigger.dataset.view;
+      if (!targetView) return;
+      showView(targetView);
+
+      if (mobileMoreSheet) {
+        mobileMoreSheet.setAttribute("aria-hidden", "true");
+      }
+    });
   });
 }
 
@@ -182,10 +217,7 @@ async function createFollowupTaskForFeedback(feedback, options = { openTasksAfte
 
     // פותח את מסך ה-Follow-ups אם ביקשנו
     if (options.openTasksAfter) {
-      navButtons.forEach((b) => b.classList.remove("active"));
-      const followNav = document.querySelector('.nav-link[data-target="tasks"]');
-      followNav?.classList.add("active");
-      showSection("section-tasks");
+      showView("view-followups");
     }
 
     showBanner("Follow-up task created.", "success");
@@ -573,20 +605,7 @@ function keywordsForFeedback(message = "") {
 
 // ---------- NAVIGATION BUTTONS ----------
 
-// בהתחלה – להציג רק את ה-Overview
-showSection("section-overview");
-
-navButtons.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    // מעדכן מצב active בסיידבר
-    navButtons.forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    // מציג רק את הסקשן המתאים
-    const sectionId = `section-${btn.dataset.target}`;
-    showSection(sectionId);
-  });
-});
+initNavigation();
 
 upgradeModalClose?.addEventListener("click", closeUpgradeModal);
 upgradeModal?.addEventListener("click", (e) => {
@@ -2138,14 +2157,9 @@ refreshInsightsSecondary?.addEventListener("click", () => {
 
 askReviewsBtn?.addEventListener("click", () => {
   // בטאב־סרגל – לעבור ל-Review requests
-  navButtons.forEach((b) => b.classList.remove("active"));
-  const reviewNav = document.querySelector('.nav-link[data-target="requests"]');
-  reviewNav?.classList.add("active");
+  showView("view-review-requests");
 
-  // להציג רק את הסקשן של Review requests
-  showSection("section-requests");
-
-  const section = document.getElementById("section-review-requests");
+  const section = document.getElementById("view-review-requests");
   if (section) {
     section.scrollIntoView({ behavior: "smooth" });
   }
