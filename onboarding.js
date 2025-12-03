@@ -253,6 +253,7 @@ saveBtn.addEventListener("click", async () => {
     });
 
     saveStatus.textContent = "Saved successfully!";
+    window.location.href = "dashboard.html";
   } catch (err) {
     console.error(err);
     saveStatus.textContent = "Error while saving.";
