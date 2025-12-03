@@ -44,3 +44,59 @@ export async function sendAutomationEmail(payload) {
     throw err;
   }
 }
+
+export async function sendReviewRequestEmail({
+  to,
+  customerName,
+  businessName,
+  reviewLink,
+}) {
+  if (!to) {
+    throw new Error("Missing recipient email for review request");
+  }
+
+  const name = customerName || "there";
+  const bizName = businessName || "our business";
+  const link = reviewLink || "";
+
+  const subject = `${bizName} – thanks for your visit!`;
+  const textBody = [
+    `Hi ${name},`,
+    "",
+    `Thank you for visiting ${bizName}. We’d love to hear how we did.`,
+    link ? `You can leave a quick review here: ${link}` : "",
+    "",
+    `Thank you!`,
+    bizName,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const htmlBody = `
+    <p>Hi ${name},</p>
+    <p>Thank you for visiting <strong>${bizName}</strong>. We’d love to hear how we did.</p>
+    ${
+      link
+        ? `<p><a href="${link}">Leave a quick review here</a></p>`
+        : ""
+    }
+    <p>Thank you!<br />${bizName}</p>
+  `;
+
+  console.log(
+    "Sending review request email to",
+    to,
+    "for",
+    name,
+    "with link",
+    link || "(no review link provided)"
+  );
+
+  return sendAutomationEmail({
+    to,
+    subject,
+    text: textBody,
+    html: htmlBody,
+    meta: { type: "review_request" },
+  });
+}

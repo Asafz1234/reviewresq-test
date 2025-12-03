@@ -18,6 +18,7 @@ import {
   limit,
   serverTimestamp,
 } from "./firebase.js";
+import { sendReviewRequestEmail } from "./email-service.js";
 
 // ---------- DOM ELEMENTS ----------
 
@@ -2065,19 +2066,52 @@ reviewRequestForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!currentUser) return;
 
+  const submitBtn = reviewRequestForm.querySelector('button[type="submit"]');
+  const originalBtnText = submitBtn?.textContent || "Send request";
+  const setLoading = (isLoading) => {
+    if (!submitBtn) return;
+    submitBtn.disabled = isLoading;
+    submitBtn.textContent = isLoading ? "Sending…" : originalBtnText;
+  };
+
+  setLoading(true);
+
+  const customerName = reqName?.value?.trim();
+  const customerPhone = reqPhone?.value?.trim();
+  const customerEmail = reqEmail?.value?.trim();
+  const channel = reqChannel?.value || "sms";
+
+  if (!customerName) {
+    showBanner("Please enter the customer's name before sending.", "warn");
+    setLoading(false);
+    return;
+  }
+
+  if (channel === "email" && !customerEmail) {
+    showBanner("Please add an email address to send this request.", "warn");
+    setLoading(false);
+    return;
+  }
+
+  if ((channel === "sms" || channel === "whatsapp") && !customerPhone) {
+    showBanner("Please add a phone number for this channel.", "warn");
+    setLoading(false);
+    return;
+  }
+
   const payload = {
     businessId: currentUser.uid,
-    customerName: reqName?.value,
-    customerPhone: reqPhone?.value || null,
-    customerEmail: reqEmail?.value || null,
-    channel: reqChannel?.value,
+    customerName,
+    customerPhone: customerPhone || null,
+    customerEmail: customerEmail || null,
+    channel,
     status: "pending",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
 
   try {
-    await addDoc(collection(db, "reviewRequests"), payload);
+    const docRef = await addDoc(collection(db, "reviewRequests"), payload);
     const portalLink = `${window.location.origin}/portal.html?bid=${currentUser.uid}`;
     console.log(
       `Would send ${payload.channel} review request to`,
@@ -2085,10 +2119,39 @@ reviewRequestForm?.addEventListener("submit", async (e) => {
       "with link",
       portalLink
     );
+
+    if (channel === "email") {
+      try {
+        await sendReviewRequestEmail({
+          to: customerEmail,
+          customerName,
+          businessName: currentProfile?.businessName,
+          reviewLink: currentProfile?.googleReviewUrl || portalLink,
+        });
+        await updateDoc(docRef, {
+          status: "sent",
+          sentAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("Failed to send email review request", err);
+        await updateDoc(docRef, {
+          status: "error",
+          errorMessage: err?.message || "Email send failed",
+          updatedAt: serverTimestamp(),
+        });
+        showBanner("Could not send the email request. Please try again.", "warn");
+        return;
+      }
+    }
+
     reviewRequestForm.reset();
     await loadReviewRequests();
   } catch (err) {
     console.error("reviewRequest submit error:", err);
+    showBanner("Could not send the review request.", "warn");
+  } finally {
+    setLoading(false);
   }
 });
 
