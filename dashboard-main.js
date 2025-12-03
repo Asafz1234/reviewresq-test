@@ -1,4 +1,4 @@
-// dashboard-advanced.js (fixed & hardened)
+// dashboard-main.js (merged dashboard)
 
 import {
   auth,
@@ -39,6 +39,28 @@ const mobileMoreBtn = document.getElementById("mobileMoreBtn");
 const mobileMoreSheet = document.getElementById("mobileMoreSheet");
 const mobileSheetClose = document.getElementById("mobileSheetClose");
 const insightsUpdated = document.getElementById("insightsUpdated");
+const planBanner = document.getElementById("plan-banner");
+const upgradeModal = document.getElementById("upgradeModal");
+const upgradeModalClose = document.getElementById("upgradeModalClose");
+const upgradeModalBtn = document.getElementById("upgradeModalBtn");
+
+const FEATURE_FLAGS = {
+  aiInsights: {
+    plan: "advanced",
+    selector: "#section-ai",
+  },
+  automations: {
+    plan: "advanced",
+    selector: "#section-automations",
+  },
+  tasks: {
+    plan: "advanced",
+    selector: "#section-tasks",
+  },
+};
+
+let currentBusiness = null;
+let currentPlan = "basic";
 
 // כל סקשני הדשבורד
 const sections = document.querySelectorAll(".section");
@@ -54,9 +76,83 @@ function showSection(sectionId) {
   });
 }
 
+function renderPlanBanner(plan) {
+  if (!planBanner) return;
+
+  if (plan === "advanced") {
+    planBanner.innerHTML = "";
+    planBanner.style.display = "none";
+    return;
+  }
+
+  planBanner.style.display = "flex";
+  planBanner.innerHTML = `
+    <div class="plan-banner__text">
+      You’re on the <strong>Basic</strong> plan.
+      Unlock Automations & AI Insights with the <strong>Advanced</strong> plan.
+    </div>
+    <button id="upgrade-btn" class="btn primary btn-small">
+      Upgrade to Advanced
+    </button>
+  `;
+
+  document.getElementById("upgrade-btn")?.addEventListener("click", () => {
+    openUpgradeModal("Upgrade");
+  });
+}
+
+function applyPlanToUI(plan) {
+  const isAdvanced = plan === "advanced";
+
+  Object.values(FEATURE_FLAGS).forEach((feature) => {
+    const el = document.querySelector(feature.selector);
+    if (!el) return;
+
+    if (!isAdvanced && feature.plan === "advanced") {
+      el.classList.add("locked-feature");
+    } else {
+      el.classList.remove("locked-feature");
+    }
+  });
+
+  document.querySelectorAll(".locked-feature").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openUpgradeModal("Advanced feature");
+    });
+  });
+
+  renderPlanBanner(plan);
+}
+
+function openUpgradeModal(featureName = "Advanced feature") {
+  if (!upgradeModal) return;
+  const titleEl = document.getElementById("upgradeModalTitle");
+  if (titleEl) {
+    titleEl.textContent = `${featureName} is an Advanced feature`;
+  }
+
+  upgradeModal.classList.add("visible");
+  upgradeModal.setAttribute("aria-hidden", "false");
+}
+
+function closeUpgradeModal() {
+  if (!upgradeModal) return;
+  upgradeModal.classList.remove("visible");
+  upgradeModal.setAttribute("aria-hidden", "true");
+}
+
+function requireAdvanced(featureName) {
+  if (currentPlan === "advanced") return true;
+  openUpgradeModal(featureName);
+  return false;
+}
+
 // יוצר משימת follow-up מקושרת ל-feedback
 async function createFollowupTaskForFeedback(feedback, options = { openTasksAfter: false }) {
   if (!currentUser || !feedback) return;
+  if (!requireAdvanced("Follow-ups")) return;
 
   const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // עוד 3 ימים
 
@@ -167,6 +263,9 @@ const automationTemplate = document.getElementById("automationTemplate");
 const automationPreview = document.getElementById("automationPreview");
 const automationCancel = document.getElementById("automationCancel");
 const automationDelete = document.getElementById("automationDelete");
+const useRecommendedTemplateBtn = document.getElementById(
+  "useRecommendedTemplate"
+);
 
 // Tasks
 const tasksList = document.getElementById("tasksList");
@@ -210,8 +309,54 @@ let currentUser = null;
 let currentProfile = null;
 let feedbackCache = [];
 let automationCache = [];
+let selectedAutomationId = "";
 let taskCache = [];
 let currentModalFeedback = null;
+
+const DEFAULT_AUTOMATION_PREVIEW = "Preview will appear here.";
+
+const RECOMMENDED_AUTOMATION_TEMPLATES = {
+  low_rating_email:
+    "Hi {{customerName}},\n\nThank you for your feedback. I'm really sorry your experience wasn’t perfect.\nI’d love to understand what happened and see how we can make it right.\n\nIf you’re open to it, you can reply directly to this email or call us at {{businessPhone}}.\n\nThanks,\n{{ownerName}}\n{{businessName}}",
+  low_rating_sms:
+    "Hi {{customerName}}, thanks for your feedback. I’m sorry your experience wasn’t perfect. Can you reply with a bit more detail so we can make it right? – {{businessName}}",
+  low_rating_whatsapp:
+    "Hi {{customerName}}, sorry to hear we missed the mark. Can you share more about what happened? We’ll fix it ASAP. – {{businessName}}",
+  high_rating_email:
+    "Hi {{customerName}},\n\nThank you so much for your positive feedback! It really means a lot to us.\nIf you have a moment, we’d appreciate a quick 5-star review on Google – it helps other customers discover us.\n\nThank you again,\n{{ownerName}}\n{{businessName}}",
+  high_rating_sms:
+    "Hi {{customerName}}, thanks for the great feedback! 🙏 If you have 30 seconds, a quick 5★ review on Google would help us a lot. Thank you! – {{businessName}}",
+  high_rating_whatsapp:
+    "Hi {{customerName}}, thank you for the awesome rating! Could you drop us a quick 5★ review on Google? It helps more customers find us. – {{businessName}}",
+  new_google_review_email:
+    "Hi {{customerName}},\n\nWe saw your Google review – thank you so much! If you have any other thoughts, reply here anytime.\n\nCheers,\n{{ownerName}}\n{{businessName}}",
+  new_google_review_sms:
+    "Thanks for the Google review, {{customerName}}! We appreciate you. If there’s anything else we can do, just reply to this text. – {{businessName}}",
+  no_response_x_days_email:
+    "Hi {{customerName}},\n\nChecking in to see if you received our last message. If you still need help, reply here or call {{businessPhone}} and we’ll take care of it.\n\nThanks,\n{{ownerName}}\n{{businessName}}",
+  no_response_x_days_sms:
+    "Hi {{customerName}}, just following up. Let us know if you still need help or call us at {{businessPhone}}. Thanks! – {{businessName}}",
+};
+
+async function getBusinessDocForUser(uid) {
+  if (!uid) return null;
+  const ref = doc(db, "businesses", uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  return { id: ref.id, ...snap.data() };
+}
+
+async function loadBusinessForCurrentUser(uid) {
+  const businessDoc = await getBusinessDocForUser(uid);
+  if (businessDoc) {
+    currentBusiness = businessDoc;
+    currentPlan = businessDoc.plan || "basic";
+  } else {
+    currentBusiness = null;
+    currentPlan = "basic";
+  }
+  return businessDoc;
+}
 
 // ---------- AI SERVICE (heuristic, ללא API חיצוני) ----------
 const AIService = {
@@ -443,6 +588,14 @@ navButtons.forEach((btn) => {
   });
 });
 
+upgradeModalClose?.addEventListener("click", closeUpgradeModal);
+upgradeModal?.addEventListener("click", (e) => {
+  if (e.target === upgradeModal) closeUpgradeModal();
+});
+upgradeModalBtn?.addEventListener("click", () => {
+  window.location.href = "/index.html#pricing";
+});
+
 // ---------- AUTH & INITIAL LOAD ----------
 
 onAuthStateChanged(auth, async (user) => {
@@ -463,6 +616,9 @@ onAuthStateChanged(auth, async (user) => {
       });
     }
 
+    await loadBusinessForCurrentUser(user.uid);
+    applyPlanToUI(currentPlan);
+
     const canContinue = await loadProfile();
     if (!canContinue) return;
 
@@ -477,11 +633,11 @@ onAuthStateChanged(auth, async (user) => {
       loadAiInsights(),
       loadPortalSettings(),
     ]);
-  } catch (err) {
-    console.error("Advanced dashboard init error:", err);
-    showBanner("We had trouble loading your Advanced dashboard.", "warn");
-  }
-});
+    } catch (err) {
+      console.error("Dashboard init error:", err);
+      showBanner("We had trouble loading your dashboard.", "warn");
+    }
+  });
 
 async function loadProfile() {
   try {
@@ -490,26 +646,21 @@ async function loadProfile() {
     const snap = await getDoc(ref);
 
     if (!snap.exists()) {
-      showBanner("Finish onboarding to access the Advanced dashboard.", "warn");
+      showBanner("Finish onboarding to access your dashboard.", "warn");
       setTimeout(() => (window.location.href = "/onboarding.html"), 1500);
       return false;
     }
 
     const data = snap.data();
-
-    if (data.plan !== "advanced") {
-      showBanner("Advanced features require the Advanced plan. Redirecting to Basic view…", "warn");
-      window.location.href = "/dashboard.html";
-      return false;
-    }
-
     currentProfile = data;
 
     if (bizNameDisplay) bizNameDisplay.textContent = data.businessName || "Your business";
     if (bizCategoryText) bizCategoryText.textContent = data.category || "Category";
     if (bizUpdatedAt) bizUpdatedAt.textContent = formatDate(data.updatedAt);
     if (bizAvatar) bizAvatar.textContent = initialsFromName(data.businessName || "RR");
-    if (planBadge) planBadge.textContent = "Advanced plan";
+    if (planBadge)
+      planBadge.textContent =
+        currentPlan === "advanced" ? "Advanced plan" : "Basic plan";
 
     return true;
   } catch (err) {
@@ -874,6 +1025,26 @@ async function refreshInsights() {
   }
 }
 
+async function handleInsightsRefresh(btn) {
+  if (!requireAdvanced("AI Insights")) return;
+  const originalLabel = btn?.textContent || "Refresh insights";
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Refreshing…";
+    }
+    await refreshInsights();
+  } catch (err) {
+    console.error("Error refreshing AI insights:", err);
+    alert("Something went wrong while refreshing insights. Please try again.");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+}
+
 function renderInsights(data) {
   const totalCount =
     data.totalCount ?? data.feedbackCount ?? data.total ?? feedbackCache.length;
@@ -1204,7 +1375,8 @@ function fillTemplate(template, sample) {
     .replace(/{{businessName}}/g, sample.businessName)
     .replace(/{{rating}}/g, sample.rating)
     .replace(/{{feedbackSnippet}}/g, sample.feedbackSnippet)
-    .replace(/{{ownerName}}/g, sample.ownerName);
+    .replace(/{{ownerName}}/g, sample.ownerName)
+    .replace(/{{businessPhone}}/g, sample.businessPhone);
 }
 
 function automationPreviewText(templateOverride) {
@@ -1214,68 +1386,187 @@ function automationPreviewText(templateOverride) {
     rating: 5,
     feedbackSnippet: "Loved the service!",
     ownerName: currentProfile?.ownerName || "Team",
+    businessPhone:
+      currentProfile?.phone ||
+      currentProfile?.businessPhone ||
+      "(555) 123-4567",
   };
   return fillTemplate(templateOverride ?? automationTemplate?.value, sample);
 }
 
+function getAutomationTemplateKey(trigger, channel) {
+  if (!trigger || !channel) return null;
+  return `${trigger}_${channel}`.toLowerCase();
+}
+
+function applyRecommendedTemplate(force = false) {
+  const trigger = automationTrigger?.value;
+  const channel = automationChannel?.value;
+  const key = getAutomationTemplateKey(trigger, channel);
+  if (!key) return null;
+  const template = RECOMMENDED_AUTOMATION_TEMPLATES[key];
+  if (!template) return null;
+
+  const hasExistingContent = (automationTemplate?.value || "").trim().length > 0;
+  if (!force) {
+    if (automationId?.value) return null;
+    if (hasExistingContent) return null;
+  }
+
+  if (automationTemplate) {
+    automationTemplate.value = template;
+    setAutomationPreview(automationPreviewText(template));
+  }
+  return template;
+}
+
+function setAutomationPreview(text) {
+  if (!automationPreview) return;
+  automationPreview.textContent = text;
+}
+
 automationTemplate?.addEventListener("input", () => {
-  if (automationPreview) automationPreview.textContent = automationPreviewText();
+  const text = automationTemplate.value.trim()
+    ? automationPreviewText()
+    : DEFAULT_AUTOMATION_PREVIEW;
+  setAutomationPreview(text);
+});
+
+automationTrigger?.addEventListener("change", () => {
+  applyRecommendedTemplate();
+  const text = automationTemplate?.value.trim()
+    ? automationPreviewText()
+    : DEFAULT_AUTOMATION_PREVIEW;
+  setAutomationPreview(text);
+});
+
+automationChannel?.addEventListener("change", () => {
+  applyRecommendedTemplate();
+  const text = automationTemplate?.value.trim()
+    ? automationPreviewText()
+    : DEFAULT_AUTOMATION_PREVIEW;
+  setAutomationPreview(text);
+});
+
+useRecommendedTemplateBtn?.addEventListener("click", () => {
+  const applied = applyRecommendedTemplate(true);
+  if (!applied) {
+    alert("No recommended template for this trigger/channel yet.");
+  }
 });
 
 automationCancel?.addEventListener("click", () => {
   automationForm?.reset();
   if (automationId) automationId.value = "";
-  if (automationPreview)
-    automationPreview.textContent = "Preview will appear here.";
+  selectedAutomationId = "";
+  setAutomationPreview(DEFAULT_AUTOMATION_PREVIEW);
 });
 
 // ---------- AUTOMATIONS ----------
 
-automationDelete?.addEventListener("click", async () => {
-  if (!automationId?.value || !currentUser) return;
+async function softDeleteAutomation(autoId) {
+  if (!autoId || !currentUser) return;
+  if (!requireAdvanced("Automations")) return;
   try {
-    await updateDoc(doc(db, "automations", automationId.value), {
+    await updateDoc(doc(db, "automations", autoId), {
       deleted: true,
       enabled: false,
       updatedAt: serverTimestamp(),
     });
-    automationForm?.reset();
-    automationId.value = "";
+    if (automationId?.value === autoId) {
+      automationForm?.reset();
+      automationId.value = "";
+      selectedAutomationId = "";
+      setAutomationPreview(DEFAULT_AUTOMATION_PREVIEW);
+    }
     await loadAutomations();
   } catch (err) {
     console.error("automationDelete error:", err);
   }
+}
+
+automationDelete?.addEventListener("click", async () => {
+  if (!automationId?.value || !currentUser) return;
+  const confirmDelete = confirm(
+    "Delete this rule? This cannot be undone."
+  );
+  if (!confirmDelete) return;
+  await softDeleteAutomation(automationId.value);
 });
 
 automationForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!currentUser) return;
+  if (!requireAdvanced("Automations")) return;
+
+  if (!automationTrigger?.value) {
+    alert("Please choose a trigger.");
+    return;
+  }
+
+  if (!automationChannel?.value) {
+    alert("Please choose a channel.");
+    return;
+  }
+
+  if (!automationTemplate?.value.trim()) {
+    alert("Template cannot be empty.");
+    return;
+  }
+
+  if (automationTrigger.value === "no_response_x_days") {
+    const days = Number(automationNoResponseDays?.value || 0);
+    if (!days || days < 0) {
+      alert("Please enter a positive number of days for this trigger.");
+      return;
+    }
+  }
+
+  const existing = automationCache.find((a) => a.id === automationId?.value);
+
+  const delayHoursVal =
+    automationDelay?.value !== undefined && automationDelay.value !== ""
+      ? Number(automationDelay.value)
+      : null;
+  const noResponseVal =
+    automationNoResponseDays?.value !== undefined &&
+    automationNoResponseDays.value !== ""
+      ? Number(automationNoResponseDays.value)
+      : null;
 
   const payload = {
     businessId: currentUser.uid,
     type: automationChannel?.value,
     trigger: automationTrigger?.value,
-    delayHours: automationDelay?.value ? Number(automationDelay.value) : null,
+    delayHours:
+      delayHoursVal !== null && Number.isFinite(delayHoursVal)
+        ? Math.max(0, delayHoursVal)
+        : null,
     minRating: automationTrigger?.value === "low_rating" ? 1 : null,
     maxRating: automationTrigger?.value === "low_rating" ? 3 : null,
-    enabled: true,
+    enabled: existing?.enabled ?? true,
     template: automationTemplate?.value,
     channelConfig: {},
     updatedAt: serverTimestamp(),
-    createdAt: serverTimestamp(),
-    noResponseDays: automationNoResponseDays?.value
-      ? Number(automationNoResponseDays.value)
-      : null,
+    noResponseDays:
+      noResponseVal !== null && Number.isFinite(noResponseVal)
+        ? Math.max(0, noResponseVal)
+        : null,
   };
 
   try {
     if (automationId?.value) {
       await updateDoc(doc(db, "automations", automationId.value), payload);
     } else {
-      await addDoc(collection(db, "automations"), payload);
+      await addDoc(collection(db, "automations"), {
+        ...payload,
+        createdAt: serverTimestamp(),
+      });
     }
     automationForm?.reset();
     if (automationId) automationId.value = "";
+    selectedAutomationId = "";
+    setAutomationPreview(DEFAULT_AUTOMATION_PREVIEW);
     await loadAutomations();
   } catch (err) {
     console.error("save automation error:", err);
@@ -1293,6 +1584,15 @@ async function loadAutomations() {
     automationCache = snap.docs
       .filter((d) => !d.data().deleted)
       .map((d) => ({ id: d.id, ...d.data() }));
+    if (selectedAutomationId) {
+      const stillExists = automationCache.some(
+        (a) => a.id === selectedAutomationId
+      );
+      if (!stillExists) {
+        selectedAutomationId = "";
+        setAutomationPreview(DEFAULT_AUTOMATION_PREVIEW);
+      }
+    }
     renderAutomations();
   } catch (err) {
     console.error("loadAutomations error:", err);
@@ -1320,21 +1620,37 @@ function renderAutomations() {
   automationList.innerHTML = "";
 
   if (!automationCache.length) {
-    automationList.textContent =
-      "No automations yet. Create one to respond automatically.";
+    const empty = document.createElement("div");
+    empty.className = "automation-empty";
+    empty.textContent = "No rules yet. Create your first automation on the right.";
+    automationList.appendChild(empty);
     return;
   }
 
   automationCache.forEach((auto) => {
     const div = document.createElement("div");
-    div.className = "list-item";
-    div.innerHTML = `
-      <div class="title">${describeTrigger(auto)} → ${auto.type.toUpperCase()}</div>
-      <div class="meta">${(auto.template || "").split("\n")[0]}</div>
+    const templateLine =
+      (auto.template || "")
+        .split("\n")
+        .find((line) => line.trim().length > 0) || "No template yet.";
+    div.className = `list-item${
+      selectedAutomationId === auto.id ? " active" : ""
+    }`;
+
+    const content = document.createElement("div");
+    content.className = "automation-copy";
+    content.innerHTML = `
+      <div class="title">${describeTrigger(auto)} <span class="arrow">→</span> <span class="automation-chip">${
+      (auto.type || "").toUpperCase()
+    }</span></div>
+      <div class="meta">${templateLine}</div>
       <div class="meta">${auto.enabled ? "On" : "Off"} · Updated ${formatDate(
       auto.updatedAt
     )}</div>
     `;
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
 
     div.addEventListener("click", () => {
       if (!automationId) return;
@@ -1345,8 +1661,16 @@ function renderAutomations() {
       if (automationNoResponseDays)
         automationNoResponseDays.value = auto.noResponseDays || "";
       if (automationTemplate) automationTemplate.value = auto.template || "";
-      if (automationPreview)
-        automationPreview.textContent = automationPreviewText();
+      selectedAutomationId = auto.id;
+      setAutomationPreview(
+        automationTemplate?.value.trim()
+          ? automationPreviewText()
+          : DEFAULT_AUTOMATION_PREVIEW
+      );
+      document
+        .querySelectorAll("#automationList .list-item")
+        .forEach((item) => item.classList.remove("active"));
+      div.classList.add("active");
     });
 
     const toggle = document.createElement("button");
@@ -1354,6 +1678,7 @@ function renderAutomations() {
     toggle.textContent = auto.enabled ? "Disable" : "Enable";
     toggle.addEventListener("click", async (e) => {
       e.stopPropagation();
+      if (!requireAdvanced("Automations")) return;
       try {
         await updateDoc(doc(db, "automations", auto.id), {
           enabled: !auto.enabled,
@@ -1365,7 +1690,22 @@ function renderAutomations() {
       }
     });
 
-    div.appendChild(toggle);
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "btn danger";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const confirmDelete = confirm(
+        "Delete this rule? This cannot be undone."
+      );
+      if (!confirmDelete) return;
+      await softDeleteAutomation(auto.id);
+    });
+
+    actions.appendChild(toggle);
+    actions.appendChild(deleteBtn);
+    div.appendChild(content);
+    div.appendChild(actions);
     automationList.appendChild(div);
   });
 }
@@ -1382,7 +1722,8 @@ function evaluateAutomations(feedbackList) {
       if (auto.trigger === "high_rating" && rating >= 4) shouldFire = true;
       if (auto.trigger === "new_google_review" && type === "google") shouldFire = true;
       if (auto.trigger === "no_response_x_days" && auto.noResponseDays) {
-        shouldFire = rating <= 3;
+        const daysSince = Number(f.daysSinceRequest || 0);
+        shouldFire = daysSince >= Number(auto.noResponseDays || 0);
       }
 
       if (shouldFire) {
@@ -1398,7 +1739,7 @@ function evaluateAutomations(feedbackList) {
               businessId: currentUser.uid,
               feedbackId: f.id,
               title: `Auto task for ${f.customerName || "customer"}`,
-              description: auto.template,
+              description: automationPreviewText(auto.template),
               status: "open",
               assignee: null,
               priority: rating <= 2 ? "high" : "medium",
@@ -1477,6 +1818,7 @@ function isOverdue(task) {
 }
 
 async function updateTaskField(taskId, payload) {
+  if (!requireAdvanced("Tasks")) return;
   try {
     await updateDoc(doc(db, "tasks", taskId), {
       ...payload,
@@ -1785,8 +2127,12 @@ async function loadReviewRequests() {
 
 // ---------- INSIGHTS REFRESH BUTTONS ----------
 
-refreshInsightsBtn?.addEventListener("click", refreshInsights);
-refreshInsightsSecondary?.addEventListener("click", refreshInsights);
+refreshInsightsBtn?.addEventListener("click", () => {
+  handleInsightsRefresh(refreshInsightsBtn);
+});
+refreshInsightsSecondary?.addEventListener("click", () => {
+  handleInsightsRefresh(refreshInsightsSecondary);
+});
 
 // ---------- ASK FOR REVIEWS BUTTON ----------
 
