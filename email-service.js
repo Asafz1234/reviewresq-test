@@ -1,24 +1,29 @@
-import { functions, httpsCallable } from "./firebase.js";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { app } from "./firebase";
 
-const sendReviewRequestEmailFn = httpsCallable(functions, "sendReviewRequestEmail");
+const functions = getFunctions(app);
+const sendEmailFn = httpsCallable(functions, "sendReviewRequestEmail");
 
 export async function sendReviewRequestEmail({ to, customerName, businessName, reviewLink }) {
   const subject = `Share your experience with ${businessName}`;
-
   const text = `
-
 Hi ${customerName},
 
-Thank you for choosing ${businessName}! We’d really appreciate it if you could take a moment to share your experience.
+Thank you for choosing ${businessName}!
+Please share your experience at the link below:
 
-You can leave your review here:
 ${reviewLink}
 
 Thanks,
 ${businessName} Team
-`.trim();
+  `.trim();
 
-  const html = text.replace(/\n/g, "<br />");
+  const html = text.replace(/\n/g, "<br>");
 
-  await sendReviewRequestEmailFn({ to, subject, text, html });
+  return await sendEmailFn({
+    to,
+    subject,
+    text,
+    html,
+  });
 }

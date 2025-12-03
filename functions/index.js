@@ -9,26 +9,24 @@ if (!sendgridApiKey) {
   sgMail.setApiKey(sendgridApiKey);
 }
 
-exports.sendReviewRequestEmail = functions.https.onCall(async (data) => {
-  const { to, subject, text, html } = data || {};
+exports.sendReviewRequestEmail = functions.https.onCall(async (data, context) => {
+  const { to, subject, text, html } = data;
 
   if (!to) {
-    throw new functions.https.HttpsError('invalid-argument', 'Missing "to" email address');
+    throw new functions.https.HttpsError('invalid-argument', 'Missing email address');
   }
 
-  const msg = {
-    to,
-    from: 'no-reply@reviewresq.com',
-    subject,
-    text,
-    html,
-  };
-
   try {
-    await sgMail.send(msg);
+    await sgMail.send({
+      to,
+      from: "no-reply@reviewresq.com",
+      subject,
+      text,
+      html,
+    });
     return { success: true };
-  } catch (err) {
-    console.error('Error sending review request email', err);
+  } catch (error) {
+    console.error("Email error:", error);
     throw new functions.https.HttpsError('internal', 'Failed to send email');
   }
 });
