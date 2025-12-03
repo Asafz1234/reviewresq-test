@@ -67,6 +67,18 @@ const NON_BLOCKING_MESSAGE =
   "Some dashboard data could not be loaded. Please try refreshing.";
 
 const dashboardViews = Array.from(document.querySelectorAll(".dashboard-view"));
+const VIEW_HASH_MAP = {
+  "#overview": "view-overview",
+  "#inbox": "view-inbox",
+  "#reviews-inbox": "view-inbox",
+  "#ai-insights": "view-ai-insights",
+  "#automations": "view-automations",
+  "#followups": "view-followups",
+  "#follow-ups": "view-followups",
+  "#review-requests": "view-review-requests",
+  "#portal-branding": "view-portal-branding",
+  "#alerts": "view-alerts",
+};
 
 function setActiveNav(viewId) {
   navButtons.forEach((btn) => {
@@ -75,7 +87,7 @@ function setActiveNav(viewId) {
   });
 }
 
-function showView(viewId, { updateHash = true } = {}) {
+function showView(viewId) {
   if (!viewId) return;
   currentView = viewId;
 
@@ -84,10 +96,30 @@ function showView(viewId, { updateHash = true } = {}) {
   });
 
   setActiveNav(viewId);
+}
 
-  if (updateHash) {
-    const hashValue = viewId.replace(/^view-/, "");
-    history.replaceState(null, "", `#${hashValue}`);
+function hashForView(viewId) {
+  const match = Object.entries(VIEW_HASH_MAP).find(([, id]) => id === viewId);
+  return match ? match[0] : "#overview";
+}
+
+function viewFromHash(hash) {
+  if (!hash) return "view-overview";
+  const normalized = hash.startsWith("#") ? hash.toLowerCase() : `#${hash.toLowerCase()}`;
+  return VIEW_HASH_MAP[normalized] || "view-overview";
+}
+
+function handleHashChange() {
+  const hash = window.location.hash || "#overview";
+  const nextView = viewFromHash(hash);
+  showView(nextView);
+}
+
+function setRoute(hash) {
+  if (window.location.hash !== hash) {
+    window.location.hash = hash;
+  } else {
+    handleHashChange();
   }
 }
 
@@ -112,26 +144,22 @@ async function safeLoad(loader, label) {
 }
 
 function initNavigation() {
-  const hash = window.location.hash.replace("#", "");
-  const hashedView = dashboardViews.find(
-    (view) => view.id === hash || view.id === `view-${hash}`
-  );
-  const initialView = hashedView?.id || "view-overview";
-
-  showView(initialView, { updateHash: false });
+  handleHashChange();
 
   navTriggers.forEach((trigger) => {
     trigger.addEventListener("click", (e) => {
       e.preventDefault();
       const targetView = trigger.dataset.view;
       if (!targetView) return;
-      showView(targetView);
+      setRoute(hashForView(targetView));
 
       if (mobileMoreSheet) {
         mobileMoreSheet.setAttribute("aria-hidden", "true");
       }
     });
   });
+
+  window.addEventListener("hashchange", handleHashChange);
 }
 
 function renderPlanBanner(plan) {
