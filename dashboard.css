@@ -339,6 +339,17 @@ h3 {
   border: 1px solid var(--border);
 }
 
+.btn.danger {
+  background: rgba(239, 68, 68, 0.08);
+  color: #fecdd3;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.btn.danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ffe4e6;
+}
+
 .btn.full {
   width: 100%;
 }
@@ -1077,9 +1088,15 @@ h3 {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .automation-list .list-item .btn.ghost {
+  padding: 8px 10px;
+  height: 36px;
+}
+
+.automation-list .list-item .btn.danger {
   padding: 8px 10px;
   height: 36px;
 }
@@ -1158,6 +1175,18 @@ h3 {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.template-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.template-actions .helper-text {
+  margin: 0;
 }
 
 .automation-grid .list-header h3 {
@@ -1378,7 +1407,6 @@ h3 {
   .desktop-only {
     display: none !important;
   }
-}
 
 @media (max-width: 768px) {
   .app-layout {

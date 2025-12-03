@@ -263,6 +263,9 @@ const automationTemplate = document.getElementById("automationTemplate");
 const automationPreview = document.getElementById("automationPreview");
 const automationCancel = document.getElementById("automationCancel");
 const automationDelete = document.getElementById("automationDelete");
+const useRecommendedTemplateBtn = document.getElementById(
+  "useRecommendedTemplate"
+);
 
 // Tasks
 const tasksList = document.getElementById("tasksList");
@@ -309,6 +312,31 @@ let automationCache = [];
 let selectedAutomationId = "";
 let taskCache = [];
 let currentModalFeedback = null;
+
+const DEFAULT_AUTOMATION_PREVIEW = "Preview will appear here.";
+
+const RECOMMENDED_AUTOMATION_TEMPLATES = {
+  low_rating_email:
+    "Hi {{customerName}},\n\nThank you for your feedback. I'm really sorry your experience wasn’t perfect.\nI’d love to understand what happened and see how we can make it right.\n\nIf you’re open to it, you can reply directly to this email or call us at {{businessPhone}}.\n\nThanks,\n{{ownerName}}\n{{businessName}}",
+  low_rating_sms:
+    "Hi {{customerName}}, thanks for your feedback. I’m sorry your experience wasn’t perfect. Can you reply with a bit more detail so we can make it right? – {{businessName}}",
+  low_rating_whatsapp:
+    "Hi {{customerName}}, sorry to hear we missed the mark. Can you share more about what happened? We’ll fix it ASAP. – {{businessName}}",
+  high_rating_email:
+    "Hi {{customerName}},\n\nThank you so much for your positive feedback! It really means a lot to us.\nIf you have a moment, we’d appreciate a quick 5-star review on Google – it helps other customers discover us.\n\nThank you again,\n{{ownerName}}\n{{businessName}}",
+  high_rating_sms:
+    "Hi {{customerName}}, thanks for the great feedback! 🙏 If you have 30 seconds, a quick 5★ review on Google would help us a lot. Thank you! – {{businessName}}",
+  high_rating_whatsapp:
+    "Hi {{customerName}}, thank you for the awesome rating! Could you drop us a quick 5★ review on Google? It helps more customers find us. – {{businessName}}",
+  new_google_review_email:
+    "Hi {{customerName}},\n\nWe saw your Google review – thank you so much! If you have any other thoughts, reply here anytime.\n\nCheers,\n{{ownerName}}\n{{businessName}}",
+  new_google_review_sms:
+    "Thanks for the Google review, {{customerName}}! We appreciate you. If there’s anything else we can do, just reply to this text. – {{businessName}}",
+  no_response_x_days_email:
+    "Hi {{customerName}},\n\nChecking in to see if you received our last message. If you still need help, reply here or call {{businessPhone}} and we’ll take care of it.\n\nThanks,\n{{ownerName}}\n{{businessName}}",
+  no_response_x_days_sms:
+    "Hi {{customerName}}, just following up. Let us know if you still need help or call us at {{businessPhone}}. Thanks! – {{businessName}}",
+};
 
 async function getBusinessDocForUser(uid) {
   if (!uid) return null;
@@ -997,6 +1025,26 @@ async function refreshInsights() {
   }
 }
 
+async function handleInsightsRefresh(btn) {
+  if (!requireAdvanced("AI Insights")) return;
+  const originalLabel = btn?.textContent || "Refresh insights";
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Refreshing…";
+    }
+    await refreshInsights();
+  } catch (err) {
+    console.error("Error refreshing AI insights:", err);
+    alert("Something went wrong while refreshing insights. Please try again.");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+}
+
 function renderInsights(data) {
   const totalCount =
     data.totalCount ?? data.feedbackCount ?? data.total ?? feedbackCache.length;
@@ -1327,7 +1375,8 @@ function fillTemplate(template, sample) {
     .replace(/{{businessName}}/g, sample.businessName)
     .replace(/{{rating}}/g, sample.rating)
     .replace(/{{feedbackSnippet}}/g, sample.feedbackSnippet)
-    .replace(/{{ownerName}}/g, sample.ownerName);
+    .replace(/{{ownerName}}/g, sample.ownerName)
+    .replace(/{{businessPhone}}/g, sample.businessPhone);
 }
 
 function automationPreviewText(templateOverride) {
@@ -1337,8 +1386,38 @@ function automationPreviewText(templateOverride) {
     rating: 5,
     feedbackSnippet: "Loved the service!",
     ownerName: currentProfile?.ownerName || "Team",
+    businessPhone:
+      currentProfile?.phone ||
+      currentProfile?.businessPhone ||
+      "(555) 123-4567",
   };
   return fillTemplate(templateOverride ?? automationTemplate?.value, sample);
+}
+
+function getAutomationTemplateKey(trigger, channel) {
+  if (!trigger || !channel) return null;
+  return `${trigger}_${channel}`.toLowerCase();
+}
+
+function applyRecommendedTemplate(force = false) {
+  const trigger = automationTrigger?.value;
+  const channel = automationChannel?.value;
+  const key = getAutomationTemplateKey(trigger, channel);
+  if (!key) return null;
+  const template = RECOMMENDED_AUTOMATION_TEMPLATES[key];
+  if (!template) return null;
+
+  const hasExistingContent = (automationTemplate?.value || "").trim().length > 0;
+  if (!force) {
+    if (automationId?.value) return null;
+    if (hasExistingContent) return null;
+  }
+
+  if (automationTemplate) {
+    automationTemplate.value = template;
+    setAutomationPreview(automationPreviewText(template));
+  }
+  return template;
 }
 
 function setAutomationPreview(text) {
@@ -1349,36 +1428,70 @@ function setAutomationPreview(text) {
 automationTemplate?.addEventListener("input", () => {
   const text = automationTemplate.value.trim()
     ? automationPreviewText()
-    : "Preview will appear here.";
+    : DEFAULT_AUTOMATION_PREVIEW;
   setAutomationPreview(text);
+});
+
+automationTrigger?.addEventListener("change", () => {
+  applyRecommendedTemplate();
+  const text = automationTemplate?.value.trim()
+    ? automationPreviewText()
+    : DEFAULT_AUTOMATION_PREVIEW;
+  setAutomationPreview(text);
+});
+
+automationChannel?.addEventListener("change", () => {
+  applyRecommendedTemplate();
+  const text = automationTemplate?.value.trim()
+    ? automationPreviewText()
+    : DEFAULT_AUTOMATION_PREVIEW;
+  setAutomationPreview(text);
+});
+
+useRecommendedTemplateBtn?.addEventListener("click", () => {
+  const applied = applyRecommendedTemplate(true);
+  if (!applied) {
+    alert("No recommended template for this trigger/channel yet.");
+  }
 });
 
 automationCancel?.addEventListener("click", () => {
   automationForm?.reset();
   if (automationId) automationId.value = "";
   selectedAutomationId = "";
-  setAutomationPreview("Preview will appear here.");
+  setAutomationPreview(DEFAULT_AUTOMATION_PREVIEW);
 });
 
 // ---------- AUTOMATIONS ----------
 
-automationDelete?.addEventListener("click", async () => {
-  if (!automationId?.value || !currentUser) return;
+async function softDeleteAutomation(autoId) {
+  if (!autoId || !currentUser) return;
   if (!requireAdvanced("Automations")) return;
   try {
-    await updateDoc(doc(db, "automations", automationId.value), {
+    await updateDoc(doc(db, "automations", autoId), {
       deleted: true,
       enabled: false,
       updatedAt: serverTimestamp(),
     });
-    automationForm?.reset();
-    automationId.value = "";
-    selectedAutomationId = "";
-    setAutomationPreview("Preview will appear here.");
+    if (automationId?.value === autoId) {
+      automationForm?.reset();
+      automationId.value = "";
+      selectedAutomationId = "";
+      setAutomationPreview(DEFAULT_AUTOMATION_PREVIEW);
+    }
     await loadAutomations();
   } catch (err) {
     console.error("automationDelete error:", err);
   }
+}
+
+automationDelete?.addEventListener("click", async () => {
+  if (!automationId?.value || !currentUser) return;
+  const confirmDelete = confirm(
+    "Delete this rule? This cannot be undone."
+  );
+  if (!confirmDelete) return;
+  await softDeleteAutomation(automationId.value);
 });
 
 automationForm?.addEventListener("submit", async (e) => {
@@ -1453,7 +1566,7 @@ automationForm?.addEventListener("submit", async (e) => {
     automationForm?.reset();
     if (automationId) automationId.value = "";
     selectedAutomationId = "";
-    setAutomationPreview("Preview will appear here.");
+    setAutomationPreview(DEFAULT_AUTOMATION_PREVIEW);
     await loadAutomations();
   } catch (err) {
     console.error("save automation error:", err);
@@ -1477,7 +1590,7 @@ async function loadAutomations() {
       );
       if (!stillExists) {
         selectedAutomationId = "";
-        setAutomationPreview("Preview will appear here.");
+        setAutomationPreview(DEFAULT_AUTOMATION_PREVIEW);
       }
     }
     renderAutomations();
@@ -1552,7 +1665,7 @@ function renderAutomations() {
       setAutomationPreview(
         automationTemplate?.value.trim()
           ? automationPreviewText()
-          : "Preview will appear here."
+          : DEFAULT_AUTOMATION_PREVIEW
       );
       document
         .querySelectorAll("#automationList .list-item")
@@ -1577,7 +1690,20 @@ function renderAutomations() {
       }
     });
 
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "btn danger";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const confirmDelete = confirm(
+        "Delete this rule? This cannot be undone."
+      );
+      if (!confirmDelete) return;
+      await softDeleteAutomation(auto.id);
+    });
+
     actions.appendChild(toggle);
+    actions.appendChild(deleteBtn);
     div.appendChild(content);
     div.appendChild(actions);
     automationList.appendChild(div);
@@ -2002,12 +2128,10 @@ async function loadReviewRequests() {
 // ---------- INSIGHTS REFRESH BUTTONS ----------
 
 refreshInsightsBtn?.addEventListener("click", () => {
-  if (!requireAdvanced("AI Insights")) return;
-  refreshInsights();
+  handleInsightsRefresh(refreshInsightsBtn);
 });
 refreshInsightsSecondary?.addEventListener("click", () => {
-  if (!requireAdvanced("AI Insights")) return;
-  refreshInsights();
+  handleInsightsRefresh(refreshInsightsSecondary);
 });
 
 // ---------- ASK FOR REVIEWS BUTTON ----------
