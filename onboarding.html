@@ -111,7 +111,7 @@
       placeholder="Best Pizza Miami"
     />
 
-    <button id="findBusinessBtn" class="btn-primary" type="button">
+    <button id="autoFindBtn" class="btn-primary">
       Find Google Review Link Automatically
     </button>
 
@@ -122,13 +122,8 @@
       <div id="resultsList"></div>
     </div>
 
-    <label for="googleReviewUrlInput">Google Review Link</label>
-    <input
-      id="googleReviewUrlInput"
-      class="input-modern"
-      type="url"
-      placeholder="Will auto-fill…"
-    />
+    <label>Google Review Link</label>
+    <input id="googleReviewLinkInput" type="url" placeholder="Will auto-fill…" />
 
     <button id="saveBtn" class="btn-primary btn-save" type="button">
       Save and Continue
@@ -136,6 +131,11 @@
 
     <div id="saveStatus"></div>
   </div>
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBK1hbescTaT4q_9-pbjxAXcqRY9s6mkfw&libraries=places"
+    async
+    defer
+  ></script>
 
   <script type="module" src="onboarding.js"></script>
 </body>
