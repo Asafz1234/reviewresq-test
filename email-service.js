@@ -1,7 +1,4 @@
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-functions.js";
-import { app } from "./firebase";
-
-const functions = getFunctions(app);
+import { functions, httpsCallable } from "./firebase.js";
 const sendEmailFn = httpsCallable(functions, "sendReviewRequestEmail");
 
 export async function sendReviewRequestEmail({ to, customerName, businessName, reviewLink }) {
