@@ -1,16 +1,15 @@
 import {
   db,
   doc,
+  getDoc,
   setDoc,
-  serverTimestamp
+  serverTimestamp,
 } from "./firebase.js";
 
 const googleApiKey = "YOUR_GOOGLE_API_KEY"; // תחליף פעם אחת – וזהו.
 
 const businessNameInput = document.getElementById("businessNameInput");
-const googleReviewUrlInput = document.getElementById("googleReviewUrlInput");
-
-const findBusinessBtn = document.getElementById("findBusinessBtn");
+const googleReviewLinkInput = document.getElementById("googleReviewLinkInput");
 const saveBtn = document.getElementById("saveBtn");
 
 const loadingEl = document.getElementById("loading");
@@ -20,6 +19,74 @@ const saveStatus = document.getElementById("saveStatus");
 
 let selectedPlaceId = null;
 
+function initGoogleReviewAutoFinder() {
+  const nameInput = document.getElementById("businessNameInput");
+  const linkInput = document.getElementById("googleReviewLinkInput");
+  const autoBtn = document.getElementById("autoFindBtn");
+
+  if (!nameInput || !linkInput || !autoBtn) {
+    console.warn("Auto finder elements not found on page");
+    return;
+  }
+
+  autoBtn.addEventListener("click", () => {
+    const query = nameInput.value.trim();
+    if (!query) {
+      alert("Please enter your business name first.");
+      return;
+    }
+
+    autoBtn.disabled = true;
+    const originalLabel = autoBtn.textContent;
+    autoBtn.textContent = "Searching…";
+
+    // Create Places service without an actual map
+    const service = new google.maps.places.PlacesService(
+      document.createElement("div")
+    );
+
+    const request = {
+      query,
+      fields: ["place_id", "name"],
+    };
+
+    service.textSearch(request, (results, status) => {
+      autoBtn.disabled = false;
+      autoBtn.textContent = originalLabel;
+
+      if (
+        status !== google.maps.places.PlacesServiceStatus.OK ||
+        !results ||
+        !results.length
+      ) {
+        alert(
+          "We could not find this business on Google Maps. Please paste your Google review link manually."
+        );
+        return;
+      }
+
+      const placeId = results[0].place_id;
+      const reviewUrl =
+        "https://search.google.com/local/writereview?placeid=" + placeId;
+
+      linkInput.value = reviewUrl;
+    });
+  });
+}
+
+window.addEventListener("load", () => {
+  if (window.google && google.maps && google.maps.places) {
+    initGoogleReviewAutoFinder();
+  } else {
+    // Fallback: wait briefly for Maps to finish loading
+    window.setTimeout(() => {
+      if (window.google && google.maps && google.maps.places) {
+        initGoogleReviewAutoFinder();
+      }
+    }, 1000);
+  }
+});
+
 function getInputs() {
   return {
     bizNameInput: document.getElementById("bizNameInput"),
@@ -28,20 +95,10 @@ function getInputs() {
     bizEmailInput: document.getElementById("bizEmailInput"),
     websiteInput: document.getElementById("websiteInput"),
     logoUrlInput: document.getElementById("logoUrlInput"),
-    googleReviewUrlInput: document.getElementById("googleReviewUrlInput"),
+    googleReviewLinkInput: document.getElementById("googleReviewLinkInput"),
     planSelect: document.getElementById("plan"),
   };
 }
-
-  const query = businessNameInput.value.trim();
-  if (!query) {
-    alert("Please enter a business name");
-    return;
-  }
-
-  loadingEl.style.display = "block";
-  resultsWrapper.style.display = "none";
-  resultsList.innerHTML = "";
 
 async function loadOnboarding(uid) {
   const {
@@ -51,7 +108,7 @@ async function loadOnboarding(uid) {
     bizEmailInput,
     websiteInput,
     logoUrlInput,
-    googleReviewUrlInput,
+    googleReviewLinkInput,
     planSelect,
   } = getInputs();
 
@@ -81,7 +138,7 @@ async function loadOnboarding(uid) {
     console.error(err);
     alert("Failed to search Google.");
   }
-});
+}
 
 // ---------- SAVE DATA ----------
 
@@ -95,7 +152,7 @@ async function saveOnboarding(uid) {
     bizEmailInput,
     websiteInput,
     logoUrlInput,
-    googleReviewUrlInput,
+    googleReviewLinkInput,
     planSelect,
   } = getInputs();
 
@@ -137,7 +194,7 @@ async function saveOnboarding(uid) {
     // כאשר נרשם עסק חדש ושמרנו את businessProfile
     if (!portalSettingsSnap.exists()) {
       await setDoc(portalSettingsRef, {
-        googleReviewUrl: googleReviewUrlInput?.value || "",
+        googleReviewUrl: googleReviewLinkInput?.value || "",
         primaryColor: "#2563eb",
         accentColor: "#7c3aed",
         backgroundStyle: "gradient",
@@ -171,7 +228,7 @@ async function saveOnboarding(uid) {
 --------------------------------------------------- */
 saveBtn.addEventListener("click", async () => {
   const businessName = businessNameInput.value.trim();
-  const googleReviewUrl = googleReviewUrlInput.value.trim();
+  const googleReviewUrl = googleReviewLinkInput.value.trim();
 
   if (!businessName) {
     alert("Business name is required.");
