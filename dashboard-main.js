@@ -91,6 +91,16 @@ function showView(viewId, { updateHash = true } = {}) {
   }
 }
 
+function updateSidebarUserInfo(user) {
+  if (userEmailDisplay) {
+    userEmailDisplay.textContent = user?.email || "My account";
+  }
+  if (planBadge) {
+    planBadge.textContent =
+      currentPlan === "advanced" ? "Advanced plan" : "Basic plan";
+  }
+}
+
 async function safeLoad(loader, label) {
   try {
     return await loader();
@@ -630,25 +640,13 @@ upgradeModalBtn?.addEventListener("click", () => {
 
 // ---------- AUTH & INITIAL LOAD ----------
 
-onAuthStateChanged(auth, async (user) => {
+async function loadDashboard(user) {
   try {
-    if (!user) {
-      window.location.href = "/auth.html";
-      return;
-    }
-
     currentUser = user;
-
-    if (userEmailDisplay) userEmailDisplay.textContent = user.email || "My account";
-
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", async () => {
-        await signOut(auth);
-        window.location.href = "/auth.html";
-      });
-    }
+    updateSidebarUserInfo(user);
 
     await safeLoad(() => loadBusinessForCurrentUser(user.uid), "loadBusinessForCurrentUser");
+    updateSidebarUserInfo(user);
     applyPlanToUI(currentPlan);
 
     const canContinue = await safeLoad(() => loadProfile(), "loadProfile");
@@ -676,7 +674,25 @@ onAuthStateChanged(auth, async (user) => {
   } catch (err) {
     console.error("Dashboard init error:", err);
     showBanner("We had trouble loading your dashboard.", "warn");
+  } finally {
+    updateSidebarUserInfo(user);
   }
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = "/auth.html";
+    return;
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "/auth.html";
+    });
+  }
+
+  await loadDashboard(user);
 });
 
 async function loadProfile() {
