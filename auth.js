@@ -35,6 +35,12 @@ function clearAllErrors() {
   document.querySelectorAll("input").forEach((i) => i.classList.remove("error"));
 }
 
+// Password strength validator
+function isStrongPassword(password) {
+  const strongPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+  return strongPattern.test(password);
+}
+
 function fieldError(id, msg) {
   const input = document.getElementById(id);
   const errorDiv = document.getElementById(id + "-error");
@@ -146,10 +152,13 @@ if (signupForm) {
     if (!name) return fieldError("signup-name", "Full name is required.");
     if (!email) return fieldError("signup-email", "Email is required.");
     if (!phone) return fieldError("signup-phone", "Phone is required.");
-    if (password.length < 6) {
+    if (!isStrongPassword(password)) {
+      alert(
+        "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
+      );
       return fieldError(
         "signup-password",
-        "Password must be at least 6 characters."
+        "Enter a strong password (8+ chars, upper+lowercase, number, special)."
       );
     }
 
