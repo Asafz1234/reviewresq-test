@@ -267,6 +267,8 @@
               <div class="label">Overall sentiment</div>
               <div id="aiSentiment" class="sentiment-pill">–</div>
             </div>
+            <canvas id="trendChart" height="240"></canvas>
+            <div id="trendTable" class="trend-table desktop-only"></div>
           </div>
 
           <div class="ai-metrics-grid">
@@ -293,6 +295,39 @@
               <p class="label">Priority alert</p>
               <p class="ai-priority" id="aiPriorityAlert">Collect more feedback to unlock stronger insights.</p>
             </div>
+            <div class="surface subcard ai-metric-card">
+              <p class="label">Priority alert</p>
+              <p class="ai-priority" id="aiPriorityAlert">Collect more feedback to unlock stronger insights.</p>
+            </div>
+            <div id="ratingDistribution" class="rating-bars"></div>
+          </div>
+
+          <div class="ai-row">
+            <div class="surface subcard ai-trend-card">
+              <div class="ai-card-header">Sentiment over time</div>
+              <div class="ai-trend-body">
+                <canvas id="sentimentTrendChart" height="180"></canvas>
+                <div id="aiTrendEmpty" class="muted-text">We’ll show sentiment trends here once you receive more feedback.</div>
+              </div>
+            </div>
+            <div class="surface subcard ai-themes-card">
+              <div class="ai-card-header">Top themes &amp; keywords</div>
+              <div class="ai-themes-body">
+                <div>
+                  <p class="label">Top themes</p>
+                  <ul id="aiThemes" class="bullet-list"></ul>
+                </div>
+                <div>
+                  <p class="label">Keywords</p>
+                  <div id="aiKeywords" class="keyword-list"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="surface subcard ai-actions-card">
+            <div class="ai-card-header">Action plan for the next 7 days</div>
+            <ul id="aiRecommendations" class="bullet-list"></ul>
           </div>
 
           <div class="ai-row">

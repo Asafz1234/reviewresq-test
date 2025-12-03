@@ -1407,7 +1407,6 @@ h3 {
   .desktop-only {
     display: none !important;
   }
-}
 
 @media (max-width: 768px) {
   .app-layout {
