@@ -267,6 +267,8 @@
               <div class="label">Overall sentiment</div>
               <div id="aiSentiment" class="sentiment-pill">–</div>
             </div>
+            <canvas id="trendChart" height="240"></canvas>
+            <div id="trendTable" class="trend-table desktop-only"></div>
           </div>
 
           <div class="ai-metrics-grid">
@@ -293,6 +295,7 @@
               <p class="label">Priority alert</p>
               <p class="ai-priority" id="aiPriorityAlert">Collect more feedback to unlock stronger insights.</p>
             </div>
+            <div id="ratingDistribution" class="rating-bars"></div>
           </div>
 
           <div class="ai-row">
@@ -334,42 +337,74 @@
             <p class="section-sub">Trigger messages or tasks automatically.</p>
           </div>
         </div>
-        <div class="grid main-grid">
+        <div class="automation-grid">
           <div class="surface card automation-card">
-            <div class="list-header">Existing automations</div>
-            <div id="automationList"></div>
+            <div class="list-header">
+              <div>
+                <p class="eyebrow">Existing automations</p>
+                <h3>Rules</h3>
+              </div>
+              <p class="muted-text">Tap a rule to edit</p>
+            </div>
+            <div id="automationList" class="automation-list"></div>
           </div>
           <div class="surface card automation-card">
-            <div class="list-header">Create / edit rule</div>
-            <form id="automationForm" class="form-grid">
+            <div class="list-header">
+              <div>
+                <p class="eyebrow">Create / edit rule</p>
+                <h3>Composer</h3>
+              </div>
+            </div>
+            <form id="automationForm" class="form-grid automation-form">
               <input type="hidden" id="automationId" />
-              <label class="label">Trigger</label>
-              <select id="automationTrigger" required>
-                <option value="low_rating">Low rating (1–3★ private feedback)</option>
-                <option value="high_rating">High rating (4–5★)</option>
-                <option value="new_google_review">New Google review</option>
-                <option value="no_response_x_days">No follow-up after X days</option>
-              </select>
-              <label class="label">Channel</label>
-              <select id="automationChannel" required>
-                <option value="sms">SMS</option>
-                <option value="email">Email</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="internal_task">Internal task</option>
-              </select>
-              <label class="label">Delay (hours, optional)</label>
-              <input type="number" id="automationDelay" min="0" placeholder="0" />
-              <label class="label">No follow-up days (for no_response_x_days)</label>
-              <input type="number" id="automationNoResponseDays" min="0" placeholder="3" />
-              <label class="label">Template</label>
-              <textarea
-                id="automationTemplate"
-                rows="4"
-                placeholder="Hi {{customerName}}, thanks for your feedback..."
-                required
-              ></textarea>
+              <div class="form-field">
+                <label class="label" for="automationTrigger">Trigger</label>
+                <select id="automationTrigger" required>
+                  <option value="low_rating">Low rating (1–3★ private feedback)</option>
+                  <option value="high_rating">High rating (4–5★)</option>
+                  <option value="new_google_review">New Google review</option>
+                  <option value="no_response_x_days">No follow-up after X days</option>
+                </select>
+                <p class="helper-text">When should this rule run?</p>
+              </div>
+
+              <div class="form-field">
+                <label class="label" for="automationChannel">Channel</label>
+                <select id="automationChannel" required>
+                  <option value="sms">SMS</option>
+                  <option value="email">Email</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="internal_task">Internal task</option>
+                </select>
+                <p class="helper-text">How should we respond? (Email, SMS, WhatsApp, internal task)</p>
+              </div>
+
+              <div class="form-inline">
+                <div class="form-field">
+                  <label class="label" for="automationDelay">Delay (hours, optional)</label>
+                  <input type="number" id="automationDelay" min="0" placeholder="0" />
+                  <p class="helper-text">Optional. Wait this many hours before firing.</p>
+                </div>
+                <div class="form-field">
+                  <label class="label" for="automationNoResponseDays">No follow-up days</label>
+                  <input type="number" id="automationNoResponseDays" min="0" placeholder="3" />
+                  <p class="helper-text">For "no_response_x_days" trigger only.</p>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label class="label" for="automationTemplate">Template</label>
+                <textarea
+                  id="automationTemplate"
+                  rows="4"
+                  placeholder="Hi {{customerName}}, thanks for your feedback..."
+                  required
+                ></textarea>
+              </div>
+
               <div class="preview" id="automationPreview">Preview will appear here.</div>
-              <div class="form-actions">
+
+              <div class="form-actions automation-actions">
                 <button type="submit" class="btn primary">Save automation</button>
                 <button type="button" class="btn ghost" id="automationCancel">Cancel</button>
                 <button type="button" class="btn secondary" id="automationDelete">Delete</button>

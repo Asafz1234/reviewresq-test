@@ -306,6 +306,7 @@ let currentUser = null;
 let currentProfile = null;
 let feedbackCache = [];
 let automationCache = [];
+let selectedAutomationId = "";
 let taskCache = [];
 let currentModalFeedback = null;
 
@@ -1340,15 +1341,23 @@ function automationPreviewText(templateOverride) {
   return fillTemplate(templateOverride ?? automationTemplate?.value, sample);
 }
 
+function setAutomationPreview(text) {
+  if (!automationPreview) return;
+  automationPreview.textContent = text;
+}
+
 automationTemplate?.addEventListener("input", () => {
-  if (automationPreview) automationPreview.textContent = automationPreviewText();
+  const text = automationTemplate.value.trim()
+    ? automationPreviewText()
+    : "Preview will appear here.";
+  setAutomationPreview(text);
 });
 
 automationCancel?.addEventListener("click", () => {
   automationForm?.reset();
   if (automationId) automationId.value = "";
-  if (automationPreview)
-    automationPreview.textContent = "Preview will appear here.";
+  selectedAutomationId = "";
+  setAutomationPreview("Preview will appear here.");
 });
 
 // ---------- AUTOMATIONS ----------
@@ -1364,6 +1373,8 @@ automationDelete?.addEventListener("click", async () => {
     });
     automationForm?.reset();
     automationId.value = "";
+    selectedAutomationId = "";
+    setAutomationPreview("Preview will appear here.");
     await loadAutomations();
   } catch (err) {
     console.error("automationDelete error:", err);
@@ -1375,31 +1386,74 @@ automationForm?.addEventListener("submit", async (e) => {
   if (!currentUser) return;
   if (!requireAdvanced("Automations")) return;
 
+  if (!automationTrigger?.value) {
+    alert("Please choose a trigger.");
+    return;
+  }
+
+  if (!automationChannel?.value) {
+    alert("Please choose a channel.");
+    return;
+  }
+
+  if (!automationTemplate?.value.trim()) {
+    alert("Template cannot be empty.");
+    return;
+  }
+
+  if (automationTrigger.value === "no_response_x_days") {
+    const days = Number(automationNoResponseDays?.value || 0);
+    if (!days || days < 0) {
+      alert("Please enter a positive number of days for this trigger.");
+      return;
+    }
+  }
+
+  const existing = automationCache.find((a) => a.id === automationId?.value);
+
+  const delayHoursVal =
+    automationDelay?.value !== undefined && automationDelay.value !== ""
+      ? Number(automationDelay.value)
+      : null;
+  const noResponseVal =
+    automationNoResponseDays?.value !== undefined &&
+    automationNoResponseDays.value !== ""
+      ? Number(automationNoResponseDays.value)
+      : null;
+
   const payload = {
     businessId: currentUser.uid,
     type: automationChannel?.value,
     trigger: automationTrigger?.value,
-    delayHours: automationDelay?.value ? Number(automationDelay.value) : null,
+    delayHours:
+      delayHoursVal !== null && Number.isFinite(delayHoursVal)
+        ? Math.max(0, delayHoursVal)
+        : null,
     minRating: automationTrigger?.value === "low_rating" ? 1 : null,
     maxRating: automationTrigger?.value === "low_rating" ? 3 : null,
-    enabled: true,
+    enabled: existing?.enabled ?? true,
     template: automationTemplate?.value,
     channelConfig: {},
     updatedAt: serverTimestamp(),
-    createdAt: serverTimestamp(),
-    noResponseDays: automationNoResponseDays?.value
-      ? Number(automationNoResponseDays.value)
-      : null,
+    noResponseDays:
+      noResponseVal !== null && Number.isFinite(noResponseVal)
+        ? Math.max(0, noResponseVal)
+        : null,
   };
 
   try {
     if (automationId?.value) {
       await updateDoc(doc(db, "automations", automationId.value), payload);
     } else {
-      await addDoc(collection(db, "automations"), payload);
+      await addDoc(collection(db, "automations"), {
+        ...payload,
+        createdAt: serverTimestamp(),
+      });
     }
     automationForm?.reset();
     if (automationId) automationId.value = "";
+    selectedAutomationId = "";
+    setAutomationPreview("Preview will appear here.");
     await loadAutomations();
   } catch (err) {
     console.error("save automation error:", err);
@@ -1417,6 +1471,15 @@ async function loadAutomations() {
     automationCache = snap.docs
       .filter((d) => !d.data().deleted)
       .map((d) => ({ id: d.id, ...d.data() }));
+    if (selectedAutomationId) {
+      const stillExists = automationCache.some(
+        (a) => a.id === selectedAutomationId
+      );
+      if (!stillExists) {
+        selectedAutomationId = "";
+        setAutomationPreview("Preview will appear here.");
+      }
+    }
     renderAutomations();
   } catch (err) {
     console.error("loadAutomations error:", err);
@@ -1444,21 +1507,37 @@ function renderAutomations() {
   automationList.innerHTML = "";
 
   if (!automationCache.length) {
-    automationList.textContent =
-      "No automations yet. Create one to respond automatically.";
+    const empty = document.createElement("div");
+    empty.className = "automation-empty";
+    empty.textContent = "No rules yet. Create your first automation on the right.";
+    automationList.appendChild(empty);
     return;
   }
 
   automationCache.forEach((auto) => {
     const div = document.createElement("div");
-    div.className = "list-item";
-    div.innerHTML = `
-      <div class="title">${describeTrigger(auto)} → ${auto.type.toUpperCase()}</div>
-      <div class="meta">${(auto.template || "").split("\n")[0]}</div>
+    const templateLine =
+      (auto.template || "")
+        .split("\n")
+        .find((line) => line.trim().length > 0) || "No template yet.";
+    div.className = `list-item${
+      selectedAutomationId === auto.id ? " active" : ""
+    }`;
+
+    const content = document.createElement("div");
+    content.className = "automation-copy";
+    content.innerHTML = `
+      <div class="title">${describeTrigger(auto)} <span class="arrow">→</span> <span class="automation-chip">${
+      (auto.type || "").toUpperCase()
+    }</span></div>
+      <div class="meta">${templateLine}</div>
       <div class="meta">${auto.enabled ? "On" : "Off"} · Updated ${formatDate(
       auto.updatedAt
     )}</div>
     `;
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
 
     div.addEventListener("click", () => {
       if (!automationId) return;
@@ -1469,8 +1548,16 @@ function renderAutomations() {
       if (automationNoResponseDays)
         automationNoResponseDays.value = auto.noResponseDays || "";
       if (automationTemplate) automationTemplate.value = auto.template || "";
-      if (automationPreview)
-        automationPreview.textContent = automationPreviewText();
+      selectedAutomationId = auto.id;
+      setAutomationPreview(
+        automationTemplate?.value.trim()
+          ? automationPreviewText()
+          : "Preview will appear here."
+      );
+      document
+        .querySelectorAll("#automationList .list-item")
+        .forEach((item) => item.classList.remove("active"));
+      div.classList.add("active");
     });
 
     const toggle = document.createElement("button");
@@ -1478,6 +1565,7 @@ function renderAutomations() {
     toggle.textContent = auto.enabled ? "Disable" : "Enable";
     toggle.addEventListener("click", async (e) => {
       e.stopPropagation();
+      if (!requireAdvanced("Automations")) return;
       try {
         await updateDoc(doc(db, "automations", auto.id), {
           enabled: !auto.enabled,
@@ -1489,7 +1577,9 @@ function renderAutomations() {
       }
     });
 
-    div.appendChild(toggle);
+    actions.appendChild(toggle);
+    div.appendChild(content);
+    div.appendChild(actions);
     automationList.appendChild(div);
   });
 }
@@ -1506,7 +1596,8 @@ function evaluateAutomations(feedbackList) {
       if (auto.trigger === "high_rating" && rating >= 4) shouldFire = true;
       if (auto.trigger === "new_google_review" && type === "google") shouldFire = true;
       if (auto.trigger === "no_response_x_days" && auto.noResponseDays) {
-        shouldFire = rating <= 3;
+        const daysSince = Number(f.daysSinceRequest || 0);
+        shouldFire = daysSince >= Number(auto.noResponseDays || 0);
       }
 
       if (shouldFire) {
@@ -1522,7 +1613,7 @@ function evaluateAutomations(feedbackList) {
               businessId: currentUser.uid,
               feedbackId: f.id,
               title: `Auto task for ${f.customerName || "customer"}`,
-              description: auto.template,
+              description: automationPreviewText(auto.template),
               status: "open",
               assignee: null,
               priority: rating <= 2 ? "high" : "medium",
