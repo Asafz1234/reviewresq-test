@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-} from "./firebase.js";
+} from "./firebase-config.js";
 
 /* ---------------------------
    עזרת UI – הודעה כללית למעלה
