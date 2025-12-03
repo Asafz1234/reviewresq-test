@@ -11,9 +11,9 @@
     <h2>Business Setup</h2>
 
     <label>Business Name</label>
-    <input id="businessNameInput" type="text" placeholder="Best Pizza Miami" />
+    <input id="businessName" type="text" placeholder="Business Name" />
 
-    <button id="findBusinessBtn" class="btn-primary">
+    <button id="autoFindBtn" type="button" class="btn-primary">
       Find Google Review Link Automatically
     </button>
 
@@ -25,7 +25,7 @@
     </div>
 
     <label>Google Review Link</label>
-    <input id="googleReviewUrlInput" type="url" placeholder="Will auto-fill…" />
+    <input id="googleReviewLink" type="text" placeholder="Will auto-fill…" />
 
     <button id="saveBtn" class="btn-primary">
       Save and Continue
@@ -34,7 +34,7 @@
     <div id="saveStatus"></div>
 
   </div>
-
-  <script type="module" src="onboarding.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBK1hbescTaT4q_9-pbjxAXcqRY9s6mkfw&libraries=places"></script>
+  <script src="onboarding.js"></script>
 </body>
 </html>
