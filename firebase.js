@@ -46,6 +46,10 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
+import {
+  getFunctions,
+  httpsCallable,
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
@@ -64,6 +68,7 @@ setLogLevel("error");
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app);
 
 export {
   onAuthStateChanged,
@@ -87,6 +92,7 @@ export {
   storageRef,
   uploadBytes,
   getDownloadURL,
+  httpsCallable,
 };
 
 export async function uploadLogoAndGetURL(file, userId) {
