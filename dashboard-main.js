@@ -1,4 +1,4 @@
-// dashboard-advanced.js (fixed & hardened)
+// dashboard-main.js (merged dashboard)
 
 import {
   auth,
@@ -39,6 +39,28 @@ const mobileMoreBtn = document.getElementById("mobileMoreBtn");
 const mobileMoreSheet = document.getElementById("mobileMoreSheet");
 const mobileSheetClose = document.getElementById("mobileSheetClose");
 const insightsUpdated = document.getElementById("insightsUpdated");
+const planBanner = document.getElementById("plan-banner");
+const upgradeModal = document.getElementById("upgradeModal");
+const upgradeModalClose = document.getElementById("upgradeModalClose");
+const upgradeModalBtn = document.getElementById("upgradeModalBtn");
+
+const FEATURE_FLAGS = {
+  aiInsights: {
+    plan: "advanced",
+    selector: "#section-ai",
+  },
+  automations: {
+    plan: "advanced",
+    selector: "#section-automations",
+  },
+  tasks: {
+    plan: "advanced",
+    selector: "#section-tasks",
+  },
+};
+
+let currentBusiness = null;
+let currentPlan = "basic";
 
 // כל סקשני הדשבורד
 const sections = document.querySelectorAll(".section");
@@ -54,9 +76,83 @@ function showSection(sectionId) {
   });
 }
 
+function renderPlanBanner(plan) {
+  if (!planBanner) return;
+
+  if (plan === "advanced") {
+    planBanner.innerHTML = "";
+    planBanner.style.display = "none";
+    return;
+  }
+
+  planBanner.style.display = "flex";
+  planBanner.innerHTML = `
+    <div class="plan-banner__text">
+      You’re on the <strong>Basic</strong> plan.
+      Unlock Automations & AI Insights with the <strong>Advanced</strong> plan.
+    </div>
+    <button id="upgrade-btn" class="btn primary btn-small">
+      Upgrade to Advanced
+    </button>
+  `;
+
+  document.getElementById("upgrade-btn")?.addEventListener("click", () => {
+    openUpgradeModal("Upgrade");
+  });
+}
+
+function applyPlanToUI(plan) {
+  const isAdvanced = plan === "advanced";
+
+  Object.values(FEATURE_FLAGS).forEach((feature) => {
+    const el = document.querySelector(feature.selector);
+    if (!el) return;
+
+    if (!isAdvanced && feature.plan === "advanced") {
+      el.classList.add("locked-feature");
+    } else {
+      el.classList.remove("locked-feature");
+    }
+  });
+
+  document.querySelectorAll(".locked-feature").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openUpgradeModal("Advanced feature");
+    });
+  });
+
+  renderPlanBanner(plan);
+}
+
+function openUpgradeModal(featureName = "Advanced feature") {
+  if (!upgradeModal) return;
+  const titleEl = document.getElementById("upgradeModalTitle");
+  if (titleEl) {
+    titleEl.textContent = `${featureName} is an Advanced feature`;
+  }
+
+  upgradeModal.classList.add("visible");
+  upgradeModal.setAttribute("aria-hidden", "false");
+}
+
+function closeUpgradeModal() {
+  if (!upgradeModal) return;
+  upgradeModal.classList.remove("visible");
+  upgradeModal.setAttribute("aria-hidden", "true");
+}
+
+function requireAdvanced(featureName) {
+  if (currentPlan === "advanced") return true;
+  openUpgradeModal(featureName);
+  return false;
+}
+
 // יוצר משימת follow-up מקושרת ל-feedback
 async function createFollowupTaskForFeedback(feedback, options = { openTasksAfter: false }) {
   if (!currentUser || !feedback) return;
+  if (!requireAdvanced("Follow-ups")) return;
 
   const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // עוד 3 ימים
 
@@ -212,6 +308,26 @@ let feedbackCache = [];
 let automationCache = [];
 let taskCache = [];
 let currentModalFeedback = null;
+
+async function getBusinessDocForUser(uid) {
+  if (!uid) return null;
+  const ref = doc(db, "businesses", uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  return { id: ref.id, ...snap.data() };
+}
+
+async function loadBusinessForCurrentUser(uid) {
+  const businessDoc = await getBusinessDocForUser(uid);
+  if (businessDoc) {
+    currentBusiness = businessDoc;
+    currentPlan = businessDoc.plan || "basic";
+  } else {
+    currentBusiness = null;
+    currentPlan = "basic";
+  }
+  return businessDoc;
+}
 
 // ---------- AI SERVICE (heuristic, ללא API חיצוני) ----------
 const AIService = {
@@ -443,6 +559,14 @@ navButtons.forEach((btn) => {
   });
 });
 
+upgradeModalClose?.addEventListener("click", closeUpgradeModal);
+upgradeModal?.addEventListener("click", (e) => {
+  if (e.target === upgradeModal) closeUpgradeModal();
+});
+upgradeModalBtn?.addEventListener("click", () => {
+  window.location.href = "/index.html#pricing";
+});
+
 // ---------- AUTH & INITIAL LOAD ----------
 
 onAuthStateChanged(auth, async (user) => {
@@ -463,6 +587,9 @@ onAuthStateChanged(auth, async (user) => {
       });
     }
 
+    await loadBusinessForCurrentUser(user.uid);
+    applyPlanToUI(currentPlan);
+
     const canContinue = await loadProfile();
     if (!canContinue) return;
 
@@ -477,11 +604,11 @@ onAuthStateChanged(auth, async (user) => {
       loadAiInsights(),
       loadPortalSettings(),
     ]);
-  } catch (err) {
-    console.error("Advanced dashboard init error:", err);
-    showBanner("We had trouble loading your Advanced dashboard.", "warn");
-  }
-});
+    } catch (err) {
+      console.error("Dashboard init error:", err);
+      showBanner("We had trouble loading your dashboard.", "warn");
+    }
+  });
 
 async function loadProfile() {
   try {
@@ -490,26 +617,21 @@ async function loadProfile() {
     const snap = await getDoc(ref);
 
     if (!snap.exists()) {
-      showBanner("Finish onboarding to access the Advanced dashboard.", "warn");
+      showBanner("Finish onboarding to access your dashboard.", "warn");
       setTimeout(() => (window.location.href = "/onboarding.html"), 1500);
       return false;
     }
 
     const data = snap.data();
-
-    if (data.plan !== "advanced") {
-      showBanner("Advanced features require the Advanced plan. Redirecting to Basic view…", "warn");
-      window.location.href = "/dashboard.html";
-      return false;
-    }
-
     currentProfile = data;
 
     if (bizNameDisplay) bizNameDisplay.textContent = data.businessName || "Your business";
     if (bizCategoryText) bizCategoryText.textContent = data.category || "Category";
     if (bizUpdatedAt) bizUpdatedAt.textContent = formatDate(data.updatedAt);
     if (bizAvatar) bizAvatar.textContent = initialsFromName(data.businessName || "RR");
-    if (planBadge) planBadge.textContent = "Advanced plan";
+    if (planBadge)
+      planBadge.textContent =
+        currentPlan === "advanced" ? "Advanced plan" : "Basic plan";
 
     return true;
   } catch (err) {
@@ -1233,6 +1355,7 @@ automationCancel?.addEventListener("click", () => {
 
 automationDelete?.addEventListener("click", async () => {
   if (!automationId?.value || !currentUser) return;
+  if (!requireAdvanced("Automations")) return;
   try {
     await updateDoc(doc(db, "automations", automationId.value), {
       deleted: true,
@@ -1250,6 +1373,7 @@ automationDelete?.addEventListener("click", async () => {
 automationForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!currentUser) return;
+  if (!requireAdvanced("Automations")) return;
 
   const payload = {
     businessId: currentUser.uid,
@@ -1477,6 +1601,7 @@ function isOverdue(task) {
 }
 
 async function updateTaskField(taskId, payload) {
+  if (!requireAdvanced("Tasks")) return;
   try {
     await updateDoc(doc(db, "tasks", taskId), {
       ...payload,
@@ -1785,8 +1910,14 @@ async function loadReviewRequests() {
 
 // ---------- INSIGHTS REFRESH BUTTONS ----------
 
-refreshInsightsBtn?.addEventListener("click", refreshInsights);
-refreshInsightsSecondary?.addEventListener("click", refreshInsights);
+refreshInsightsBtn?.addEventListener("click", () => {
+  if (!requireAdvanced("AI Insights")) return;
+  refreshInsights();
+});
+refreshInsightsSecondary?.addEventListener("click", () => {
+  if (!requireAdvanced("AI Insights")) return;
+  refreshInsights();
+});
 
 // ---------- ASK FOR REVIEWS BUTTON ----------
 
