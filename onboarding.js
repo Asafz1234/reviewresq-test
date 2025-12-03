@@ -1,27 +1,32 @@
+import { app } from "./firebase.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  db,
+  getFirestore,
   doc,
   getDoc,
   setDoc,
   serverTimestamp,
-} from "./firebase.js";
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const googleApiKey = "YOUR_GOOGLE_API_KEY"; // תחליף פעם אחת – וזהו.
 
-const businessNameInput = document.getElementById("businessNameInput");
-const googleReviewLinkInput = document.getElementById("googleReviewLinkInput");
-const saveBtn = document.getElementById("saveBtn");
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const businessNameInput = document.getElementById("business-name");
+const googleReviewLinkInput = document.getElementById("google-review-link");
+const saveBtn = document.getElementById("save-and-continue");
+const statusEl = document.getElementById("onboarding-status");
 
 const loadingEl = document.getElementById("loading");
 const resultsWrapper = document.getElementById("resultsWrapper");
 const resultsList = document.getElementById("resultsList");
-const saveStatus = document.getElementById("saveStatus");
 
 let selectedPlaceId = null;
 
 function initGoogleReviewAutoFinder() {
-  const nameInput = document.getElementById("businessNameInput");
-  const linkInput = document.getElementById("googleReviewLinkInput");
+  const nameInput = document.getElementById("business-name");
+  const linkInput = document.getElementById("google-review-link");
   const autoBtn = document.getElementById("autoFindBtn");
 
   if (!nameInput || !linkInput || !autoBtn) {
@@ -87,175 +92,86 @@ window.addEventListener("load", () => {
   }
 });
 
-function getInputs() {
-  return {
-    bizNameInput: document.getElementById("bizNameInput"),
-    bizCategoryInput: document.getElementById("bizCategoryInput"),
-    bizPhoneInput: document.getElementById("bizPhoneInput"),
-    bizEmailInput: document.getElementById("bizEmailInput"),
-    websiteInput: document.getElementById("websiteInput"),
-    logoUrlInput: document.getElementById("logoUrlInput"),
-    googleReviewLinkInput: document.getElementById("googleReviewLinkInput"),
-    planSelect: document.getElementById("plan"),
-  };
-}
-
-async function loadOnboarding(uid) {
-  const {
-    bizNameInput,
-    bizCategoryInput,
-    bizPhoneInput,
-    bizEmailInput,
-    websiteInput,
-    logoUrlInput,
-    googleReviewLinkInput,
-    planSelect,
-  } = getInputs();
-
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-
-    loadingEl.style.display = "none";
-
-    if (!data.candidates || data.candidates.length === 0) {
-      alert("No matching business was found. Try adding city or address.");
-      return;
-    }
-
-    resultsWrapper.style.display = "block";
-
-    // Make selectable list
-    data.candidates.forEach((biz) => {
-      const div = document.createElement("div");
-      div.className = "result-item";
-      div.innerHTML = `<strong>${biz.name}</strong><br><small>${biz.formatted_address}</small>`;
-      div.onclick = () => selectBusiness(biz);
-      resultsList.appendChild(div);
-    });
-
-  } catch (err) {
-    console.error(err);
-    alert("Failed to search Google.");
-  }
-}
-
-// ---------- SAVE DATA ----------
-
-async function saveOnboarding(uid) {
-  hideError();
-
-  const {
-    bizNameInput,
-    bizCategoryInput,
-    bizPhoneInput,
-    bizEmailInput,
-    websiteInput,
-    logoUrlInput,
-    googleReviewLinkInput,
-    planSelect,
-  } = getInputs();
-
-  const selectedPlan = planSelect?.value === "advanced" ? "advanced" : "basic";
-
-  const payload = {
-    businessName: cleanValue(bizNameInput?.value),
-    category: cleanValue(bizCategoryInput?.value),
-    phone: cleanValue(bizPhoneInput?.value),
-    contactEmail: cleanValue(bizEmailInput?.value),
-    website: cleanValue(websiteInput?.value),
-    logoUrl: cleanValue(logoUrlInput?.value),
-    plan: selectedPlan,
-    onboardingComplete: true,
-    updatedAt: serverTimestamp(),
-  };
-
-  console.log("[onboarding] Saving payload:", payload);
-
-  const saveBtn =
-    document.getElementById("saveOnboardingBtn") ||
-    document.getElementById("saveBtn") ||
-    document.querySelector("button[type='submit'], input[type='submit']");
-
-  const originalText = saveBtn ? saveBtn.textContent : "";
-
-  if (saveBtn) {
-    saveBtn.disabled = true;
-    saveBtn.textContent = "Saving…";
+async function saveBusinessProfileAndPortalSettings() {
+  const user = auth.currentUser;
+  if (!user) {
+    window.location.href = "/auth.html";
+    return;
   }
 
+  const uid = user.uid;
+  const businessName = businessNameInput?.value.trim() || "";
+  const googleReviewUrl = googleReviewLinkInput?.value.trim() || "";
+
+  if (!businessName || !googleReviewUrl) {
+    statusEl.textContent =
+      "Please fill in the business name and make sure a Google review link was found.";
+    statusEl.style.color = "#dc2626";
+    return;
+  }
+
+  statusEl.textContent = "Saving…";
+  statusEl.style.color = "#4b5563";
+
+  const businessDocRef = doc(db, "businessProfiles", uid);
+  const portalSettingsRef = doc(db, "portalSettings", uid);
+
   try {
-    const ref = doc(db, "businessProfiles", uid);
-    await setDoc(ref, payload, { merge: true });
+    await setDoc(
+      businessDocRef,
+      {
+        businessId: uid,
+        ownerUid: uid,
+        businessName,
+        googleReviewUrl,
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
 
-    const portalSettingsRef = doc(db, "portalSettings", uid);
-    const portalSettingsSnap = await getDoc(portalSettingsRef);
+    const portalSnap = await getDoc(portalSettingsRef);
 
-    // כאשר נרשם עסק חדש ושמרנו את businessProfile
-    if (!portalSettingsSnap.exists()) {
+    if (!portalSnap.exists()) {
       await setDoc(portalSettingsRef, {
-        googleReviewUrl: googleReviewLinkInput?.value || "",
-        primaryColor: "#2563eb",
-        accentColor: "#7c3aed",
+        businessId: uid,
+        googleReviewUrl,
+        accentColor: "#36058a",
         backgroundStyle: "gradient",
-        headline: "How was your experience?",
-        subheadline: "Your feedback helps us improve.",
+        primaryColor: "#171a21",
+        headline: "Share your experience",
+        subheadline: "Your voice shapes how we improve.",
         ctaLabelHighRating: "Leave a Google review",
         ctaLabelLowRating: "Send private feedback",
         thankYouTitle: "Thank you!",
-        thankYouBody: "We review every message.",
+        thankYouBody: "We appreciate you taking the time to help us improve.",
+        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+    } else {
+      await setDoc(
+        portalSettingsRef,
+        {
+          googleReviewUrl,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
     }
-    console.log(
-      `[onboarding] Saved OK with plan="${selectedPlan}" – redirecting to dashboard`
-    );
-    const redirectPath =
-      selectedPlan === "advanced" ? "/dashboard-advanced.html" : "/dashboard.html";
-    window.location.href = redirectPath;
+
+    statusEl.textContent = "Saved successfully!";
+    statusEl.style.color = "#16a34a";
+    window.location.href = "/dashboard.html";
   } catch (err) {
-    console.error("[onboarding] Save failed:", err);
-    showError("Could not save your business details. Please try again.");
-    if (saveBtn) {
-      saveBtn.disabled = false;
-      saveBtn.textContent = originalText || "Save & Continue";
-    }
+    console.error("Error while saving onboarding data:", err);
+    statusEl.textContent = "Error while saving. Please try again.";
+    statusEl.style.color = "#dc2626";
   }
 }
 
-/* ---------------------------------------------------
-   3. שמירת העסק ל-Firestore
---------------------------------------------------- */
-saveBtn.addEventListener("click", async () => {
-  const businessName = businessNameInput.value.trim();
-  const googleReviewUrl = googleReviewLinkInput.value.trim();
-
-  if (!businessName) {
-    alert("Business name is required.");
-    return;
-  }
-
-  if (!googleReviewUrl) {
-    alert("Google Review URL is required.");
-    return;
-  }
-
-  saveStatus.textContent = "Saving…";
-
-  const businessId = crypto.randomUUID();
-
-  try {
-    await setDoc(doc(db, "businessProfiles", businessId), {
-      businessId,
-      businessName,
-      googleReviewUrl,
-      createdAt: serverTimestamp(),
-    });
-
-    saveStatus.textContent = "Saved successfully!";
-    window.location.href = "dashboard.html";
-  } catch (err) {
-    console.error(err);
-    saveStatus.textContent = "Error while saving.";
-  }
-});
+if (saveBtn) {
+  saveBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    saveBusinessProfileAndPortalSettings();
+  });
+}
