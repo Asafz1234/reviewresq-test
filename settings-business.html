@@ -5,7 +5,7 @@
   <title>Business Profile – ReviewResQ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="styles.css" />
-  <script type="module" src="firebase.js"></script>
+  <script type="module" src="/firebase-config.js"></script>
 </head>
 
 <body>
@@ -53,7 +53,7 @@
       doc,
       getDoc,
       setDoc,
-    } from "./firebase.js";
+    } from "./firebase-config.js";
 
     auth.onAuthStateChanged(async (user) => {
       if (!user) {

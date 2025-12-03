@@ -10,7 +10,7 @@ import {
   setDoc,
   serverTimestamp,
   uploadLogoAndGetURL,
-} from "./firebase.js";
+} from "./firebase-config.js";
 
 // ===== DOM ELEMENTS =====
 const bizNameInput = document.getElementById("bizNameInput");

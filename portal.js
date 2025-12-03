@@ -8,7 +8,7 @@ import {
   collection,
   setDoc,
   serverTimestamp,
-} from "./firebase.js";
+} from "./firebase-config.js";
 
 // ----- DOM ELEMENTS -----
 const portalEl = document.getElementById("portal");

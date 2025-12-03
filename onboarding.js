@@ -1,4 +1,4 @@
-import { app } from "./firebase.js";
+import { app } from "./firebase-config.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore,

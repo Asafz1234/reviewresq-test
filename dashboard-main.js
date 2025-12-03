@@ -17,7 +17,7 @@ import {
   getDocs,
   limit,
   serverTimestamp,
-} from "./firebase.js";
+} from "./firebase-config.js";
 import { sendReviewRequestEmail } from "./email-service.js";
 
 // ---------- DOM ELEMENTS ----------
@@ -2190,10 +2190,10 @@ reviewRequestForm?.addEventListener("submit", async (e) => {
     if (channel === "email") {
       try {
         await sendReviewRequestEmail({
-          to: customerEmail,
           customerName,
-          businessName: currentProfile?.businessName,
-          reviewLink: currentProfile?.googleReviewUrl || portalLink,
+          customerEmail,
+          customerPhone,
+          portalLink: currentProfile?.googleReviewUrl || portalLink,
         });
         await updateDoc(docRef, {
           status: "sent",

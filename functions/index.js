@@ -10,21 +10,31 @@ if (!sendgridApiKey) {
 }
 
 exports.sendReviewRequestEmail = functions.https.onCall(async (data, context) => {
-  const { to, subject, text, html } = data;
+  const { customerName, customerEmail, customerPhone, portalLink } = data || {};
 
-  if (!to) {
-    throw new functions.https.HttpsError('invalid-argument', 'Missing email address');
+  if (!customerEmail || !customerName || !portalLink) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Missing required fields for review request email'
+    );
   }
+
+  const phoneLine = customerPhone ? `<br>Phone: ${customerPhone}` : '';
 
   try {
     await sgMail.send({
-      to,
+      to: customerEmail,
       from: "no-reply@reviewresq.com",
-      subject,
-      text,
-      html,
+      subject: "Share your experience",
+      html: `
+      Hi ${customerName},<br><br>
+      Thanks for your feedback. Here's your link:<br>
+      <a href="${portalLink}">${portalLink}</a><br>${phoneLine}<br>
+      Best regards,<br>
+      ReviewResQ
+    `,
     });
-    return { success: true };
+    return { status: "ok" };
   } catch (error) {
     console.error("Email error:", error);
     throw new functions.https.HttpsError('internal', 'Failed to send email');
