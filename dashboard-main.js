@@ -63,6 +63,8 @@ const FEATURE_FLAGS = {
 let currentBusiness = null;
 let currentPlan = "basic";
 let currentView = "view-overview";
+const NON_BLOCKING_MESSAGE =
+  "Some dashboard data could not be loaded. Please try refreshing.";
 
 const dashboardViews = Array.from(document.querySelectorAll(".dashboard-view"));
 
@@ -86,6 +88,16 @@ function showView(viewId, { updateHash = true } = {}) {
   if (updateHash) {
     const hashValue = viewId.replace(/^view-/, "");
     history.replaceState(null, "", `#${hashValue}`);
+  }
+}
+
+async function safeLoad(loader, label) {
+  try {
+    return await loader();
+  } catch (err) {
+    console.error(`${label || "Loader"} error:`, err);
+    showBanner(NON_BLOCKING_MESSAGE, "warn");
+    return null;
   }
 }
 
@@ -636,28 +648,36 @@ onAuthStateChanged(auth, async (user) => {
       });
     }
 
-    await loadBusinessForCurrentUser(user.uid);
+    await safeLoad(() => loadBusinessForCurrentUser(user.uid), "loadBusinessForCurrentUser");
     applyPlanToUI(currentPlan);
 
-    const canContinue = await loadProfile();
-    if (!canContinue) return;
+    const canContinue = await safeLoad(() => loadProfile(), "loadProfile");
+    if (canContinue === false) return;
 
-    await loadAutomations();
-    await loadFeedback();
+    await safeLoad(() => loadAutomations(), "loadAutomations");
+    await safeLoad(() => loadFeedback(), "loadFeedback");
     updatePortalPreviewSrc();
 
-    await Promise.all([
-      loadTasks(),
-      loadNotifications(),
-      loadReviewRequests(),
-      loadAiInsights(),
-      loadPortalSettings(),
-    ]);
-    } catch (err) {
-      console.error("Dashboard init error:", err);
-      showBanner("We had trouble loading your dashboard.", "warn");
-    }
-  });
+    const loaders = [
+      ["loadTasks", loadTasks],
+      ["loadNotifications", loadNotifications],
+      ["loadReviewRequests", loadReviewRequests],
+      ["loadAiInsights", loadAiInsights],
+      ["loadPortalSettings", loadPortalSettings],
+    ];
+
+    const results = await Promise.allSettled(loaders.map(([, fn]) => fn()));
+    results.forEach((res, idx) => {
+      if (res.status === "rejected") {
+        console.error(`${loaders[idx][0]} error:`, res.reason);
+        showBanner(NON_BLOCKING_MESSAGE, "warn");
+      }
+    });
+  } catch (err) {
+    console.error("Dashboard init error:", err);
+    showBanner("We had trouble loading your dashboard.", "warn");
+  }
+});
 
 async function loadProfile() {
   try {
@@ -1024,6 +1044,9 @@ async function loadAiInsights() {
     }
   } catch (err) {
     console.error("loadAiInsights error:", err);
+    if (aiSummary) {
+      aiSummary.textContent = "Insights are not available right now.";
+    }
   }
 }
 
