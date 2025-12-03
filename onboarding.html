@@ -4,35 +4,137 @@
   <meta charset="UTF-8" />
   <title>Business Onboarding</title>
   <link rel="stylesheet" href="dashboard.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f5f7fb;
+      margin: 0;
+      padding: 0;
+      color: #0f172a;
+      display: flex;
+      justify-content: center;
+    }
+
+    .onboarding-container {
+      width: 100%;
+      max-width: 700px;
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      margin-top: 40px;
+      box-sizing: border-box;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 24px;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #1f2937;
+    }
+
+    .input-modern {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #d0d7e2;
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      margin-bottom: 16px;
+    }
+
+    .input-modern:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .btn-primary {
+      background-color: #2563eb;
+      color: #ffffff;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .btn-primary:hover {
+      background-color: #1e4fc5;
+    }
+
+    .btn-save {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 16px;
+      margin-top: 20px;
+    }
+
+    .muted-text {
+      color: #4b5563;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    #resultsWrapper {
+      margin-top: 12px;
+    }
+  </style>
 </head>
 <body>
   <div class="onboarding-container">
-
     <h2>Business Setup</h2>
 
-    <label>Business Name</label>
-    <input id="businessNameInput" type="text" placeholder="Best Pizza Miami" />
+    <label for="businessNameInput">Business Name</label>
+    <input
+      id="businessNameInput"
+      class="input-modern"
+      type="text"
+      placeholder="Best Pizza Miami"
+    />
 
-    <button id="findBusinessBtn" class="btn-primary">
+    <button id="findBusinessBtn" class="btn-primary" type="button">
       Find Google Review Link Automatically
     </button>
 
-    <div id="loading" style="display:none;">Searching Google…</div>
+    <div id="loading" class="muted-text" style="display:none;">Searching Google…</div>
 
     <div id="resultsWrapper" style="display:none;">
       <h3>Select Your Business</h3>
       <div id="resultsList"></div>
     </div>
 
-    <label>Google Review Link</label>
-    <input id="googleReviewUrlInput" type="url" placeholder="Will auto-fill…" />
+    <label for="googleReviewUrlInput">Google Review Link</label>
+    <input
+      id="googleReviewUrlInput"
+      class="input-modern"
+      type="url"
+      placeholder="Will auto-fill…"
+    />
 
-    <button id="saveBtn" class="btn-primary">
+    <button id="saveBtn" class="btn-primary btn-save" type="button">
       Save and Continue
     </button>
 
     <div id="saveStatus"></div>
-
   </div>
 
   <script type="module" src="onboarding.js"></script>
