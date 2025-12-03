@@ -46,10 +46,7 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
-import {
-  getFunctions,
-  httpsCallable,
-} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-functions.js";
+import { getFunctions, httpsCallable } from "./firebase-app.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
