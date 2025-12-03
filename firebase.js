@@ -3,7 +3,7 @@
 import {
   initializeApp,
   setLogLevel,
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
 
 // Quiet repeated Firebase heartbeat debug logs that clutter the console
 const originalConsoleLog = console.log;
@@ -21,7 +21,7 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   signOut,
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
 
 import {
   getFirestore,
@@ -38,14 +38,18 @@ import {
   getDocs,
   where,
   arrayUnion,
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
 
 import {
   getStorage,
   ref as storageRef,
   uploadBytes,
   getDownloadURL,
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
+import {
+  getFunctions,
+  httpsCallable,
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-functions.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
@@ -64,6 +68,7 @@ setLogLevel("error");
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app);
 
 export {
   onAuthStateChanged,
@@ -87,6 +92,7 @@ export {
   storageRef,
   uploadBytes,
   getDownloadURL,
+  httpsCallable,
 };
 
 export async function uploadLogoAndGetURL(file, userId) {
