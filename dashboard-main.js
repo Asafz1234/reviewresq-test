@@ -2193,7 +2193,7 @@ reviewRequestForm?.addEventListener("submit", async (e) => {
           customerName,
           customerEmail,
           customerPhone,
-          portalLink: currentProfile?.googleReviewUrl || portalLink,
+          portalLink,
         });
         await updateDoc(docRef, {
           status: "sent",
@@ -2214,6 +2214,11 @@ reviewRequestForm?.addEventListener("submit", async (e) => {
 
     reviewRequestForm.reset();
     await loadReviewRequests();
+    const successMessage =
+      channel === "email"
+        ? "Review request email sent successfully."
+        : "Review request saved successfully.";
+    showBanner(successMessage, "success");
   } catch (err) {
     console.error("reviewRequest submit error:", err);
     showBanner("Could not send the review request.", "warn");
