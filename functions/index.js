@@ -12,13 +12,15 @@ if (!sendgridApiKey) {
 
 exports.sendReviewRequestEmail = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+      return res.status(204).send('');
+    }
+
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Headers", "Content-Type");
-    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-
-    if (req.method === "OPTIONS") {
-      return res.status(200).end();
-    }
 
     const { customerName, customerEmail, customerPhone, portalLink } =
       req.body || {};
@@ -44,7 +46,7 @@ exports.sendReviewRequestEmail = functions.https.onRequest((req, res) => {
       ReviewResQ
     `,
       });
-      return res.json({ status: "ok" });
+      return res.status(200).json({ success: true });
     } catch (error) {
       console.error("Email error:", error);
       return res.status(500).json({ error: 'Failed to send email' });
