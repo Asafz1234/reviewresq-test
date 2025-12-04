@@ -21,8 +21,9 @@ export async function sendReviewRequestEmail({
   });
 
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.error || "Failed to send email");
+    const errorText = await response.text().catch(() => "");
+    console.error("Failed to send review request email", errorText);
+    throw new Error("Failed to send review request email");
   }
 
   return response.json();
