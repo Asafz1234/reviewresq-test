@@ -12,6 +12,7 @@ if (!sendgridApiKey) {
 
 exports.sendReviewRequestEmail = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
+    // ✅ תגובה לבקשות OPTIONS (בדיקת הרשאות)
     if (req.method === "OPTIONS") {
       res.set("Access-Control-Allow-Origin", "*");
       res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -19,11 +20,12 @@ exports.sendReviewRequestEmail = functions.https.onRequest((req, res) => {
       return res.status(204).send('');
     }
 
+    // ✅ נוודא שגם התגובה עצמה כוללת את הכותרות האלו
     res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type");
 
-    const { customerName, customerEmail, customerPhone, portalLink } =
-      req.body || {};
+    const { customerName, customerEmail, customerPhone, portalLink } = req.body || {};
 
     if (!customerEmail || !customerName || !portalLink) {
       return res.status(400).json({
@@ -39,13 +41,15 @@ exports.sendReviewRequestEmail = functions.https.onRequest((req, res) => {
         from: "no-reply@reviewresq.com",
         subject: "Share your experience",
         html: `
-      Hi ${customerName},<br><br>
-      Thanks for your feedback. Here's your link:<br>
-      <a href="${portalLink}">${portalLink}</a><br>${phoneLine}<br>
-      Best regards,<br>
-      ReviewResQ
-    `,
+          Hi ${customerName},<br><br>
+          Thanks for your feedback!<br>
+          Please share your experience here:<br>
+          <a href="${portalLink}">${portalLink}</a><br>${phoneLine}<br>
+          Best regards,<br>
+          ReviewResQ Team
+        `,
       });
+
       return res.status(200).json({ success: true });
     } catch (error) {
       console.error("Email error:", error);
