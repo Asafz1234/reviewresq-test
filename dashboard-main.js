@@ -18,7 +18,9 @@ import {
   limit,
   serverTimestamp,
 } from "./firebase-config.js";
-import { sendReviewRequestEmail } from "./email-service.js";
+
+const SEND_REVIEW_FN_URL =
+  "https://us-central1-reviewresq-app.cloudfunctions.net/sendReviewRequestEmail";
 
 // ---------- DOM ELEMENTS ----------
 
@@ -368,10 +370,9 @@ const prefSmsHigh = document.getElementById("prefSmsHigh");
 
 // Review requests
 const reviewRequestForm = document.getElementById("reviewRequestForm");
-const reqName = document.getElementById("reqName");
-const reqPhone = document.getElementById("reqPhone");
-const reqEmail = document.getElementById("reqEmail");
-const reqChannel = document.getElementById("reqChannel");
+const reqNameInput = document.getElementById("reqName");
+const reqEmailInput = document.getElementById("reqEmail");
+const reqChannelSelect = document.getElementById("reqChannel");
 const reviewRequestsBody = document.getElementById("reviewRequestsBody");
 
 // Portal customize
@@ -2129,103 +2130,65 @@ function applyPortalPreviewStyling() {
 
 // ---------- REVIEW REQUESTS ----------
 
-reviewRequestForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!currentUser) return;
+if (reviewRequestForm) {
+  reviewRequestForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  const submitBtn = reviewRequestForm.querySelector('button[type="submit"]');
-  const originalBtnText = submitBtn?.textContent || "Send request";
-  const setLoading = (isLoading) => {
-    if (!submitBtn) return;
-    submitBtn.disabled = isLoading;
-    submitBtn.textContent = isLoading ? "Sending…" : originalBtnText;
-  };
+    const name = reqNameInput.value.trim();
+    const email = reqEmailInput.value.trim();
+    const channel = reqChannelSelect.value;
 
-  setLoading(true);
-
-  const customerName = reqName?.value?.trim();
-  const customerPhone = reqPhone?.value?.trim();
-  const customerEmail = reqEmail?.value?.trim();
-  const channel = reqChannel?.value || "sms";
-
-  if (!customerName) {
-    showBanner("Please enter the customer's name before sending.", "warn");
-    setLoading(false);
-    return;
-  }
-
-  if (channel === "email" && !customerEmail) {
-    showBanner("Please add an email address to send this request.", "warn");
-    setLoading(false);
-    return;
-  }
-
-  if ((channel === "sms" || channel === "whatsapp") && !customerPhone) {
-    showBanner("Please add a phone number for this channel.", "warn");
-    setLoading(false);
-    return;
-  }
-
-  const payload = {
-    businessId: currentUser.uid,
-    customerName,
-    customerPhone: customerPhone || null,
-    customerEmail: customerEmail || null,
-    channel,
-    status: "pending",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-
-  try {
-    const docRef = await addDoc(collection(db, "reviewRequests"), payload);
-    const portalLink = `${window.location.origin}/portal.html?bid=${currentUser.uid}`;
-    console.log(
-      `Would send ${payload.channel} review request to`,
-      payload.customerName,
-      "with link",
-      portalLink
-    );
-
-    if (channel === "email") {
-      try {
-        await sendReviewRequestEmail({
-          customerName,
-          customerEmail,
-          customerPhone,
-          portalLink,
-        });
-        await updateDoc(docRef, {
-          status: "sent",
-          sentAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      } catch (err) {
-        console.error("Failed to send email review request", err);
-        await updateDoc(docRef, {
-          status: "error",
-          errorMessage: err?.message || "Email send failed",
-          updatedAt: serverTimestamp(),
-        });
-        showBanner("Could not send the email request. Please try again.", "warn");
-        return;
-      }
+    if (!email) {
+      showBanner("Please enter an email address.", "error");
+      return;
     }
 
-    reviewRequestForm.reset();
-    await loadReviewRequests();
-    const successMessage =
-      channel === "email"
-        ? "Review request email sent successfully."
-        : "Review request saved successfully.";
-    showBanner(successMessage, "success");
-  } catch (err) {
-    console.error("reviewRequest submit error:", err);
-    showBanner("Could not send the review request.", "warn");
-  } finally {
-    setLoading(false);
-  }
-});
+    // Use the business name shown in the header if available
+    const bizName =
+      document.getElementById("bizNameDisplay")?.textContent || "your business";
+
+    try {
+      const response = await fetch(SEND_REVIEW_FN_URL, {
+        method: "POST",
+        mode: "cors",
+        headers: {
+          "Content-Type": "application/json"
+          // IMPORTANT:
+          // Do NOT add any Authorization header here.
+          // Do NOT send idToken, accessToken or anything similar.
+        },
+        body: JSON.stringify({
+          to: email,
+          subject: `Review request from ${bizName}`,
+          text:
+            `Hi${name ? " " + name : ""}, thanks for choosing ${bizName}. ` +
+            `We’d love if you could share your experience in a quick review.`,
+          html:
+            `<p>Hi${name ? " " + name : ""},</p>` +
+            `<p>Thanks for choosing <strong>${bizName}</strong>.</p>` +
+            `<p>We’d really appreciate it if you could take a moment to leave us a review 🙏</p>`
+        })
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data.success !== true) {
+        console.error("sendReviewRequestEmail error:", data);
+        throw new Error(data.error || "Server error");
+      }
+
+      // Success
+      showBanner("Email request sent successfully ✅", "success");
+      reviewRequestForm.reset();
+    } catch (err) {
+      console.error("Network error while sending review request:", err);
+      showBanner(
+        "Could not send the email request. Please try again.",
+        "error"
+      );
+    }
+  });
+}
 
 async function loadReviewRequests() {
   if (!reviewRequestsBody || !currentUser) return;
@@ -2301,7 +2264,7 @@ askReviewsBtn?.addEventListener("click", () => {
 
   // אחרי שהעמוד מוצג – פוקוס לשם הלקוח
   setTimeout(() => {
-    reqName?.focus();
+    reqNameInput?.focus();
   }, 200);
 });
 
