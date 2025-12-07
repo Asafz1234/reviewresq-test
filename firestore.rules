@@ -2,6 +2,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Public business profile data for the feedback portal
+    match /businessProfiles/{businessId} {
+      allow get, list: if true;
+
+      match /feedback/{feedbackId} {
+        allow create: if
+          request.resource.data.keys().hasAll([
+            "rating",
+            "createdAt",
+            "businessId",
+            "type",
+            "source",
+          ]) &&
+          request.resource.data.rating is int &&
+          request.resource.data.rating >= 1 &&
+          request.resource.data.rating <= 5 &&
+          request.resource.data.createdAt is timestamp &&
+          request.resource.data.businessId == businessId &&
+          request.resource.data.type == "private" &&
+          request.resource.data.source == "portal";
+
+        // No public reads/updates/deletes for feedback documents
+        allow read, update, delete: if false;
+      }
+    }
+
+    // Portal appearance/settings (no private data)
+    match /portalSettings/{businessId} {
+      allow get, list: if true;
+    }
+
     // Public feedback from the customer portal
     match /feedback/{document} {
       allow create: if

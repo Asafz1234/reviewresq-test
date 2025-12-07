@@ -8,6 +8,9 @@ import {
   collection,
   addDoc,
   serverTimestamp,
+  getDocs,
+  query,
+  where,
 } from "./firebase-config.js";
 
 // ----- DOM ELEMENTS -----
@@ -16,6 +19,7 @@ const ownerToolbar = document.getElementById("ownerToolbar");
 const ownerDashboardLink = document.getElementById("ownerDashboardLink");
 
 const bizNameDisplay = document.getElementById("bizNameDisplay");
+const bizSubtitleDisplay = document.getElementById("bizSubtitleDisplay");
 const bizLogoInitials = document.getElementById("bizLogoInitials");
 const bizLogoImgWrapper = document.getElementById("bizLogoImgWrapper");
 const bizLogoImg = document.getElementById("bizLogoImg");
@@ -51,6 +55,7 @@ const ownerPreviewParam =
 let currentRating = 0;
 let businessId = null;
 let businessName = "Your business";
+let businessTagline = "Private Feedback Portal";
 let portalSettings = null;
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
@@ -59,10 +64,14 @@ const isOwnerPreview = ["1", "true", "yes", "on"].includes(
 // ----- HELPERS -----
 function getBusinessIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  const id = params.get("bid");
+  const id =
+    params.get("businessId") ||
+    params.get("portalId") ||
+    params.get("shareKey") ||
+    params.get("bid");
 
   if (!id) {
-    console.error("[portal] Missing ?bid= in URL", window.location.href);
+    console.error("[portal] Missing business identifier in URL", window.location.href);
   }
 
   return id;
@@ -141,17 +150,44 @@ async function loadBusinessProfile() {
     const ref = doc(db, "businessProfiles", businessId);
     const snap = await getDoc(ref);
 
-    if (!snap.exists()) {
+    let data = snap.exists() ? snap.data() : null;
+
+    if (!data) {
+      const shareKeyParam =
+        urlParams.get("shareKey") ||
+        urlParams.get("portalId") ||
+        urlParams.get("businessId") ||
+        urlParams.get("bid");
+
+      if (shareKeyParam) {
+        const shareKeyQuery = query(
+          collection(db, "businessProfiles"),
+          where("shareKey", "==", shareKeyParam)
+        );
+        const shareKeySnap = await getDocs(shareKeyQuery);
+
+        if (!shareKeySnap.empty) {
+          const matchedDoc = shareKeySnap.docs[0];
+          data = matchedDoc.data();
+          businessId = matchedDoc.id;
+        }
+      }
+    }
+
+    if (!data) {
       console.warn("No business profile found for", businessId);
       return;
     }
 
-    const data = snap.data();
-
     businessName = data.businessName || "Your business";
+    businessTagline = data.tagline || "Private Feedback Portal";
 
     if (bizNameDisplay) {
       bizNameDisplay.textContent = businessName;
+    }
+
+    if (bizSubtitleDisplay) {
+      bizSubtitleDisplay.textContent = businessTagline;
     }
 
     // Logo
@@ -263,8 +299,7 @@ if (changeRatingLink) {
 async function handleFeedbackSubmit(event) {
   event.preventDefault();
 
-  const params = new URLSearchParams(window.location.search);
-  const currentBusinessId = params.get("bid");
+  const currentBusinessId = businessId || getBusinessIdFromUrl();
 
   if (!currentBusinessId) {
     console.error("[portal] Missing ?bid= in URL", window.location.href);
@@ -298,7 +333,14 @@ async function handleFeedbackSubmit(event) {
       customerEmail,
     });
 
-    await addDoc(collection(db, "feedback"), {
+    const feedbackCollection = collection(
+      db,
+      "businessProfiles",
+      currentBusinessId,
+      "feedback"
+    );
+
+    await addDoc(feedbackCollection, {
       businessId: currentBusinessId,
       rating,
       message,
