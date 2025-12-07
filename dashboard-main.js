@@ -1971,17 +1971,52 @@ function renderTasks() {
     return;
   }
 
-  filtered.forEach((t) => {
-    const div = document.createElement("div");
-    const due = t.dueDate ? formatDate(t.dueDate) : "No due date";
-    div.className = "list-item" + (isOverdue(t) ? " task-overdue" : "");
-    div.innerHTML = `
-      <div class="title">${t.title}</div>
-      <div class="meta">${t.status} · ${t.priority} · ${due}</div>
-    `;
-    div.addEventListener("click", () => showTaskDetail(t));
-    tasksList.appendChild(div);
+  const columns = [
+    { key: "open", label: "Open" },
+    { key: "in_progress", label: "In Progress" },
+    { key: "done", label: "Completed" },
+  ];
+
+  const board = document.createElement("div");
+  board.className = "tasks-board";
+
+  columns.forEach((col) => {
+    const colEl = document.createElement("div");
+    colEl.className = "kanban-column";
+    colEl.innerHTML = `<div class="kanban-title">${col.label}<span class="pill muted"></span></div>`;
+
+    const list = document.createElement("div");
+    list.className = "kanban-list";
+
+    const colTasks = filtered.filter((t) => t.status === col.key);
+    if (!colTasks.length) {
+      const empty = document.createElement("div");
+      empty.className = "section-sub";
+      empty.textContent = "No tasks";
+      list.appendChild(empty);
+    } else {
+      colTasks.forEach((t) => {
+        const card = document.createElement("div");
+        const due = t.dueDate ? formatDate(t.dueDate) : "No due date";
+        card.className = "task-card" + (isOverdue(t) ? " task-overdue" : "");
+        card.innerHTML = `
+          <div class="title">${t.title}</div>
+          <div class="task-meta">
+            <span class="priority ${t.priority}">${t.priority}</span>
+            <span>${due}</span>
+          </div>
+        `;
+        card.addEventListener("click", () => showTaskDetail(t));
+        list.appendChild(card);
+      });
+    }
+
+    colEl.querySelector(".pill")?.textContent = `${colTasks.length}`;
+    colEl.appendChild(list);
+    board.appendChild(colEl);
   });
+
+  tasksList.appendChild(board);
 }
 
 function isOverdue(task) {

@@ -148,41 +148,62 @@
             <div>
               <p class="eyebrow">Pulse</p>
               <h2>Overview</h2>
-              <p class="section-sub">Key metrics based on your selected date range.</p>
+              <p class="section-sub">Premium KPI grid with AI highlights across your business.</p>
             </div>
           </div>
+
+          <div class="ai-bubble">
+            <span class="badge">AI Insight</span>
+            <div>
+              <p class="section-sub">Sentiment improving. Customers mention "fast response" and "great service" — keep momentum with follow-ups.</p>
+            </div>
+          </div>
+
           <div class="grid stats-grid" id="kpiGrid">
             <div class="surface stat-card">
               <div class="stat-top">
-                <div class="stat-icon">★</div>
-                <p class="stat-label">Google rating</p>
-              </div>
-              <div class="stat-value" id="kpiAvgRating">–</div>
-              <p class="stat-hint">Average rating (last 30 days)</p>
-            </div>
-            <div class="surface stat-card">
-              <div class="stat-top">
-                <div class="stat-icon">🆕</div>
-                <p class="stat-label">New reviews</p>
+                <div class="stat-icon">📈</div>
+                <p class="stat-label">Total reviews</p>
               </div>
               <div class="stat-value" id="kpiPublicReviews">0</div>
-              <p class="stat-hint">Reviews received in the last 7 days</p>
+              <p class="stat-hint">Captured across all channels</p>
+              <div class="sparkline" aria-hidden="true"></div>
             </div>
             <div class="surface stat-card">
               <div class="stat-top">
-                <div class="stat-icon">🔒</div>
-                <p class="stat-label">Private feedback</p>
+                <div class="stat-icon">⚖️</div>
+                <p class="stat-label">Positive vs negative</p>
               </div>
-              <div class="stat-value" id="kpiLowRating">0</div>
-              <p class="stat-hint">1–3★ messages in the last week</p>
+              <div class="stat-value" id="kpiHighRating">0</div>
+              <p class="stat-hint">Balanced against <span id="kpiLowRating">0</span> low ratings</p>
+              <div class="sparkline" aria-hidden="true"></div>
             </div>
             <div class="surface stat-card">
               <div class="stat-top">
-                <div class="stat-icon">🚨</div>
-                <p class="stat-label">AI alerts</p>
+                <div class="stat-icon">💬</div>
+                <p class="stat-label">Average sentiment</p>
+              </div>
+              <div class="stat-value" id="kpiSentiment">–</div>
+              <p class="stat-hint">AI mood score</p>
+              <div class="sparkline" aria-hidden="true"></div>
+            </div>
+            <div class="surface stat-card">
+              <div class="stat-top">
+                <div class="stat-icon">📌</div>
+                <p class="stat-label">Pending follow-ups</p>
               </div>
               <div class="stat-value" id="kpiPreventedNegatives">0</div>
-              <p class="stat-hint">Issues needing attention</p>
+              <p class="stat-hint">Urgent items to resolve</p>
+              <div class="sparkline" aria-hidden="true"></div>
+            </div>
+            <div class="surface stat-card">
+              <div class="stat-top">
+                <div class="stat-icon">🚀</div>
+                <p class="stat-label">Conversion to Google</p>
+              </div>
+              <div class="stat-value" id="kpiConversionRate">–</div>
+              <p class="stat-hint">Happy customers who posted publicly</p>
+              <div class="sparkline" aria-hidden="true"></div>
             </div>
           </div>
 
@@ -252,54 +273,76 @@
             <div>
               <p class="eyebrow">Inbox</p>
               <h2>Reviews inbox</h2>
-              <p class="section-sub">Respond quickly, triage, and create follow-ups.</p>
-            </div>
-            <div class="filters-row">
-              <select id="filterDateRange" class="chip chip-soft">
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-                <option value="90">Last 90 days</option>
-                <option value="all">All time</option>
-              </select>
-              <select id="filterRating" class="chip chip-soft">
-                <option value="all">All ratings</option>
-                <option value="5">5★</option>
-                <option value="4">4★</option>
-                <option value="3">3★</option>
-                <option value="2">2★</option>
-                <option value="1">1★</option>
-              </select>
-              <select id="filterType" class="chip chip-soft">
-                <option value="all">All types</option>
-                <option value="private">Private</option>
-                <option value="google">Google</option>
-              </select>
-              <select id="filterStatus" class="chip chip-soft">
-                <option value="all">Any status</option>
-                <option value="new">Open</option>
-                <option value="needs_reply">In progress</option>
-                <option value="replied">Resolved</option>
-                <option value="followup">Follow-up scheduled</option>
-              </select>
+              <p class="section-sub">A premium CRM-style inbox with filters and AI reply boosts.</p>
             </div>
           </div>
-          <div class="surface card inbox-card">
-            <div class="table-wrap responsive-table">
-              <table class="feedback-table desktop-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Customer</th>
-                    <th>Rating</th>
-                    <th>Type</th>
-                    <th>Message</th>
-                    <th>Status</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="advancedFeedbackBody"></tbody>
-              </table>
-              <div id="advancedFeedbackEmpty" class="feedback-empty">No feedback yet.</div>
+          <div class="inbox-wrap">
+            <div class="surface card inbox-card">
+              <div class="filters-row">
+                <select id="filterDateRange" class="chip chip-soft">
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                  <option value="all">All time</option>
+                </select>
+                <select id="filterRating" class="chip chip-soft">
+                  <option value="all">All ratings</option>
+                  <option value="5">5★</option>
+                  <option value="4">4★</option>
+                  <option value="3">3★</option>
+                  <option value="2">2★</option>
+                  <option value="1">1★</option>
+                </select>
+                <select id="filterType" class="chip chip-soft">
+                  <option value="all">All types</option>
+                  <option value="private">Private</option>
+                  <option value="google">Google</option>
+                </select>
+                <select id="filterStatus" class="chip chip-soft">
+                  <option value="all">Any status</option>
+                  <option value="new">Open</option>
+                  <option value="needs_reply">In progress</option>
+                  <option value="replied">Resolved</option>
+                  <option value="followup">Follow-up scheduled</option>
+                </select>
+              </div>
+              <div class="table-wrap responsive-table">
+                <table class="feedback-table desktop-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Customer</th>
+                      <th>Rating</th>
+                      <th>Type</th>
+                      <th>Message</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="advancedFeedbackBody"></tbody>
+                </table>
+                <div id="advancedFeedbackEmpty" class="feedback-empty">No feedback yet.</div>
+              </div>
+            </div>
+            <div class="inbox-details">
+              <div class="detail-header">
+                <div>
+                  <p class="eyebrow">Review detail</p>
+                  <h3>Open a review to see context</h3>
+                </div>
+                <div class="sentiment-badge">😊 Positive</div>
+              </div>
+              <p class="section-sub">Tap any row to open the slide-in details, sentiment badge, and AI reply tools.</p>
+              <div class="ai-replies">
+                <div class="ai-reply">
+                  <p class="label">AI reply suggestion</p>
+                  <p class="section-sub">Thank you for sharing this! We’re thrilled you enjoyed your experience and we’ve shared your feedback with our team.</p>
+                </div>
+                <div class="ai-reply">
+                  <p class="label">Follow-up nudge</p>
+                  <p class="section-sub">Offer a quick scheduling link and remind them to post the review to Google.</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -319,6 +362,16 @@
           </div>
           <div class="grid insights-grid">
             <div class="surface card ai-card">
+              <div class="ai-summary-row">
+                <div>
+                  <p class="eyebrow">Live sentiment</p>
+                  <h3>AI intelligence hub</h3>
+                  <p class="section-sub">Animated gauge, gradients, and next best actions to showcase the AI engine.</p>
+                </div>
+                <div class="gauge" aria-hidden="true">
+                  <div class="gauge-value">82%</div>
+                </div>
+              </div>
               <div class="ai-summary-row">
                 <div id="aiSummary" class="ai-summary">Loading insights…</div>
                 <div class="sentiment-display">
@@ -372,8 +425,26 @@
                   <ul id="aiThemes" class="bullet-list"></ul>
                 </div>
                 <div>
-                  <p class="label">Keywords</p>
-                  <div id="aiKeywords" class="keyword-list"></div>
+                  <p class="label">AI word cloud</p>
+                  <div class="keyword-list" id="aiKeywords"></div>
+                </div>
+              </div>
+
+              <div class="ai-themes-card">
+                <div class="surface subcard">
+                  <p class="label">Predicted churn risk</p>
+                  <p class="section-sub">Track customers who might leave and reach out proactively.</p>
+                  <div class="ai-actions-card">
+                    <span class="pill muted">Risk score: medium</span>
+                    <button class="btn secondary" data-view="view-followups">Open tasks</button>
+                  </div>
+                </div>
+                <div class="surface subcard">
+                  <p class="label">Recommended actions</p>
+                  <div class="ai-actions-card">
+                    <button class="btn primary">Send gratitude campaign</button>
+                    <button class="btn ghost" data-view="view-automations">Add automation</button>
+                  </div>
                 </div>
               </div>
 
@@ -410,6 +481,12 @@
                 </div>
                 <p class="muted-text">Tap a rule to edit</p>
               </div>
+              <div class="template-carousel" aria-label="Templates">
+                <div class="template-pill">Send gratitude SMS after 5★</div>
+                <div class="template-pill">Escalate 1–2★ to manager</div>
+                <div class="template-pill">WhatsApp reminder after 3 days</div>
+                <div class="template-pill">Create task for no response</div>
+              </div>
               <div id="automationList" class="automation-list"></div>
               <div class="empty-state" id="automationEmpty">
                 <div class="empty-illustration">🤖</div>
@@ -423,6 +500,7 @@
                   <h3>Composer</h3>
                 </div>
               </div>
+              <div class="preview" aria-hidden="true">Flow preview: Trigger → Condition → Channel → Message → Confirmation</div>
               <form id="automationForm" class="form-grid automation-form">
                 <input type="hidden" id="automationId" />
                 <div class="form-field">
@@ -515,7 +593,8 @@
           </div>
           <div class="grid main-grid">
             <div class="surface card tasks-card">
-              <div class="list-header">Open tasks</div>
+              <div class="list-header">Follow-up board</div>
+              <p class="section-sub">Kanban columns for Open, In Progress, and Completed workstreams.</p>
               <div id="tasksList"></div>
               <div class="empty-state" id="tasksEmpty">
                 <div class="empty-illustration">📋</div>
@@ -524,7 +603,7 @@
             </div>
             <div class="surface card tasks-card detail">
               <div class="list-header">Task detail</div>
-              <div class="tasks-detail" id="taskDetail">Select a task to see details.</div>
+              <div class="tasks-detail" id="taskDetail">Select a task to see details. AI will suggest the best follow-up message.</div>
             </div>
           </div>
         </section>
@@ -545,6 +624,11 @@
                 <button class="btn secondary full" type="button" data-channel="sms">Send SMS review request</button>
                 <p class="muted-text">Choose your channel and send a quick invite with one tap.</p>
               </div>
+              <div class="template-carousel" aria-label="Saved templates">
+                <div class="template-pill">Friendly reminder</div>
+                <div class="template-pill">Premium concierge</div>
+                <div class="template-pill">Service follow-up</div>
+              </div>
               <form id="reviewRequestForm" class="simple-grid">
                 <input type="text" id="reqName" placeholder="Customer name" required />
                 <input type="tel" id="reqPhone" placeholder="Phone" />
@@ -554,8 +638,19 @@
                   <option value="email">Email</option>
                   <option value="whatsapp">WhatsApp</option>
                 </select>
+                <div class="filters-row">
+                  <label class="label">Email <input class="toggle" type="checkbox" checked aria-label="Email channel" /></label>
+                  <label class="label">SMS <input class="toggle" type="checkbox" aria-label="SMS channel" /></label>
+                </div>
+                <div class="preview">Live preview: Hi <strong id="previewName">Customer</strong>, thanks for choosing us. Could you share your experience on Google?</div>
                 <button type="submit" class="btn primary full">Send request</button>
               </form>
+              <div class="ai-replies">
+                <div class="ai-reply">
+                  <p class="label">Activity timeline</p>
+                  <p class="section-sub">Today — Draft queued · Yesterday — Template updated · Monday — New SMS reminder template saved.</p>
+                </div>
+              </div>
             </div>
             <div class="surface card request-card">
               <div class="list-header">Recent requests</div>
