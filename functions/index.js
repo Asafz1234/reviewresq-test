@@ -5,12 +5,10 @@ const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
-  // --- CORS headers ---
-  res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
+  res.set("Access-Control-Allow-Origin", "*");
   res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.set("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight
   if (req.method === "OPTIONS") {
     return res.status(204).send("");
   }
@@ -40,7 +38,6 @@ exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
     await sgMail.send(msg);
     console.log("Email sent successfully");
 
-    // Always respond with JSON and CORS headers
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error("sendReviewRequestEmail error:", err);
