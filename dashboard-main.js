@@ -2154,6 +2154,8 @@ if (reviewRequestForm) {
       ? `${PORTAL_BASE_URL}?bid=${encodeURIComponent(businessId)}`
       : PORTAL_BASE_URL;
 
+    const customerName = name || email;
+
     // --------- EMAIL TEMPLATE (TEXT + HTML) ---------
     const plainTextMessage =
       `Hi${name ? " " + name : ""},
@@ -2208,33 +2210,67 @@ if (reviewRequestForm) {
       try {
         const response = await fetch(SEND_REVIEW_FUNCTION_URL, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to: email,
-            subject: `Review request from ${bizName}`,
+            subject: "Review Request from " + (bizName || "our business"),
             text: plainTextMessage,
             html: htmlMessage,
           }),
         });
 
         if (!response.ok) {
+          await addDoc(collection(db, "reviewRequests"), {
+            businessId: currentUser.uid,
+            customerName,
+            customerEmail: email,
+            channel: "email",
+            status: "error",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+
           console.error(
             "sendReviewRequestEmail failed:",
             response.status,
             await response.text()
           );
-          throw new Error("Request failed with status " + response.status);
+
+          showBanner(
+            "Could not send the email request. Please try again.",
+            "error"
+          );
+          return;
         }
 
-        const data = await response.json();
-        console.log("sendReviewRequestEmail success:", data);
+        // success
+        await addDoc(collection(db, "reviewRequests"), {
+          businessId: currentUser.uid,
+          customerName,
+          customerEmail: email,
+          channel: "email",
+          status: "sent",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
 
         showBanner("Email request sent successfully ✅", "success");
         reviewRequestForm.reset();
+        await loadReviewRequests();
       } catch (err) {
         console.error("Network error while sending review request:", err);
+
+        await addDoc(collection(db, "reviewRequests"), {
+          businessId: currentUser.uid,
+          customerName,
+          customerEmail: email,
+          channel: "email",
+          status: "error",
+          errorMessage: String(err && err.message ? err.message : err),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
         showBanner(
           "Could not send the email request. Please try again.",
           "error"
