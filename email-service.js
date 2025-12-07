@@ -6,7 +6,16 @@ export async function sendReviewRequestEmail({
   customerEmail,
   customerPhone,
   portalLink,
+  businessName,
+  businessLogoUrl,
+  portalUrl,
 }) {
+  const resolvedPortalUrl = portalUrl || portalLink;
+
+  if (!resolvedPortalUrl) {
+    throw new Error("A portalUrl is required to send a review request email");
+  }
+
   const response = await fetch(SEND_REVIEW_REQUEST_URL, {
     method: "POST",
     headers: {
@@ -16,7 +25,10 @@ export async function sendReviewRequestEmail({
       customerName,
       customerEmail,
       customerPhone,
-      portalLink,
+      portalLink: resolvedPortalUrl,
+      businessName,
+      businessLogoUrl,
+      portalUrl: resolvedPortalUrl,
     }),
   });
 
