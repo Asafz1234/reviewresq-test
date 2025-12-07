@@ -21,6 +21,7 @@ import {
 
 const SEND_REVIEW_FUNCTION_URL =
   "https://us-central1-reviewresq-app.cloudfunctions.net/sendReviewRequestEmail";
+const PORTAL_BASE_URL = "https://reviewresq.com/portal.html";
 
 // ---------- DOM ELEMENTS ----------
 
@@ -2147,23 +2148,114 @@ if (reviewRequestForm) {
     const bizName =
       document.getElementById("bizNameDisplay")?.textContent || "your business";
 
+    // Build portal link for THIS business
+    const businessId = currentUser?.uid || "";
+    const portalUrl = businessId
+      ? `${PORTAL_BASE_URL}?bid=${encodeURIComponent(businessId)}`
+      : PORTAL_BASE_URL;
+
+    // --------- EMAIL TEMPLATE (TEXT + HTML) ---------
     const plainTextMessage =
-      `Hi${name ? " " + name : ""}, thanks for choosing ${bizName}. ` +
-      `We’d love if you could share your experience in a quick review.`;
-    const htmlMessage =
-      `<p>Hi${name ? " " + name : ""},</p>` +
-      `<p>Thanks for choosing <strong>${bizName}</strong>.</p>` +
-      `<p>We’d really appreciate it if you could take a moment to leave us a review 🙏</p>`;
+      `Hi${name ? " " + name : ""},
+
+` +
+      `Thank you for choosing ${bizName}.
+
+` +
+      `We’d really appreciate it if you could take a moment to share your experience in a quick review.
+
+` +
+      `Click the link below to leave your review:
+` +
+      `${portalUrl}
+
+` +
+      `Thank you so much,
+` +
+      `${bizName} team`;
+
+    const htmlMessage = `
+      <div style="margin:0;padding:0;background-color:#0b1220;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0;padding:24px 0;background-color:#0b1220;">
+          <tr>
+            <td align="center" style="padding:0 16px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#020617;border-radius:18px;border:1px solid #1f2937;overflow:hidden;">
+                <tr>
+                  <td style="padding:24px 24px 12px 24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e5e7eb;font-size:14px;">
+                    <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px;">
+                      Review request
+                    </div>
+                    <div style="font-size:20px;font-weight:600;color:#f9fafb;">
+                      Hi${name ? " " + name : ""},
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:0 24px 4px 24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e5e7eb;font-size:14px;line-height:1.7;">
+                    <p style="margin:0 0 10px 0;">
+                      Thank you for choosing <strong style="color:#ffffff;">${bizName}</strong>.
+                    </p>
+                    <p style="margin:0 0 10px 0;">
+                      We’d really appreciate it if you could take a moment to share your experience in a quick review. It only takes about a minute.
+                    </p>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td align="center" style="padding:12px 24px 18px 24px;">
+                    <a href="${portalUrl}"
+                       style="
+                         display:inline-block;
+                         padding:12px 28px;
+                         border-radius:999px;
+                         background-image:linear-gradient(135deg,#2563eb,#7c3aed);
+                         color:#ffffff;
+                         font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+                         font-size:14px;
+                         font-weight:600;
+                         text-decoration:none;
+                         box-shadow:0 12px 30px rgba(37,99,235,0.35);
+                       ">
+                      Click here to leave your review
+                    </a>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:0 24px 18px 24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#9ca3af;font-size:12px;line-height:1.6;">
+                    <p style="margin:0 0 6px 0;">
+                      If the button doesn’t work, copy and paste this link into your browser:
+                    </p>
+                    <p style="margin:0;">
+                      <a href="${portalUrl}" style="color:#60a5fa;text-decoration:underline;">${portalUrl}</a>
+                    </p>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:0 24px 20px 24px;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#6b7280;font-size:12px;border-top:1px solid #1f2937;">
+                    <p style="margin:12px 0 4px 0;">
+                      Thank you so much,
+                    </p>
+                    <p style="margin:0 0 2px 0;">
+                      <strong style="color:#e5e7eb;">${bizName}</strong> team
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `;
 
     if (channel === "email") {
       try {
         const response = await fetch(SEND_REVIEW_FUNCTION_URL, {
           method: "POST",
-          mode: "cors",
           headers: {
-            "Content-Type": "application/json"
-            // IMPORTANT:
-            // Do NOT add any Authorization / idToken / accessToken headers here.
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             to: email,
@@ -2173,12 +2265,17 @@ if (reviewRequestForm) {
           }),
         });
 
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok || data.success !== true) {
-          console.error("sendReviewRequestEmail error:", data);
-          throw new Error(data.error || "Server error");
+        if (!response.ok) {
+          console.error(
+            "sendReviewRequestEmail failed:",
+            response.status,
+            await response.text()
+          );
+          throw new Error("Request failed with status " + response.status);
         }
+
+        const data = await response.json();
+        console.log("sendReviewRequestEmail success:", data);
 
         showBanner("Email request sent successfully ✅", "success");
         reviewRequestForm.reset();
@@ -2189,9 +2286,6 @@ if (reviewRequestForm) {
           "error"
         );
       }
-    } else {
-      // Other channels (sms / whatsapp) not implemented yet
-      showBanner("Right now only email requests are supported.", "warn");
     }
   });
 }
