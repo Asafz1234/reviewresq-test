@@ -1,108 +1,138 @@
-const functions = require("firebase-functions");
+const functions = require("firebase-functions/v1");
 const sgMail = require("@sendgrid/mail");
 
-// Make sure SENDGRID_API_KEY is already set from environment/secrets
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
 exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
+  console.log("sendReviewRequestEmail invoked", req.method);
+
+  // ---------- CORS ----------
+  const origin = req.headers.origin || "*";
+  const allowedOrigins = [
+    "https://reviewresq.com",
+    "https://www.reviewresq.com",
+  ];
+
+  if (allowedOrigins.includes(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+  } else {
+    res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
+  }
+
   res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Vary", "Origin");
 
   if (req.method === "OPTIONS") {
+    console.log("Handled OPTIONS preflight");
     return res.status(204).send("");
   }
 
-  if (req.method !== "POST") {
-    return res.status(405).json({ success: false, error: "Method Not Allowed" });
+  // ---------- SENDGRID ----------
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) {
+    console.error("Missing SENDGRID_API_KEY");
+    return res.status(500).json({ error: "Server key missing" });
   }
 
+  sgMail.setApiKey(apiKey);
+
   try {
-    const {
+    // נקבל גם את הפורמט החדש וגם את הישן
+    let {
       to,
-      subject,
-      text,
-      html,
+      customerEmail,
+      customerName,
       businessName,
       businessLogoUrl,
       portalUrl,
-      customerName,
-      textCustomerName,
+      portalLink,
+      subject,
+      text,
+      html,
     } = req.body || {};
 
-    if (!to) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'Missing "to" field' });
+    // איחוד שדות
+    const email = customerEmail || to;
+    const portal = portalUrl || portalLink;
+
+    const safeBusinessName = businessName || "our business";
+    const safeCustomerName = customerName || "there";
+
+    if (!email || !portal) {
+      console.error("Missing required fields", {
+        email,
+        portal,
+        body: req.body,
+      });
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
-    if (!portalUrl) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'Missing "portalUrl" field' });
+    // אם אין subject / text / html – נבנה אותם לבד
+    if (!subject) {
+      subject = `How was your experience with ${safeBusinessName}?`;
     }
 
-    const safeBusinessName = businessName || "Your Business";
-    const customerGreeting = textCustomerName || customerName || "";
-    const emailSubject =
-      subject || `How was your experience with ${safeBusinessName}?`;
-    const emailText =
-      text ||
-      `Hi ${customerGreeting || "there"},\n\nThanks for choosing ${safeBusinessName}.\nWe’d really appreciate it if you could take a moment to share your experience.\n\nLeave a review here: ${portalUrl}\n\nThis link is unique to your review request from ${safeBusinessName}.`;
+    if (!text) {
+      text =
+        `Hi ${safeCustomerName},\n\n` +
+        `Thanks for choosing ${safeBusinessName}.\n\n` +
+        `We'd really appreciate it if you could take a moment to leave us a review:\n` +
+        `${portal}\n\n` +
+        `Thank you!\n${safeBusinessName} Team`;
+    }
 
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; background:#f5f5f5; padding:24px;">
-        <div style="max-width:520px; margin:0 auto; background:#ffffff; padding:24px; border-radius:12px;">
-          ${businessLogoUrl ? `
-            <div style="text-align:center; margin-bottom:16px;">
-              <img src="${businessLogoUrl}" alt="${safeBusinessName} logo"
-                   style="max-height:60px; max-width:180px; object-fit:contain;" />
-            </div>` : ""}
+    if (!html) {
+      const logoImgHtml = businessLogoUrl
+        ? `<div style="margin-bottom:16px;">
+             <img src="${businessLogoUrl}"
+                  alt="${safeBusinessName} logo"
+                  style="max-width:160px;height:auto;border-radius:8px;" />
+           </div>`
+        : "";
 
-          <h2 style="margin:0 0 12px; font-size:20px; color:#111827;">
-            Hi ${customerGreeting || "there"},
-          </h2>
-
-          <p style="margin:0 0 12px; color:#4b5563; font-size:14px;">
-            Thanks for choosing <strong>${safeBusinessName}</strong>.
-          </p>
-
-          <p style="margin:0 0 16px; color:#4b5563; font-size:14px;">
-            We’d really appreciate it if you could take a moment to share your experience.
-          </p>
-
-          <div style="text-align:center; margin:24px 0;">
-            <a href="${portalUrl}"
-               style="display:inline-block; background:#2563eb; color:#ffffff; text-decoration:none;
-                      padding:12px 24px; border-radius:999px; font-weight:600; font-size:14px;">
-              Click here to leave a review
-            </a>
+      html = `
+        <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color:#f4f4f5; padding:24px;">
+          <div style="max-width:480px; margin:0 auto; background:#ffffff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(15,23,42,0.12);">
+            ${logoImgHtml}
+            <h2 style="margin:0 0 12px; color:#111827; font-size:20px;">
+              Hi ${safeCustomerName},
+            </h2>
+            <p style="margin:0 0 12px; color:#4b5563; font-size:14px;">
+              Thanks for choosing <strong>${safeBusinessName}</strong>.
+            </p>
+            <p style="margin:0 0 16px; color:#4b5563; font-size:14px;">
+              We'd really appreciate it if you could take a moment to share your experience.
+            </p>
+            <div style="text-align:center; margin:24px 0;">
+              <a href="${portal}" target="_blank" rel="noopener noreferrer"
+                 style="display:inline-block; padding:12px 24px; border-radius:999px; background:#4f46e5; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px;">
+                Leave a review
+              </a>
+            </div>
+            <p style="margin:0; color:#9ca3af; font-size:12px;">
+              If the button above doesn't work, copy and paste this link into your browser:<br />
+              <span style="word-break:break-all;">${portal}</span>
+            </p>
           </div>
-
-          <p style="margin:0; color:#9ca3af; font-size:12px; line-height:1.5;">
-            This link is unique to your review request from ${safeBusinessName}.
-          </p>
         </div>
-      </div>
-    `;
+      `;
+    }
 
     const msg = {
-      to,
-      from: "ReviewRescue <no-reply@reviewresq.com>",
-      subject: emailSubject,
-      text: emailText,
-      html: emailHtml,
+      to: email,
+      from: "support@reviewresq.com",
+      subject,
+      text,
+      html,
     };
 
-    console.log("Sending email via SendGrid to:", to);
-    await sgMail.send(msg);
-    console.log("Email sent successfully");
+    console.log("Sending email via SendGrid", { to: email, subject });
 
+    await sgMail.send(msg);
+
+    console.log("Email sent successfully");
     return res.status(200).json({ success: true });
   } catch (err) {
-    console.error("sendReviewRequestEmail error:", err);
-    return res
-      .status(500)
-      .json({ success: false, error: "Failed to send email" });
+    console.error("SendGrid error", err);
+    return res.status(500).json({ error: "Failed to send email" });
   }
 });

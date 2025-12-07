@@ -135,6 +135,11 @@ ${safeBusinessName}
       subject,
       text: plainText,
       html,
+      businessName: safeBusinessName,
+      businessLogoUrl,
+      portalUrl: resolvedPortalUrl,
+      customerName: safeCustomerName,
+      textCustomerName: safeCustomerName,
     }),
   });
 
