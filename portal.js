@@ -6,7 +6,7 @@ import {
   doc,
   getDoc,
   collection,
-  setDoc,
+  addDoc,
   serverTimestamp,
 } from "./firebase-config.js";
 
@@ -241,31 +241,25 @@ if (feedbackForm) {
   feedbackForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
+    const currentBusinessId = businessId || urlParams.get("bid") || urlParams.get("b");
+    const message = (feedbackMessageInput?.value || "").trim();
+    const customerName = (customerNameInput?.value || "").trim();
+    const customerEmail = (customerEmailInput?.value || "").trim();
+
+    if (!currentBusinessId) {
+      alert("This feedback link is missing a business id. Please ask the business for a new link.");
+      return;
+    }
+
     if (!currentRating || currentRating > 3) {
       alert("Please select a rating of 1–3 stars to send private feedback.");
       return;
     }
 
-    const message = (feedbackMessageInput?.value || "").trim();
-    const customerName = (customerNameInput?.value || "").trim();
-    const customerEmail = (customerEmailInput?.value || "").trim();
-
     if (!message) {
       alert("Please tell us what we could have done better.");
       return;
     }
-
-    // Prepare payload for Firestore
-    const payload = {
-      businessId: businessId || null,
-      businessName,
-      rating: currentRating,
-      type: "private", // 1–3 stars -> private feedback
-      message,
-      customerName: customerName || null,
-      customerEmail: customerEmail || null,
-      createdAt: serverTimestamp(),
-    };
 
     try {
       if (sendFeedbackBtn) {
@@ -274,16 +268,37 @@ if (feedbackForm) {
       }
 
       const fbCollection = collection(db, "feedback");
-      const newDocRef = doc(fbCollection); // auto-id
-      await setDoc(newDocRef, payload);
+      await addDoc(fbCollection, {
+        businessId: currentBusinessId,
+        rating: currentRating,
+        message: message || "",
+        customerName: customerName || "Anonymous",
+        customerEmail: customerEmail || "",
+        type: "private", // 1–3 stars -> private feedback
+        source: "portal",
+        createdAt: serverTimestamp(),
+      });
 
       if (portalEl) {
         portalEl.classList.add("feedback-sent");
       }
 
+      if (feedbackForm) {
+        feedbackForm.reset();
+      }
     } catch (err) {
-      console.error("Failed to save feedback:", err);
-      alert("We could not send your feedback. Please try again in a moment.");
+      console.error("Portal feedback submit error", err);
+
+      if (
+        err?.code === "permission-denied" ||
+        (typeof err?.message === "string" && err.message.includes("permission-denied"))
+      ) {
+        alert(
+          "We could not save your feedback because of a security rule. Please contact the business owner."
+        );
+      } else {
+        alert("We could not send your feedback. Please try again in a moment.");
+      }
     } finally {
       if (sendFeedbackBtn) {
         sendFeedbackBtn.disabled = false;
