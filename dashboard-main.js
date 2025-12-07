@@ -30,9 +30,12 @@ const userEmailDisplay = document.getElementById("userEmailDisplay");
 const logoutBtn = document.getElementById("logoutBtn");
 const planBadge = document.getElementById("planBadge");
 const bizNameDisplay = document.getElementById("bizNameDisplay");
+const bizNameHeading = document.getElementById("bizNameHeading");
 const bizCategoryText = document.getElementById("bizCategoryText");
 const bizUpdatedAt = document.getElementById("bizUpdatedAt");
 const bizAvatar = document.getElementById("bizAvatar");
+const heroAvatar = document.getElementById("heroAvatar");
+const topbarViewLabel = document.getElementById("topbarViewLabel");
 const dateRangeSelect = document.getElementById("dateRangeSelect");
 const globalBanner = document.getElementById("globalBanner");
 const globalBannerText = document.getElementById("globalBannerText");
@@ -93,6 +96,11 @@ function setActiveNav(viewId) {
 function showView(viewId) {
   if (!viewId) return;
   currentView = viewId;
+
+  const activeNav = navButtons.find((btn) => btn.dataset.view === viewId);
+  if (activeNav && topbarViewLabel) {
+    topbarViewLabel.textContent = activeNav.textContent.trim();
+  }
 
   dashboardViews.forEach((view) => {
     view.classList.toggle("hidden", view.id !== viewId);
@@ -158,8 +166,30 @@ function initNavigation() {
 
       if (mobileMoreSheet) {
         mobileMoreSheet.setAttribute("aria-hidden", "true");
+        mobileMoreSheet.classList.remove("open");
       }
     });
+  });
+
+  if (mobileMoreBtn && mobileMoreSheet) {
+    mobileMoreBtn.addEventListener("click", () => {
+      mobileMoreSheet.classList.add("open");
+      mobileMoreSheet.setAttribute("aria-hidden", "false");
+    });
+  }
+
+  if (mobileSheetClose && mobileMoreSheet) {
+    mobileSheetClose.addEventListener("click", () => {
+      mobileMoreSheet.classList.remove("open");
+      mobileMoreSheet.setAttribute("aria-hidden", "true");
+    });
+  }
+
+  mobileMoreSheet?.addEventListener("click", (event) => {
+    if (event.target === mobileMoreSheet) {
+      mobileMoreSheet.classList.remove("open");
+      mobileMoreSheet.setAttribute("aria-hidden", "true");
+    }
   });
 
   window.addEventListener("hashchange", handleHashChange);
@@ -741,9 +771,11 @@ async function loadProfile() {
     currentProfile = data;
 
     if (bizNameDisplay) bizNameDisplay.textContent = data.businessName || "Your business";
+    if (bizNameHeading) bizNameHeading.textContent = data.businessName || "Your business";
     if (bizCategoryText) bizCategoryText.textContent = data.category || "Category";
     if (bizUpdatedAt) bizUpdatedAt.textContent = formatDate(data.updatedAt);
     if (bizAvatar) bizAvatar.textContent = initialsFromName(data.businessName || "RR");
+    if (heroAvatar) heroAvatar.textContent = initialsFromName(data.businessName || "RR");
     if (planBadge)
       planBadge.textContent =
         currentPlan === "advanced" ? "Advanced plan" : "Basic plan";
@@ -893,15 +925,15 @@ function renderFeedback() {
     const ratingClass = rating >= 4 ? "rating-high" : "rating-low";
 
     tr.innerHTML = `
-      <td>${formatDate(f.createdAt)}</td>
-      <td>${f.customerName || "Customer"}</td>
-      <td><span class="rating-pill ${ratingClass}">${formatRating(
+      <td data-label="Date">${formatDate(f.createdAt)}</td>
+      <td data-label="Customer">${f.customerName || "Customer"}</td>
+      <td data-label="Rating"><span class="rating-pill ${ratingClass}">${formatRating(
         f.rating
       )}</span></td>
-      <td>${f.type || "private"}</td>
-      <td>${(f.message || "").slice(0, 80)}${(f.message || "").length > 80 ? "…" : ""}</td>
-      <td><span class="status-chip status-${f.status || "new"}">${statusLabel}</span></td>
-      <td class="actions-cell">
+      <td data-label="Type">${f.type || "private"}</td>
+      <td data-label="Message">${(f.message || "").slice(0, 80)}${(f.message || "").length > 80 ? "…" : ""}</td>
+      <td data-label="Status"><span class="status-chip status-${f.status || "new"}">${statusLabel}</span></td>
+      <td data-label="Actions" class="actions-cell">
         <button class="btn ghost" data-action="reply" data-id="${f.id}">Open</button>
         <button class="btn ghost" data-action="markFollow" data-id="${f.id}">Follow-up</button>
       </td>
