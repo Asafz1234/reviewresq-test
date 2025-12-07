@@ -770,6 +770,20 @@ function filterFeedbackByRange(rangeValue) {
   });
 }
 
+function getDateRangeBounds(rangeValue) {
+  if (rangeValue === "all") {
+    return { startDate: null, endDate: null };
+  }
+
+  const days = Number(rangeValue) || 7;
+  const endDate = new Date();
+  endDate.setHours(23, 59, 59, 999);
+  const startDate = new Date(endDate.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+  startDate.setHours(0, 0, 0, 0);
+
+  return { startDate, endDate };
+}
+
 async function loadFeedback() {
   try {
     if (!currentUser) return;
@@ -799,6 +813,43 @@ async function loadFeedback() {
   } catch (err) {
     console.error("loadFeedback error:", err);
     showBanner("Could not load feedback.", "warn");
+  }
+}
+
+async function refreshInsightsFromFirestore() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const rangeValue = dateRangeSelect?.value || "7";
+  const { startDate, endDate } = getDateRangeBounds(rangeValue);
+
+  const constraints = [where("businessId", "==", user.uid), orderBy("createdAt", "desc")];
+  if (startDate) constraints.push(where("createdAt", ">=", startDate));
+  if (endDate) constraints.push(where("createdAt", "<=", endDate));
+
+  try {
+    const feedbackRef = collection(db, "feedback");
+    const snap = await getDocs(query(feedbackRef, ...constraints));
+
+    feedbackCache = snap.docs.map((d) => ({
+      id: d.id,
+      status: "new",
+      ...d.data(),
+      statusOverride: d.data().status,
+    }));
+
+    feedbackCache = feedbackCache.map((f) => ({
+      ...f,
+      status: f.statusOverride || f.status || "new",
+    }));
+
+    renderFeedback();
+    evaluateAutomations(feedbackCache);
+    updateKPIs();
+  } catch (err) {
+    console.error("refreshInsightsFromFirestore error:", err);
+    showBanner("Could not refresh insights right now.", "warn");
+    throw err;
   }
 }
 
@@ -1122,8 +1173,7 @@ async function handleInsightsRefresh(btn) {
       btn.disabled = true;
       btn.textContent = "Refreshing…";
     }
-    // First reload latest feedback + KPIs + inbox table
-    await loadFeedback();
+    await refreshInsightsFromFirestore();
 
     // Then regenerate AI insights based on the updated feedbackCache
     await refreshInsights();
@@ -2357,8 +2407,19 @@ async function loadReviewRequests() {
 
 // ---------- INSIGHTS REFRESH BUTTONS ----------
 
-refreshInsightsBtn?.addEventListener("click", () => {
-  handleInsightsRefresh(refreshInsightsBtn);
+refreshInsightsBtn?.addEventListener("click", async () => {
+  const originalLabel = refreshInsightsBtn.textContent || "Refresh insights";
+  try {
+    refreshInsightsBtn.disabled = true;
+    refreshInsightsBtn.textContent = "Refreshing…";
+    await refreshInsightsFromFirestore();
+  } catch (err) {
+    console.error("Failed to refresh insights:", err);
+    alert("Could not refresh insights. Please try again.");
+  } finally {
+    refreshInsightsBtn.disabled = false;
+    refreshInsightsBtn.textContent = originalLabel;
+  }
 });
 refreshInsightsSecondary?.addEventListener("click", () => {
   handleInsightsRefresh(refreshInsightsSecondary);
