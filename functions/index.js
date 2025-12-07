@@ -1,59 +1,51 @@
-const functions = require('firebase-functions');
-const sgMail = require('@sendgrid/mail');
-const cors = require('cors')({ origin: true });
+const functions = require("firebase-functions");
+const sgMail = require("@sendgrid/mail");
 
-const sendgridApiKey = process.env.SENDGRID_API_KEY || functions.config().sendgrid?.key;
+// Make sure SENDGRID_API_KEY is already set from environment/secrets
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-if (!sendgridApiKey) {
-  console.warn('SENDGRID_API_KEY is not configured. Emails will fail.');
-} else {
-  sgMail.setApiKey(sendgridApiKey);
-}
+exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
+  // --- CORS headers ---
+  res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
 
-exports.sendReviewRequestEmail = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    // ✅ תגובה לבקשות OPTIONS (בדיקת הרשאות)
-    if (req.method === "OPTIONS") {
-      res.set("Access-Control-Allow-Origin", "*");
-      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-      res.set("Access-Control-Allow-Headers", "Content-Type");
-      return res.status(204).send('');
+  // Handle preflight
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false, error: "Method Not Allowed" });
+  }
+
+  try {
+    const { to, subject, text, html } = req.body || {};
+
+    if (!to) {
+      return res
+        .status(400)
+        .json({ success: false, error: 'Missing "to" field' });
     }
 
-    // ✅ נוודא שגם התגובה עצמה כוללת את הכותרות האלו
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
+    const msg = {
+      to,
+      from: "ReviewRescue <no-reply@reviewresq.com>",
+      subject: subject || "Review Request",
+      text: text || "Hi! Please leave us a review.",
+      html: html || "<p>Hi! Please leave us a review.</p>",
+    };
 
-    const { customerName, customerEmail, customerPhone, portalLink } = req.body || {};
+    console.log("Sending email via SendGrid to:", to);
+    await sgMail.send(msg);
+    console.log("Email sent successfully");
 
-    if (!customerEmail || !customerName || !portalLink) {
-      return res.status(400).json({
-        error: 'Missing required fields for review request email',
-      });
-    }
-
-    const phoneLine = customerPhone ? `<br>Phone: ${customerPhone}` : '';
-
-    try {
-      await sgMail.send({
-        to: customerEmail,
-        from: "no-reply@reviewresq.com",
-        subject: "Share your experience",
-        html: `
-          Hi ${customerName},<br><br>
-          Thanks for your feedback!<br>
-          Please share your experience here:<br>
-          <a href="${portalLink}">${portalLink}</a><br>${phoneLine}<br>
-          Best regards,<br>
-          ReviewResQ Team
-        `,
-      });
-
-      return res.status(200).json({ success: true });
-    } catch (error) {
-      console.error("Email error:", error);
-      return res.status(500).json({ error: 'Failed to send email' });
-    }
-  });
+    // Always respond with JSON and CORS headers
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("sendReviewRequestEmail error:", err);
+    return res
+      .status(500)
+      .json({ success: false, error: "Failed to send email" });
+  }
 });

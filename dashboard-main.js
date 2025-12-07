@@ -2159,28 +2159,26 @@ if (reviewRequestForm) {
       try {
         const response = await fetch(SEND_REVIEW_FUNCTION_URL, {
           method: "POST",
+          mode: "cors",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json"
+            // IMPORTANT:
+            // Do NOT add any Authorization / idToken / accessToken headers here.
           },
           body: JSON.stringify({
             to: email,
-            subject: "Review Request from " + (bizName || "our business"),
+            subject: `Review request from ${bizName}`,
             text: plainTextMessage,
             html: htmlMessage,
           }),
         });
 
-        if (!response.ok) {
-          console.error(
-            "sendReviewRequestEmail failed:",
-            response.status,
-            await response.text()
-          );
-          throw new Error("Request failed with status " + response.status);
-        }
+        const data = await response.json().catch(() => ({}));
 
-        const data = await response.json();
-        console.log("sendReviewRequestEmail success:", data);
+        if (!response.ok || data.success !== true) {
+          console.error("sendReviewRequestEmail error:", data);
+          throw new Error(data.error || "Server error");
+        }
 
         showBanner("Email request sent successfully ✅", "success");
         reviewRequestForm.reset();
@@ -2191,6 +2189,9 @@ if (reviewRequestForm) {
           "error"
         );
       }
+    } else {
+      // Other channels (sms / whatsapp) not implemented yet
+      showBanner("Right now only email requests are supported.", "warn");
     }
   });
 }
