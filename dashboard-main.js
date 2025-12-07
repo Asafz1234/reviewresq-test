@@ -1122,6 +1122,10 @@ async function handleInsightsRefresh(btn) {
       btn.disabled = true;
       btn.textContent = "Refreshing…";
     }
+    // First reload latest feedback + KPIs + inbox table
+    await loadFeedback();
+
+    // Then regenerate AI insights based on the updated feedbackCache
     await refreshInsights();
   } catch (err) {
     console.error("Error refreshing AI insights:", err);
