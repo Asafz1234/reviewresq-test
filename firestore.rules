@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Public feedback from the customer portal
+    match /feedback/{document} {
+      allow create: if
+        // allow anonymous (no auth required)
+        true
+        &&
+        // basic validation on fields
+        request.resource.data.rating is int &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5 &&
+        request.resource.data.businessId is string &&
+        request.resource.data.businessId.size() > 0 &&
+        request.resource.data.type == "private" &&
+        request.resource.data.source == "portal";
+
+      // Do NOT allow public reads of feedback
+      allow read: if false;
+    }
+
+    // keep all the existing rules for the rest of the collections here
+    // (do not remove or relax any existing admin/business rules)
+  }
+}
