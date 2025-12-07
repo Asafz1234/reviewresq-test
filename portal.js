@@ -57,6 +57,17 @@ const isOwnerPreview = ["1", "true", "yes", "on"].includes(
 );
 
 // ----- HELPERS -----
+function getBusinessIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("bid");
+
+  if (!id) {
+    console.error("[portal] Missing ?bid= in URL", window.location.href);
+  }
+
+  return id;
+}
+
 function initialsFromName(name = "") {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "YB";
@@ -105,12 +116,24 @@ function resetRating() {
   ratingButtons.forEach((btn) => btn.classList.remove("selected"));
 }
 
+function showThankYouState() {
+  if (portalEl) {
+    portalEl.classList.add("feedback-sent");
+  }
+
+  if (feedbackForm) {
+    feedbackForm.reset();
+  }
+}
+
 // ----- LOAD BUSINESS PROFILE -----
 async function loadBusinessProfile() {
-  businessId = urlParams.get("bid") || urlParams.get("b");
+  businessId = getBusinessIdFromUrl();
 
   if (!businessId) {
-    console.warn("No bid parameter in URL. Portal will use default branding.");
+    alert(
+      "This feedback link is missing a business id. Please open the review link from the email again."
+    );
     return;
   }
 
@@ -237,75 +260,75 @@ if (changeRatingLink) {
 }
 
 // ----- FEEDBACK SUBMISSION (LOW RATINGS) -----
+async function handleFeedbackSubmit(event) {
+  event.preventDefault();
+
+  const params = new URLSearchParams(window.location.search);
+  const currentBusinessId = params.get("bid");
+
+  if (!currentBusinessId) {
+    console.error("[portal] Missing ?bid= in URL", window.location.href);
+    alert(
+      "We couldn’t send your feedback (missing business id in the link). Please open the review link from the email again."
+    );
+    return;
+  }
+
+  const rating = currentRating;
+  const message = (feedbackMessageInput?.value || "").trim();
+  const customerName = (customerNameInput?.value || "").trim();
+  const customerEmail = (customerEmailInput?.value || "").trim();
+
+  if (!rating) {
+    alert("Please select a rating before sending your feedback.");
+    return;
+  }
+
+  try {
+    if (sendFeedbackBtn) {
+      sendFeedbackBtn.disabled = true;
+      sendFeedbackBtn.textContent = "Sending…";
+    }
+
+    console.log("[portal] Submitting feedback", {
+      businessId: currentBusinessId,
+      rating,
+      message,
+      customerName,
+      customerEmail,
+    });
+
+    await addDoc(collection(db, "feedback"), {
+      businessId: currentBusinessId,
+      rating,
+      message,
+      customerName: customerName || null,
+      customerEmail: customerEmail || null,
+      type: "private",
+      source: "portal",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    console.log("[portal] Feedback submitted successfully");
+    showThankYouState();
+  } catch (err) {
+    console.error("[portal] Error while submitting feedback", err);
+    alert(
+      "We could not send your feedback (" +
+        (err.code || err.message || "unknown error") +
+        "). Please try again in a moment."
+    );
+  } finally {
+    if (sendFeedbackBtn) {
+      sendFeedbackBtn.disabled = false;
+      sendFeedbackBtn.textContent = "Send feedback";
+    }
+  }
+}
+
 if (feedbackForm) {
-  feedbackForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const currentBusinessId = businessId || urlParams.get("bid") || urlParams.get("b");
-    const message = (feedbackMessageInput?.value || "").trim();
-    const customerName = (customerNameInput?.value || "").trim();
-    const customerEmail = (customerEmailInput?.value || "").trim();
-
-    if (!currentBusinessId) {
-      alert("This feedback link is missing a business id. Please ask the business for a new link.");
-      return;
-    }
-
-    if (!currentRating || currentRating > 3) {
-      alert("Please select a rating of 1–3 stars to send private feedback.");
-      return;
-    }
-
-    if (!message) {
-      alert("Please tell us what we could have done better.");
-      return;
-    }
-
-    try {
-      if (sendFeedbackBtn) {
-        sendFeedbackBtn.disabled = true;
-        sendFeedbackBtn.textContent = "Sending…";
-      }
-
-      const fbCollection = collection(db, "feedback");
-      await addDoc(fbCollection, {
-        businessId: currentBusinessId,
-        rating: currentRating,
-        message: message || "",
-        customerName: customerName || "Anonymous",
-        customerEmail: customerEmail || "",
-        type: "private", // 1–3 stars -> private feedback
-        source: "portal",
-        createdAt: serverTimestamp(),
-      });
-
-      if (portalEl) {
-        portalEl.classList.add("feedback-sent");
-      }
-
-      if (feedbackForm) {
-        feedbackForm.reset();
-      }
-    } catch (err) {
-      console.error("Portal feedback submit error", err);
-
-      if (
-        err?.code === "permission-denied" ||
-        (typeof err?.message === "string" && err.message.includes("permission-denied"))
-      ) {
-        alert(
-          "We could not save your feedback because of a security rule. Please contact the business owner."
-        );
-      } else {
-        alert("We could not send your feedback. Please try again in a moment.");
-      }
-    } finally {
-      if (sendFeedbackBtn) {
-        sendFeedbackBtn.disabled = false;
-        sendFeedbackBtn.textContent = "Send feedback";
-      }
-    }
-  });
+  feedbackForm.addEventListener("submit", handleFeedbackSubmit);
 }
 
 // ----- INIT -----
