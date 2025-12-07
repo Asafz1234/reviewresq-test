@@ -48,6 +48,17 @@ const thankyouTitleText = document.getElementById("thankyouTitleText");
 const thankyouBodyText = document.getElementById("thankyouBodyText");
 
 const urlParams = new URLSearchParams(window.location.search);
+const businessIdFromParams =
+  urlParams.get("bid") ||
+  urlParams.get("businessId") ||
+  urlParams.get("id") ||
+  urlParams.get("portalId") ||
+  urlParams.get("shareKey");
+const shareKeyParam =
+  urlParams.get("shareKey") ||
+  urlParams.get("portalId") ||
+  urlParams.get("businessId") ||
+  urlParams.get("bid");
 const ownerPreviewParam =
   urlParams.get("ownerPreview") ?? urlParams.get("owner") ?? "";
 
@@ -63,12 +74,7 @@ const isOwnerPreview = ["1", "true", "yes", "on"].includes(
 
 // ----- HELPERS -----
 function getBusinessIdFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const id =
-    params.get("businessId") ||
-    params.get("portalId") ||
-    params.get("shareKey") ||
-    params.get("bid");
+  const id = businessIdFromParams;
 
   if (!id) {
     console.error("[portal] Missing business identifier in URL", window.location.href);
@@ -152,25 +158,17 @@ async function loadBusinessProfile() {
 
     let data = snap.exists() ? snap.data() : null;
 
-    if (!data) {
-      const shareKeyParam =
-        urlParams.get("shareKey") ||
-        urlParams.get("portalId") ||
-        urlParams.get("businessId") ||
-        urlParams.get("bid");
+    if (!data && shareKeyParam) {
+      const shareKeyQuery = query(
+        collection(db, "businessProfiles"),
+        where("shareKey", "==", shareKeyParam)
+      );
+      const shareKeySnap = await getDocs(shareKeyQuery);
 
-      if (shareKeyParam) {
-        const shareKeyQuery = query(
-          collection(db, "businessProfiles"),
-          where("shareKey", "==", shareKeyParam)
-        );
-        const shareKeySnap = await getDocs(shareKeyQuery);
-
-        if (!shareKeySnap.empty) {
-          const matchedDoc = shareKeySnap.docs[0];
-          data = matchedDoc.data();
-          businessId = matchedDoc.id;
-        }
+      if (!shareKeySnap.empty) {
+        const matchedDoc = shareKeySnap.docs[0];
+        data = matchedDoc.data();
+        businessId = matchedDoc.id;
       }
     }
 
@@ -179,8 +177,8 @@ async function loadBusinessProfile() {
       return;
     }
 
-    businessName = data.businessName || "Your business";
-    businessTagline = data.tagline || "Private Feedback Portal";
+    businessName = data.name || data.businessName || "Your business";
+    businessTagline = data.tagline || data.businessTagline || "Private Feedback Portal";
 
     if (bizNameDisplay) {
       bizNameDisplay.textContent = businessName;
@@ -191,7 +189,8 @@ async function loadBusinessProfile() {
     }
 
     // Logo
-    const logoUrl = data.logoUrl || data.logoDataUrl || null;
+    const logoUrl =
+      data.logoUrl || data.businessLogoUrl || data.logoDataUrl || null;
     if (logoUrl && bizLogoImg && bizLogoImgWrapper && bizLogoInitials) {
       bizLogoImg.src = logoUrl;
       bizLogoImg.alt = `${businessName} logo`;
