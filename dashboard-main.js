@@ -21,6 +21,7 @@ import {
 
 const SEND_REVIEW_FUNCTION_URL =
   "https://us-central1-reviewresq-app.cloudfunctions.net/sendReviewRequestEmail";
+const PORTAL_BASE_URL = "https://reviewresq.com/portal.html";
 
 // ---------- DOM ELEMENTS ----------
 
@@ -2147,23 +2148,68 @@ if (reviewRequestForm) {
     const bizName =
       document.getElementById("bizNameDisplay")?.textContent || "your business";
 
+    // Build portal link for THIS business
+    const businessId = currentUser?.uid || "";
+    const portalUrl = businessId
+      ? `${PORTAL_BASE_URL}?bid=${encodeURIComponent(businessId)}`
+      : PORTAL_BASE_URL;
+
+    // --------- EMAIL TEMPLATE (TEXT + HTML) ---------
     const plainTextMessage =
-      `Hi${name ? " " + name : ""}, thanks for choosing ${bizName}. ` +
-      `We’d love if you could share your experience in a quick review.`;
-    const htmlMessage =
-      `<p>Hi${name ? " " + name : ""},</p>` +
-      `<p>Thanks for choosing <strong>${bizName}</strong>.</p>` +
-      `<p>We’d really appreciate it if you could take a moment to leave us a review 🙏</p>`;
+      `Hi${name ? " " + name : ""},
+
+` +
+      `Thank you for choosing ${bizName}.
+
+` +
+      `We’d really appreciate it if you could take a moment to share your experience in a quick review.
+
+` +
+      `Just click the link below:
+` +
+      `${portalUrl}
+
+` +
+      `Thank you so much,
+` +
+      `${bizName} team`;
+
+    const htmlMessage = `
+      <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #111827;">
+        <p>Hi${name ? " " + name : ""},</p>
+        <p>Thank you for choosing <strong>${bizName}</strong>.</p>
+        <p>We’d really appreciate it if you could take a moment to share your experience in a quick review.</p>
+        <p style="margin: 24px 0;">
+          <a href="${portalUrl}"
+             style="
+               display: inline-block;
+               padding: 12px 22px;
+               border-radius: 999px;
+               background: #2563eb;
+               color: #ffffff;
+               text-decoration: none;
+               font-weight: 600;
+             ">
+            Click here to leave your review
+          </a>
+        </p>
+        <p style="font-size: 13px; color: #6b7280; margin-top: 16px;">
+          Or copy and paste this link into your browser:<br>
+          <a href="${portalUrl}" style="color: #2563eb;">${portalUrl}</a>
+        </p>
+        <p>
+          Thank you so much,<br/>
+          <strong>${bizName}</strong> team
+        </p>
+      </div>
+    `;
 
     if (channel === "email") {
       try {
         const response = await fetch(SEND_REVIEW_FUNCTION_URL, {
           method: "POST",
-          mode: "cors",
           headers: {
-            "Content-Type": "application/json"
-            // IMPORTANT:
-            // Do NOT add any Authorization / idToken / accessToken headers here.
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             to: email,
@@ -2173,12 +2219,17 @@ if (reviewRequestForm) {
           }),
         });
 
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok || data.success !== true) {
-          console.error("sendReviewRequestEmail error:", data);
-          throw new Error(data.error || "Server error");
+        if (!response.ok) {
+          console.error(
+            "sendReviewRequestEmail failed:",
+            response.status,
+            await response.text()
+          );
+          throw new Error("Request failed with status " + response.status);
         }
+
+        const data = await response.json();
+        console.log("sendReviewRequestEmail success:", data);
 
         showBanner("Email request sent successfully ✅", "success");
         reviewRequestForm.reset();
@@ -2189,9 +2240,6 @@ if (reviewRequestForm) {
           "error"
         );
       }
-    } else {
-      // Other channels (sms / whatsapp) not implemented yet
-      showBanner("Right now only email requests are supported.", "warn");
     }
   });
 }
