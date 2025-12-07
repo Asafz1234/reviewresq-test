@@ -7,21 +7,7 @@ service cloud.firestore {
       allow get, list: if true;
 
       match /feedback/{feedbackId} {
-        allow create: if
-          request.resource.data.keys().hasAll([
-            "rating",
-            "createdAt",
-            "businessId",
-            "type",
-            "source",
-          ]) &&
-          request.resource.data.rating is int &&
-          request.resource.data.rating >= 1 &&
-          request.resource.data.rating <= 5 &&
-          request.resource.data.createdAt is timestamp &&
-          request.resource.data.businessId == businessId &&
-          request.resource.data.type == "private" &&
-          request.resource.data.source == "portal";
+        allow create: if true;
 
         // No public reads/updates/deletes for feedback documents
         allow read, update, delete: if false;
