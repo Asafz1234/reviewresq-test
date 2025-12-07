@@ -2151,12 +2151,23 @@ if (reviewRequestForm) {
     // Use the business name shown in the header if available
     const bizName =
       document.getElementById("bizNameDisplay")?.textContent || "your business";
+    const businessName =
+      (currentProfile && currentProfile.businessName) || bizName || "your business";
+    const businessLogoUrl =
+      (currentProfile && (currentProfile.logoUrl || currentProfile.logoDataUrl)) ||
+      "";
 
     // Build portal link for THIS business
     const businessId = currentUser?.uid || "";
-    const portalUrl = businessId
-      ? `${PORTAL_BASE_URL}?bid=${encodeURIComponent(businessId)}`
-      : PORTAL_BASE_URL;
+    const portalUrl =
+      (currentProfile && currentProfile.portalPath
+        ? currentProfile.portalPath.startsWith("http")
+          ? currentProfile.portalPath
+          : `${window.location.origin}${currentProfile.portalPath}`
+        : null) ||
+      (businessId
+        ? `${PORTAL_BASE_URL}?bid=${encodeURIComponent(businessId)}`
+        : PORTAL_BASE_URL);
 
     const customerName = name || email;
 
@@ -2212,14 +2223,22 @@ if (reviewRequestForm) {
 
     if (channel === "email") {
       try {
+        const emailSubject = `How was your experience with ${
+          businessName || "our business"
+        }?`;
+
         const response = await fetch(SEND_REVIEW_FUNCTION_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to: email,
-            subject: "Review Request from " + (bizName || "our business"),
+            subject: emailSubject,
             text: plainTextMessage,
             html: htmlMessage,
+            businessName,
+            businessLogoUrl,
+            portalUrl,
+            customerName,
           }),
         });
 
