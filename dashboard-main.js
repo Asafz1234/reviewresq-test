@@ -19,7 +19,7 @@ import {
   serverTimestamp,
 } from "./firebase-config.js";
 
-const SEND_REVIEW_FN_URL =
+const SEND_REVIEW_FUNCTION_URL =
   "https://us-central1-reviewresq-app.cloudfunctions.net/sendReviewRequestEmail";
 
 // ---------- DOM ELEMENTS ----------
@@ -2147,45 +2147,51 @@ if (reviewRequestForm) {
     const bizName =
       document.getElementById("bizNameDisplay")?.textContent || "your business";
 
-    try {
-      const response = await fetch(SEND_REVIEW_FN_URL, {
-        method: "POST",
-        mode: "cors",
-        headers: {
-          "Content-Type": "application/json"
-          // IMPORTANT:
-          // Do NOT add any Authorization header here.
-          // Do NOT send idToken, accessToken or anything similar.
-        },
-        body: JSON.stringify({
-          to: email,
-          subject: `Review request from ${bizName}`,
-          text:
-            `Hi${name ? " " + name : ""}, thanks for choosing ${bizName}. ` +
-            `We’d love if you could share your experience in a quick review.`,
-          html:
-            `<p>Hi${name ? " " + name : ""},</p>` +
-            `<p>Thanks for choosing <strong>${bizName}</strong>.</p>` +
-            `<p>We’d really appreciate it if you could take a moment to leave us a review 🙏</p>`
-        })
-      });
+    const plainTextMessage =
+      `Hi${name ? " " + name : ""}, thanks for choosing ${bizName}. ` +
+      `We’d love if you could share your experience in a quick review.`;
+    const htmlMessage =
+      `<p>Hi${name ? " " + name : ""},</p>` +
+      `<p>Thanks for choosing <strong>${bizName}</strong>.</p>` +
+      `<p>We’d really appreciate it if you could take a moment to leave us a review 🙏</p>`;
 
-      const data = await response.json().catch(() => ({}));
+    if (channel === "email") {
+      try {
+        const response = await fetch(SEND_REVIEW_FUNCTION_URL, {
+          method: "POST",
+          mode: "cors",
+          headers: {
+            "Content-Type": "application/json"
+            // IMPORTANT:
+            // Do NOT add any Authorization / idToken / accessToken headers here.
+          },
+          body: JSON.stringify({
+            to: email,
+            subject: `Review request from ${bizName}`,
+            text: plainTextMessage,
+            html: htmlMessage,
+          }),
+        });
 
-      if (!response.ok || data.success !== true) {
-        console.error("sendReviewRequestEmail error:", data);
-        throw new Error(data.error || "Server error");
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || data.success !== true) {
+          console.error("sendReviewRequestEmail error:", data);
+          throw new Error(data.error || "Server error");
+        }
+
+        showBanner("Email request sent successfully ✅", "success");
+        reviewRequestForm.reset();
+      } catch (err) {
+        console.error("Network error while sending review request:", err);
+        showBanner(
+          "Could not send the email request. Please try again.",
+          "error"
+        );
       }
-
-      // Success
-      showBanner("Email request sent successfully ✅", "success");
-      reviewRequestForm.reset();
-    } catch (err) {
-      console.error("Network error while sending review request:", err);
-      showBanner(
-        "Could not send the email request. Please try again.",
-        "error"
-      );
+    } else {
+      // Other channels (sms / whatsapp) not implemented yet
+      showBanner("Right now only email requests are supported.", "warn");
     }
   });
 }
