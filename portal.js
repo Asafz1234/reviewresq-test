@@ -68,6 +68,7 @@ let businessId = null;
 let businessName = "Your business";
 let businessTagline = "Private Feedback Portal";
 let portalSettings = null;
+let businessLogoUrl = null;
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
 );
@@ -88,6 +89,22 @@ function initialsFromName(name = "") {
   if (!parts.length) return "YB";
   if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
   return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+}
+
+function renderBusinessIdentity() {
+  const logoFromSettings = portalSettings?.businessLogoUrl;
+  const effectiveLogo = logoFromSettings || businessLogoUrl;
+
+  if (effectiveLogo && bizLogoImg && bizLogoImgWrapper && bizLogoInitials) {
+    bizLogoImg.src = effectiveLogo;
+    bizLogoImg.alt = `${businessName} logo`;
+    bizLogoImgWrapper.style.display = "flex";
+    bizLogoInitials.style.display = "none";
+  } else if (bizLogoInitials && bizLogoImgWrapper) {
+    bizLogoImgWrapper.style.display = "none";
+    bizLogoInitials.textContent = initialsFromName(businessName);
+    bizLogoInitials.style.display = "flex";
+  }
 }
 
 function showOwnerToolbarIfNeeded() {
@@ -188,19 +205,9 @@ async function loadBusinessProfile() {
       bizSubtitleDisplay.textContent = businessTagline;
     }
 
-    // Logo
-    const logoUrl =
-      data.logoUrl || data.businessLogoUrl || data.logoDataUrl || null;
-    if (logoUrl && bizLogoImg && bizLogoImgWrapper && bizLogoInitials) {
-      bizLogoImg.src = logoUrl;
-      bizLogoImg.alt = `${businessName} logo`;
-      bizLogoImgWrapper.style.display = "flex";
-      bizLogoInitials.style.display = "none";
-    } else if (bizLogoInitials && bizLogoImgWrapper) {
-      bizLogoImgWrapper.style.display = "none";
-      bizLogoInitials.textContent = initialsFromName(businessName);
-      bizLogoInitials.style.display = "flex";
-    }
+    businessLogoUrl =
+      data.businessLogoUrl || data.logoUrl || data.logoDataUrl || null;
+    renderBusinessIdentity();
 
     document.title = `${businessName} • Feedback Portal`;
 
@@ -228,6 +235,7 @@ async function loadPortalSettings() {
         thankYouTitle: "Thank you for the feedback!",
         thankYouBody: "We read every note and follow up where needed.",
       };
+  renderBusinessIdentity();
   applyPortalSettings();
 }
 
