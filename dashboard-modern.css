@@ -666,6 +666,16 @@ a {
   }
 }
 
+.inbox-layout {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 960px) {
+  .inbox-layout {
+    grid-template-columns: 340px 1fr;
+  }
+}
+
 .list {
   display: grid;
   gap: 12px;
@@ -674,6 +684,16 @@ a {
 .list-item {
   display: grid;
   gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--bg-card);
+  cursor: pointer;
+}
+
+.list-item.active {
+  border-color: var(--accent);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 
 .meta-row {
@@ -683,6 +703,80 @@ a {
   align-items: center;
   font-size: 12px;
   color: var(--text-soft);
+}
+
+.inbox-detail {
+  display: grid;
+  gap: 12px;
+}
+
+.detail-empty {
+  display: grid;
+  gap: 4px;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.detail-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.conversation-body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--bg-soft);
+}
+
+.message-row {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--border-soft);
+}
+
+.message-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.message-text {
+  font-size: 14px;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.reply-box {
+  display: grid;
+  gap: 8px;
 }
 
 .badge {

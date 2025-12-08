@@ -60,61 +60,37 @@
           <div>
             <p class="card-title">Filters</p>
             <div class="button-row">
-              <select class="select">
-                <option>Status: All</option>
-                <option>Open</option>
-                <option>Resolved</option>
+              <select class="select" id="statusFilter">
+                <option value="all">Status: All</option>
+                <option value="open">Open</option>
+                <option value="resolved">Resolved</option>
+                <option value="snoozed">Snoozed</option>
               </select>
-              <select class="select">
-                <option>Last 30 days</option>
-                <option>Last 7 days</option>
-                <option>All time</option>
+              <select class="select" id="dateFilter">
+                <option value="30">Last 30 days</option>
+                <option value="7">Last 7 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="all">All time</option>
               </select>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="section layout-split">
-        <div class="card list">
-          <div class="list-item">
-            <div class="meta-row">
-              <span class="badge">Maria Green</span>
-              <span class="badge badge-warning">3★</span>
-              <span class="badge">Open</span>
-              <span class="caption">Updated 18m ago</span>
-            </div>
-            <p class="page-subtitle">"Service was slower than expected but the technician was polite."</p>
-          </div>
-          <div class="list-item">
-            <div class="meta-row">
-              <span class="badge">Paul Turner</span>
-              <span class="badge badge-success">5★</span>
-              <span class="badge">Resolved</span>
-              <span class="caption">Updated 1h ago</span>
-            </div>
-            <p class="page-subtitle">"Great job on the HVAC repair, thanks!"</p>
-          </div>
-          <div class="list-item">
-            <div class="meta-row">
-              <span class="badge">Erin Flores</span>
-              <span class="badge badge-warning">2★</span>
-              <span class="badge">Open</span>
-              <span class="caption">Updated 3h ago</span>
-            </div>
-            <p class="page-subtitle">"We had to reschedule twice before someone could come out."</p>
-          </div>
-        </div>
+      <section class="section layout-split inbox-layout">
+        <div class="card list" id="threadList" aria-label="Inbox threads"></div>
 
-        <div class="card">
-          <h3 class="card-title">Conversation details</h3>
-          <p class="card-sub">Select a conversation on the left to view messages and reply.</p>
-          <div class="chart-card">No conversation selected</div>
+        <div class="card inbox-detail" id="threadDetail">
+          <div class="detail-empty">
+            <h3 class="card-title">Conversation details</h3>
+            <p class="card-sub">Select a conversation on the left to view messages and reply.</p>
+          </div>
         </div>
       </section>
     </main>
   </div>
   <script type="module" src="topbar-menu.js"></script>
+  <script type="module" src="inbox.js"></script>
   <script src="dashboard-nav.js"></script>
 </body>
 </html>
