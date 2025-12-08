@@ -1,0 +1,10 @@
+{
+  "name": "reviewresq-web",
+  "version": "1.0.0",
+  "description": "Static frontend for ReviewResQ",
+  "type": "commonjs",
+  "scripts": {
+    "build": "node scripts/generate-runtime-env.js",
+    "build:env": "node scripts/generate-runtime-env.js"
+  }
+}
