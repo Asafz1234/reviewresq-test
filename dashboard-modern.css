@@ -100,6 +100,53 @@ a {
   gap: 12px;
 }
 
+.global-nav {
+  background: transparent;
+  padding: 8px 16px 0;
+}
+
+.global-nav .nav-tabs {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.global-nav .nav-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb;
+  color: #4b5563;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.global-nav .nav-tab:hover {
+  background: #dbeafe;
+  color: var(--accent);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.12);
+}
+
+.global-nav .nav-tab.active {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.18);
+}
+
+@media (min-width: 768px) {
+  .global-nav {
+    padding: 8px 24px 0;
+  }
+}
+
 .plan-chip {
   background: rgba(37, 99, 235, 0.08);
   color: var(--accent);

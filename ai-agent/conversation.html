@@ -14,6 +14,29 @@
   <link rel="stylesheet" href="/ai-agent/ai-agent.css" />
 </head>
 <body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand-mark">RR</div>
+      <div class="brand-name">ReviewResQ</div>
+    </div>
+    <div class="topbar-center">AI Agent</div>
+    <div class="topbar-right">
+      <span class="plan-chip">Advanced plan</span>
+      <div class="profile">RQ</div>
+    </div>
+  </header>
+
+  <nav class="global-nav" aria-label="Dashboard sections">
+    <div class="nav-tabs">
+      <a class="nav-tab" data-route="overview" href="../dashboard.html#overview">Overview</a>
+      <a class="nav-tab" data-route="inbox" href="../inbox.html">Inbox</a>
+      <a class="nav-tab" data-route="ai-agent" href="../ai-agent/index.html">AI Agent</a>
+      <a class="nav-tab" data-route="follow-ups" href="../follow-ups.html">Follow-ups</a>
+      <a class="nav-tab" data-route="automations" href="../automations.html">Automations</a>
+      <a class="nav-tab" data-route="settings" href="../settings.html">Alerts &amp; Settings</a>
+    </div>
+  </nav>
+
   <div class="app-shell">
     <aside class="sidebar">
       <div class="branding">
@@ -211,5 +234,7 @@
 
     typingRow.style.display = "none";
   </script>
+
+  <script src="../dashboard-nav.js"></script>
 </body>
 </html>
