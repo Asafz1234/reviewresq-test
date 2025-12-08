@@ -10,6 +10,9 @@ import {
   updateDoc,
   arrayUnion,
   serverTimestamp,
+  addDoc,
+  doc,
+  onSnapshot,
 } from "./firebase-config.js";
 import { listenForUser, formatDate, initialsFromName } from "./session-data.js";
 import { applyPlanBadge } from "./topbar-menu.js";
@@ -23,11 +26,15 @@ let threads = [];
 let filteredThreads = [];
 let selectedThreadId = null;
 let currentUserId = null;
+let currentPlanTier = "starter";
+const aiConversationListeners = new Map();
 
 const STATUS_LABELS = {
   open: "Open",
   resolved: "Resolved",
   snoozed: "Snoozed",
+  ai_agent_active: "AI Agent",
+  handled_by_ai: "Handled by AI",
 };
 
 function formatRelative(date) {
@@ -75,8 +82,83 @@ function normalizeThread(raw, ref) {
     preview: raw.text || raw.message || (messages[0]?.text ?? ""),
     source: raw.source || raw.type || "portal",
     sentimentScore: raw.sentimentScore,
+    automationState: raw.automationState,
+    aiConversationId: raw.aiConversationId,
+    reviewText: raw.text || raw.message || (messages[0]?.text ?? ""),
     messages,
   };
+}
+
+function deriveThreadSentiment(thread) {
+  if (typeof thread.sentimentScore === "number") {
+    return thread.sentimentScore;
+  }
+  const rating = Number(thread.rating || 0);
+  if (rating) return Number((rating - 3).toFixed(2));
+  return 0;
+}
+
+function isUnhappyThread(thread) {
+  const rating = Number(thread.rating || 0);
+  const sentimentScore = deriveThreadSentiment(thread);
+  return rating <= 3 || sentimentScore <= 0;
+}
+
+function summarizeIssue(text = "") {
+  const trimmed = text.trim();
+  if (!trimmed) return "the issue you ran into";
+  if (trimmed.length <= 140) return trimmed;
+  return `${trimmed.slice(0, 137)}...`;
+}
+
+function extractPositiveSnippet(text = "") {
+  const lowered = text.toLowerCase();
+  const pivot = lowered.indexOf("but ");
+  if (pivot > 0) {
+    return text.slice(0, pivot).trim();
+  }
+  return "the parts that went well";
+}
+
+function buildTemplateReply(thread) {
+  const rating = Number(thread.rating || 0);
+  const sentimentScore = deriveThreadSentiment(thread);
+  const name = thread.customerName || "there";
+  const reviewText = thread.reviewText || thread.preview || "";
+  const issueSummary = summarizeIssue(reviewText);
+  const positiveSnippet = extractPositiveSnippet(reviewText);
+
+  if (rating >= 4 || sentimentScore > 0.15) {
+    return `Thank you so much for the ${Math.round(rating) || 5}★ review, ${name}! We're thrilled you had a great experience and hope to serve you again soon.`;
+  }
+
+  if (rating === 3 || (sentimentScore <= 0.15 && sentimentScore >= -0.15)) {
+    return `Thanks for the feedback, ${name}. I'm glad to hear ${positiveSnippet}, but I'm sorry that ${issueSummary}. Your feedback helps us improve and we'll be working on this right away.`;
+  }
+
+  return `Hi ${name}, I'm really sorry to hear that ${issueSummary}. This isn't the experience we want for our customers. I'd love the chance to make this right — please reply here or email support@reviewresq.com so we can help.`;
+}
+
+async function generateAiReply(thread) {
+  const fallback = () => {
+    const rating = Number(thread.rating || 0);
+    if (rating <= 2) {
+      return `Hi ${thread.customerName || "there"}, I'm sorry for the trouble and want to make this right. Please reply here so we can help immediately.`;
+    }
+    if (rating >= 5) {
+      return `Thank you for the 5★ review, ${thread.customerName || "there"}! We appreciate you choosing us.`;
+    }
+    return buildTemplateReply(thread);
+  };
+
+  try {
+    const suggestion = buildTemplateReply(thread);
+    if (!suggestion) return fallback();
+    return suggestion;
+  } catch (err) {
+    console.error("[inbox] AI reply failed, using fallback", err);
+    return fallback();
+  }
 }
 
 async function loadThreads(uid) {
@@ -189,6 +271,42 @@ function renderEmptyDetail() {
   `;
 }
 
+function attachAiConversationListener(thread) {
+  const existing = aiConversationListeners.get(thread.id);
+  if (existing) existing();
+  if (!thread.aiConversationId) return;
+
+  const ref = doc(db, "ai_conversations", thread.aiConversationId);
+  const unsub = onSnapshot(ref, (snap) => {
+    const data = snap.data();
+    if (!data) return;
+
+    const mappedMessages = (data.messages || []).map((msg) => ({
+      author: msg.sender === "ai" ? "AI Agent" : thread.customerName || "Customer",
+      role: msg.sender === "ai" ? "business" : "customer",
+      text: msg.message_text || msg.text || "",
+      timestamp: msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp || Date.now()),
+    }));
+
+    if (mappedMessages.length) {
+      thread.messages = mappedMessages;
+      thread.preview = mappedMessages[mappedMessages.length - 1].text || thread.preview;
+    }
+
+    if (data.status === "resolved") {
+      thread.status = "handled_by_ai";
+    }
+
+    thread.updatedAt = new Date();
+    if (selectedThreadId === thread.id) {
+      renderThreadDetail(thread);
+    }
+    renderThreadList();
+  });
+
+  aiConversationListeners.set(thread.id, unsub);
+}
+
 function renderThreadDetail(thread) {
   if (!detailEl) return;
   detailEl.innerHTML = "";
@@ -282,10 +400,23 @@ function renderThreadDetail(thread) {
   textarea.placeholder = "Write a reply";
   textarea.id = "replyBox";
 
+  const unhappy = isUnhappyThread(thread);
+  const isProPlan = ["pro", "advanced", "pro_ai_suite"].includes(
+    (currentPlanTier || "starter").toLowerCase()
+  );
+
+  if (unhappy && isProPlan) {
+    const hint = document.createElement("div");
+    hint.className = "card-sub";
+    hint.textContent =
+      "This looks like an unhappy customer. Your AI Agent can handle the follow-up automatically.";
+    replyBox.appendChild(hint);
+  }
+
   const actionRow = document.createElement("div");
   actionRow.className = "detail-actions";
   const sendBtn = document.createElement("button");
-  sendBtn.className = "btn btn-primary";
+  sendBtn.className = unhappy && isProPlan ? "btn btn-secondary" : "btn btn-primary";
   sendBtn.textContent = "Send reply";
   sendBtn.addEventListener("click", () => sendReply(thread, textarea));
 
@@ -296,7 +427,10 @@ function renderThreadDetail(thread) {
     aiBtn.disabled = true;
     aiBtn.textContent = "Generating…";
     try {
-      const suggestion = `Thanks for the feedback, ${thread.customerName}! We appreciate you taking the time to share.`;
+      const suggestion = await generateAiReply({
+        ...thread,
+        planTier: currentPlanTier,
+      });
       textarea.value = suggestion;
     } finally {
       aiBtn.disabled = false;
@@ -304,7 +438,16 @@ function renderThreadDetail(thread) {
     }
   });
 
-  actionRow.append(sendBtn, aiBtn);
+  if (unhappy && isProPlan) {
+    const handoffBtn = document.createElement("button");
+    handoffBtn.className = "btn btn-primary";
+    handoffBtn.textContent = thread.status === "ai_agent_active" ? "AI Agent active" : "Hand off to AI Agent";
+    handoffBtn.disabled = thread.status === "ai_agent_active";
+    handoffBtn.addEventListener("click", () => handoffToAiAgent(thread, handoffBtn, textarea));
+    actionRow.append(handoffBtn, aiBtn, sendBtn);
+  } else {
+    actionRow.append(sendBtn, aiBtn);
+  }
   replyBox.append(textarea, actionRow);
 
   detailEl.append(header, convo, replyBox);
@@ -313,7 +456,10 @@ function renderThreadDetail(thread) {
 async function selectThread(id) {
   selectedThreadId = id;
   const thread = filteredThreads.find((t) => t.id === id);
-  if (thread) renderThreadDetail(thread);
+  if (thread) {
+    attachAiConversationListener(thread);
+    renderThreadDetail(thread);
+  }
   renderThreadList();
 }
 
@@ -363,6 +509,86 @@ async function sendReply(thread, textarea) {
   }
 }
 
+async function handoffToAiAgent(thread, button, textarea) {
+  if (!thread?.ref) return;
+  const nowIso = new Date().toISOString();
+  const sentimentScore = deriveThreadSentiment(thread);
+  button.disabled = true;
+  button.textContent = "Handing off…";
+
+  const baseMessages = (thread.messages || []).map((msg) => ({
+    sender: msg.role === "business" ? "business" : "customer",
+    message_text: msg.text || "",
+    timestamp: msg.timestamp?.toDate ? msg.timestamp.toDate().toISOString() : msg.timestamp || nowIso,
+  }));
+
+  const aiNote = {
+    sender: "ai",
+    message_text: "AI Agent is reviewing this case now and will follow up automatically.",
+    timestamp: nowIso,
+  };
+
+  try {
+    let conversationId = thread.aiConversationId;
+    if (conversationId) {
+      await updateDoc(doc(db, "ai_conversations", conversationId), {
+        status: "open",
+        updatedAt: serverTimestamp(),
+        messages: arrayUnion(aiNote),
+      });
+    } else {
+      const conversationRef = await addDoc(collection(db, "ai_conversations"), {
+        businessId: currentUserId,
+        customerName: thread.customerName || "Customer",
+        rating: thread.rating || 1,
+        status: "open",
+        sentiment: sentimentScore,
+        issueType: "Inbox handoff",
+        messages: [...baseMessages, aiNote].slice(-20),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        sourceFeedbackId: thread.id,
+      });
+      conversationId = conversationRef.id;
+    }
+
+    await updateDoc(thread.ref, {
+      status: "ai_agent_active",
+      automationState: "IN_AI",
+      aiConversationId: conversationId,
+      updatedAt: serverTimestamp(),
+      messages: arrayUnion({
+        author: "Business",
+        role: "business",
+        text: "Handed off to AI Agent for follow-up.",
+        timestamp: serverTimestamp(),
+      }),
+    });
+
+    thread.status = "ai_agent_active";
+    thread.automationState = "IN_AI";
+    thread.aiConversationId = conversationId;
+    thread.messages = thread.messages || [];
+    thread.messages.push({
+      author: "Business",
+      role: "business",
+      text: "Handed off to AI Agent for follow-up.",
+      timestamp: new Date(),
+    });
+    textarea.value = "";
+    button.textContent = "AI Agent active";
+    applyFilters();
+    selectThread(thread.id);
+  } catch (err) {
+    console.error("[inbox] failed to hand off to AI Agent", err);
+    alert(
+      "Automatic recovery for unhappy customers is part of the Pro AI Suite. Upgrade to enable AI Agent or try again."
+    );
+  } finally {
+    button.disabled = thread.status === "ai_agent_active";
+  }
+}
+
 function wireFilters() {
   statusFilter?.addEventListener("change", applyFilters);
   dateFilter?.addEventListener("change", applyFilters);
@@ -379,5 +605,6 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 listenForUser(({ subscription }) => {
-  applyPlanBadge(subscription?.planId || "starter");
+  currentPlanTier = subscription?.planId || "starter";
+  applyPlanBadge(currentPlanTier);
 });
