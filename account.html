@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Account & billing</title>
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="dashboard-modern.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="topbar-center">Account &amp; billing</div>
+      <div class="topbar-right">
+        <a
+          id="planBadge"
+          class="plan-chip plan-chip--pro"
+          href="account.html"
+          title="View and manage your subscription."
+          >Pro AI Suite</a
+        >
+        <div class="profile">RQ</div>
+      </div>
+    </header>
+
+    <nav class="global-nav" aria-label="Dashboard sections">
+      <div class="nav-tabs">
+        <a class="nav-tab" data-route="overview" href="dashboard.html#overview">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
+        <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
+        <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
+        <a class="nav-tab" data-route="settings" href="settings.html">Alerts &amp; Settings</a>
+        <a class="nav-tab active" data-route="account" href="account.html" aria-current="page">Account &amp; billing</a>
+      </div>
+    </nav>
+
+    <main class="page-container">
+      <header class="section">
+        <h1 class="page-title">Account &amp; billing</h1>
+        <p class="page-subtitle">Manage your business profile, subscription, and payment history.</p>
+      </header>
+
+      <section class="section account-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="section-title">Business profile</h3>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span class="card-title">Business name</span>
+              <input class="input" type="text" placeholder="Riverstone Quality Services" />
+            </label>
+            <label>
+              <span class="card-title">Industry</span>
+              <input class="input" type="text" placeholder="Handyman" />
+            </label>
+            <label>
+              <span class="card-title">Timezone</span>
+              <select class="select">
+                <option>GMT-5 (Eastern)</option>
+                <option>GMT-6 (Central)</option>
+              </select>
+            </label>
+            <label>
+              <span class="card-title">Phone</span>
+              <input class="input" type="tel" placeholder="(555) 555-0123" />
+            </label>
+            <label>
+              <span class="card-title">Email</span>
+              <input class="input" type="email" placeholder="you@business.com" />
+            </label>
+            <label>
+              <span class="card-title">Logo</span>
+              <input class="input" type="file" accept="image/png, image/jpeg" />
+            </label>
+          </div>
+          <div class="card-actions" style="justify-content: flex-end;">
+            <button class="btn btn-primary">Save changes</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <p class="badge info" style="margin: 0;">Subscription</p>
+              <h3 class="section-title">Your subscription</h3>
+            </div>
+            <span class="pill-ghost">Active</span>
+          </div>
+          <div class="stack">
+            <div class="switch-row" style="border-bottom: 1px solid var(--border-soft);">
+              <div>
+                <p class="card-title">Current plan</p>
+                <p class="muted-text">Pro AI Suite</p>
+              </div>
+              <strong>$149/month</strong>
+            </div>
+            <div class="switch-row" style="border-bottom: 1px solid var(--border-soft);">
+              <div>
+                <p class="card-title">Next billing date</p>
+                <p class="muted-text">Jan 8, 2026</p>
+              </div>
+              <p class="muted-text">Monthly</p>
+            </div>
+            <div class="switch-row">
+              <div>
+                <p class="card-title">Status</p>
+                <p class="muted-text">Active</p>
+              </div>
+              <span class="pill-ghost">Billing via card on file</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-primary">Manage plan</button>
+            <button class="btn btn-secondary">Change plan</button>
+            <a class="danger-link" id="cancelLink" href="#">Cancel subscription</a>
+          </div>
+          <p class="helper-text">
+            You can upgrade or downgrade your plan at any time. Changes to a lower plan will apply at the next renewal.
+          </p>
+          <div class="notice-box" id="cancelNotice" style="display: none;">
+            Your subscription will end on Jan 8, 2026. You’ll still have access to all features until then.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <p class="badge info" style="margin: 0;">Billing history</p>
+              <h3 class="section-title">Billing history</h3>
+            </div>
+          </div>
+          <table class="table-lite">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="4" class="table-empty">No invoices yet. Your first invoice will appear here after your initial payment.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="cancelModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
+      <h3 id="cancelTitle">Cancel subscription?</h3>
+      <p class="helper-text">
+        If you cancel now, your subscription will remain active until the end of the current billing period. We don’t provide
+        partial refunds for unused days.
+      </p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="keepSubscription">Keep my subscription</button>
+        <button class="btn btn-danger" id="confirmCancellation">Confirm cancellation</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="dashboard-nav.js"></script>
+  <script>
+    const cancelLink = document.getElementById('cancelLink');
+    const cancelModal = document.getElementById('cancelModal');
+    const keepSubscription = document.getElementById('keepSubscription');
+    const confirmCancellation = document.getElementById('confirmCancellation');
+    const cancelNotice = document.getElementById('cancelNotice');
+
+    if (cancelLink && cancelModal) {
+      cancelLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        cancelModal.classList.add('visible');
+        cancelModal.setAttribute('aria-hidden', 'false');
+      });
+    }
+
+    function closeModal() {
+      cancelModal?.classList.remove('visible');
+      cancelModal?.setAttribute('aria-hidden', 'true');
+    }
+
+    keepSubscription?.addEventListener('click', closeModal);
+
+    confirmCancellation?.addEventListener('click', () => {
+      closeModal();
+      if (cancelNotice) {
+        cancelNotice.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
