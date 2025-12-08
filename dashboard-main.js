@@ -2024,8 +2024,11 @@ async function loadTasks() {
       orderBy("createdAt", "desc")
     );
     const snap = await getDocs(qObj);
-    taskCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    taskCache = snap?.docs
+      ? snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      : [];
     renderTasks();
+    return taskCache;
   } catch (err) {
     console.error("loadTasks error:", err);
     throw err;
@@ -2093,7 +2096,10 @@ function renderTasks() {
       });
     }
 
-    colEl.querySelector(".pill")?.textContent = `${colTasks.length}`;
+    const pill = colEl.querySelector(".pill");
+    if (pill) {
+      pill.textContent = `${colTasks.length}`;
+    }
     colEl.appendChild(list);
     board.appendChild(colEl);
   });
