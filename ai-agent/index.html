@@ -73,52 +73,37 @@
     </main>
   </div>
 
-  <script>
-    const conversations = [
-      {
-        id: "c1",
-        customer: "Amelia Carter",
-        rating: 2,
-        status: "open",
-        sentiment: -0.55,
-        updated: "2m ago",
-        category: "Quality problem",
-      },
-      {
-        id: "c2",
-        customer: "Marcus Lee",
-        rating: 3,
-        status: "in-progress",
-        sentiment: -0.35,
-        updated: "18m ago",
-        category: "Service delay",
-      },
-      {
-        id: "c3",
-        customer: "Priya Nair",
-        rating: 1,
-        status: "resolved",
-        sentiment: 0.12,
-        updated: "1h ago",
-        category: "Staff issue",
-      },
-      {
-        id: "c4",
-        customer: "Diego Martínez",
-        rating: 2,
-        status: "open",
-        sentiment: -0.72,
-        updated: "Today 9:12a",
-        category: "Miscommunication",
-      },
-    ];
+  <script type="module">
+    import {
+      db,
+      collection,
+      onSnapshot,
+      orderBy,
+      query,
+    } from "../firebase-config.js";
 
     const listEl = document.getElementById("conversationList");
     const statusFilter = document.getElementById("statusFilter");
+    const timeFilter = document.getElementById("timeFilter");
     const openCases = document.getElementById("openCases");
     const avgSentiment = document.getElementById("avgSentiment");
     const resolvedCount = document.getElementById("resolvedCount");
     const prevented = document.getElementById("prevented");
+
+    let conversations = [];
+
+    function formatRelative(ts) {
+      if (!ts) return "—";
+      const date = ts.toDate ? ts.toDate() : new Date(ts);
+      const diff = Date.now() - date.getTime();
+      const minutes = Math.floor(diff / 60000);
+      if (minutes < 1) return "just now";
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
+    }
 
     function renderStats(list) {
       const openCount = list.filter((c) => c.status !== "resolved").length;
@@ -126,36 +111,63 @@
       const avg =
         list.length === 0
           ? 0
-          : list.reduce((sum, c) => sum + c.sentiment, 0) / list.length;
+          : list.reduce((sum, c) => sum + (c.sentiment || 0), 0) /
+            list.length;
+
+      const preventedReviews = list.filter(
+        (c) => (c.rating || 0) <= 2 && c.status === "resolved"
+      ).length;
 
       openCases.textContent = openCount;
       resolvedCount.textContent = resolved;
       avgSentiment.textContent = avg.toFixed(2);
-      prevented.textContent = Math.max(resolved - 1, 0);
+      prevented.textContent = preventedReviews;
     }
 
     function renderList() {
       const statusValue = statusFilter.value;
+      const timeValue = timeFilter.value;
+      const now = Date.now();
+
       const filtered = conversations.filter((item) => {
-        if (statusValue === "all") return true;
-        if (statusValue === "open") return item.status !== "resolved";
-        return item.status === statusValue;
+        if (statusValue !== "all") {
+          if (statusValue === "open" && item.status === "resolved") return false;
+          if (statusValue === "resolved" && item.status !== "resolved")
+            return false;
+        }
+
+        if (timeValue !== "all" && item.createdAt) {
+          const date = item.createdAt.toDate ? item.createdAt.toDate() : null;
+          if (date) {
+            const diffDays = (now - date.getTime()) / (1000 * 60 * 60 * 24);
+            if (diffDays > Number(timeValue)) return false;
+          }
+        }
+
+        return true;
       });
+
+      if (!filtered.length) {
+        listEl.innerHTML =
+          "<p class=\"empty-state\">No conversations yet. Negative feedback will appear here automatically.</p>";
+        renderStats(filtered);
+        return;
+      }
 
       listEl.innerHTML = filtered
         .map(
           (item) => `
             <article class="conversation-card" data-id="${item.id}" aria-label="View conversation">
-              <div class="rating">${"★".repeat(item.rating)}</div>
+              <div class="rating">${"★".repeat(item.rating || 1)}</div>
               <div class="card-meta">
-                <h3>${item.customer}</h3>
+                <h3>${item.customerName || "Customer"}</h3>
                 <div class="meta-row">
                   <span class="badge ${item.status === "resolved" ? "success" : "warning"}">
                     ${item.status === "resolved" ? "Resolved" : "Open"}
                   </span>
-                  <span class="badge info">Sentiment <span class="sentiment">${item.sentiment.toFixed(2)}</span></span>
-                  <span>${item.category}</span>
-                  <span>Updated ${item.updated}</span>
+                  <span class="badge info">Sentiment <span class="sentiment">${(item.sentiment || 0).toFixed(2)}</span></span>
+                  <span>${item.issueType || "Uncategorized"}</span>
+                  <span>Updated ${formatRelative(item.updatedAt)}</span>
                 </div>
               </div>
             </article>
@@ -173,8 +185,18 @@
       renderStats(filtered);
     }
 
+    const conversationsQuery = query(
+      collection(db, "ai_conversations"),
+      orderBy("updatedAt", "desc")
+    );
+
+    onSnapshot(conversationsQuery, (snapshot) => {
+      conversations = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      renderList();
+    });
+
     statusFilter.addEventListener("change", renderList);
-    renderList();
+    timeFilter.addEventListener("change", renderList);
   </script>
 </body>
 </html>

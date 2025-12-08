@@ -237,53 +237,111 @@ async function generateAIResponse({
   };
 }
 
+async function sendAiResponseToCustomer({
+  email,
+  phone,
+  customerName,
+  aiMessage,
+}) {
+  const hasEmail = Boolean(email);
+  const apiKey = process.env.SENDGRID_API_KEY;
+
+  if (hasEmail && apiKey) {
+    try {
+      sgMail.setApiKey(apiKey);
+      await sgMail.send({
+        to: email,
+        from: "support@reviewresq.com",
+        subject: "We're on it — our AI is handling your feedback",
+        text: aiMessage,
+        html: `<p>Hi ${customerName || "there"},</p><p>${aiMessage}</p>`,
+      });
+    } catch (err) {
+      console.error("Failed to send AI response email", err);
+    }
+  } else if (phone) {
+    console.log("SMS delivery placeholder", { phone, aiMessage });
+  } else {
+    console.log("No delivery channel for AI response", { aiMessage });
+  }
+}
+
+function isNegativeFeedback(feedbackData = {}) {
+  const rating = Number(feedbackData.rating || 0);
+  if (rating && rating <= 3) return true;
+  const text = (feedbackData.message || feedbackData.feedback || "").toLowerCase();
+  return ["bad", "poor", "terrible", "awful", "horrible", "angry"].some((word) =>
+    text.includes(word)
+  );
+}
+
 async function createConversationFromFeedback(feedbackData, feedbackId) {
   const customerName = feedbackData.customerName || "Customer";
-  const rating = feedbackData.rating;
-  const firstMessage = baseAiMessage(customerName);
+  const rating = feedbackData.rating || 1;
+  const initialHistory = [];
+
+  if (feedbackData.message) {
+    initialHistory.push({
+      sender: "customer",
+      message_text: feedbackData.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const aiResponse = await generateAIResponse({
+    customerName,
+    rating,
+    history: initialHistory,
+    googleReviewLink: GOOGLE_REVIEW_LINK,
+  });
+
+  const aiMessage = aiResponse.message || baseAiMessage(customerName);
+  const nowIso = new Date().toISOString();
 
   const conversation = {
-    business_id: feedbackData.businessId || null,
-    customer_name: customerName,
-    customer_phone: feedbackData.phone || null,
-    customer_email: feedbackData.email || null,
+    businessId: feedbackData.businessId || null,
+    customerName,
+    customerPhone: feedbackData.phone || feedbackData.customerPhone || null,
+    customerEmail: feedbackData.email || feedbackData.customerEmail || null,
     rating,
     status: "open",
-    sentiment_score: -0.35,
-    category: classifyCategory(feedbackData.feedback || ""),
+    sentiment: aiResponse.sentiment ?? -0.35,
+    issueType:
+      aiResponse.category || classifyCategory(feedbackData.message || ""),
     messages: [
+      ...initialHistory,
       {
         sender: "ai",
-        message_text: firstMessage,
-        timestamp: new Date().toISOString(),
+        message_text: aiMessage,
+        timestamp: nowIso,
       },
     ],
-    created_at: admin.firestore.FieldValue.serverTimestamp(),
-    updated_at: admin.firestore.FieldValue.serverTimestamp(),
-    source_feedback_id: feedbackId,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    sourceFeedbackId: feedbackId,
   };
 
   const ref = await db.collection("ai_conversations").add(conversation);
-  await db.collection("ai_conversation_messages").add({
-    conversation_id: ref.id,
-    sender: "ai",
-    message_text: firstMessage,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  await sendAiResponseToCustomer({
+    email: conversation.customerEmail,
+    phone: conversation.customerPhone,
+    customerName,
+    aiMessage,
   });
 
   return ref.id;
 }
 
-exports.onLowRatingFeedback = functions.firestore
-  .document("feedback/{feedbackId}")
+exports.onNegativePortalFeedback = functions.firestore
+  .document("businessProfiles/{businessId}/feedback/{feedbackId}")
   .onCreate(async (snap, context) => {
     const data = snap.data();
-    if (!data || !data.rating || data.rating > 3) {
+    if (!data || !isNegativeFeedback(data)) {
       return null;
     }
 
     const conversationId = await createConversationFromFeedback(
-      data,
+      { ...data, businessId: context.params.businessId },
       context.params.feedbackId
     );
 
@@ -316,48 +374,54 @@ exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
     return res.status(404).json({ error: "Conversation not found" });
   }
 
-  await db.collection("ai_conversation_messages").add({
-    conversation_id: conversationId,
-    sender: "customer",
-    message_text: customerMessage,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  const history = (
-    await db
-      .collection("ai_conversation_messages")
-      .where("conversation_id", "==", conversationId)
-      .orderBy("timestamp", "asc")
-      .limit(12)
-      .get()
-  ).docs.map((doc) => doc.data());
+  const conversation = convoSnap.data();
+  const history = conversation.messages || [];
+  const updatedHistory = [
+    ...history,
+    {
+      sender: "customer",
+      message_text: customerMessage,
+      timestamp: new Date().toISOString(),
+    },
+  ].slice(-20);
 
   const aiResponse = await generateAIResponse({
-    customerName: customerName || convoSnap.data()?.customer_name || "there",
-    rating: rating || convoSnap.data()?.rating || 1,
-    history,
+    customerName: customerName || conversation.customerName || "there",
+    rating: rating || conversation.rating || 1,
+    history: updatedHistory,
     googleReviewLink: GOOGLE_REVIEW_LINK,
   });
 
-  await db.collection("ai_conversation_messages").add({
-    conversation_id: conversationId,
-    sender: "ai",
-    message_text: aiResponse.message,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  const aiMessage = aiResponse.message;
+  const finalHistory = [
+    ...updatedHistory,
+    {
+      sender: "ai",
+      message_text: aiMessage,
+      timestamp: new Date().toISOString(),
+    },
+  ];
 
   await convoRef.set(
     {
-      category: aiResponse.category,
-      sentiment_score: aiResponse.sentiment,
-      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      issueType: aiResponse.category,
+      sentiment: aiResponse.sentiment,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       status: aiResponse.sentiment > -0.1 ? "needs_review" : "open",
+      messages: finalHistory,
     },
     { merge: true }
   );
 
+  await sendAiResponseToCustomer({
+    email: conversation.customerEmail,
+    phone: conversation.customerPhone,
+    customerName: conversation.customerName,
+    aiMessage,
+  });
+
   return res.status(200).json({
-    aiMessage: aiResponse.message,
+    aiMessage,
     category: aiResponse.category,
     sentiment: aiResponse.sentiment,
   });

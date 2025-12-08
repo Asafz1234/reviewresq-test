@@ -38,6 +38,7 @@ import {
   getDocs,
   where,
   arrayUnion,
+  onSnapshot,
 } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
 
 import {
@@ -86,6 +87,7 @@ export {
   getDocs,
   where,
   arrayUnion,
+  onSnapshot,
   storageRef,
   uploadBytes,
   getDownloadURL,
