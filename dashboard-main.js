@@ -2496,6 +2496,8 @@ if (reviewRequestForm) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to: email,
+            businessId,
+            customerId: email,
             subject: emailSubject,
             text: plainTextMessage,
             html: htmlMessage,

@@ -9,6 +9,7 @@ export async function sendReviewRequestEmail({
   businessName,
   businessLogoUrl,
   portalUrl,
+  businessId,
 }) {
   const resolvedPortalUrl = portalUrl || portalLink;
 
@@ -132,6 +133,8 @@ ${safeBusinessName}
     },
     body: JSON.stringify({
       to: customerEmail,
+      businessId,
+      customerId: customerEmail,
       subject,
       text: plainText,
       html,
