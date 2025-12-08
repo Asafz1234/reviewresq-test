@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – AI Agent Conversation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/ai-agent/ai-agent.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="branding">
+        <div class="brand-mark">RR</div>
+        <div>
+          <h2>ReviewResQ</h2>
+          <p>AI Agent Suite</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/ai-agent/index.html">◀ Back to conversations</a>
+        <a href="/ai-agent/insights.html">📊 AI Insights</a>
+        <a href="/settings/ai-agent.html">⚙️ AI Settings</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="chat-shell">
+        <header class="chat-header">
+          <div class="chat-meta">
+            <div class="brand-mark">🤖</div>
+            <div>
+              <p class="badge info" id="conversationIdLabel">Conversation</p>
+              <h2 id="customerName">Customer</h2>
+              <div class="meta-row">
+                <span class="status" id="statusLabel">Open</span>
+                <span class="badge">Rating <strong id="ratingLabel">★</strong></span>
+                <span class="badge info">Sentiment <span id="sentimentLabel">-</span></span>
+              </div>
+            </div>
+          </div>
+          <button class="btn secondary" id="shareLink">Share AI transcript</button>
+        </header>
+
+        <section class="chat-window">
+          <div class="chat-log" id="chatLog"></div>
+          <div class="bubble ai" id="typingRow" aria-live="polite">
+            <div class="typing" aria-label="AI is typing">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </section>
+
+        <div class="chat-actions">
+          <input id="messageInput" class="input" placeholder="Add a manual note or reply" />
+          <button class="btn secondary" id="sendBtn">Send</button>
+          <button class="btn" id="resolveBtn">Mark as resolved</button>
+          <button class="btn secondary" id="reviewBtn">Send Google review link</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id") || "c1";
+    const conversations = {
+      c1: {
+        customer: "Amelia Carter",
+        rating: 2,
+        sentiment: -0.55,
+        status: "Open",
+      },
+      c2: {
+        customer: "Marcus Lee",
+        rating: 3,
+        sentiment: -0.35,
+        status: "In progress",
+      },
+      c3: {
+        customer: "Priya Nair",
+        rating: 1,
+        sentiment: 0.12,
+        status: "Resolved",
+      },
+    };
+
+    const templateConversation = [
+      {
+        sender: "ai",
+        text: "Hi Amelia, thanks for sharing your feedback. I'm here to help make things right. Could you tell me a bit more about what happened?",
+      },
+      {
+        sender: "customer",
+        text: "The order was late and no one picked up when I called.",
+      },
+      {
+        sender: "ai",
+        text: "I'm really sorry for the delay and missed call — that's not the experience we want. Was this a delivery or pick-up order so I can look into the right team?",
+      },
+      {
+        sender: "customer",
+        text: "Delivery, and it arrived cold.",
+      },
+      {
+        sender: "ai",
+        text: "Understood. I'll credit the delivery fee and have a fresh order sent ASAP. Does that work for you?",
+      },
+    ];
+
+    const chatLog = document.getElementById("chatLog");
+    const typingRow = document.getElementById("typingRow");
+    const customerNameEl = document.getElementById("customerName");
+    const statusLabel = document.getElementById("statusLabel");
+    const ratingLabel = document.getElementById("ratingLabel");
+    const sentimentLabel = document.getElementById("sentimentLabel");
+    const shareLink = document.getElementById("shareLink");
+    const messageInput = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const resolveBtn = document.getElementById("resolveBtn");
+    const reviewBtn = document.getElementById("reviewBtn");
+    const conversationIdLabel = document.getElementById("conversationIdLabel");
+
+    function hydrateHeader() {
+      const meta = conversations[id] || conversations.c1;
+      customerNameEl.textContent = meta.customer;
+      statusLabel.textContent = meta.status;
+      ratingLabel.textContent = "★".repeat(meta.rating);
+      sentimentLabel.textContent = meta.sentiment.toFixed(2);
+      conversationIdLabel.textContent = `Conversation • ${id}`;
+    }
+
+    function renderChat() {
+      chatLog.innerHTML = "";
+      templateConversation.forEach((msg) => {
+        const bubble = document.createElement("div");
+        bubble.className = `bubble ${msg.sender}`;
+        bubble.textContent = msg.text;
+        chatLog.appendChild(bubble);
+      });
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function showTemporaryBubble(text) {
+      const bubble = document.createElement("div");
+      bubble.className = "bubble ai";
+      bubble.textContent = text;
+      chatLog.appendChild(bubble);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    sendBtn.addEventListener("click", () => {
+      const value = messageInput.value.trim();
+      if (!value) return;
+      const bubble = document.createElement("div");
+      bubble.className = "bubble customer";
+      bubble.textContent = value;
+      chatLog.appendChild(bubble);
+      messageInput.value = "";
+      chatLog.scrollTop = chatLog.scrollHeight;
+      typingRow.style.display = "block";
+      setTimeout(() => {
+        typingRow.style.display = "none";
+        showTemporaryBubble("Thanks for the context — I'm arranging a fix now and will keep you posted.");
+      }, 900);
+    });
+
+    resolveBtn.addEventListener("click", () => {
+      statusLabel.textContent = "Resolved";
+      showTemporaryBubble("Thanks for sharing all this with me. I'm glad we could sort things out. If you'd like, you can now share your experience publicly here: https://g.page/reviewresq");
+    });
+
+    reviewBtn.addEventListener("click", () => {
+      showTemporaryBubble("I've sent your Google review link to the customer and logged it in the conversation.");
+    });
+
+    shareLink.addEventListener("click", () => {
+      navigator.clipboard
+        .writeText(window.location.href)
+        .then(() => alert("Transcript link copied"))
+        .catch(() => alert("Link ready: " + window.location.href));
+    });
+
+    hydrateHeader();
+    renderChat();
+    typingRow.style.display = "none";
+  </script>
+</body>
+</html>

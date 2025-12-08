@@ -54,6 +54,7 @@
         <nav class="drawer-nav">
           <button class="nav-link" type="button" data-view="view-overview">Overview</button>
           <button class="nav-link" type="button" data-view="view-inbox">Reviews inbox</button>
+          <a class="nav-link" href="/ai-agent/index.html">AI Agent</a>
           <button class="nav-link" type="button" data-view="view-ai-insights">AI Insights</button>
           <button class="nav-link" type="button" data-view="view-automations">Automations</button>
           <button class="nav-link" type="button" data-view="view-followups">Follow-ups</button>
@@ -75,6 +76,10 @@
             <span class="nav-icon">📨</span>
             <span>Reviews inbox</span>
           </button>
+          <a class="nav-link" href="/ai-agent/index.html">
+            <span class="nav-icon">🤖</span>
+            <span>AI Agent</span>
+          </a>
           <button class="nav-link" data-view="view-ai-insights">
             <span class="nav-icon">💡</span>
             <span>AI Insights</span>
@@ -691,6 +696,32 @@
               <label><input type="checkbox" id="prefSmsHigh" /> SMS alert for 5★ feedback</label>
               <button type="submit" class="btn primary">Save preferences</button>
             </form>
+          </div>
+          <div class="surface card logo-card">
+            <div class="section-header compact">
+              <div>
+                <p class="eyebrow">Branding</p>
+                <h3>Business logo</h3>
+                <p class="section-sub">
+                  Upload a logo to show in your customer portal and dashboard header.
+                </p>
+              </div>
+            </div>
+            <div class="logo-upload-row">
+              <div class="logo-preview-shell">
+                <div class="avatar" id="logoPreviewFallback">RR</div>
+                <img id="logoPreviewImg" class="logo-preview-img" alt="Logo preview" />
+              </div>
+              <div class="logo-upload-controls">
+                <input type="file" id="logoUploadInput" accept="image/*" />
+                <div class="button-row">
+                  <button type="button" class="btn primary" id="saveLogoBtn">Save logo</button>
+                </div>
+                <p id="logoHelperText" class="muted-text">
+                  Upload a PNG, JPG, or SVG up to 2MB.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 

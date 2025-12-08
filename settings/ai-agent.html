@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – AI Agent Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/ai-agent/ai-agent.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="branding">
+        <div class="brand-mark">RR</div>
+        <div>
+          <h2>ReviewResQ</h2>
+          <p>AI Agent Suite</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/ai-agent/index.html">🤖 Conversations</a>
+        <a href="/ai-agent/insights.html">📊 AI Insights</a>
+        <a class="active" href="/settings/ai-agent.html">⚙️ AI Agent Settings</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <section class="header">
+        <div>
+          <p class="badge info">AI Agent Settings</p>
+          <h1>Automation & Tone</h1>
+          <p>Configure how the AI Agent greets unhappy customers, follows up, and when to share review links.</p>
+        </div>
+      </section>
+
+      <div class="settings-grid">
+        <div class="setting-card">
+          <div class="switch-row">
+            <div>
+              <h3>Enable AI Agent</h3>
+              <p>Automatically respond to 1–3★ feedback without manual routing.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" checked />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <div class="switch-row">
+            <div>
+              <h3>Auto-send Google review link</h3>
+              <p>Share the review link once the customer confirms satisfaction.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <h3>AI style</h3>
+          <p>Choose a tone that matches your brand.</p>
+          <select class="select" aria-label="AI tone selector">
+            <option>Friendly</option>
+            <option selected>Warm & empathetic</option>
+            <option>Professional</option>
+            <option>Short & direct</option>
+          </select>
+        </div>
+
+        <div class="setting-card">
+          <h3>Templates</h3>
+          <div class="template-field">
+            <label for="firstMessage">First message</label>
+            <textarea id="firstMessage">Hi {{customerName}}, thanks for sharing your feedback.
+I'm here to help make things right.
+Could you tell me a bit more about what happened?</textarea>
+          </div>
+          <div class="template-field">
+            <label for="followUp">Follow-up message</label>
+            <textarea id="followUp">I hear you and I'm on it.
+Was this a delivery or in-store issue so I can route it quickly?</textarea>
+          </div>
+          <div class="template-field">
+            <label for="finalMessage">Final message</label>
+            <textarea id="finalMessage">Thanks for sharing all this with me. I'm glad we could sort things out.
+If you'd like, you can now share your experience publicly here: {{GoogleReviewLink}}</textarea>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

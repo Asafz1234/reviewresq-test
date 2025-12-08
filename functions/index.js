@@ -1,5 +1,8 @@
 const functions = require("firebase-functions/v1");
+const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
+
+admin.initializeApp();
 
 exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
   console.log("sendReviewRequestEmail invoked", req.method);
@@ -135,4 +138,227 @@ exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
     console.error("SendGrid error", err);
     return res.status(500).json({ error: "Failed to send email" });
   }
+});
+
+const db = admin.firestore();
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+const GOOGLE_REVIEW_LINK =
+  process.env.GOOGLE_REVIEW_LINK || "https://g.page/reviewresq";
+
+const CATEGORIES = {
+  SERVICE_DELAY: "Service delay",
+  PRICE: "Price issue",
+  QUALITY: "Quality problem",
+  STAFF: "Staff issue",
+  MISC: "Miscommunication",
+  OTHER: "Other",
+};
+
+function classifyCategory(messageText = "") {
+  const text = messageText.toLowerCase();
+  if (text.includes("wait") || text.includes("delay") || text.includes("late")) {
+    return CATEGORIES.SERVICE_DELAY;
+  }
+  if (text.includes("price") || text.includes("expensive") || text.includes("charge")) {
+    return CATEGORIES.PRICE;
+  }
+  if (text.includes("cold") || text.includes("broken") || text.includes("quality")) {
+    return CATEGORIES.QUALITY;
+  }
+  if (text.includes("rude") || text.includes("staff") || text.includes("employee")) {
+    return CATEGORIES.STAFF;
+  }
+  if (text.includes("wrong order") || text.includes("misunderstand")) {
+    return CATEGORIES.MISC;
+  }
+  return CATEGORIES.OTHER;
+}
+
+function baseAiMessage(customerName = "there") {
+  return (
+    `Hi ${customerName}, thanks for sharing your feedback.\n` +
+    "I’m here to help make things right.\n" +
+    "Could you tell me a bit more about what happened?"
+  );
+}
+
+async function generateAIResponse({
+  customerName,
+  rating,
+  history,
+  googleReviewLink,
+}) {
+  const openAiKey = process.env.OPENAI_API_KEY;
+  if (!openAiKey) {
+    return {
+      message:
+        "Thanks for sharing those details. I'm lining up the fastest fix and will check back once it's resolved.",
+      sentiment: rating <= 2 ? -0.45 : -0.2,
+      category: classifyCategory(history.at(-1)?.message_text || ""),
+    };
+  }
+
+  const messages = [
+    {
+      role: "system",
+      content:
+        "You are ReviewResQ, an AI agent that rescues unhappy customers. Keep messages concise, empathetic, and action-oriented. Always include one follow-up question. When the customer is satisfied, include a closing line inviting them to leave a Google review at the provided link.",
+    },
+    {
+      role: "user",
+      content: `Customer rating: ${rating} stars. Customer name: ${customerName}. Conversation so far: ${history
+        .map((h) => `${h.sender}: ${h.message_text}`)
+        .join(" | " )}. Google review link: ${googleReviewLink}.`,
+    },
+  ];
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openAiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages,
+      temperature: 0.3,
+      max_tokens: 280,
+    }),
+  });
+
+  const data = await response.json();
+  const message = data?.choices?.[0]?.message?.content;
+  return {
+    message:
+      message ||
+      "Thanks for sharing those details. I'm lining up the fastest fix and will check back once it's resolved.",
+    sentiment: rating <= 2 ? -0.4 : -0.1,
+    category: classifyCategory(message),
+  };
+}
+
+async function createConversationFromFeedback(feedbackData, feedbackId) {
+  const customerName = feedbackData.customerName || "Customer";
+  const rating = feedbackData.rating;
+  const firstMessage = baseAiMessage(customerName);
+
+  const conversation = {
+    business_id: feedbackData.businessId || null,
+    customer_name: customerName,
+    customer_phone: feedbackData.phone || null,
+    customer_email: feedbackData.email || null,
+    rating,
+    status: "open",
+    sentiment_score: -0.35,
+    category: classifyCategory(feedbackData.feedback || ""),
+    messages: [
+      {
+        sender: "ai",
+        message_text: firstMessage,
+        timestamp: new Date().toISOString(),
+      },
+    ],
+    created_at: admin.firestore.FieldValue.serverTimestamp(),
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    source_feedback_id: feedbackId,
+  };
+
+  const ref = await db.collection("ai_conversations").add(conversation);
+  await db.collection("ai_conversation_messages").add({
+    conversation_id: ref.id,
+    sender: "ai",
+    message_text: firstMessage,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return ref.id;
+}
+
+exports.onLowRatingFeedback = functions.firestore
+  .document("feedback/{feedbackId}")
+  .onCreate(async (snap, context) => {
+    const data = snap.data();
+    if (!data || !data.rating || data.rating > 3) {
+      return null;
+    }
+
+    const conversationId = await createConversationFromFeedback(
+      data,
+      context.params.feedbackId
+    );
+
+    return conversationId;
+  });
+
+exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
+  const origin = req.headers.origin || "*";
+  res.set("Access-Control-Allow-Origin", origin);
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Vary", "Origin");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const { conversationId, customerMessage, customerName, rating } = req.body || {};
+  if (!conversationId || !customerMessage) {
+    return res.status(400).json({ error: "Missing conversationId or customerMessage" });
+  }
+
+  const convoRef = db.collection("ai_conversations").doc(conversationId);
+  const convoSnap = await convoRef.get();
+  if (!convoSnap.exists) {
+    return res.status(404).json({ error: "Conversation not found" });
+  }
+
+  await db.collection("ai_conversation_messages").add({
+    conversation_id: conversationId,
+    sender: "customer",
+    message_text: customerMessage,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  const history = (
+    await db
+      .collection("ai_conversation_messages")
+      .where("conversation_id", "==", conversationId)
+      .orderBy("timestamp", "asc")
+      .limit(12)
+      .get()
+  ).docs.map((doc) => doc.data());
+
+  const aiResponse = await generateAIResponse({
+    customerName: customerName || convoSnap.data()?.customer_name || "there",
+    rating: rating || convoSnap.data()?.rating || 1,
+    history,
+    googleReviewLink: GOOGLE_REVIEW_LINK,
+  });
+
+  await db.collection("ai_conversation_messages").add({
+    conversation_id: conversationId,
+    sender: "ai",
+    message_text: aiResponse.message,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  await convoRef.set(
+    {
+      category: aiResponse.category,
+      sentiment_score: aiResponse.sentiment,
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      status: aiResponse.sentiment > -0.1 ? "needs_review" : "open",
+    },
+    { merge: true }
+  );
+
+  return res.status(200).json({
+    aiMessage: aiResponse.message,
+    category: aiResponse.category,
+    sentiment: aiResponse.sentiment,
+  });
 });
