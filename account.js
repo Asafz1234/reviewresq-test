@@ -9,6 +9,7 @@ import {
   getDocs,
 } from "./firebase-config.js";
 import { PLAN_DETAILS, formatDate } from "./session-data.js";
+import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 import { applyPlanBadge } from "./topbar-menu.js";
 
 const profileName = document.getElementById("profileName");
@@ -108,12 +109,12 @@ async function loadSubscription(uid) {
       currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     };
   }
-  return { planId: "starter", billingPeriod: "monthly", ...snap.data() };
+  return { planId: normalizePlan(snap.data().planId || "starter"), billingPeriod: "monthly", ...snap.data() };
 }
 
 function renderSubscription(sub) {
   currentSubscription = sub;
-  const plan = PLAN_DETAILS[sub.planId] || PLAN_DETAILS.starter;
+  const plan = PLAN_DETAILS[sub.planId] || PLAN_DETAILS[normalizePlan(sub.planId)] || PLAN_DETAILS.starter;
   currentPlanEl.textContent = plan.label;
   currentPriceEl.textContent = formatCurrency(sub.price ?? plan.priceMonthly);
   billingPeriodEl.textContent = (sub.billingPeriod || "monthly").replace(/\b\w/g, (m) => m.toUpperCase());
@@ -196,9 +197,10 @@ function renderInvoices(list = []) {
 
 function buildPlanCards(activePlan) {
   planOptions.innerHTML = "";
-  const order = ["starter", "growth", "pro_ai_suite"];
+  const order = ["starter", "growth", "pro_ai"];
 
   Object.entries(PLAN_DETAILS).forEach(([planId, meta]) => {
+    if (!order.includes(planId)) return;
     const card = document.createElement("div");
     card.className = "plan-card";
     const isActive = planId === activePlan;
@@ -226,8 +228,8 @@ function buildPlanCards(activePlan) {
 async function handlePlanChange(planId) {
   if (!currentUser || !currentSubscription) return;
   const ref = doc(db, "subscriptions", currentUser.uid);
-  const order = ["starter", "growth", "pro_ai_suite"];
-  const isUpgrade = order.indexOf(planId) > order.indexOf(currentSubscription.planId || "starter");
+  const order = ["starter", "growth", "pro_ai"];
+  const isUpgrade = order.indexOf(planId) > order.indexOf(normalizePlan(currentSubscription.planId) || "starter");
 
   const payload = {
     planId: isUpgrade ? planId : currentSubscription.planId,

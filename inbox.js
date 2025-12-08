@@ -14,7 +14,7 @@ import {
   doc,
   onSnapshot,
 } from "./firebase-config.js";
-import { listenForUser, formatDate, initialsFromName } from "./session-data.js";
+import { listenForUser, formatDate, initialsFromName, hasPlanFeature } from "./session-data.js";
 import { applyPlanBadge } from "./topbar-menu.js";
 
 const statusFilter = document.getElementById("statusFilter");
@@ -401,11 +401,9 @@ function renderThreadDetail(thread) {
   textarea.id = "replyBox";
 
   const unhappy = isUnhappyThread(thread);
-  const isProPlan = ["pro", "advanced", "pro_ai_suite"].includes(
-    (currentPlanTier || "starter").toLowerCase()
-  );
+  const aiAgentEnabled = hasPlanFeature("aiAgent");
 
-  if (unhappy && isProPlan) {
+  if (unhappy && aiAgentEnabled) {
     const hint = document.createElement("div");
     hint.className = "card-sub";
     hint.textContent =
@@ -416,7 +414,7 @@ function renderThreadDetail(thread) {
   const actionRow = document.createElement("div");
   actionRow.className = "detail-actions";
   const sendBtn = document.createElement("button");
-  sendBtn.className = unhappy && isProPlan ? "btn btn-secondary" : "btn btn-primary";
+  sendBtn.className = unhappy && aiAgentEnabled ? "btn btn-secondary" : "btn btn-primary";
   sendBtn.textContent = "Send reply";
   sendBtn.addEventListener("click", () => sendReply(thread, textarea));
 
@@ -438,13 +436,22 @@ function renderThreadDetail(thread) {
     }
   });
 
-  if (unhappy && isProPlan) {
+  if (unhappy && aiAgentEnabled) {
     const handoffBtn = document.createElement("button");
     handoffBtn.className = "btn btn-primary";
     handoffBtn.textContent = thread.status === "ai_agent_active" ? "AI Agent active" : "Hand off to AI Agent";
     handoffBtn.disabled = thread.status === "ai_agent_active";
     handoffBtn.addEventListener("click", () => handoffToAiAgent(thread, handoffBtn, textarea));
     actionRow.append(handoffBtn, aiBtn, sendBtn);
+  } else if (unhappy) {
+    const upsell = document.createElement("button");
+    upsell.className = "btn btn-primary";
+    upsell.textContent = "AI Agent (upgrade)";
+    upsell.addEventListener("click", () => {
+      alert("Automatic AI Agent recovery is part of the Pro AI Suite. Upgrade to let the AI handle unhappy customers for you.");
+      window.location.href = "account.html";
+    });
+    actionRow.append(upsell, aiBtn, sendBtn);
   } else {
     actionRow.append(sendBtn, aiBtn);
   }
