@@ -20,8 +20,10 @@ const heroStatusChip = document.getElementById("heroStatusChip");
 const heroIndustryChip = document.getElementById("heroIndustryChip");
 const heroUpdated = document.getElementById("heroUpdatedText");
 const heroAvatar = document.getElementById("heroAvatar");
-const heroMeta = document.querySelector(".hero-meta");
+const heroMeta = document.getElementById("heroMeta");
 const dateRangeSelect = document.getElementById("dateRangeSelect");
+const refreshOverviewBtn = document.getElementById("refreshOverview");
+const askReviewsBtn = document.getElementById("askForReviews");
 
 const insightTitle = document.getElementById("insightTitle");
 const insightText = document.getElementById("insightText");
@@ -33,6 +35,7 @@ const kpiPending = document.getElementById("kpiPendingFollowups");
 const kpiConversion = document.getElementById("kpiConversionGoogle");
 
 let feedbackCache = [];
+let currentUserId = null;
 
 function formatPercent(value) {
   if (Number.isNaN(value)) return "—";
@@ -130,23 +133,29 @@ function updateInsight(rangeValue) {
 
   let title = "Sentiment stable";
   let desc = "Collect more feedback to see trendlines.";
+  const delta =
+    currentSent !== null && prevSent !== null ? Number((currentSent - prevSent).toFixed(2)) : null;
 
   if (currentSent !== null) {
     if (prevSent === null || currentSent > prevSent + 0.05) {
       title = "Sentiment improving";
       const keyword = topKeyword(
-        filtered.filter((f) => (f.rating || 0) >= 4).map((f) => f.message)
+        filtered
+          .filter((f) => (f.rating || 0) >= 4)
+          .map((f) => f.message || f.text || "")
       );
-      desc = `Customers mention "${keyword}" — keep momentum with follow-ups.`;
+      desc = `Up ${delta ?? 0} vs prior period. Customers mention "${keyword}" — keep momentum with follow-ups.`;
     } else if (prevSent < currentSent + 0.05 && prevSent > currentSent - 0.05) {
       title = "Sentiment stable";
       desc = "Scores are steady. Keep inviting happy customers to review you on Google.";
     } else if (prevSent !== null) {
       title = "Sentiment down";
       const keyword = topKeyword(
-        filtered.filter((f) => (f.rating || 0) <= 3).map((f) => f.message)
+        filtered
+          .filter((f) => (f.rating || 0) <= 3)
+          .map((f) => f.message || f.text || "")
       );
-      desc = `Customers mention "${keyword}" — consider reaching out to recent jobs.`;
+      desc = `Down ${Math.abs(delta ?? 0)} vs prior period. Customers mention "${keyword}" — consider reaching out to recent jobs.`;
     }
   }
 
@@ -178,11 +187,16 @@ function updateKPIs(rangeValue) {
 }
 
 async function loadFeedback(uid) {
+  currentUserId = uid;
   try {
     const ref = collection(db, "feedback");
     const q = query(ref, where("businessId", "==", uid), orderBy("createdAt", "desc"));
     const snap = await getDocs(q);
     feedbackCache = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    const nestedRef = collection(db, "businessProfiles", uid, "feedback");
+    const nestedSnap = await getDocs(nestedRef);
+    nestedSnap.forEach((doc) => feedbackCache.push({ id: doc.id, ...doc.data() }));
   } catch (err) {
     console.error("[overview] Failed to load feedback", err);
     feedbackCache = [];
@@ -213,6 +227,17 @@ function attachEvents() {
 
   heroMeta?.addEventListener("click", () => {
     window.location.href = "settings.html#business";
+  });
+
+  refreshOverviewBtn?.addEventListener("click", async () => {
+    if (!currentUserId) return;
+    await loadFeedback(currentUserId);
+    updateKPIs(dateRangeSelect?.value || "7");
+    updateInsight(dateRangeSelect?.value || "7");
+  });
+
+  askReviewsBtn?.addEventListener("click", () => {
+    window.location.href = "portal.html";
   });
 }
 

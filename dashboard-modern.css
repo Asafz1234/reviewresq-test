@@ -152,10 +152,10 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #e2e8f0;
+  background: rgba(37, 99, 235, 0.08);
   color: var(--accent);
-  padding: 6px 12px;
-  border-radius: 16px;
+  padding: 6px 14px;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
@@ -268,6 +268,10 @@ a {
 
 .section {
   margin-top: 24px;
+}
+
+.page-header {
+  margin-bottom: 4px;
 }
 
 .section-title {
@@ -387,6 +391,7 @@ a {
 .kpi-card {
   display: grid;
   gap: 6px;
+  min-height: 140px;
 }
 
 .kpi-label {
@@ -413,11 +418,12 @@ a {
   display: grid;
   gap: 16px;
   align-items: center;
+  grid-template-columns: 1.6fr 1fr;
 }
 
-@media (min-width: 960px) {
+@media (max-width: 768px) {
   .hero-card {
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -426,6 +432,11 @@ a {
   gap: 12px;
   align-items: flex-start;
   cursor: pointer;
+}
+
+.hero-left {
+  align-items: center;
+  gap: 14px;
 }
 
 .hero-meta__text {
@@ -455,7 +466,7 @@ a {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .hero-updated {
@@ -487,12 +498,12 @@ a {
     justify-content: stretch;
   }
   .btn,
-  .date-filter {
+  .pill-select {
     width: 100%;
   }
 }
 
-.date-filter {
+.pill-select {
   border: 1px solid var(--border-soft);
   background: #f3f4f6;
   padding: 8px 14px;
@@ -507,8 +518,9 @@ a {
   align-items: center;
   background: var(--accent-light);
   border-radius: 16px;
-  padding: 16px;
-  border: 1px solid var(--border-soft);
+  padding: 18px;
+  border: 1px solid var(--accent-light);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
 }
 
 .banner-chip {
@@ -692,12 +704,38 @@ a {
   gap: 16px;
 }
 
+.plan-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.plan-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+  display: grid;
+  gap: 10px;
+}
+
+.plan-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
+}
+
+.card-header .section-title {
+  margin: 0;
 }
 
 .card-header h3 {
