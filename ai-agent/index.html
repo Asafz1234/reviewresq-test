@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – AI Agent Conversations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/ai-agent/ai-agent.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="branding">
+        <div class="brand-mark">RR</div>
+        <div>
+          <h2>ReviewResQ</h2>
+          <p>AI Agent Suite</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/dashboard.html">🏠 Dashboard</a>
+        <a href="/dashboard.html#inbox">📨 Inbox</a>
+        <a class="active" href="/ai-agent/index.html">🤖 AI Agent</a>
+        <a href="/ai-agent/insights.html">📊 AI Insights</a>
+        <a href="/settings/ai-agent.html">⚙️ AI Settings</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <section class="header">
+        <div>
+          <p class="badge info">AI Agent – Automated Customer Recovery</p>
+          <h1>AI Agent Conversations</h1>
+          <p>Your AI handles unhappy customers automatically and prevents bad reviews.</p>
+        </div>
+        <div class="filters">
+          <select id="statusFilter" class="select">
+            <option value="all">Status: All</option>
+            <option value="open">Open</option>
+            <option value="resolved">Resolved</option>
+          </select>
+          <select id="timeFilter" class="select">
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="all">All time</option>
+          </select>
+        </div>
+      </section>
+
+      <div class="conversation-grid">
+        <div class="surface list-panel" id="conversationList"></div>
+        <div class="surface detail-panel" id="overviewPanel">
+          <div class="detail-stat">
+            <span>Open cases</span>
+            <strong id="openCases">0</strong>
+          </div>
+          <div class="detail-stat">
+            <span>Avg sentiment</span>
+            <strong id="avgSentiment">0.00</strong>
+          </div>
+          <div class="detail-stat">
+            <span>Resolved this week</span>
+            <strong id="resolvedCount">0</strong>
+          </div>
+          <div class="detail-stat">
+            <span>Prevented 1★ reviews</span>
+            <strong id="prevented">0</strong>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const conversations = [
+      {
+        id: "c1",
+        customer: "Amelia Carter",
+        rating: 2,
+        status: "open",
+        sentiment: -0.55,
+        updated: "2m ago",
+        category: "Quality problem",
+      },
+      {
+        id: "c2",
+        customer: "Marcus Lee",
+        rating: 3,
+        status: "in-progress",
+        sentiment: -0.35,
+        updated: "18m ago",
+        category: "Service delay",
+      },
+      {
+        id: "c3",
+        customer: "Priya Nair",
+        rating: 1,
+        status: "resolved",
+        sentiment: 0.12,
+        updated: "1h ago",
+        category: "Staff issue",
+      },
+      {
+        id: "c4",
+        customer: "Diego Martínez",
+        rating: 2,
+        status: "open",
+        sentiment: -0.72,
+        updated: "Today 9:12a",
+        category: "Miscommunication",
+      },
+    ];
+
+    const listEl = document.getElementById("conversationList");
+    const statusFilter = document.getElementById("statusFilter");
+    const openCases = document.getElementById("openCases");
+    const avgSentiment = document.getElementById("avgSentiment");
+    const resolvedCount = document.getElementById("resolvedCount");
+    const prevented = document.getElementById("prevented");
+
+    function renderStats(list) {
+      const openCount = list.filter((c) => c.status !== "resolved").length;
+      const resolved = list.filter((c) => c.status === "resolved").length;
+      const avg =
+        list.length === 0
+          ? 0
+          : list.reduce((sum, c) => sum + c.sentiment, 0) / list.length;
+
+      openCases.textContent = openCount;
+      resolvedCount.textContent = resolved;
+      avgSentiment.textContent = avg.toFixed(2);
+      prevented.textContent = Math.max(resolved - 1, 0);
+    }
+
+    function renderList() {
+      const statusValue = statusFilter.value;
+      const filtered = conversations.filter((item) => {
+        if (statusValue === "all") return true;
+        if (statusValue === "open") return item.status !== "resolved";
+        return item.status === statusValue;
+      });
+
+      listEl.innerHTML = filtered
+        .map(
+          (item) => `
+            <article class="conversation-card" data-id="${item.id}" aria-label="View conversation">
+              <div class="rating">${"★".repeat(item.rating)}</div>
+              <div class="card-meta">
+                <h3>${item.customer}</h3>
+                <div class="meta-row">
+                  <span class="badge ${item.status === "resolved" ? "success" : "warning"}">
+                    ${item.status === "resolved" ? "Resolved" : "Open"}
+                  </span>
+                  <span class="badge info">Sentiment <span class="sentiment">${item.sentiment.toFixed(2)}</span></span>
+                  <span>${item.category}</span>
+                  <span>Updated ${item.updated}</span>
+                </div>
+              </div>
+            </article>
+          `
+        )
+        .join("");
+
+      listEl.querySelectorAll(".conversation-card").forEach((card) => {
+        card.addEventListener("click", () => {
+          const id = card.getAttribute("data-id");
+          window.location.href = `/ai-agent/conversation.html?id=${id}`;
+        });
+      });
+
+      renderStats(filtered);
+    }
+
+    statusFilter.addEventListener("change", renderList);
+    renderList();
+  </script>
+</body>
+</html>
