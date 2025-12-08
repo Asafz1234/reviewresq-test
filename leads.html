@@ -25,7 +25,13 @@
       </div>
       <div class="topbar-center">Leads</div>
       <div class="topbar-right">
-        <span class="plan-chip">Advanced plan</span>
+        <a
+          id="planBadge"
+          class="plan-chip plan-chip--pro"
+          href="account.html"
+          title="View and manage your subscription."
+          >Pro AI Suite</a
+        >
         <div class="profile">RQ</div>
       </div>
     </header>
@@ -85,11 +91,11 @@
     </main>
   </div>
 
-  <div class="modal" id="leadModal" hidden>
-    <div class="modal-content">
+  <div class="modal-overlay" id="leadModal" aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-labelledby="leadModalTitle">
       <div class="modal-header">
         <h3 class="section-title" id="leadModalTitle">Add lead</h3>
-        <button class="btn btn-secondary" id="closeLeadModal">Close</button>
+        <button class="btn btn-secondary" data-modal-close id="closeLeadModal">Close</button>
       </div>
       <div class="form-grid">
         <label>
@@ -129,11 +135,11 @@
     </div>
   </div>
 
-  <div class="modal" id="importModal" hidden>
-    <div class="modal-content">
+  <div class="modal-overlay" id="importModal" aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-labelledby="importModalTitle">
       <div class="modal-header">
-        <h3 class="section-title">Import CSV</h3>
-        <button class="btn btn-secondary" id="closeImportModal">Close</button>
+        <h3 class="section-title" id="importModalTitle">Import CSV</h3>
+        <button class="btn btn-secondary" data-modal-close id="closeImportModal">Close</button>
       </div>
       <p class="card-sub">Columns supported: name, phone, email, source, notes.</p>
       <input class="input" id="importFile" type="file" accept=".csv" />
@@ -144,11 +150,11 @@
     </div>
   </div>
 
-  <div class="modal" id="messageModal" hidden>
-    <div class="modal-content">
+  <div class="modal-overlay" id="messageModal" aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-labelledby="messageModalTitle">
       <div class="modal-header">
-        <h3 class="section-title">Send AI message</h3>
-        <button class="btn btn-secondary" id="closeMessageModal">Close</button>
+        <h3 class="section-title" id="messageModalTitle">Send AI message</h3>
+        <button class="btn btn-secondary" data-modal-close id="closeMessageModal">Close</button>
       </div>
       <div class="form-grid">
         <label>
@@ -179,6 +185,8 @@
     </div>
   </div>
 
+  <script src="modal-utils.js"></script>
+  <script type="module" src="topbar-menu.js"></script>
   <script src="dashboard-nav.js"></script>
   <script>
     const leads = [
@@ -280,6 +288,12 @@
     const leadStatusFilters = document.getElementById('leadStatusFilters');
     const leadDetailContent = document.getElementById('leadDetailContent');
     const emptyLeadState = document.getElementById('emptyLeadState');
+    const leadModalController = ModalManager.register(document.getElementById('leadModal'));
+    const importModalController = ModalManager.register(document.getElementById('importModal'));
+    const messageModalController = ModalManager.register(document.getElementById('messageModal'));
+    const messageDraftInput = document.getElementById('messageDraft');
+    const regenerateButton = document.getElementById('regenerateDraft');
+    const sendButton = document.getElementById('sendDraft');
 
     function formatRelative(date) {
       if (!date) return 'No contact yet';
@@ -416,26 +430,26 @@
     }
 
     function openLeadModal() {
-      document.getElementById('leadModal').hidden = false;
+      leadModalController?.open();
     }
 
     function closeLeadModal() {
-      document.getElementById('leadModal').hidden = true;
       document.getElementById('leadName').value = '';
       document.getElementById('leadPhone').value = '';
       document.getElementById('leadEmail').value = '';
       document.getElementById('leadSource').value = 'website';
       document.getElementById('leadService').value = '';
       document.getElementById('leadNotes').value = '';
+      leadModalController?.close();
     }
 
     function openImportModal() {
-      document.getElementById('importModal').hidden = false;
+      importModalController?.open();
     }
 
     function closeImportModal() {
-      document.getElementById('importModal').hidden = true;
       document.getElementById('importFile').value = '';
+      importModalController?.close();
     }
 
     function startSequence(lead) {
@@ -467,25 +481,49 @@
     }
 
     function openMessageModal(lead) {
-      document.getElementById('messageModal').hidden = false;
-      document.getElementById('messageDraft').value = `Hi ${lead.name}, thanks for reaching out about ${lead.serviceType}. Can we book a quick call?`;
-      document.getElementById('sendDraft').onclick = () => sendAiMessage(lead);
-      document.getElementById('regenerateDraft').onclick = () =>
-        regenerateDraft(lead, document.getElementById('messagePurpose').value);
+      messageModalController?.open();
+      messageDraftInput.value = `Hi ${lead.name}, thanks for reaching out about ${lead.serviceType}. Can we book a quick call?`;
+      sendButton.onclick = () => sendAiMessage(lead);
+      regenerateButton.onclick = () => regenerateDraft(lead, document.getElementById('messagePurpose').value);
     }
 
     function closeMessageModal() {
-      document.getElementById('messageModal').hidden = true;
+      messageModalController?.close();
+    }
+
+    function setMessageButtonsLoading(isLoading, sendText = 'Send', regenText = 'Regenerate') {
+      regenerateButton.disabled = isLoading;
+      sendButton.disabled = isLoading;
+      regenerateButton.textContent = isLoading ? 'Generating…' : regenText;
+      sendButton.textContent = isLoading ? 'Sending…' : sendText;
     }
 
     function regenerateDraft(lead, purpose) {
-      const tone = purpose === 'last_chance' ? 'We\'d love to earn your business.' : 'Excited to help.';
-      document.getElementById('messageDraft').value = `Hi ${lead.name}, ${tone} Ready to chat about ${lead.serviceType}?`;
+      const tone = purpose === 'last_chance' ? "We'd love to earn your business." : 'Excited to help.';
+      setMessageButtonsLoading(true, 'Send', 'Regenerating…');
+      Promise.resolve()
+        .then(
+          () =>
+            `Hi ${lead.name}, ${tone} Ready to chat about ${lead.serviceType}?` +
+            (purpose === 'gentle_reminder' ? ' We can hold a spot for you this week.' : '')
+        )
+        .then((draft) => {
+          messageDraftInput.value = draft;
+          showToast('Draft regenerated');
+        })
+        .catch(() => {
+          showToast('Unable to regenerate draft');
+        })
+        .finally(() => setMessageButtonsLoading(false));
     }
 
     function sendAiMessage(lead) {
+      if (!lead) return showToast('Select a lead first');
       const channel = document.getElementById('messageChannel').value;
-      const text = document.getElementById('messageDraft').value;
+      const text = messageDraftInput.value.trim();
+      if (!text) return showToast('Add a message to send');
+
+      setMessageButtonsLoading(true);
       lead.messages.push({
         sender: 'ai',
         channel,
@@ -495,10 +533,15 @@
         status: 'sent',
       });
       lead.lastContactAt = new Date().toISOString();
-      closeMessageModal();
-      renderLeadDetail(lead);
-      renderLeadList();
-      showToast('AI message sent');
+      Promise.resolve()
+        .then(() => {
+          renderLeadDetail(lead);
+          renderLeadList();
+          showToast('AI message sent');
+          closeMessageModal();
+        })
+        .catch(() => showToast('Unable to send right now'))
+        .finally(() => setMessageButtonsLoading(false));
     }
 
     function showToast(message) {

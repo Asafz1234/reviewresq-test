@@ -25,8 +25,14 @@
       </div>
       <div class="topbar-center">Business dashboard</div>
       <div class="topbar-right">
-        <span class="plan-chip">Advanced plan</span>
-        <div class="profile">RQ</div>
+        <a
+          id="planBadge"
+          class="plan-chip plan-chip--pro"
+          href="account.html"
+          title="View and manage your subscription."
+          >Pro AI Suite</a
+        >
+        <div class="profile" id="profileAvatar">RQ</div>
       </div>
     </header>
 
@@ -44,32 +50,33 @@
     </nav>
 
     <main class="page-container" id="overview">
-      <header>
+      <header class="page-header">
         <h1 class="page-title">Business Overview</h1>
         <p class="page-subtitle">Monitor your customer feedback health at a glance.</p>
       </header>
 
       <section class="section">
         <div class="card hero-card">
-          <div class="hero-meta">
-            <div class="hero-avatar">RQ</div>
-            <div>
-              <p class="hero-title">Riverstone Quality Services</p>
+          <div class="hero-left hero-meta" id="heroMeta">
+            <div class="hero-avatar" id="heroAvatar">RQ</div>
+            <div class="hero-meta__text">
+              <p class="hero-title" id="heroBusinessName">Your business</p>
               <div class="hero-status">
-                <span class="chip chip-success">Live</span>
-                <span class="chip chip-muted">Handyman</span>
+                <span class="chip chip-success" id="heroStatusChip">Live</span>
+                <span class="chip chip-muted" id="heroIndustryChip">Local services</span>
               </div>
-              <p class="hero-updated">Updated Nov 30, 2025</p>
+              <p class="hero-updated" id="heroUpdatedText">Updated recently</p>
             </div>
           </div>
           <div class="hero-actions">
-            <select class="date-filter">
-              <option>Last 7 days</option>
-              <option>Last 30 days</option>
-              <option>Custom range</option>
-            </select>
-            <button class="btn btn-secondary">Refresh insights</button>
-            <button class="btn btn-primary">Ask for reviews</button>
+            <div class="hero-actions__row">
+              <select class="pill-select" id="dateRangeSelect">
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+              </select>
+              <button class="btn btn-secondary" type="button" id="refreshOverview">Refresh insights</button>
+            </div>
+            <button class="btn btn-primary" type="button" id="askForReviews">Ask for reviews</button>
           </div>
         </div>
       </section>
@@ -78,8 +85,10 @@
         <div class="banner">
           <div class="banner-chip">AI</div>
           <div>
-            <p class="banner-title">Sentiment improving</p>
-            <p class="banner-text">Customers mention "fast response" and "great service" — keep momentum with follow-ups.</p>
+            <p class="banner-title" id="insightTitle">Sentiment improving</p>
+            <p class="banner-text" id="insightText">
+              Customers mention "fast response" and "great service" — keep momentum with follow-ups.
+            </p>
           </div>
         </div>
       </section>
@@ -88,27 +97,27 @@
         <div class="kpi-grid">
           <div class="card kpi-card">
             <p class="kpi-label">Total reviews</p>
-            <p class="kpi-value">3</p>
+            <p class="kpi-value" id="kpiTotalReviews">0</p>
             <p class="kpi-hint">Captured across all channels</p>
           </div>
           <div class="card kpi-card">
             <p class="kpi-label">Positive vs negative</p>
-            <p class="kpi-value">60% positive</p>
-            <p class="kpi-hint">Based on last 30 days</p>
+            <p class="kpi-value" id="kpiPositiveNegative">—</p>
+            <p class="kpi-hint">Based on selected range</p>
           </div>
           <div class="card kpi-card">
             <p class="kpi-label">Average sentiment</p>
-            <p class="kpi-value">-0.47</p>
+            <p class="kpi-value" id="kpiAvgSentiment">—</p>
             <p class="kpi-hint">AI mood score</p>
           </div>
           <div class="card kpi-card">
             <p class="kpi-label">Pending follow-ups</p>
-            <p class="kpi-value">3</p>
+            <p class="kpi-value" id="kpiPendingFollowups">0</p>
             <p class="kpi-hint">Urgent items to resolve</p>
           </div>
           <div class="card kpi-card">
             <p class="kpi-label">Conversion to Google</p>
-            <p class="kpi-value">—</p>
+            <p class="kpi-value" id="kpiConversionGoogle">—</p>
             <p class="kpi-hint">Happy customers who posted publicly</p>
           </div>
         </div>
@@ -162,6 +171,8 @@
       </section>
     </main>
   </div>
+  <script type="module" src="topbar-menu.js"></script>
+  <script type="module" src="dashboard-overview.js"></script>
   <script src="dashboard-nav.js"></script>
 </body>
 </html>
