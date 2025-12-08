@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewResQ – Inbox</title>
+  <title>ReviewResQ – Follow-ups</title>
   <link
     rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
@@ -23,7 +23,7 @@
         <div class="brand-mark">RR</div>
         <div class="brand-name">ReviewResQ</div>
       </div>
-      <div class="topbar-center">Inbox</div>
+      <div class="topbar-center">Follow-ups</div>
       <div class="topbar-right">
         <span class="plan-chip">Advanced plan</span>
         <div class="profile">RQ</div>
@@ -43,69 +43,62 @@
 
     <main class="page-container">
       <header class="section">
-        <h1 class="page-title">Inbox</h1>
-        <p class="page-subtitle">See all customer feedback threads in one place.</p>
+        <h1 class="page-title">Follow-ups</h1>
+        <p class="page-subtitle">Close the loop with customers who need an extra nudge.</p>
       </header>
-
-      <section class="section">
-        <div class="card hero-card">
-          <div>
-            <p class="card-title">Filters</p>
-            <div class="button-row">
-              <select class="select">
-                <option>Status: All</option>
-                <option>Open</option>
-                <option>Resolved</option>
-              </select>
-              <select class="select">
-                <option>Last 30 days</option>
-                <option>Last 7 days</option>
-                <option>All time</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <section class="section layout-split">
         <div class="card list">
           <div class="list-item">
             <div class="meta-row">
-              <span class="badge">Maria Green</span>
-              <span class="badge badge-warning">3★</span>
-              <span class="badge">Open</span>
-              <span class="caption">Updated 18m ago</span>
+              <span class="badge">Patty Holmes</span>
+              <span class="badge badge-warning">Pending</span>
+              <span class="caption">Last outreach: 2d ago</span>
             </div>
-            <p class="page-subtitle">"Service was slower than expected but the technician was polite."</p>
+            <p class="page-subtitle">"Technician was late, unsure if I'll recommend."</p>
+            <div class="button-row">
+              <button class="btn btn-secondary">Send reminder</button>
+              <button class="btn btn-secondary">Open in inbox</button>
+            </div>
           </div>
           <div class="list-item">
             <div class="meta-row">
-              <span class="badge">Paul Turner</span>
-              <span class="badge badge-success">5★</span>
-              <span class="badge">Resolved</span>
-              <span class="caption">Updated 1h ago</span>
+              <span class="badge">Kimberly Tran</span>
+              <span class="badge badge-success">Ready to ask</span>
+              <span class="caption">Completed yesterday</span>
             </div>
-            <p class="page-subtitle">"Great job on the HVAC repair, thanks!"</p>
+            <p class="page-subtitle">Happy with service — invite to leave a public review.</p>
+            <div class="button-row">
+              <button class="btn btn-primary">Send review link</button>
+            </div>
           </div>
           <div class="list-item">
             <div class="meta-row">
-              <span class="badge">Erin Flores</span>
-              <span class="badge badge-warning">2★</span>
-              <span class="badge">Open</span>
-              <span class="caption">Updated 3h ago</span>
+              <span class="badge">Darryl Woods</span>
+              <span class="badge">Awaiting reply</span>
+              <span class="caption">Last outreach: 5d ago</span>
             </div>
-            <p class="page-subtitle">"We had to reschedule twice before someone could come out."</p>
+            <p class="page-subtitle">Provided partial refund, awaiting confirmation.</p>
+            <div class="button-row">
+              <button class="btn btn-secondary">Send reminder</button>
+              <button class="btn btn-secondary">Mark resolved</button>
+            </div>
           </div>
         </div>
 
         <div class="card">
-          <h3 class="card-title">Conversation details</h3>
-          <p class="card-sub">Select a conversation on the left to view messages and reply.</p>
-          <div class="chart-card">No conversation selected</div>
+          <h3 class="card-title">Workflow tips</h3>
+          <p class="card-sub">Use AI drafts and scheduled nudges to keep customers engaged.</p>
+          <ul>
+            <li>Let the AI Agent draft empathetic follow-ups for unhappy customers.</li>
+            <li>Schedule reminders for 3 and 7 days after the initial response.</li>
+            <li>Escalate to phone outreach for high-value customers.</li>
+          </ul>
         </div>
       </section>
     </main>
   </div>
+
   <script src="dashboard-nav.js"></script>
 </body>
 </html>
