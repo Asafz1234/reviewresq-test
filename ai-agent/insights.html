@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – AI Agent Insights</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/ai-agent/ai-agent.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="branding">
+        <div class="brand-mark">RR</div>
+        <div>
+          <h2>ReviewResQ</h2>
+          <p>AI Agent Suite</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/ai-agent/index.html">🤖 Conversations</a>
+        <a class="active" href="/ai-agent/insights.html">📊 AI Insights</a>
+        <a href="/settings/ai-agent.html">⚙️ AI Settings</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <section class="header">
+        <div>
+          <p class="badge info">AI Agent Insights</p>
+          <h1>Performance & Prevention Analytics</h1>
+          <p>See how the AI Agent resolves unhappy customers and protects your public reputation.</p>
+        </div>
+      </section>
+
+      <div class="layout-grid">
+        <div class="metric-card">
+          <h3>Total AI-handled conversations</h3>
+          <div class="metric-value" id="totalConversations">128</div>
+          <p class="trend">+18% vs last month</p>
+        </div>
+        <div class="metric-card">
+          <h3>% resolved successfully</h3>
+          <div class="metric-value" id="resolvedSuccess">92%</div>
+          <p class="trend">Faster than target</p>
+        </div>
+        <div class="metric-card">
+          <h3>% prevented 1-star reviews</h3>
+          <div class="metric-value" id="preventedShare">76%</div>
+          <p class="trend">AI stepped in before escalation</p>
+        </div>
+        <div class="metric-card">
+          <h3>Avg response time</h3>
+          <div class="metric-value" id="responseTime">1m 12s</div>
+          <p class="trend">Instant hand-off with empathy</p>
+        </div>
+      </div>
+
+      <div class="layout-grid" style="margin-top: 20px;">
+        <div class="metric-card">
+          <h3>Overall sentiment trend</h3>
+          <div class="chart" id="sentimentChart">Smoothed upward curve</div>
+        </div>
+        <div class="metric-card">
+          <h3>Categories distribution</h3>
+          <div class="chart" id="categoryChart">Quality • Service • Staff • Price</div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
