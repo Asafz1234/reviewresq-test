@@ -5,11 +5,14 @@ import {
   doc,
   getDoc,
 } from "./firebase-config.js";
+import { PLAN_LABELS, normalizePlan, hasFeature } from "./plan-capabilities.js";
 
 export const PLAN_DETAILS = {
-  starter: { label: "Starter", priceMonthly: 39 },
-  growth: { label: "Growth", priceMonthly: 99 },
-  pro_ai_suite: { label: "Pro AI Suite", priceMonthly: 149 },
+  starter: { label: PLAN_LABELS.starter, priceMonthly: 39 },
+  growth: { label: PLAN_LABELS.growth, priceMonthly: 99 },
+  pro_ai: { label: PLAN_LABELS.pro_ai, priceMonthly: 149 },
+  // Support legacy plan ids
+  pro_ai_suite: { label: PLAN_LABELS.pro_ai, priceMonthly: 149 },
 };
 
 let cachedProfile = null;
@@ -29,7 +32,7 @@ async function fetchSubscription(uid) {
   if (!snap.exists()) {
     return { planId: "starter", status: "active", price: PLAN_DETAILS.starter.priceMonthly };
   }
-  return { planId: "starter", status: "active", ...snap.data() };
+  return { planId: normalizePlan(snap.data().planId || "starter"), status: "active", ...snap.data() };
 }
 
 export function listenForUser(callback) {
@@ -58,7 +61,8 @@ export function getCachedProfile() {
 }
 
 export function getCachedSubscription() {
-  return cachedSubscription;
+  if (!cachedSubscription) return null;
+  return { ...cachedSubscription, planId: normalizePlan(cachedSubscription.planId) };
 }
 
 export function getCachedUser() {
@@ -75,6 +79,15 @@ export async function refreshSubscription() {
   if (!cachedUser) return null;
   cachedSubscription = await fetchSubscription(cachedUser.uid);
   return cachedSubscription;
+}
+
+export function currentPlanTier() {
+  if (cachedSubscription?.planId) return normalizePlan(cachedSubscription.planId);
+  return "starter";
+}
+
+export function hasPlanFeature(feature) {
+  return hasFeature(currentPlanTier(), feature);
 }
 
 export function initialsFromName(name = "") {

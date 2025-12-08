@@ -8,7 +8,7 @@ import {
   orderBy,
   getDocs,
 } from "./firebase-config.js";
-import { formatDate } from "./session-data.js";
+import { formatDate, hasPlanFeature, listenForUser } from "./session-data.js";
 
 const statusFilter = document.getElementById("statusFilter");
 const ratingFilter = document.getElementById("ratingFilter");
@@ -18,6 +18,7 @@ const emptyState = document.getElementById("emptyState");
 const syncReviewsBtn = document.getElementById("syncReviewsBtn");
 
 let reviews = [];
+let allowAutoReply = false;
 
 const statusMap = {
   none: { label: "Needs reply", tone: "badge-warning" },
@@ -86,11 +87,20 @@ function buildActions(review) {
     return btn;
   };
 
+  const gatedHandler = (handler) => () => {
+    if (!allowAutoReply) {
+      alert("AI auto-reply to Google reviews is available on the Growth plan and above. Upgrade to enable it.");
+      window.location.href = "account.html";
+      return;
+    }
+    handler();
+  };
+
   if (review.replyStatus === "none") {
-    buttons.push(button("Generate reply", "btn-secondary", () => showToast("Generating reply…")));
+    buttons.push(button("Generate reply", "btn-secondary", gatedHandler(() => showToast("Generating reply…"))));
   } else if (review.replyStatus === "draft") {
-    buttons.push(button("Approve & Send", "btn-primary", () => showToast("Reply sent")));
-    buttons.push(button("Regenerate", "btn-secondary", () => showToast("Regenerating…")));
+    buttons.push(button("Approve & Send", "btn-primary", gatedHandler(() => showToast("Reply sent"))));
+    buttons.push(button("Regenerate", "btn-secondary", gatedHandler(() => showToast("Regenerating…"))));
   } else if (review.replyStatus === "auto_sent" || review.replyStatus === "manual_sent") {
     buttons.push(button("View reply", "btn-secondary", () => showToast("Reply already sent")));
   }
@@ -188,4 +198,8 @@ onAuthStateChanged(auth, async (user) => {
   await fetchFeedback(user.uid);
   renderReviews();
   wireFilters();
+});
+
+listenForUser(({ subscription }) => {
+  allowAutoReply = hasPlanFeature("aiAutoReplyGoogle");
 });
