@@ -231,6 +231,14 @@ p {
   grid-template-columns: 1fr;
 }
 
+.hero__supporting {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
 .hero__text h1 {
   font-size: clamp(32px, 4vw, 46px);
   line-height: 1.08;
@@ -257,6 +265,20 @@ p {
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   background: rgba(59, 130, 246, 0.1);
+}
+
+.pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pill-list .pill-text {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--blue-600);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
 }
 
 .hero__visual {
@@ -443,6 +465,16 @@ p {
   gap: 16px;
 }
 
+.feature-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.feature-columns .card {
+  height: 100%;
+}
+
 .feature h3 {
   margin-bottom: 6px;
 }
@@ -506,6 +538,41 @@ p {
   content: '•';
   color: var(--blue-600);
   font-size: 18px;
+}
+
+.plan-meta {
+  display: grid;
+  gap: 6px;
+}
+
+.pricing__desc {
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.pricing__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.pricing__tagline {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.pricing__hint {
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.pricing__card--pro {
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  box-shadow: 0 25px 70px rgba(37, 99, 235, 0.2);
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0.98));
 }
 
 .pricing__card--highlight {
@@ -583,6 +650,24 @@ p {
   justify-content: center;
   gap: 10px;
   margin-top: 16px;
+}
+
+.faq {
+  display: grid;
+  gap: 12px;
+}
+
+.faq-item {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.faq-item h3 {
+  margin-bottom: 6px;
+  font-size: 16px;
 }
 
 .dot {
