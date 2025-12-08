@@ -1,4 +1,5 @@
 import { app } from "./firebase-config.js";
+import { runtimeEnv } from "./runtime-env.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore,
@@ -7,8 +8,6 @@ import {
   setDoc,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-
-const googleApiKey = "YOUR_GOOGLE_API_KEY"; // תחליף פעם אחת – וזהו.
 
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -23,6 +22,31 @@ const resultsWrapper = document.getElementById("resultsWrapper");
 const resultsList = document.getElementById("resultsList");
 
 let selectedPlaceId = null;
+
+function loadGoogleMapsPlaces(apiKey) {
+  return new Promise((resolve, reject) => {
+    if (window.google && google.maps && google.maps.places) {
+      resolve();
+      return;
+    }
+
+    if (!apiKey) {
+      reject(new Error("GOOGLE_MAPS_API_KEY is missing. Add it to your runtime env."));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+      apiKey
+    )}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Google Maps Places"));
+
+    document.head.appendChild(script);
+  });
+}
 
 function initGoogleReviewAutoFinder() {
   const nameInput = document.getElementById("business-name");
@@ -79,18 +103,22 @@ function initGoogleReviewAutoFinder() {
   });
 }
 
-window.addEventListener("load", () => {
-  if (window.google && google.maps && google.maps.places) {
+async function bootstrapGooglePlaces() {
+  try {
+    await loadGoogleMapsPlaces(runtimeEnv.GOOGLE_MAPS_API_KEY);
     initGoogleReviewAutoFinder();
-  } else {
-    // Fallback: wait briefly for Maps to finish loading
-    window.setTimeout(() => {
-      if (window.google && google.maps && google.maps.places) {
-        initGoogleReviewAutoFinder();
-      }
-    }, 1000);
+  } catch (err) {
+    console.error("Unable to load Google Maps Places:", err);
+    const status = document.getElementById("onboarding-status");
+    if (status) {
+      status.textContent =
+        "We couldn't load Google Maps autocomplete. Please add your Google Maps API key and try again.";
+      status.style.color = "#dc2626";
+    }
   }
-});
+}
+
+window.addEventListener("load", bootstrapGooglePlaces);
 
 async function saveBusinessProfileAndPortalSettings() {
   const user = auth.currentUser;

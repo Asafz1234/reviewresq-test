@@ -1,0 +1,10 @@
+# Environment and build artifacts
+.env
+runtime-env.js
+
+# Node
+node_modules/
+functions/node_modules/
+
+# Logs
+npm-debug.log*

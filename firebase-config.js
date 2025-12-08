@@ -49,14 +49,24 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
 import { getFunctions, httpsCallable } from "./firebase-app.js";
 
+import { runtimeEnv } from "./runtime-env.js";
+
+function requireEnv(key) {
+  const value = runtimeEnv?.[key];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  return value;
+}
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
-  authDomain: "reviewresq-app.firebaseapp.com",
-  projectId: "reviewresq-app",
-  storageBucket: "reviewresq-app.appspot.com",
-  messagingSenderId: "863497920392",
-  appId: "1:863497920392:web:ca99060b42a50711b9e43d",
-  measurementId: "G-G3P2BX845N"
+  apiKey: requireEnv("FIREBASE_API_KEY"),
+  authDomain: runtimeEnv.FIREBASE_AUTH_DOMAIN,
+  projectId: runtimeEnv.FIREBASE_PROJECT_ID,
+  storageBucket: runtimeEnv.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: runtimeEnv.FIREBASE_MESSAGING_SENDER_ID,
+  appId: runtimeEnv.FIREBASE_APP_ID,
+  measurementId: runtimeEnv.FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize the core Firebase services once and expose them as named exports
