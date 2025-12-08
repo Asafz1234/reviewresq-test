@@ -52,6 +52,15 @@ const upgradeModal = document.getElementById("upgradeModal");
 const upgradeModalClose = document.getElementById("upgradeModalClose");
 const upgradeModalBtn = document.getElementById("upgradeModalBtn");
 
+const PLAN_LABELS = {
+  basic: "Starter plan",
+  advanced: "Pro AI Suite",
+};
+
+function planLabel(plan) {
+  return PLAN_LABELS[plan] || PLAN_LABELS.basic;
+}
+
 const FEATURE_FLAGS = {
   aiInsights: {
     plan: "advanced",
@@ -140,8 +149,7 @@ function updateSidebarUserInfo(user) {
     userEmailDisplay.textContent = user?.email || "My account";
   }
   if (planBadge) {
-    planBadge.textContent =
-      currentPlan === "advanced" ? "Advanced plan" : "Basic plan";
+    planBadge.textContent = planLabel(currentPlan);
   }
 }
 
@@ -209,11 +217,11 @@ function renderPlanBanner(plan) {
   planBanner.style.display = "flex";
   planBanner.innerHTML = `
     <div class="plan-banner__text">
-      You’re on the <strong>Basic</strong> plan.
-      Unlock Automations & AI Insights with the <strong>Advanced</strong> plan.
+      You’re on the <strong>Starter</strong> plan.
+      Unlock Automations & AI Insights with the <strong>Growth</strong> plan.
     </div>
     <button id="upgrade-btn" class="btn primary btn-small">
-      Upgrade to Advanced
+      Upgrade to Growth
     </button>
   `;
 
@@ -247,11 +255,11 @@ function applyPlanToUI(plan) {
   renderPlanBanner(plan);
 }
 
-function openUpgradeModal(featureName = "Advanced feature") {
+function openUpgradeModal(featureName = "Premium feature") {
   if (!upgradeModal) return;
   const titleEl = document.getElementById("upgradeModalTitle");
   if (titleEl) {
-    titleEl.textContent = `${featureName} is an Advanced feature`;
+    titleEl.textContent = `${featureName} is available on Growth or Pro AI Suite`;
   }
 
   upgradeModal.classList.add("visible");
@@ -835,9 +843,7 @@ async function loadProfile() {
     if (bizUpdatedAt) bizUpdatedAt.textContent = formatDate(data.updatedAt);
     applyBusinessBranding();
     updateLogoPreview();
-    if (planBadge)
-      planBadge.textContent =
-        currentPlan === "advanced" ? "Advanced plan" : "Basic plan";
+    if (planBadge) planBadge.textContent = planLabel(currentPlan);
 
     return true;
   } catch (err) {
