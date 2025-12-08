@@ -63,52 +63,18 @@
     </main>
   </div>
 
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("id") || "c1";
-    const conversations = {
-      c1: {
-        customer: "Amelia Carter",
-        rating: 2,
-        sentiment: -0.55,
-        status: "Open",
-      },
-      c2: {
-        customer: "Marcus Lee",
-        rating: 3,
-        sentiment: -0.35,
-        status: "In progress",
-      },
-      c3: {
-        customer: "Priya Nair",
-        rating: 1,
-        sentiment: 0.12,
-        status: "Resolved",
-      },
-    };
+  <script type="module">
+    import {
+      arrayUnion,
+      db,
+      doc,
+      onSnapshot,
+      serverTimestamp,
+      updateDoc,
+    } from "../firebase-config.js";
 
-    const templateConversation = [
-      {
-        sender: "ai",
-        text: "Hi Amelia, thanks for sharing your feedback. I'm here to help make things right. Could you tell me a bit more about what happened?",
-      },
-      {
-        sender: "customer",
-        text: "The order was late and no one picked up when I called.",
-      },
-      {
-        sender: "ai",
-        text: "I'm really sorry for the delay and missed call — that's not the experience we want. Was this a delivery or pick-up order so I can look into the right team?",
-      },
-      {
-        sender: "customer",
-        text: "Delivery, and it arrived cold.",
-      },
-      {
-        sender: "ai",
-        text: "Understood. I'll credit the delivery fee and have a fresh order sent ASAP. Does that work for you?",
-      },
-    ];
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
 
     const chatLog = document.getElementById("chatLog");
     const typingRow = document.getElementById("typingRow");
@@ -123,57 +89,100 @@
     const reviewBtn = document.getElementById("reviewBtn");
     const conversationIdLabel = document.getElementById("conversationIdLabel");
 
-    function hydrateHeader() {
-      const meta = conversations[id] || conversations.c1;
-      customerNameEl.textContent = meta.customer;
-      statusLabel.textContent = meta.status;
-      ratingLabel.textContent = "★".repeat(meta.rating);
-      sentimentLabel.textContent = meta.sentiment.toFixed(2);
-      conversationIdLabel.textContent = `Conversation • ${id}`;
+    let currentConversation = null;
+
+    function formatRating(rating) {
+      return "★".repeat(Math.max(1, Math.round(rating || 1)));
     }
 
-    function renderChat() {
+    function renderChat(messages = []) {
       chatLog.innerHTML = "";
-      templateConversation.forEach((msg) => {
-        const bubble = document.createElement("div");
-        bubble.className = `bubble ${msg.sender}`;
-        bubble.textContent = msg.text;
-        chatLog.appendChild(bubble);
-      });
+      messages
+        .slice()
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        .forEach((msg) => {
+          const bubble = document.createElement("div");
+          bubble.className = `bubble ${msg.sender === "ai" ? "ai" : "customer"}`;
+          bubble.textContent = msg.message_text;
+          chatLog.appendChild(bubble);
+        });
       chatLog.scrollTop = chatLog.scrollHeight;
     }
 
-    function showTemporaryBubble(text) {
+    function hydrateHeader(data) {
+      if (!data) return;
+      customerNameEl.textContent = data.customerName || "Customer";
+      statusLabel.textContent = data.status || "Open";
+      ratingLabel.textContent = formatRating(data.rating);
+      sentimentLabel.textContent = (data.sentiment || 0).toFixed(2);
+      conversationIdLabel.textContent = `Conversation • ${id || ""}`;
+    }
+
+    function addLocalBubble(sender, text) {
       const bubble = document.createElement("div");
-      bubble.className = "bubble ai";
+      bubble.className = `bubble ${sender === "ai" ? "ai" : "customer"}`;
       bubble.textContent = text;
       chatLog.appendChild(bubble);
       chatLog.scrollTop = chatLog.scrollHeight;
     }
 
-    sendBtn.addEventListener("click", () => {
+    async function sendMessage() {
       const value = messageInput.value.trim();
-      if (!value) return;
-      const bubble = document.createElement("div");
-      bubble.className = "bubble customer";
-      bubble.textContent = value;
-      chatLog.appendChild(bubble);
-      messageInput.value = "";
-      chatLog.scrollTop = chatLog.scrollHeight;
+      if (!value || !id) return;
       typingRow.style.display = "block";
-      setTimeout(() => {
+      messageInput.value = "";
+      addLocalBubble("customer", value);
+
+      try {
+        await fetch(
+          "https://us-central1-reviewresq-app.cloudfunctions.net/aiAgentReply",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              conversationId: id,
+              customerMessage: value,
+            }),
+          }
+        );
+      } catch (err) {
+        console.error("Failed to send message", err);
+        alert("Could not send the reply. Please try again.");
+      } finally {
         typingRow.style.display = "none";
-        showTemporaryBubble("Thanks for the context — I'm arranging a fix now and will keep you posted.");
-      }, 900);
-    });
+      }
+    }
 
-    resolveBtn.addEventListener("click", () => {
-      statusLabel.textContent = "Resolved";
-      showTemporaryBubble("Thanks for sharing all this with me. I'm glad we could sort things out. If you'd like, you can now share your experience publicly here: https://g.page/reviewresq");
-    });
+    async function markResolved() {
+      if (!id) return;
+      await updateDoc(doc(db, "ai_conversations", id), {
+        status: "resolved",
+        updatedAt: serverTimestamp(),
+      });
+    }
 
-    reviewBtn.addEventListener("click", () => {
-      showTemporaryBubble("I've sent your Google review link to the customer and logged it in the conversation.");
+    async function sendReviewLink() {
+      if (!id) return;
+      const reviewMessage =
+        "Thanks for working with us to fix things. If you're happy with the outcome, you can share a quick Google review: https://g.page/reviewresq";
+      await updateDoc(doc(db, "ai_conversations", id), {
+        messages: arrayUnion({
+          sender: "ai",
+          message_text: reviewMessage,
+          timestamp: new Date().toISOString(),
+        }),
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    resolveBtn.addEventListener("click", markResolved);
+    reviewBtn.addEventListener("click", sendReviewLink);
+    messageInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendMessage();
+      }
     });
 
     shareLink.addEventListener("click", () => {
@@ -183,8 +192,19 @@
         .catch(() => alert("Link ready: " + window.location.href));
     });
 
-    hydrateHeader();
-    renderChat();
+    if (id) {
+      onSnapshot(doc(db, "ai_conversations", id), (snap) => {
+        currentConversation = snap.data();
+        if (!currentConversation) return;
+        hydrateHeader(currentConversation);
+        renderChat(currentConversation.messages || []);
+      });
+    } else {
+      conversationIdLabel.textContent = "Conversation";
+      chatLog.innerHTML =
+        "<p class=\"empty-state\">No conversation selected. Please return to the AI Agent inbox.</p>";
+    }
+
     typingRow.style.display = "none";
   </script>
 </body>
