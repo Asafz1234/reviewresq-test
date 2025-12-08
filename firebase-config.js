@@ -49,24 +49,31 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
 import { getFunctions, httpsCallable } from "./firebase-app.js";
 
-import { runtimeEnv } from "./runtime-env.js";
+const defaultEnv = {
+  FIREBASE_API_KEY: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
+  FIREBASE_AUTH_DOMAIN: "reviewresq-app.firebaseapp.com",
+  FIREBASE_PROJECT_ID: "reviewresq-app",
+  FIREBASE_STORAGE_BUCKET: "reviewresq-app.appspot.com",
+  FIREBASE_MESSAGING_SENDER_ID: "863497920392",
+  FIREBASE_APP_ID: "1:863497920392:web:ca99060b42a50711b9e43d",
+  FIREBASE_MEASUREMENT_ID: "G-G3P2BX845N",
+};
 
-function requireEnv(key) {
-  const value = runtimeEnv?.[key];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-  return value;
+if (!window.RUNTIME_ENV) {
+  console.error("RUNTIME_ENV is missing. runtime-env.js was not loaded.");
 }
 
+const runtimeEnv = window.RUNTIME_ENV || {};
+
 const firebaseConfig = {
-  apiKey: requireEnv("FIREBASE_API_KEY"),
-  authDomain: runtimeEnv.FIREBASE_AUTH_DOMAIN,
-  projectId: runtimeEnv.FIREBASE_PROJECT_ID,
-  storageBucket: runtimeEnv.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: runtimeEnv.FIREBASE_MESSAGING_SENDER_ID,
-  appId: runtimeEnv.FIREBASE_APP_ID,
-  measurementId: runtimeEnv.FIREBASE_MEASUREMENT_ID
+  apiKey: runtimeEnv.FIREBASE_API_KEY || defaultEnv.FIREBASE_API_KEY,
+  authDomain: runtimeEnv.FIREBASE_AUTH_DOMAIN || defaultEnv.FIREBASE_AUTH_DOMAIN,
+  projectId: runtimeEnv.FIREBASE_PROJECT_ID || defaultEnv.FIREBASE_PROJECT_ID,
+  storageBucket: runtimeEnv.FIREBASE_STORAGE_BUCKET || defaultEnv.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId:
+    runtimeEnv.FIREBASE_MESSAGING_SENDER_ID || defaultEnv.FIREBASE_MESSAGING_SENDER_ID,
+  appId: runtimeEnv.FIREBASE_APP_ID || defaultEnv.FIREBASE_APP_ID,
+  measurementId: runtimeEnv.FIREBASE_MEASUREMENT_ID || defaultEnv.FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize the core Firebase services once and expose them as named exports
