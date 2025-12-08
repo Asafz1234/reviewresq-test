@@ -1,5 +1,4 @@
 import { app } from "./firebase-config.js";
-import { runtimeEnv } from "./runtime-env.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore,
@@ -105,6 +104,13 @@ function initGoogleReviewAutoFinder() {
 
 async function bootstrapGooglePlaces() {
   try {
+    const runtimeEnv = window.RUNTIME_ENV || {};
+    if (!runtimeEnv.GOOGLE_MAPS_API_KEY) {
+      console.error(
+        "RUNTIME_ENV is missing. runtime-env.js was not loaded. Google Maps cannot initialize."
+      );
+    }
+
     await loadGoogleMapsPlaces(runtimeEnv.GOOGLE_MAPS_API_KEY);
     initGoogleReviewAutoFinder();
   } catch (err) {
