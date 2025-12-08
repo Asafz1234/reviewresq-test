@@ -34,6 +34,8 @@
       <div class="nav-tabs">
         <a class="nav-tab" data-route="overview" href="dashboard.html#overview">Overview</a>
         <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
         <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
         <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
         <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
@@ -112,6 +114,47 @@
               <p class="caption">Send after 7 days if still no review</p>
             </div>
             <span class="badge">Off</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card">
+          <h3 class="section-title">Lead Follow-up sequences</h3>
+          <p class="card-sub">Pick the default AI sequence and guardrails for messaging new leads.</p>
+          <div class="form-grid">
+            <label>
+              <span class="card-title">Default sequence</span>
+              <select class="select">
+                <option>New lead – 3 touch follow-up</option>
+                <option>Service quote reminders</option>
+                <option>Custom sequence</option>
+              </select>
+            </label>
+            <label>
+              <span class="card-title">Quiet hours</span>
+              <input class="input" type="text" placeholder="21:00 – 08:00" />
+            </label>
+            <label>
+              <span class="card-title">Max messages per lead</span>
+              <input class="input" type="number" value="3" />
+            </label>
+          </div>
+          <div class="sequence-list" style="margin-top:12px;">
+            <div class="guidance-item">
+              <p class="guidance-title">New lead – 3 touch follow-up</p>
+              <p class="guidance-desc">SMS at 1h, 24h, and 72h with AI-crafted first contact, reminder, and last chance.</p>
+              <button class="btn btn-secondary">View steps</button>
+            </div>
+            <div class="guidance-item">
+              <p class="guidance-title">Quote reminder</p>
+              <p class="guidance-desc">Email nudges after quotes are sent to keep momentum.</p>
+              <button class="btn btn-secondary">View steps</button>
+            </div>
+          </div>
+          <div class="button-row" style="justify-content: flex-end; margin-top: 12px;">
+            <button class="btn btn-secondary">Cancel</button>
+            <button class="btn btn-primary">Save lead follow-ups</button>
           </div>
         </div>
       </section>
