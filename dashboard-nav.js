@@ -8,10 +8,14 @@
   function deriveRoute() {
     if (hash && hash.toLowerCase().includes('inbox')) return 'inbox';
     if (hash && hash.toLowerCase().includes('overview')) return 'overview';
+    if (hash && hash.toLowerCase().includes('google-reviews')) return 'google-reviews';
+    if (hash && hash.toLowerCase().includes('leads')) return 'leads';
 
     if (pathname.includes('inbox')) return 'inbox';
     if (pathname.includes('automations')) return 'automations';
     if (pathname.includes('follow')) return 'follow-ups';
+    if (pathname.includes('google-reviews')) return 'google-reviews';
+    if (pathname.includes('leads')) return 'leads';
     if (pathname.includes('ai-agent')) return 'ai-agent';
     if (pathname.includes('settings')) return 'settings';
     return 'overview';

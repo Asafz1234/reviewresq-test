@@ -34,6 +34,8 @@
       <div class="nav-tabs">
         <a class="nav-tab" data-route="overview" href="dashboard.html#overview">Overview</a>
         <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
         <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
         <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
         <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
@@ -117,6 +119,55 @@
               <p class="caption">Alert when the AI requires manual assistance.</p>
             </div>
             <span class="badge">Off</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card">
+          <h3 class="section-title">Google Reviews Auto-Reply</h3>
+          <p class="card-sub">Control AI reply behavior before anything is sent to Google.</p>
+
+          <div class="switch-row">
+            <div>
+              <p class="card-title">Enable AI auto-replies for Google reviews</p>
+              <p class="caption">No replies will be posted until this is enabled.</p>
+            </div>
+            <span class="badge">Off</span>
+          </div>
+
+          <div class="form-grid" style="margin-top:12px;">
+            <label>
+              <span class="card-title">Mode</span>
+              <select class="select">
+                <option>Auto send for all reviews</option>
+                <option>Auto send for positive reviews only (4–5★)</option>
+                <option>Create drafts only (require manual approval)</option>
+              </select>
+            </label>
+            <label>
+              <span class="card-title">Tone</span>
+              <select class="select">
+                <option>Friendly</option>
+                <option>Professional</option>
+                <option>Short &amp; to the point</option>
+              </select>
+            </label>
+            <label>
+              <span class="card-title">Require approval for negative reviews (1–3★)</span>
+              <select class="select">
+                <option>Yes</option>
+                <option>No</option>
+              </select>
+            </label>
+            <label class="full-width">
+              <span class="card-title">Brand voice notes</span>
+              <textarea class="textarea" rows="3" placeholder="We’re a small family-owned handyman business. Be warm and personal."></textarea>
+            </label>
+          </div>
+          <div class="button-row" style="justify-content: flex-end; margin-top: 12px;">
+            <button class="btn btn-secondary">Cancel</button>
+            <button class="btn btn-primary">Save settings</button>
           </div>
         </div>
       </section>

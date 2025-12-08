@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Leads</title>
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="dashboard-modern.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="topbar-center">Leads</div>
+      <div class="topbar-right">
+        <span class="plan-chip">Advanced plan</span>
+        <div class="profile">RQ</div>
+      </div>
+    </header>
+
+    <nav class="global-nav" aria-label="Dashboard sections">
+      <div class="nav-tabs">
+        <a class="nav-tab" data-route="overview" href="dashboard.html#overview">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
+        <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
+        <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
+        <a class="nav-tab" data-route="settings" href="settings.html">Alerts &amp; Settings</a>
+      </div>
+    </nav>
+
+    <main class="page-container" id="leads">
+      <header class="section">
+        <div class="section-header">
+          <div>
+            <h1 class="page-title">Leads</h1>
+            <p class="page-subtitle">Use AI to follow up with leads and close more jobs.</p>
+          </div>
+          <div class="button-row">
+            <button class="btn btn-secondary" id="importCsvBtn">Import CSV</button>
+            <button class="btn btn-primary" id="addLeadBtn">Add lead</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="card leads-shell">
+          <div class="leads-list" id="leadList">
+            <div class="filter-chips" id="leadStatusFilters">
+              <button class="chip chip-filter active" data-status="all">All</button>
+              <button class="chip chip-filter" data-status="new">New</button>
+              <button class="chip chip-filter" data-status="in_progress">In progress</button>
+              <button class="chip chip-filter" data-status="won">Won</button>
+              <button class="chip chip-filter" data-status="lost">Lost</button>
+            </div>
+            <div class="search-row">
+              <input class="input" id="leadSearch" type="search" placeholder="Search by name, phone, or email" />
+            </div>
+            <div id="leadListItems"></div>
+          </div>
+
+          <div class="lead-detail" id="leadDetail">
+            <div class="card muted-card" id="emptyLeadState">
+              <h3 class="section-title">Select a lead</h3>
+              <p class="card-sub">Choose a lead from the list to view details and AI follow-ups.</p>
+            </div>
+            <div id="leadDetailContent" style="display:none;"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal" id="leadModal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="section-title" id="leadModalTitle">Add lead</h3>
+        <button class="btn btn-secondary" id="closeLeadModal">Close</button>
+      </div>
+      <div class="form-grid">
+        <label>
+          <span class="card-title">Name</span>
+          <input class="input" id="leadName" type="text" placeholder="Alex Doe" />
+        </label>
+        <label>
+          <span class="card-title">Phone</span>
+          <input class="input" id="leadPhone" type="tel" placeholder="(555) 123-4567" />
+        </label>
+        <label>
+          <span class="card-title">Email</span>
+          <input class="input" id="leadEmail" type="email" placeholder="alex@example.com" />
+        </label>
+        <label>
+          <span class="card-title">Source</span>
+          <select class="select" id="leadSource">
+            <option value="website">Website</option>
+            <option value="phone">Phone</option>
+            <option value="facebook">Facebook</option>
+            <option value="import">Import</option>
+          </select>
+        </label>
+        <label>
+          <span class="card-title">Service type</span>
+          <input class="input" id="leadService" type="text" placeholder="Handyman" />
+        </label>
+        <label class="full-width">
+          <span class="card-title">Notes</span>
+          <textarea class="textarea" id="leadNotes" rows="3" placeholder="Project details or context"></textarea>
+        </label>
+      </div>
+      <div class="button-row modal-actions">
+        <button class="btn btn-secondary" id="saveLeadDraft">Save draft</button>
+        <button class="btn btn-primary" id="saveLead">Save lead</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="importModal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="section-title">Import CSV</h3>
+        <button class="btn btn-secondary" id="closeImportModal">Close</button>
+      </div>
+      <p class="card-sub">Columns supported: name, phone, email, source, notes.</p>
+      <input class="input" id="importFile" type="file" accept=".csv" />
+      <p class="caption">We map each row to your leads list for this business.</p>
+      <div class="button-row modal-actions">
+        <button class="btn btn-primary" id="importFileBtn">Upload CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="messageModal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="section-title">Send AI message</h3>
+        <button class="btn btn-secondary" id="closeMessageModal">Close</button>
+      </div>
+      <div class="form-grid">
+        <label>
+          <span class="card-title">Channel</span>
+          <select class="select" id="messageChannel">
+            <option value="sms">SMS</option>
+            <option value="email">Email</option>
+          </select>
+        </label>
+        <label>
+          <span class="card-title">Purpose</span>
+          <select class="select" id="messagePurpose">
+            <option value="first_contact">First contact</option>
+            <option value="gentle_reminder">Gentle reminder</option>
+            <option value="last_chance">Last chance</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <label class="full-width">
+          <span class="card-title">AI draft</span>
+          <textarea class="textarea" id="messageDraft" rows="4">Hi {{name}}, we\'d love to help with your project. Do you have time for a quick call?</textarea>
+        </label>
+      </div>
+      <div class="button-row modal-actions">
+        <button class="btn btn-secondary" id="regenerateDraft">Regenerate</button>
+        <button class="btn btn-primary" id="sendDraft">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="dashboard-nav.js"></script>
+  <script>
+    const leads = [
+      {
+        leadId: 'lead-1',
+        name: 'Sam Carter',
+        phone: '(555) 123-9876',
+        email: 'sam@example.com',
+        source: 'website',
+        serviceType: 'Handyman',
+        notes: 'Needs drywall patch and paint by next week.',
+        status: 'new',
+        stage: 'Follow-up 1',
+        createdAt: '2025-03-27T14:00:00Z',
+        updatedAt: '2025-03-27T14:00:00Z',
+        lastContactAt: '2025-03-27T18:00:00Z',
+        nextContactAt: '2025-03-28T18:00:00Z',
+        automationState: 'sequence_running',
+        sequenceId: 'seq-1',
+        messages: [
+          {
+            sender: 'ai',
+            channel: 'sms',
+            direction: 'outgoing',
+            text: 'Hi Sam, thanks for reaching out! Want to schedule a quick call about your drywall patch?',
+            sentAt: '2025-03-27T18:00:00Z',
+            status: 'sent',
+          },
+        ],
+      },
+      {
+        leadId: 'lead-2',
+        name: 'Priya Singh',
+        phone: '(555) 555-0123',
+        email: 'priya@example.com',
+        source: 'facebook',
+        serviceType: 'Roofing',
+        notes: 'Interested in roof inspection after storm.',
+        status: 'in_progress',
+        stage: 'Quoted',
+        createdAt: '2025-03-25T10:00:00Z',
+        updatedAt: '2025-03-27T09:00:00Z',
+        lastContactAt: '2025-03-26T10:00:00Z',
+        nextContactAt: '2025-03-29T10:00:00Z',
+        automationState: 'paused',
+        sequenceId: null,
+        messages: [
+          {
+            sender: 'user',
+            channel: 'email',
+            direction: 'outgoing',
+            text: 'Hi Priya, attaching the inspection quote. Let me know if you want to proceed!',
+            sentAt: '2025-03-26T10:00:00Z',
+            status: 'sent',
+          },
+          {
+            sender: 'lead',
+            channel: 'email',
+            direction: 'incoming',
+            text: 'Thanks! I\'ll review with my partner.',
+            sentAt: '2025-03-26T12:00:00Z',
+            status: 'delivered',
+          },
+        ],
+      },
+      {
+        leadId: 'lead-3',
+        name: 'Miguel Torres',
+        phone: '(555) 444-7777',
+        email: 'miguel@example.com',
+        source: 'phone',
+        serviceType: 'Plumbing',
+        notes: 'Recurring leak under kitchen sink.',
+        status: 'won',
+        stage: 'Scheduled',
+        createdAt: '2025-03-15T12:00:00Z',
+        updatedAt: '2025-03-20T12:00:00Z',
+        lastContactAt: '2025-03-20T12:00:00Z',
+        nextContactAt: null,
+        automationState: 'completed',
+        sequenceId: 'seq-1',
+        messages: [
+          {
+            sender: 'ai',
+            channel: 'sms',
+            direction: 'outgoing',
+            text: 'Miguel, confirming our plumber will be there tomorrow at 10am.',
+            sentAt: '2025-03-19T10:00:00Z',
+            status: 'sent',
+          },
+        ],
+      },
+    ];
+
+    let selectedLeadId = null;
+
+    const leadListItems = document.getElementById('leadListItems');
+    const leadSearch = document.getElementById('leadSearch');
+    const leadStatusFilters = document.getElementById('leadStatusFilters');
+    const leadDetailContent = document.getElementById('leadDetailContent');
+    const emptyLeadState = document.getElementById('emptyLeadState');
+
+    function formatRelative(date) {
+      if (!date) return 'No contact yet';
+      const diff = (Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24);
+      if (diff < 1) return 'Today';
+      if (diff < 2) return '1 day ago';
+      return `${Math.floor(diff)}d ago`;
+    }
+
+    function renderLeadList() {
+      leadListItems.innerHTML = '';
+      const status = leadStatusFilters.querySelector('.chip-filter.active')?.dataset.status || 'all';
+      const search = leadSearch.value.toLowerCase();
+
+      leads
+        .filter((lead) =>
+          (status === 'all' || lead.status === status) &&
+          (!search ||
+            lead.name.toLowerCase().includes(search) ||
+            lead.phone.toLowerCase().includes(search) ||
+            (lead.email || '').toLowerCase().includes(search))
+        )
+        .forEach((lead) => {
+          const row = document.createElement('div');
+          row.className = `lead-row ${lead.leadId === selectedLeadId ? 'active' : ''}`;
+          row.innerHTML = `
+            <div>
+              <p class="card-title">${lead.name}</p>
+              <div class="chip-row">
+                <span class="chip">${lead.source}</span>
+                <span class="chip">${lead.status.replace('_', ' ')}</span>
+              </div>
+              <p class="caption">Last contact: ${formatRelative(lead.lastContactAt)}</p>
+            </div>
+            ${lead.automationState === 'sequence_running' ? '<span class="badge badge-success">In sequence</span>' : ''}
+          `;
+          row.addEventListener('click', () => selectLead(lead.leadId));
+          leadListItems.appendChild(row);
+        });
+    }
+
+    function renderLeadDetail(lead) {
+      if (!lead) {
+        leadDetailContent.style.display = 'none';
+        emptyLeadState.style.display = 'block';
+        return;
+      }
+
+      emptyLeadState.style.display = 'none';
+      leadDetailContent.style.display = 'block';
+      const timeline = lead.messages
+        .map(
+          (msg) => `
+          <div class="timeline-item ${msg.sender === 'ai' ? 'ai' : ''}">
+            <div class="timeline-meta">
+              <span class="chip">${msg.channel}</span>
+              <span class="chip">${msg.sender}</span>
+              <span class="caption">${new Date(msg.sentAt).toLocaleString()}</span>
+            </div>
+            <p class="timeline-text">${msg.text}</p>
+            <span class="badge">${msg.status}</span>
+          </div>
+        `
+        )
+        .join('');
+
+      leadDetailContent.innerHTML = `
+        <div class="lead-header">
+          <div>
+            <p class="section-title">${lead.name}</p>
+            <div class="chip-row">
+              <span class="chip">${lead.status.replace('_', ' ')}</span>
+              <span class="chip">${lead.source}</span>
+              <span class="chip">${lead.serviceType}</span>
+            </div>
+            <p class="caption">Created ${new Date(lead.createdAt).toLocaleDateString()} · Last contact ${formatRelative(lead.lastContactAt)}</p>
+          </div>
+          <div class="button-row">
+            <button class="btn btn-primary" id="startSequence">Start AI follow-up sequence</button>
+            <button class="btn btn-secondary" id="sendAiMessage">Send AI message</button>
+            <button class="btn btn-secondary" id="addNote">Add note</button>
+          </div>
+        </div>
+        <div class="card muted-card">
+          <div class="form-grid">
+            <label>
+              <span class="card-title">Status</span>
+              <select class="select" id="statusSelect">
+                <option value="new" ${lead.status === 'new' ? 'selected' : ''}>New</option>
+                <option value="in_progress" ${lead.status === 'in_progress' ? 'selected' : ''}>In progress</option>
+                <option value="won" ${lead.status === 'won' ? 'selected' : ''}>Won</option>
+                <option value="lost" ${lead.status === 'lost' ? 'selected' : ''}>Lost</option>
+              </select>
+            </label>
+            <label>
+              <span class="card-title">Stage</span>
+              <input class="input" id="stageInput" value="${lead.stage || ''}" />
+            </label>
+            <label>
+              <span class="card-title">Next contact</span>
+              <input class="input" id="nextContactInput" value="${lead.nextContactAt ? lead.nextContactAt.slice(0, 16) : ''}" type="datetime-local" />
+            </label>
+          </div>
+        </div>
+        <div class="timeline">
+          <h4 class="section-title">Timeline</h4>
+          ${timeline || '<p class="caption">No messages yet</p>'}
+        </div>
+      `;
+
+      document.getElementById('statusSelect').addEventListener('change', (e) => {
+        lead.status = e.target.value;
+        renderLeadList();
+      });
+
+      document.getElementById('stageInput').addEventListener('input', (e) => {
+        lead.stage = e.target.value;
+      });
+
+      document.getElementById('nextContactInput').addEventListener('change', (e) => {
+        lead.nextContactAt = e.target.value;
+      });
+
+      document.getElementById('startSequence').addEventListener('click', () => startSequence(lead));
+      document.getElementById('sendAiMessage').addEventListener('click', () => openMessageModal(lead));
+      document.getElementById('addNote').addEventListener('click', () => addNote(lead));
+    }
+
+    function selectLead(leadId) {
+      selectedLeadId = leadId;
+      renderLeadList();
+      const lead = leads.find((l) => l.leadId === leadId);
+      renderLeadDetail(lead);
+    }
+
+    function openLeadModal() {
+      document.getElementById('leadModal').hidden = false;
+    }
+
+    function closeLeadModal() {
+      document.getElementById('leadModal').hidden = true;
+      document.getElementById('leadName').value = '';
+      document.getElementById('leadPhone').value = '';
+      document.getElementById('leadEmail').value = '';
+      document.getElementById('leadSource').value = 'website';
+      document.getElementById('leadService').value = '';
+      document.getElementById('leadNotes').value = '';
+    }
+
+    function openImportModal() {
+      document.getElementById('importModal').hidden = false;
+    }
+
+    function closeImportModal() {
+      document.getElementById('importModal').hidden = true;
+      document.getElementById('importFile').value = '';
+    }
+
+    function startSequence(lead) {
+      lead.automationState = 'sequence_running';
+      lead.nextContactAt = lead.nextContactAt || new Date().toISOString();
+      lead.messages.push({
+        sender: 'ai',
+        channel: 'sms',
+        direction: 'outgoing',
+        text: 'We\'ve started your follow-up sequence. Expect timely nudges to keep the deal moving.',
+        sentAt: new Date().toISOString(),
+        status: 'sent',
+      });
+      renderLeadDetail(lead);
+      renderLeadList();
+      showToast('Follow-up sequence started');
+    }
+
+    function addNote(lead) {
+      lead.messages.push({
+        sender: 'user',
+        channel: 'note',
+        direction: 'outgoing',
+        text: 'Added note: customer needs evening slots only.',
+        sentAt: new Date().toISOString(),
+        status: 'logged',
+      });
+      renderLeadDetail(lead);
+    }
+
+    function openMessageModal(lead) {
+      document.getElementById('messageModal').hidden = false;
+      document.getElementById('messageDraft').value = `Hi ${lead.name}, thanks for reaching out about ${lead.serviceType}. Can we book a quick call?`;
+      document.getElementById('sendDraft').onclick = () => sendAiMessage(lead);
+      document.getElementById('regenerateDraft').onclick = () =>
+        regenerateDraft(lead, document.getElementById('messagePurpose').value);
+    }
+
+    function closeMessageModal() {
+      document.getElementById('messageModal').hidden = true;
+    }
+
+    function regenerateDraft(lead, purpose) {
+      const tone = purpose === 'last_chance' ? 'We\'d love to earn your business.' : 'Excited to help.';
+      document.getElementById('messageDraft').value = `Hi ${lead.name}, ${tone} Ready to chat about ${lead.serviceType}?`;
+    }
+
+    function sendAiMessage(lead) {
+      const channel = document.getElementById('messageChannel').value;
+      const text = document.getElementById('messageDraft').value;
+      lead.messages.push({
+        sender: 'ai',
+        channel,
+        direction: 'outgoing',
+        text,
+        sentAt: new Date().toISOString(),
+        status: 'sent',
+      });
+      lead.lastContactAt = new Date().toISOString();
+      closeMessageModal();
+      renderLeadDetail(lead);
+      renderLeadList();
+      showToast('AI message sent');
+    }
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => toast.remove(), 2600);
+    }
+
+    function handleCsvImport() {
+      const file = document.getElementById('importFile').files[0];
+      if (!file) return showToast('Upload a CSV file to import');
+      showToast('CSV import queued. We will map your leads.');
+      closeImportModal();
+    }
+
+    function saveLead() {
+      const lead = {
+        leadId: `lead-${Date.now()}`,
+        name: document.getElementById('leadName').value || 'Untitled lead',
+        phone: document.getElementById('leadPhone').value,
+        email: document.getElementById('leadEmail').value,
+        source: document.getElementById('leadSource').value,
+        serviceType: document.getElementById('leadService').value,
+        notes: document.getElementById('leadNotes').value,
+        status: 'new',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastContactAt: null,
+        nextContactAt: null,
+        automationState: 'none',
+        sequenceId: null,
+        messages: [],
+      };
+      leads.unshift(lead);
+      closeLeadModal();
+      renderLeadList();
+      selectLead(lead.leadId);
+      showToast('Lead saved');
+    }
+
+    document.getElementById('addLeadBtn').addEventListener('click', openLeadModal);
+    document.getElementById('closeLeadModal').addEventListener('click', closeLeadModal);
+    document.getElementById('saveLead').addEventListener('click', saveLead);
+    document.getElementById('saveLeadDraft').addEventListener('click', () => {
+      showToast('Draft saved');
+      closeLeadModal();
+    });
+
+    document.getElementById('importCsvBtn').addEventListener('click', openImportModal);
+    document.getElementById('closeImportModal').addEventListener('click', closeImportModal);
+    document.getElementById('importFileBtn').addEventListener('click', handleCsvImport);
+
+    document.getElementById('closeMessageModal').addEventListener('click', closeMessageModal);
+
+    leadStatusFilters.addEventListener('click', (e) => {
+      if (e.target.matches('.chip-filter')) {
+        leadStatusFilters.querySelectorAll('.chip-filter').forEach((chip) => chip.classList.remove('active'));
+        e.target.classList.add('active');
+        renderLeadList();
+      }
+    });
+
+    leadSearch.addEventListener('input', renderLeadList);
+
+    renderLeadList();
+  </script>
+</body>
+</html>
