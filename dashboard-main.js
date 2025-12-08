@@ -1182,6 +1182,18 @@ async function loadAiInsights() {
 async function refreshInsights() {
   try {
     const feedbackSample = feedbackCache.slice(0, 100);
+
+    if (!feedbackSample.length) {
+      renderInsights({
+        summary: "No data yet. Start collecting reviews to unlock insights.",
+        sentimentScore: 0,
+        positiveCount: 0,
+        negativeCount: 0,
+        neutralCount: 0,
+        totalCount: 0,
+      });
+      return;
+    }
     const insights = await AIService.generateInsights(feedbackSample);
     const payload = {
       businessId: currentUser.uid,
@@ -1194,6 +1206,14 @@ async function refreshInsights() {
   } catch (err) {
     console.error("refreshInsights error:", err);
     showBanner("Could not refresh insights.", "warn");
+    renderInsights({
+      summary: "Insights are not available right now.",
+      totalCount: 0,
+      positiveCount: 0,
+      negativeCount: 0,
+      neutralCount: 0,
+      sentimentScore: null,
+    });
   }
 }
 
