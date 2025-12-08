@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="dashboard-modern.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="topbar-center">Settings</div>
+      <div class="topbar-right">
+        <span class="plan-chip">Advanced plan</span>
+        <div class="profile">RQ</div>
+      </div>
+    </header>
+
+    <main class="page-container">
+      <header class="section">
+        <h1 class="page-title">Settings & Branding</h1>
+        <p class="page-subtitle">Manage your business profile, brand, and notifications.</p>
+      </header>
+
+      <section class="section">
+        <div class="card">
+          <h3 class="section-title">Business profile</h3>
+          <div class="form-grid">
+            <label>
+              <span class="card-title">Business name</span>
+              <input class="input" type="text" placeholder="Riverstone Quality Services" />
+            </label>
+            <label>
+              <span class="card-title">Category</span>
+              <input class="input" type="text" placeholder="Handyman" />
+            </label>
+            <label>
+              <span class="card-title">Timezone</span>
+              <select class="select">
+                <option>GMT-5 (Eastern)</option>
+                <option>GMT-6 (Central)</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card">
+          <h3 class="section-title">Branding</h3>
+          <p class="card-sub">Upload your logo and preview how it appears.</p>
+          <div class="form-grid">
+            <label>
+              <span class="card-title">Upload logo (JPG/PNG, max 2MB)</span>
+              <input class="input" type="file" accept="image/png, image/jpeg" />
+            </label>
+            <div class="guidance-list">
+              <div class="guidance-item">
+                <p class="guidance-title">Top bar preview</p>
+                <p class="guidance-desc">32x32 circle with your initials or logo.</p>
+              </div>
+              <div class="guidance-item">
+                <p class="guidance-title">Review portal preview</p>
+                <p class="guidance-desc">Logo appears alongside your business name for customers.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card">
+          <h3 class="section-title">Alerts & notifications</h3>
+          <p class="card-sub">Choose what you want to hear about.</p>
+          <div class="switch-row">
+            <div>
+              <p class="card-title">Email alerts for new negative feedback</p>
+              <p class="caption">Stay ahead of unhappy customers.</p>
+            </div>
+            <span class="badge">On</span>
+          </div>
+          <div class="switch-row">
+            <div>
+              <p class="card-title">Daily summary</p>
+              <p class="caption">Performance snapshot delivered each morning.</p>
+            </div>
+            <span class="badge">On</span>
+          </div>
+          <div class="switch-row">
+            <div>
+              <p class="card-title">AI Agent escalations</p>
+              <p class="caption">Alert when the AI requires manual assistance.</p>
+            </div>
+            <span class="badge">Off</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

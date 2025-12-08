@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Automations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="dashboard-modern.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="topbar-center">Automations</div>
+      <div class="topbar-right">
+        <span class="plan-chip">Advanced plan</span>
+        <div class="profile">RQ</div>
+      </div>
+    </header>
+
+    <main class="page-container">
+      <header class="section">
+        <h1 class="page-title">Automations & Follow-ups</h1>
+        <p class="page-subtitle">Send review invites and reminders automatically.</p>
+      </header>
+
+      <section class="section">
+        <div class="card">
+          <h3 class="section-title">Active automations</h3>
+          <p class="card-sub">Manage the flows that keep review requests running.</p>
+          <table class="table-lite">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Channel</th>
+                <th>Trigger</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>New job wrap-up</td>
+                <td>SMS</td>
+                <td>Job marked complete</td>
+                <td><span class="badge-success badge">Live</span></td>
+              </tr>
+              <tr>
+                <td>Follow-up reminder</td>
+                <td>Email</td>
+                <td>3 days after no response</td>
+                <td><span class="badge">Paused</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card">
+          <h3 class="section-title">Review invite template</h3>
+          <p class="card-sub">Customize the message customers receive.</p>
+          <div class="form-grid">
+            <label>
+              <span class="card-title">Message</span>
+              <textarea class="textarea" rows="4">Hi {{first_name}}, thanks for choosing us. Would you share your experience?</textarea>
+            </label>
+            <div class="button-row">
+              <button class="btn btn-secondary">Preview</button>
+              <button class="btn btn-primary">Save template</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card">
+          <h3 class="section-title">Reminders</h3>
+          <p class="card-sub">Keep follow-ups automatic without extra work.</p>
+          <div class="switch-row">
+            <div>
+              <p class="card-title">1st reminder</p>
+              <p class="caption">Send after 3 days if no review</p>
+            </div>
+            <span class="badge">On</span>
+          </div>
+          <div class="switch-row">
+            <div>
+              <p class="card-title">2nd reminder</p>
+              <p class="caption">Send after 7 days if still no review</p>
+            </div>
+            <span class="badge">Off</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
