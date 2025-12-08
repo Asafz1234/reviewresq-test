@@ -127,16 +127,18 @@
         <div class="card">
           <h3 class="card-title">Reviews over time</h3>
           <p class="card-sub">Daily/weekly activity</p>
-          <div class="chart-card">No reviews yet for this period</div>
+          <div class="chart-card" id="reviewsOverTimeCard">
+            <div id="reviewsChart" class="chart-card__canvas">No reviews yet for this period</div>
+          </div>
         </div>
         <div class="card">
           <h3 class="card-title">Rating breakdown</h3>
           <p class="card-sub">1–5★ across the range</p>
-          <div class="rating-row"><span>5★</span><strong>0%</strong></div>
-          <div class="rating-row"><span>4★</span><strong>0%</strong></div>
-          <div class="rating-row"><span>3★</span><strong>0%</strong></div>
-          <div class="rating-row"><span>2★</span><strong>0%</strong></div>
-          <div class="rating-row"><span>1★</span><strong>0%</strong></div>
+          <div class="rating-row" data-rating-row="5"><span>5★</span><strong id="rating5">0%</strong></div>
+          <div class="rating-row" data-rating-row="4"><span>4★</span><strong id="rating4">0%</strong></div>
+          <div class="rating-row" data-rating-row="3"><span>3★</span><strong id="rating3">0%</strong></div>
+          <div class="rating-row" data-rating-row="2"><span>2★</span><strong id="rating2">0%</strong></div>
+          <div class="rating-row" data-rating-row="1"><span>1★</span><strong id="rating1">0%</strong></div>
         </div>
       </section>
 
@@ -149,21 +151,21 @@
               <p class="guidance-title">Reply to 3 unhappy customers</p>
               <p class="guidance-desc">Tackle the latest low-star feedback to turn them around.</p>
               <div class="button-row guidance-actions">
-                <button class="btn btn-secondary">Open in inbox</button>
+                <button class="btn btn-secondary" id="guidanceInbox">Open in inbox</button>
               </div>
             </div>
             <div class="guidance-item">
               <p class="guidance-title">Send follow-up to 2 people who left 4★</p>
               <p class="guidance-desc">Invite happy customers to share their experience on Google.</p>
               <div class="button-row guidance-actions">
-                <button class="btn btn-secondary">View follow-ups</button>
+                <button class="btn btn-secondary" id="guidanceFollowups">View follow-ups</button>
               </div>
             </div>
             <div class="guidance-item">
               <p class="guidance-title">Schedule a reminder campaign</p>
               <p class="guidance-desc">Automate requests for recent jobs to keep reviews flowing.</p>
               <div class="button-row guidance-actions">
-                <button class="btn btn-secondary">Open automations</button>
+                <button class="btn btn-secondary" id="guidanceAutomations">Open automations</button>
               </div>
             </div>
           </div>
