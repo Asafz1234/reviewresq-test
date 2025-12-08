@@ -3,200 +3,116 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewResQ – AI Agent Conversations</title>
+  <title>ReviewResQ – AI Agent</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/ai-agent/ai-agent.css" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="../dashboard-modern.css" />
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="branding">
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="topbar-left">
         <div class="brand-mark">RR</div>
-        <div>
-          <h2>ReviewResQ</h2>
-          <p>AI Agent Suite</p>
-        </div>
+        <div class="brand-name">ReviewResQ</div>
       </div>
-      <nav class="nav">
-        <a href="/dashboard.html">🏠 Dashboard</a>
-        <a href="/dashboard.html#inbox">📨 Inbox</a>
-        <a class="active" href="/ai-agent/index.html">🤖 AI Agent</a>
-        <a href="/ai-agent/insights.html">📊 AI Insights</a>
-        <a href="/settings/ai-agent.html">⚙️ AI Settings</a>
-      </nav>
-    </aside>
+      <div class="topbar-center">AI Agent</div>
+      <div class="topbar-right">
+        <span class="plan-chip">Advanced plan</span>
+        <div class="profile">RQ</div>
+      </div>
+    </header>
 
-    <main class="main">
-      <section class="header">
-        <div>
-          <p class="badge info">AI Agent – Automated Customer Recovery</p>
-          <h1>AI Agent Conversations</h1>
-          <p>Your AI handles unhappy customers automatically and prevents bad reviews.</p>
-        </div>
-        <div class="filters">
-          <select id="statusFilter" class="select">
-            <option value="all">Status: All</option>
-            <option value="open">Open</option>
-            <option value="resolved">Resolved</option>
-          </select>
-          <select id="timeFilter" class="select">
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="all">All time</option>
-          </select>
+    <main class="page-container">
+      <header class="section">
+        <h1 class="page-title">AI Agent – Automated Customer Recovery</h1>
+        <p class="page-subtitle">Your AI handles unhappy customers automatically and prevents bad reviews.</p>
+      </header>
+
+      <section class="section">
+        <div class="card hero-card">
+          <div class="button-row">
+            <select class="select">
+              <option>Status: All</option>
+              <option>Open</option>
+              <option>Resolved</option>
+            </select>
+            <select class="select">
+              <option>Last 7 days</option>
+              <option>Last 30 days</option>
+              <option>All time</option>
+            </select>
+          </div>
         </div>
       </section>
 
-      <div class="conversation-grid">
-        <div class="surface list-panel" id="conversationList"></div>
-        <div class="surface detail-panel" id="overviewPanel">
-          <div class="detail-stat">
-            <span>Open cases</span>
-            <strong id="openCases">0</strong>
+      <section class="section layout-split">
+        <div class="card list">
+          <div class="list-item">
+            <div class="meta-row">
+              <span class="badge">Jordan Reed</span>
+              <span class="badge badge-warning">2★</span>
+              <span class="badge">Open</span>
+              <span class="badge">Service delay</span>
+              <span class="badge">Sentiment -0.55</span>
+              <span class="caption">Updated 2m ago</span>
+            </div>
+            <p class="page-subtitle">"Still waiting on a technician to arrive today."</p>
           </div>
-          <div class="detail-stat">
-            <span>Avg sentiment</span>
-            <strong id="avgSentiment">0.00</strong>
+          <div class="list-item">
+            <div class="meta-row">
+              <span class="badge">Taylor Chen</span>
+              <span class="badge badge-warning">3★</span>
+              <span class="badge">Resolved</span>
+              <span class="badge">Quality problem</span>
+              <span class="badge">Sentiment -0.12</span>
+              <span class="caption">Updated 35m ago</span>
+            </div>
+            <p class="page-subtitle">"The repair held up after the revisit, thank you for fixing it."</p>
           </div>
-          <div class="detail-stat">
-            <span>Resolved this week</span>
-            <strong id="resolvedCount">0</strong>
-          </div>
-          <div class="detail-stat">
-            <span>Prevented 1★ reviews</span>
-            <strong id="prevented">0</strong>
+          <div class="list-item">
+            <div class="meta-row">
+              <span class="badge">Amir Patel</span>
+              <span class="badge badge-warning">1★</span>
+              <span class="badge">Open</span>
+              <span class="badge">Billing issue</span>
+              <span class="badge">Sentiment -0.80</span>
+              <span class="caption">Updated 1h ago</span>
+            </div>
+            <p class="page-subtitle">"Charged twice for the same service."</p>
           </div>
         </div>
-      </div>
+
+        <div class="card">
+          <h3 class="card-title">AI Agent metrics</h3>
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <p class="kpi-label">Open cases</p>
+              <p class="kpi-value">3</p>
+              <p class="kpi-hint">Awaiting AI or human action</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-label">Resolved this week</p>
+              <p class="kpi-value">7</p>
+              <p class="kpi-hint">Closed by AI Agent</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-label">Avg sentiment</p>
+              <p class="kpi-value">-0.32</p>
+              <p class="kpi-hint">Across active cases</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-label">Prevented 1★ reviews</p>
+              <p class="kpi-value">4</p>
+              <p class="kpi-hint">Customers saved from churning</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
-
-  <script type="module">
-    import {
-      db,
-      collection,
-      onSnapshot,
-      orderBy,
-      query,
-    } from "../firebase-config.js";
-
-    const listEl = document.getElementById("conversationList");
-    const statusFilter = document.getElementById("statusFilter");
-    const timeFilter = document.getElementById("timeFilter");
-    const openCases = document.getElementById("openCases");
-    const avgSentiment = document.getElementById("avgSentiment");
-    const resolvedCount = document.getElementById("resolvedCount");
-    const prevented = document.getElementById("prevented");
-
-    let conversations = [];
-
-    function formatRelative(ts) {
-      if (!ts) return "—";
-      const date = ts.toDate ? ts.toDate() : new Date(ts);
-      const diff = Date.now() - date.getTime();
-      const minutes = Math.floor(diff / 60000);
-      if (minutes < 1) return "just now";
-      if (minutes < 60) return `${minutes}m ago`;
-      const hours = Math.floor(minutes / 60);
-      if (hours < 24) return `${hours}h ago`;
-      const days = Math.floor(hours / 24);
-      return `${days}d ago`;
-    }
-
-    function renderStats(list) {
-      const openCount = list.filter((c) => c.status !== "resolved").length;
-      const resolved = list.filter((c) => c.status === "resolved").length;
-      const avg =
-        list.length === 0
-          ? 0
-          : list.reduce((sum, c) => sum + (c.sentiment || 0), 0) /
-            list.length;
-
-      const preventedReviews = list.filter(
-        (c) => (c.rating || 0) <= 2 && c.status === "resolved"
-      ).length;
-
-      openCases.textContent = openCount;
-      resolvedCount.textContent = resolved;
-      avgSentiment.textContent = avg.toFixed(2);
-      prevented.textContent = preventedReviews;
-    }
-
-    function renderList() {
-      const statusValue = statusFilter.value;
-      const timeValue = timeFilter.value;
-      const now = Date.now();
-
-      const filtered = conversations.filter((item) => {
-        if (statusValue !== "all") {
-          if (statusValue === "open" && item.status === "resolved") return false;
-          if (statusValue === "resolved" && item.status !== "resolved")
-            return false;
-        }
-
-        if (timeValue !== "all" && item.createdAt) {
-          const date = item.createdAt.toDate ? item.createdAt.toDate() : null;
-          if (date) {
-            const diffDays = (now - date.getTime()) / (1000 * 60 * 60 * 24);
-            if (diffDays > Number(timeValue)) return false;
-          }
-        }
-
-        return true;
-      });
-
-      if (!filtered.length) {
-        listEl.innerHTML =
-          "<p class=\"empty-state\">No conversations yet. Negative feedback will appear here automatically.</p>";
-        renderStats(filtered);
-        return;
-      }
-
-      listEl.innerHTML = filtered
-        .map(
-          (item) => `
-            <article class="conversation-card" data-id="${item.id}" aria-label="View conversation">
-              <div class="rating">${"★".repeat(item.rating || 1)}</div>
-              <div class="card-meta">
-                <h3>${item.customerName || "Customer"}</h3>
-                <div class="meta-row">
-                  <span class="badge ${item.status === "resolved" ? "success" : "warning"}">
-                    ${item.status === "resolved" ? "Resolved" : "Open"}
-                  </span>
-                  <span class="badge info">Sentiment <span class="sentiment">${(item.sentiment || 0).toFixed(2)}</span></span>
-                  <span>${item.issueType || "Uncategorized"}</span>
-                  <span>Updated ${formatRelative(item.updatedAt)}</span>
-                </div>
-              </div>
-            </article>
-          `
-        )
-        .join("");
-
-      listEl.querySelectorAll(".conversation-card").forEach((card) => {
-        card.addEventListener("click", () => {
-          const id = card.getAttribute("data-id");
-          window.location.href = `/ai-agent/conversation.html?id=${id}`;
-        });
-      });
-
-      renderStats(filtered);
-    }
-
-    const conversationsQuery = query(
-      collection(db, "ai_conversations"),
-      orderBy("updatedAt", "desc")
-    );
-
-    onSnapshot(conversationsQuery, (snapshot) => {
-      conversations = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      renderList();
-    });
-
-    statusFilter.addEventListener("change", renderList);
-    timeFilter.addEventListener("change", renderList);
-  </script>
 </body>
 </html>
