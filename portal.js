@@ -353,6 +353,7 @@ async function handleFeedbackSubmit(event) {
       message,
       customerName: customerName || null,
       customerEmail: customerEmail || null,
+      sentimentScore: Number((Number(rating || 0) - 3).toFixed(2)),
       type: "private",
       source: "portal",
       createdAt: serverTimestamp(),

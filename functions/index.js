@@ -51,11 +51,16 @@ exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
       subject,
       text,
       html,
+      businessId,
+      customerId,
     } = req.body || {};
 
     // איחוד שדות
     const email = customerEmail || to;
     const portal = portalUrl || portalLink;
+
+    const customerIdentifier =
+      customerId || email || req.body?.customerPhone || "anonymous";
 
     const safeBusinessName = businessName || "our business";
     const safeCustomerName = customerName || "there";
@@ -67,6 +72,20 @@ exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
         body: req.body,
       });
       return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    if (businessId && customerIdentifier) {
+      const stateRef = automationStateRef({
+        businessId,
+        customerIdentifier,
+      });
+      const stateSnap = stateRef ? await stateRef.get() : null;
+      const existingState = stateSnap?.data()?.automationState;
+      if (existingState === AUTOMATION_STATES.IN_AI) {
+        return res.status(409).json({
+          error: "Customer is currently in an AI conversation. Suppressing invite.",
+        });
+      }
     }
 
     // אם אין subject / text / html – נבנה אותם לבד
@@ -133,6 +152,19 @@ exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
     await sgMail.send(msg);
 
     console.log("Email sent successfully");
+
+    if (businessId && customerIdentifier) {
+      await setAutomationState({
+        businessId,
+        customerIdentifier,
+        state: AUTOMATION_STATES.WAITING,
+        extra: {
+          portalUrl: portal,
+          lastInviteChannel: "email",
+        },
+      });
+    }
+
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error("SendGrid error", err);
@@ -144,6 +176,40 @@ const db = admin.firestore();
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const GOOGLE_REVIEW_LINK =
   process.env.GOOGLE_REVIEW_LINK || "https://g.page/reviewresq";
+
+const AUTOMATION_STATES = {
+  IDLE: "idle",
+  WAITING: "waiting_for_feedback",
+  IN_AI: "in_ai_conversation",
+  POSITIVE_DONE: "positive_flow_completed",
+  RESOLVED: "resolved_flow_completed",
+};
+
+function automationStateRef({ businessId, customerIdentifier }) {
+  if (!businessId || !customerIdentifier) return null;
+  const docId = `${businessId}_${customerIdentifier}`;
+  return db.collection("automationStates").doc(docId);
+}
+
+async function setAutomationState({
+  businessId,
+  customerIdentifier,
+  state,
+  extra = {},
+}) {
+  const ref = automationStateRef({ businessId, customerIdentifier });
+  if (!ref) return null;
+  const payload = {
+    businessId,
+    customerIdentifier,
+    automationState: state,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    ...extra,
+  };
+
+  await ref.set(payload, { merge: true });
+  return ref;
+}
 
 const CATEGORIES = {
   SERVICE_DELAY: "Service delay",
@@ -266,12 +332,67 @@ async function sendAiResponseToCustomer({
   }
 }
 
+async function sendPositiveThankYou({
+  email,
+  phone,
+  customerName,
+  businessName,
+  googleReviewLink,
+}) {
+  const message =
+    "Thank you for your feedback! We appreciate you taking the time to share your experience. " +
+    `If you have a moment, we'd love a public review here: ${googleReviewLink}.`;
+
+  if (email && process.env.SENDGRID_API_KEY) {
+    try {
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      await sgMail.send({
+        to: email,
+        from: "support@reviewresq.com",
+        subject: "Thank you for your feedback",
+        text: message,
+        html: `<p>Hi ${customerName || "there"},</p><p>${message}</p>`,
+      });
+    } catch (err) {
+      console.error("Failed to send positive thank-you", err);
+    }
+  } else if (phone) {
+    console.log("SMS delivery placeholder", { phone, message });
+  } else {
+    console.log("No delivery channel for thank-you", { customerName, businessName });
+  }
+}
+
 function isNegativeFeedback(feedbackData = {}) {
   const rating = Number(feedbackData.rating || 0);
   if (rating && rating <= 3) return true;
   const text = (feedbackData.message || feedbackData.feedback || "").toLowerCase();
   return ["bad", "poor", "terrible", "awful", "horrible", "angry"].some((word) =>
     text.includes(word)
+  );
+}
+
+function deriveSentimentScore(feedbackData = {}) {
+  if (typeof feedbackData.sentimentScore === "number") {
+    return feedbackData.sentimentScore;
+  }
+
+  const rating = Number(feedbackData.rating || 0);
+  if (rating) {
+    return Number((rating - 3).toFixed(2));
+  }
+
+  return 0;
+}
+
+function deriveCustomerIdentifier(feedbackData = {}) {
+  return (
+    feedbackData.customerId ||
+    feedbackData.customerEmail ||
+    feedbackData.customerPhone ||
+    feedbackData.phone ||
+    feedbackData.email ||
+    null
   );
 }
 
@@ -332,20 +453,129 @@ async function createConversationFromFeedback(feedbackData, feedbackId) {
   return ref.id;
 }
 
-exports.onNegativePortalFeedback = functions.firestore
+async function handlePositiveFeedback({ feedback, feedbackRef, feedbackId }) {
+  const googleLink = feedback.googleReviewLink || GOOGLE_REVIEW_LINK;
+  await sendPositiveThankYou({
+    email: feedback.customerEmail,
+    phone: feedback.customerPhone || feedback.phone,
+    customerName: feedback.customerName,
+    businessName: feedback.businessName,
+    googleReviewLink: googleLink,
+  });
+
+  const identifier =
+    deriveCustomerIdentifier(feedback) || feedback.customerName || feedbackId;
+
+  await setAutomationState({
+    businessId: feedback.businessId,
+    customerIdentifier: identifier,
+    state: AUTOMATION_STATES.POSITIVE_DONE,
+    extra: { feedbackId },
+  });
+
+  await feedbackRef.set(
+    {
+      automationState: AUTOMATION_STATES.POSITIVE_DONE,
+      sentimentScore: deriveSentimentScore(feedback),
+      googleReviewLink: googleLink,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function handleNegativeFeedback({ feedback, feedbackRef, feedbackId }) {
+  const identifier =
+    deriveCustomerIdentifier(feedback) || feedback.customerName || feedbackId;
+
+  const existing = await db
+    .collection("ai_conversations")
+    .where("sourceFeedbackId", "==", feedbackId)
+    .limit(1)
+    .get();
+
+  if (!existing.empty) {
+    await setAutomationState({
+      businessId: feedback.businessId,
+      customerIdentifier: identifier,
+      state: AUTOMATION_STATES.IN_AI,
+      extra: { feedbackId },
+    });
+    await feedbackRef.set(
+      {
+        automationState: AUTOMATION_STATES.IN_AI,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return existing.docs[0].id;
+  }
+
+  const conversationId = await createConversationFromFeedback(
+    { ...feedback, businessId: feedback.businessId },
+    feedbackId
+  );
+
+  await setAutomationState({
+    businessId: feedback.businessId,
+    customerIdentifier: identifier,
+    state: AUTOMATION_STATES.IN_AI,
+    extra: { feedbackId },
+  });
+
+  await feedbackRef.set(
+    {
+      automationState: AUTOMATION_STATES.IN_AI,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  return conversationId;
+}
+
+exports.onPortalFeedback = functions.firestore
   .document("businessProfiles/{businessId}/feedback/{feedbackId}")
   .onCreate(async (snap, context) => {
-    const data = snap.data();
-    if (!data || !isNegativeFeedback(data)) {
-      return null;
+    const data = snap.data() || {};
+    const businessId = context.params.businessId;
+    const feedbackId = context.params.feedbackId;
+    const feedbackRef = snap.ref;
+
+    const rating = Number(data.rating || 0);
+    const sentimentScore = deriveSentimentScore(data);
+
+    const baseMerge = {};
+    if (typeof data.sentimentScore !== "number") {
+      baseMerge.sentimentScore = sentimentScore;
+    }
+    if (!data.businessId) baseMerge.businessId = businessId;
+    if (!data.createdAt) baseMerge.createdAt = admin.firestore.FieldValue.serverTimestamp();
+
+    if (Object.keys(baseMerge).length) {
+      await feedbackRef.set(baseMerge, { merge: true });
     }
 
-    const conversationId = await createConversationFromFeedback(
-      { ...data, businessId: context.params.businessId },
-      context.params.feedbackId
-    );
+    const isPositive = rating >= 4 || sentimentScore > 0;
+    const isNegativeOrNeutral = rating <= 3 || sentimentScore <= 0;
 
-    return conversationId;
+    if (isPositive) {
+      return handlePositiveFeedback({
+        feedback: { ...data, sentimentScore, businessId },
+        feedbackRef,
+        feedbackId,
+      });
+    }
+
+    if (isNegativeOrNeutral) {
+      return handleNegativeFeedback({
+        feedback: { ...data, sentimentScore, businessId },
+        feedbackRef,
+        feedbackId,
+      });
+    }
+
+    return null;
   });
 
 exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
@@ -426,3 +656,48 @@ exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
     sentiment: aiResponse.sentiment,
   });
 });
+
+exports.onAiConversationResolved = functions.firestore
+  .document("ai_conversations/{conversationId}")
+  .onUpdate(async (change, context) => {
+    const beforeStatus = change.before.data()?.status;
+    const afterStatus = change.after.data()?.status;
+
+    if (beforeStatus === afterStatus || afterStatus !== "resolved") return null;
+
+    const conversation = change.after.data();
+    const feedbackId = conversation.sourceFeedbackId;
+    const businessId = conversation.businessId;
+    const customerIdentifier =
+      deriveCustomerIdentifier(conversation) || feedbackId || context.params.conversationId;
+
+    if (!businessId || !customerIdentifier) return null;
+
+    const googleLink =
+      conversation.googleReviewLink || conversation.reviewLink || GOOGLE_REVIEW_LINK;
+    const message =
+      "Glad we could resolve this for you. If you’re now happy with the service, " +
+      `you can leave a public Google review here: ${googleLink}`;
+
+    await sendAiResponseToCustomer({
+      email: conversation.customerEmail,
+      phone: conversation.customerPhone,
+      customerName: conversation.customerName,
+      aiMessage: message,
+    });
+
+    await setAutomationState({
+      businessId,
+      customerIdentifier,
+      state: AUTOMATION_STATES.RESOLVED,
+      extra: { feedbackId, conversationId: context.params.conversationId },
+    });
+
+    return change.after.ref.set(
+      {
+        automationState: AUTOMATION_STATES.RESOLVED,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
