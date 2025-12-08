@@ -17,6 +17,7 @@ import {
   getDocs,
   limit,
   serverTimestamp,
+  uploadLogoAndGetURL,
 } from "./firebase-config.js";
 
 const SEND_REVIEW_FUNCTION_URL =
@@ -145,11 +146,12 @@ function updateSidebarUserInfo(user) {
 }
 
 async function safeLoad(loader, label) {
+  const name = label || loader?.name || "Loader";
   try {
     return await loader();
   } catch (err) {
-    console.error(`${label || "Loader"} error:`, err);
-    showBanner(NON_BLOCKING_MESSAGE, "warn");
+    console.error(`[safeLoad:${name}]`, err);
+    showBanner(`${NON_BLOCKING_MESSAGE} (${name})`, "warn");
     return null;
   }
 }
@@ -398,6 +400,11 @@ const prefDaily = document.getElementById("prefDaily");
 const prefWeekly = document.getElementById("prefWeekly");
 const prefSmsLow = document.getElementById("prefSmsLow");
 const prefSmsHigh = document.getElementById("prefSmsHigh");
+const logoUploadInput = document.getElementById("logoUploadInput");
+const logoPreviewImg = document.getElementById("logoPreviewImg");
+const logoPreviewFallback = document.getElementById("logoPreviewFallback");
+const saveLogoBtn = document.getElementById("saveLogoBtn");
+const logoHelperText = document.getElementById("logoHelperText");
 
 // Review requests
 const reviewRequestForm = document.getElementById("reviewRequestForm");
@@ -422,11 +429,14 @@ const portalPreviewFrame = document.getElementById("portalPreviewFrame");
 // ---------- STATE ----------
 let currentUser = null;
 let currentProfile = null;
+let currentPortalSettings = null;
+let currentLogoUrl = "";
 let feedbackCache = [];
 let automationCache = [];
 let selectedAutomationId = "";
 let taskCache = [];
 let currentModalFeedback = null;
+let pendingLogoFile = null;
 
 const DEFAULT_AUTOMATION_PREVIEW = "Preview will appear here.";
 
@@ -659,6 +669,50 @@ function formatRating(rating) {
   return rating ? `${rating}★` : "–";
 }
 
+function applyBusinessBranding() {
+  const initials = initialsFromName(currentProfile?.businessName || "RR");
+  const logoAlt = `${currentProfile?.businessName || "Business"} logo`;
+
+  [bizAvatar, heroAvatar].forEach((avatar) => {
+    if (!avatar) return;
+
+    if (currentLogoUrl) {
+      avatar.innerHTML = `<img src="${currentLogoUrl}" alt="${logoAlt}" class="avatar-img" />`;
+      avatar.classList.add("has-logo");
+    } else {
+      avatar.textContent = initials;
+      avatar.classList.remove("has-logo");
+    }
+  });
+}
+
+function updateLogoPreview(overrideUrl) {
+  const previewUrl = overrideUrl || currentLogoUrl;
+  const initials = initialsFromName(currentProfile?.businessName || "RR");
+
+  if (logoPreviewImg) {
+    if (previewUrl) {
+      logoPreviewImg.src = previewUrl;
+      logoPreviewImg.alt = `${currentProfile?.businessName || "Business"} logo`;
+      logoPreviewImg.style.display = "block";
+    } else {
+      logoPreviewImg.removeAttribute("src");
+      logoPreviewImg.style.display = "none";
+    }
+  }
+
+  if (logoPreviewFallback) {
+    logoPreviewFallback.textContent = initials;
+    logoPreviewFallback.style.display = previewUrl ? "none" : "flex";
+  }
+
+  if (logoHelperText) {
+    logoHelperText.textContent = previewUrl
+      ? "This logo appears in your dashboard header and customer portal."
+      : "Upload a PNG, JPG, or SVG up to 2MB.";
+  }
+}
+
 function sentimentFromRating(rating) {
   if (!rating) return 0;
   if (rating <= 2) return -0.7;
@@ -705,15 +759,20 @@ async function loadDashboard(user) {
     currentUser = user;
     updateSidebarUserInfo(user);
 
-    await safeLoad(() => loadBusinessForCurrentUser(user.uid), "loadBusinessForCurrentUser");
+    const primaryLoaders = [
+      ["loadBusinessForCurrentUser", () => loadBusinessForCurrentUser(user.uid)],
+      ["loadProfile", loadProfile],
+      ["loadAutomations", loadAutomations],
+      ["loadFeedback", loadFeedback],
+    ];
+
+    for (const [label, fn] of primaryLoaders) {
+      const result = await safeLoad(fn, label);
+      if (label === "loadProfile" && result === false) return;
+    }
+
     updateSidebarUserInfo(user);
     applyPlanToUI(currentPlan);
-
-    const canContinue = await safeLoad(() => loadProfile(), "loadProfile");
-    if (canContinue === false) return;
-
-    await safeLoad(() => loadAutomations(), "loadAutomations");
-    await safeLoad(() => loadFeedback(), "loadFeedback");
     updatePortalPreviewSrc();
 
     const loaders = [
@@ -724,13 +783,9 @@ async function loadDashboard(user) {
       ["loadPortalSettings", loadPortalSettings],
     ];
 
-    const results = await Promise.allSettled(loaders.map(([, fn]) => fn()));
-    results.forEach((res, idx) => {
-      if (res.status === "rejected") {
-        console.error(`${loaders[idx][0]} error:`, res.reason);
-        showBanner(NON_BLOCKING_MESSAGE, "warn");
-      }
-    });
+    await Promise.allSettled(
+      loaders.map(([label, fn]) => safeLoad(fn, label))
+    );
   } catch (err) {
     console.error("Dashboard init error:", err);
     showBanner("We had trouble loading your dashboard.", "warn");
@@ -769,13 +824,17 @@ async function loadProfile() {
 
     const data = snap.data();
     currentProfile = data;
+    if (!currentLogoUrl) {
+      currentLogoUrl =
+        data.businessLogoUrl || data.logoUrl || data.logoDataUrl || "";
+    }
 
     if (bizNameDisplay) bizNameDisplay.textContent = data.businessName || "Your business";
     if (bizNameHeading) bizNameHeading.textContent = data.businessName || "Your business";
     if (bizCategoryText) bizCategoryText.textContent = data.category || "Category";
     if (bizUpdatedAt) bizUpdatedAt.textContent = formatDate(data.updatedAt);
-    if (bizAvatar) bizAvatar.textContent = initialsFromName(data.businessName || "RR");
-    if (heroAvatar) heroAvatar.textContent = initialsFromName(data.businessName || "RR");
+    applyBusinessBranding();
+    updateLogoPreview();
     if (planBadge)
       planBadge.textContent =
         currentPlan === "advanced" ? "Advanced plan" : "Basic plan";
@@ -1176,6 +1235,7 @@ async function loadAiInsights() {
     if (aiSummary) {
       aiSummary.textContent = "Insights are not available right now.";
     }
+    throw err;
   }
 }
 
@@ -1791,6 +1851,7 @@ async function loadAutomations() {
     renderAutomations();
   } catch (err) {
     console.error("loadAutomations error:", err);
+    throw err;
   }
 }
 
@@ -1967,6 +2028,7 @@ async function loadTasks() {
     renderTasks();
   } catch (err) {
     console.error("loadTasks error:", err);
+    throw err;
   }
 }
 
@@ -2145,6 +2207,55 @@ notificationForm?.addEventListener("submit", async (e) => {
     showBanner("Notification preferences saved", "success");
   } catch (err) {
     console.error("save notificationPrefs error:", err);
+    showBanner("Could not save notification preferences.", "warn");
+  }
+});
+
+// ---------- BUSINESS LOGO ----------
+
+logoUploadInput?.addEventListener("change", (e) => {
+  pendingLogoFile = e.target.files?.[0] || null;
+  if (pendingLogoFile) {
+    const objectUrl = URL.createObjectURL(pendingLogoFile);
+    updateLogoPreview(objectUrl);
+    if (logoHelperText)
+      logoHelperText.textContent = "Ready to upload. Click Save logo.";
+  } else {
+    updateLogoPreview();
+  }
+});
+
+saveLogoBtn?.addEventListener("click", async () => {
+  if (!currentUser) return;
+  if (!pendingLogoFile) {
+    showBanner("Choose an image before saving.", "warn");
+    return;
+  }
+
+  saveLogoBtn.disabled = true;
+  const originalText = saveLogoBtn.textContent;
+  saveLogoBtn.textContent = "Saving…";
+
+  try {
+    const url = await uploadLogoAndGetURL(pendingLogoFile, currentUser.uid);
+    await setDoc(
+      doc(db, "portalSettings", currentUser.uid),
+      { businessLogoUrl: url, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+
+    currentLogoUrl = url;
+    pendingLogoFile = null;
+    updateLogoPreview();
+    applyBusinessBranding();
+    logoUploadInput.value = "";
+    showBanner("Logo updated successfully.", "success");
+  } catch (err) {
+    console.error("logo upload error:", err);
+    showBanner("Could not upload logo right now.", "warn");
+  } finally {
+    saveLogoBtn.disabled = false;
+    saveLogoBtn.textContent = originalText;
   }
 });
 
@@ -2172,6 +2283,7 @@ async function loadNotifications() {
       prefWeekly.checked = !!(d.emailWeeklySummary ?? d.weeklySummaryEmail);
   } catch (err) {
     console.error("loadNotifications error:", err);
+    throw err;
   }
 }
 
@@ -2195,6 +2307,11 @@ async function loadPortalSettings() {
           thankYouBody: "We appreciate you taking the time to help us improve.",
         };
 
+    currentPortalSettings = data;
+    if (data.businessLogoUrl) {
+      currentLogoUrl = data.businessLogoUrl;
+    }
+
     if (portalPrimary) portalPrimary.value = data.primaryColor || "#2563eb";
     if (portalAccent) portalAccent.value = data.accentColor || "#7c3aed";
     if (portalBackground)
@@ -2205,9 +2322,12 @@ async function loadPortalSettings() {
     if (portalCtaLow) portalCtaLow.value = data.ctaLabelLowRating || "";
     if (portalThanksTitle) portalThanksTitle.value = data.thankYouTitle || "";
     if (portalThanksBody) portalThanksBody.value = data.thankYouBody || "";
+    updateLogoPreview();
+    applyBusinessBranding();
     applyPortalPreviewStyling();
   } catch (err) {
     console.error("loadPortalSettings error:", err);
+    throw err;
   }
 }
 
@@ -2291,6 +2411,7 @@ if (reviewRequestForm) {
     const businessName =
       (currentProfile && currentProfile.businessName) || bizName || "your business";
     const businessLogoUrl =
+      currentLogoUrl ||
       (currentProfile && (currentProfile.logoUrl || currentProfile.logoDataUrl)) ||
       "";
 
@@ -2489,6 +2610,7 @@ async function loadReviewRequests() {
     });
   } catch (err) {
     console.error("loadReviewRequests error:", err);
+    throw err;
   }
 }
 
