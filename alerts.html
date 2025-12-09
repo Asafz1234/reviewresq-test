@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Alerts & Notifications</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="stripe-dashboard.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Dashboard</div>
+        <a class="nav-tab" data-route="overview" href="overview.html">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="feedback.html">Customer Feedback</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html">Review Funnel</a>
+        <a class="nav-tab" data-route="links" href="links.html">Review Links</a>
+        <a class="nav-tab" data-route="alerts" href="alerts.html">Alerts &amp; Notifications</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html">AI Phone Agent</a>
+        <a class="nav-tab" data-route="account" href="billing.html">Account &amp; Billing</a>
+      </div>
+    </aside>
+
+    <div class="page-surface">
+      <header class="topbar">
+        <div class="topbar-title">Alerts & Notifications</div>
+        <div class="topbar-right">
+          <a id="planBadge" class="plan-chip" href="account.html">Pro AI Suite</a>
+          <div class="profile">RQ</div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <header class="page-header">
+          <h1 class="page-title">Alerts & Notifications</h1>
+          <p class="page-subtitle">Choose what alerts you receive.</p>
+        </header>
+
+        <section class="card large-card stack">
+          <div class="toggle-row">
+            <div class="toggle-label">
+              <strong>Email: New private feedback</strong>
+              <span class="section-subtitle">Get notified when someone submits private feedback.</span>
+            </div>
+            <div class="switch" data-active="true"></div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-label">
+              <strong>Email: New Google review</strong>
+              <span class="section-subtitle">Alert the team every time a public Google review is synced.</span>
+            </div>
+            <div class="switch" data-active="true"></div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-label">
+              <strong>SMS: Negative feedback alert</strong>
+              <span class="section-subtitle">Send a text when someone reports a negative experience.</span>
+            </div>
+            <div class="switch" data-active="false"></div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-label">
+              <strong>Weekly summary</strong>
+              <span class="section-subtitle">Digest of reviews, replies, and funnel performance.</span>
+            </div>
+            <div class="switch" data-active="true"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="dashboard-nav.js"></script>
+</body>
+</html>

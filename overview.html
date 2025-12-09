@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Overview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="stripe-dashboard.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Dashboard</div>
+        <a class="nav-tab" data-route="overview" href="overview.html">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="feedback.html">Customer Feedback</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html">Review Funnel</a>
+        <a class="nav-tab" data-route="links" href="links.html">Review Links</a>
+        <a class="nav-tab" data-route="alerts" href="alerts.html">Alerts &amp; Notifications</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html">AI Phone Agent</a>
+        <a class="nav-tab" data-route="account" href="billing.html">Account &amp; Billing</a>
+      </div>
+    </aside>
+
+    <div class="page-surface">
+      <header class="topbar">
+        <div class="topbar-title">Overview</div>
+        <div class="topbar-right">
+          <a id="planBadge" class="plan-chip" href="account.html">Pro AI Suite</a>
+          <div class="profile" id="profileAvatar">RQ</div>
+        </div>
+      </header>
+
+      <main class="content-area" id="overview">
+        <header class="page-header">
+          <h1 class="page-title">Overview</h1>
+          <p class="page-subtitle">Your reputation performance at a glance.</p>
+        </header>
+
+        <section class="card large-card">
+          <div class="flex-between">
+            <div class="flex-between" style="gap: 14px; align-items: center;">
+              <div class="profile" id="heroAvatar">RQ</div>
+              <div class="stack" id="heroMeta">
+                <div class="section-title" id="heroBusinessName">Your business</div>
+                <div class="table-actions" style="gap:8px;">
+                  <span class="badge" id="heroStatusChip">Live</span>
+                  <span class="badge" id="heroIndustryChip">Local services</span>
+                </div>
+                <p class="section-subtitle" id="heroUpdatedText">Updated recently</p>
+              </div>
+            </div>
+            <div class="table-actions">
+              <select class="select" id="dateRangeSelect">
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+              </select>
+              <button class="btn btn-ghost" id="refreshOverview">Refresh insights</button>
+              <button class="btn btn-primary" id="askForReviews">Ask for reviews</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card large-card" data-feature="overview_ai_insights" data-lock-message="Advanced AI insights are part of Growth and Pro AI Suite.">
+          <div class="flex-between">
+            <div>
+              <p class="badge">AI Insight</p>
+              <h3 class="section-title" id="insightTitle">Sentiment improving</h3>
+              <p class="section-subtitle" id="insightText">Customers mention "fast response" and "great service" — keep momentum with follow-ups.</p>
+            </div>
+            <div class="chart-placeholder" style="width:200px; height:140px;">AI Trend</div>
+          </div>
+        </section>
+
+        <section class="grid-4">
+          <div class="card stat-card">
+            <h3>Average Google Rating</h3>
+            <p class="stat-value" id="kpiAvgSentiment">—</p>
+            <p class="stat-hint">Across recent public reviews</p>
+          </div>
+          <div class="card stat-card">
+            <h3>Total Google Reviews</h3>
+            <p class="stat-value" id="kpiTotalReviews">0</p>
+            <p class="stat-hint">Captured in your account</p>
+          </div>
+          <div class="card stat-card">
+            <h3>Positive Private Feedback</h3>
+            <p class="stat-value" id="kpiPositiveNegative">—</p>
+            <p class="stat-hint">Happy customers this period</p>
+            <p class="section-subtitle" style="margin:4px 0 0;">Conversion to Google: <span id="kpiConversionGoogle">—</span></p>
+          </div>
+          <div class="card stat-card">
+            <h3>Negative Private Feedback</h3>
+            <p class="stat-value" id="kpiPendingFollowups">0</p>
+            <p class="stat-hint">Items needing attention</p>
+          </div>
+        </section>
+
+        <section class="two-column">
+          <div class="card large-card">
+            <div class="card-header">
+              <div>
+                <h3 class="section-title">Reviews over time</h3>
+                <p class="section-subtitle">Line chart of daily activity</p>
+              </div>
+            </div>
+            <div id="reviewsChart" class="chart-placeholder">Loading chart…</div>
+          </div>
+          <div class="card large-card">
+            <div class="card-header">
+              <div>
+                <h3 class="section-title">Rating breakdown</h3>
+                <p class="section-subtitle">Recent distribution</p>
+              </div>
+            </div>
+            <div class="stack">
+              <div class="list-item" data-rating-row="5"><span>5★</span><strong id="rating5">0%</strong></div>
+              <div class="list-item" data-rating-row="4"><span>4★</span><strong id="rating4">0%</strong></div>
+              <div class="list-item" data-rating-row="3"><span>3★</span><strong id="rating3">0%</strong></div>
+              <div class="list-item" data-rating-row="2"><span>2★</span><strong id="rating2">0%</strong></div>
+              <div class="list-item" data-rating-row="1"><span>1★</span><strong id="rating1">0%</strong></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card large-card" data-feature="overview_ai_insights" data-lock-message="AI-powered guidance unlocks on Growth and Pro AI Suite.">
+          <div class="card-header">
+            <div>
+              <h3 class="section-title">Guidance</h3>
+              <p class="section-subtitle">What to do next — AI-powered suggestions</p>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="list-item">
+              <div>
+                <div class="section-title">Reply to 3 unhappy customers</div>
+                <p class="section-subtitle">Tackle the latest low-star feedback to turn them around.</p>
+              </div>
+              <button class="btn btn-secondary" id="guidanceInbox">Open inbox</button>
+            </div>
+            <div class="list-item">
+              <div>
+                <div class="section-title">Send follow-up to 2 people who left 4★</div>
+                <p class="section-subtitle">Invite happy customers to share their experience on Google.</p>
+              </div>
+              <button class="btn btn-secondary" id="guidanceFollowups">View follow-ups</button>
+            </div>
+            <div class="list-item">
+              <div>
+                <div class="section-title">Schedule a reminder campaign</div>
+                <p class="section-subtitle">Automate requests for recent jobs to keep reviews flowing.</p>
+              </div>
+              <button class="btn btn-secondary" id="guidanceAutomations">Open automations</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card large-card">
+          <div class="card-header">
+            <div>
+              <h3 class="section-title">Recent activity</h3>
+              <p class="section-subtitle">Latest updates across reviews and feedback</p>
+            </div>
+            <a class="inline-link" href="#">View All Activity →</a>
+          </div>
+          <div class="list-divider">
+            <div class="list-item">
+              <div class="stack">
+                <div class="section-title">New Google review synced</div>
+                <p class="section-subtitle">5★ from Alex on March 12</p>
+              </div>
+              <span class="tag">Google</span>
+            </div>
+            <div class="list-item">
+              <div class="stack">
+                <div class="section-title">Private feedback received</div>
+                <p class="section-subtitle">Customer mentioned "quick response"</p>
+              </div>
+              <span class="tag">Private</span>
+            </div>
+            <div class="list-item">
+              <div class="stack">
+                <div class="section-title">Follow-up scheduled</div>
+                <p class="section-subtitle">Reminder to request Google review</p>
+              </div>
+              <span class="tag">Automation</span>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="topbar-menu.js"></script>
+  <script type="module" src="dashboard-overview.js"></script>
+  <script src="dashboard-nav.js"></script>
+</body>
+</html>
