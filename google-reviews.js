@@ -8,6 +8,7 @@ import {
   orderBy,
   getDocs,
 } from "./firebase-config.js";
+import { PLAN_LABELS, normalizePlan, upgradeTargetForFeature } from "./plan-capabilities.js";
 import { formatDate, hasPlanFeature, listenForUser } from "./session-data.js";
 
 const statusFilter = document.getElementById("statusFilter");
@@ -16,9 +17,15 @@ const searchFilter = document.getElementById("searchFilter");
 const reviewList = document.getElementById("reviewList");
 const emptyState = document.getElementById("emptyState");
 const syncReviewsBtn = document.getElementById("syncReviewsBtn");
+const heroSync = document.getElementById("heroSync");
+const aiUpsellPanel = document.getElementById("aiUpsellPanel");
+const aiAccessPanel = document.getElementById("aiAccessPanel");
+const pageRoot = document.getElementById("google-reviews") || document.getElementById("google-reviews-root");
 
 let reviews = [];
 let allowAutoReply = false;
+let upgradeTarget = "growth";
+let primaryIndexError = false;
 
 const statusMap = {
   none: { label: "Needs reply", tone: "badge-warning" },
@@ -52,13 +59,21 @@ function normalizeReview(raw) {
 
 async function fetchFeedback(uid) {
   const results = [];
+  primaryIndexError = false;
+  if (pageRoot) pageRoot.removeAttribute("data-error");
+  let primaryError = null;
   try {
     const baseRef = collection(db, "feedback");
+    // Index requirement: feedback where businessId == uid AND source == "google" ordered by createdAt desc.
+    // Composite index fields: businessId (ASC), source (ASC), createdAt (DESC).
     const q = query(baseRef, where("businessId", "==", uid), where("source", "==", "google"), orderBy("createdAt", "desc"));
     const snap = await getDocs(q);
     snap.forEach((doc) => results.push({ id: doc.id, ...doc.data() }));
   } catch (err) {
-    console.warn("[google-reviews] primary fetch failed", err);
+    primaryError = err;
+    primaryIndexError =
+      err && err.code === "failed-precondition" && String(err.message || "").includes("requires an index");
+    console.error("[google-reviews] primary fetch failed", err);
   }
 
   try {
@@ -75,6 +90,21 @@ async function fetchFeedback(uid) {
   }
 
   reviews = results.map(normalizeReview);
+
+  if (!reviews.length && primaryError) {
+    const isIndexError = primaryIndexError;
+    renderFriendlyError(
+      isIndexError
+        ? {
+            title: "We’re setting up your Google reviews",
+            message: "Please try again in a few minutes. If this keeps happening, reach out to support.",
+          }
+        : {
+            title: "Couldn’t load Google reviews",
+            message: "Please refresh the page or try again later.",
+          }
+    );
+  }
 }
 
 function buildActions(review) {
@@ -87,20 +117,29 @@ function buildActions(review) {
     return btn;
   };
 
-  const gatedHandler = (handler) => () => {
-    if (!allowAutoReply) {
-      alert("AI auto-reply to Google reviews is available on the Growth plan and above. Upgrade to enable it.");
-      window.location.href = "account.html";
-      return;
-    }
-    handler();
+  const lockedButton = (label) => {
+    const btn = document.createElement("button");
+    btn.className = "btn btn-primary btn-disabled";
+    btn.textContent = label;
+    btn.disabled = true;
+    btn.setAttribute("aria-disabled", "true");
+    btn.title = "AI auto-replies to Google reviews are available on Growth and Pro AI Suite.";
+    return btn;
   };
 
   if (review.replyStatus === "none") {
-    buttons.push(button("Generate reply", "btn-secondary", gatedHandler(() => showToast("Generating reply…"))));
+    buttons.push(
+      allowAutoReply
+        ? button("Generate reply", "btn-secondary", () => showToast("Generating reply…"))
+        : lockedButton("AI reply (Growth)")
+    );
   } else if (review.replyStatus === "draft") {
-    buttons.push(button("Approve & Send", "btn-primary", gatedHandler(() => showToast("Reply sent"))));
-    buttons.push(button("Regenerate", "btn-secondary", gatedHandler(() => showToast("Regenerating…"))));
+    if (allowAutoReply) {
+      buttons.push(button("Approve & Send", "btn-primary", () => showToast("Reply sent")));
+      buttons.push(button("Regenerate", "btn-secondary", () => showToast("Regenerating…")));
+    } else {
+      buttons.push(lockedButton("AI reply (Growth)"));
+    }
   } else if (review.replyStatus === "auto_sent" || review.replyStatus === "manual_sent") {
     buttons.push(button("View reply", "btn-secondary", () => showToast("Reply already sent")));
   }
@@ -113,6 +152,11 @@ function buildActions(review) {
 }
 
 function renderReviews() {
+  if (pageRoot?.dataset.error === "true" && !reviews.length) {
+    emptyState.style.display = "none";
+    return;
+  }
+
   reviewList.innerHTML = "";
 
   const filtered = reviews.filter((review) => {
@@ -174,6 +218,44 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 2600);
 }
 
+function renderFriendlyError({ title, message }) {
+  if (!reviewList) return;
+  emptyState.style.display = "none";
+  const card = document.createElement("div");
+  card.className = "card rr-empty-state";
+  card.innerHTML = `
+    <h3 class="section-title">${title}</h3>
+    <p class="card-sub">${message}</p>
+  `;
+  reviewList.innerHTML = "";
+  reviewList.appendChild(card);
+  if (pageRoot) pageRoot.dataset.error = "true";
+}
+
+function renderAiPanels(planId) {
+  const normalizedPlan = normalizePlan(planId || "starter");
+  upgradeTarget = upgradeTargetForFeature("aiAutoReplyGoogle") || "growth";
+
+  if (!aiUpsellPanel || !aiAccessPanel) return;
+  const upgradeCta = aiUpsellPanel.querySelector(".btn-primary");
+  if (upgradeCta) {
+    upgradeCta.textContent = `Upgrade to ${PLAN_LABELS[upgradeTarget] || PLAN_LABELS.growth}`;
+  }
+
+  if (allowAutoReply) {
+    aiUpsellPanel.style.display = "none";
+    aiAccessPanel.style.display = "flex";
+    return;
+  }
+
+  aiUpsellPanel.style.display = "flex";
+  aiAccessPanel.style.display = "none";
+  aiUpsellPanel.querySelector(".card-title").textContent =
+    normalizedPlan === "starter"
+      ? "AI auto-replies are available on Growth and Pro AI Suite."
+      : "AI auto-replies unlock with your next plan upgrade.";
+}
+
 function wireFilters() {
   statusFilter?.addEventListener("change", renderReviews);
   ratingFilter?.addEventListener("change", renderReviews);
@@ -184,6 +266,11 @@ function wireFilters() {
       await fetchFeedback(currentUser.uid);
       renderReviews();
     }
+  });
+
+  heroSync?.addEventListener("click", (event) => {
+    event.preventDefault();
+    syncReviewsBtn?.click();
   });
 }
 
@@ -201,5 +288,8 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 listenForUser(({ subscription }) => {
+  const normalizedPlan = normalizePlan(subscription?.planId || "starter");
   allowAutoReply = hasPlanFeature("aiAutoReplyGoogle");
+  renderAiPanels(normalizedPlan);
+  renderReviews();
 });
