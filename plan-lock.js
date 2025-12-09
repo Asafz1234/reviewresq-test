@@ -87,7 +87,8 @@ function bindUpgradeModalEvents(modal) {
   ctaButtons.forEach((btn) => {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
-      window.location.href = UPGRADE_PATH;
+      const planTarget = btn.dataset.planCta;
+      window.location.href = planTarget ? `${UPGRADE_PATH}?plan=${planTarget}` : UPGRADE_PATH;
     });
   });
 }
