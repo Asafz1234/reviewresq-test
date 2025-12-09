@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Account & Billing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="stripe-dashboard.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Dashboard</div>
+        <a class="nav-tab" data-route="overview" href="overview.html">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="feedback.html">Customer Feedback</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html">Review Funnel</a>
+        <a class="nav-tab" data-route="links" href="links.html">Review Links</a>
+        <a class="nav-tab" data-route="alerts" href="alerts.html">Alerts &amp; Notifications</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html">AI Phone Agent</a>
+        <a class="nav-tab" data-route="account" href="billing.html">Account &amp; Billing</a>
+      </div>
+    </aside>
+
+    <div class="page-surface">
+      <header class="topbar">
+        <div class="topbar-title">Account & Billing</div>
+        <div class="topbar-right">
+          <a id="planBadge" class="plan-chip" href="account.html">Pro AI Suite</a>
+          <div class="profile">RQ</div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <header class="page-header">
+          <h1 class="page-title">Account & Billing</h1>
+          <p class="page-subtitle">Manage plan, payment method, and invoices.</p>
+        </header>
+
+        <section class="cards-row">
+          <div class="card large-card">
+            <h3 class="section-title">Current Plan</h3>
+            <p class="section-subtitle">Pro AI Suite • $149/mo billed monthly</p>
+            <div class="table-actions">
+              <button class="btn btn-primary">Upgrade</button>
+              <button class="btn btn-ghost">View plan details</button>
+            </div>
+          </div>
+          <div class="card large-card">
+            <h3 class="section-title">Payment Method</h3>
+            <p class="section-subtitle">Visa •••• 4242 · Expires 08/28</p>
+            <div class="table-actions">
+              <button class="btn btn-secondary">Update card</button>
+              <button class="btn btn-ghost">Add backup</button>
+            </div>
+          </div>
+          <div class="card large-card">
+            <h3 class="section-title">Invoice History</h3>
+            <p class="section-subtitle">Download PDFs of recent invoices.</p>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Mar 1, 2025</td>
+                  <td>$149.00</td>
+                  <td><span class="badge">Paid</span></td>
+                  <td><a class="inline-link" href="#">Download</a></td>
+                </tr>
+                <tr>
+                  <td>Feb 1, 2025</td>
+                  <td>$149.00</td>
+                  <td><span class="badge">Paid</span></td>
+                  <td><a class="inline-link" href="#">Download</a></td>
+                </tr>
+                <tr>
+                  <td>Jan 1, 2025</td>
+                  <td>$149.00</td>
+                  <td><span class="badge">Paid</span></td>
+                  <td><a class="inline-link" href="#">Download</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="dashboard-nav.js"></script>
+</body>
+</html>

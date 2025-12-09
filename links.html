@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Review Links</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="stripe-dashboard.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Dashboard</div>
+        <a class="nav-tab" data-route="overview" href="overview.html">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="feedback.html">Customer Feedback</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html">Review Funnel</a>
+        <a class="nav-tab" data-route="links" href="links.html">Review Links</a>
+        <a class="nav-tab" data-route="alerts" href="alerts.html">Alerts &amp; Notifications</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html">AI Phone Agent</a>
+        <a class="nav-tab" data-route="account" href="billing.html">Account &amp; Billing</a>
+      </div>
+    </aside>
+
+    <div class="page-surface">
+      <header class="topbar">
+        <div class="topbar-title">Review Links</div>
+        <div class="topbar-right">
+          <a id="planBadge" class="plan-chip" href="account.html">Pro AI Suite</a>
+          <div class="profile">RQ</div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <header class="page-header">
+          <h1 class="page-title">Review Links</h1>
+          <p class="page-subtitle">Shareable links and QR codes for your public review experiences.</p>
+        </header>
+
+        <section class="cards-row">
+          <div class="card large-card">
+            <h3 class="section-title">Google Review Link</h3>
+            <p class="section-subtitle">Send happy customers straight to Google.</p>
+            <div class="link-row">
+              <input class="input" type="text" value="https://reviewresq.app/g/google-business" readonly />
+              <button class="btn btn-secondary">Copy Link</button>
+            </div>
+          </div>
+          <div class="card large-card">
+            <h3 class="section-title">Public Funnel Link</h3>
+            <p class="section-subtitle">Your branded review funnel for all customers.</p>
+            <div class="stack">
+              <div class="link-row">
+                <input class="input" type="text" value="https://reviewresq.app/f/your-business" readonly />
+                <button class="btn btn-secondary">Copy Link</button>
+              </div>
+              <div class="qr-actions">
+                <button class="btn btn-ghost">Download QR Code</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="dashboard-nav.js"></script>
+</body>
+</html>

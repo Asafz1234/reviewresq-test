@@ -4,178 +4,706 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ReviewResQ – Business Dashboard</title>
-  <link
-    rel="icon"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
-  />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
-  <link rel="stylesheet" href="dashboard-modern.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="stripe-dashboard.css" />
+  <style>
+    .page-eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .hero-row {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .hero-card {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      padding: 22px;
+    }
+
+    .hero-meta {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .hero-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #2563eb, #1e40af);
+      color: #fff;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+      font-size: 18px;
+    }
+
+    .hero-meta__text {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .hero-title {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      color: var(--text-muted);
+    }
+
+    .badge-success {
+      background: #ecfdf3;
+      color: #0f9f4a;
+      border-color: #c6f6d5;
+    }
+
+    .badge-neutral {
+      background: #f1f5f9;
+      color: var(--text-muted);
+    }
+
+    .btn-outline {
+      background: #fff;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+    }
+
+    .hero-sub {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .pill-select {
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 600;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-card {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .stat-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: #eef2ff;
+      color: var(--primary);
+      border: 1px solid var(--border);
+    }
+
+    .stat-label {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      margin: 4px 0 2px;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-hint {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .layout-split {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .chart-card {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      min-height: 220px;
+      display: grid;
+      place-items: center;
+      color: var(--text-muted);
+    }
+
+    .rating-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .rating-row:last-child {
+      border-bottom: none;
+    }
+
+    .guidance-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .guidance-item {
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .guidance-title {
+      margin: 0 0 6px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .guidance-desc {
+      margin: 0 0 10px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .upgrade-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .upgrade-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+    }
+
+    .upgrade-card {
+      border: 1px solid #dbeafe;
+      background: #f8fbff;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .upgrade-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--text-muted);
+    }
+
+    .upgrade-bullets {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: var(--text-muted);
+      display: grid;
+      gap: 6px;
+      font-size: 14px;
+    }
+
+    .inline-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .upgrade-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 40;
+    }
+
+    .upgrade-modal-backdrop.active {
+      display: flex;
+    }
+
+    .upgrade-modal {
+      background: #fff;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      max-width: 520px;
+      width: 100%;
+      padding: 22px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .close-link {
+      color: var(--text-muted);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    @media (max-width: 960px) {
+      .page-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .hero-row {
+        grid-template-columns: 1fr;
+      }
+
+      .layout-split {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="page-shell">
-    <header class="topbar">
-      <div class="topbar-left">
+    <aside class="sidebar">
+      <div class="brand">
         <div class="brand-mark">RR</div>
         <div class="brand-name">ReviewResQ</div>
       </div>
-      <div class="topbar-center">Business dashboard</div>
-      <div class="topbar-right">
-        <a
-          id="planBadge"
-          class="plan-chip plan-chip--pro"
-          href="account.html"
-          title="View and manage your subscription."
-          >Pro AI Suite</a
-        >
-        <div class="profile" id="profileAvatar">RQ</div>
-      </div>
-    </header>
-
-    <nav class="global-nav" aria-label="Dashboard sections">
-      <div class="nav-tabs">
-        <a class="nav-tab" data-route="overview" href="dashboard.html#overview">Overview</a>
-        <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
+      <div class="nav-group">
+        <div class="nav-label">Dashboard</div>
+        <a class="nav-tab active" data-route="overview" href="dashboard.html">Business dashboard</a>
+        <a class="nav-tab" data-route="overview" href="overview.html">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="feedback.html">Customer Feedback</a>
         <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
-        <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
-        <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
-        <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
-        <a class="nav-tab" data-route="settings" href="settings.html">Alerts &amp; Settings</a>
-        <a class="nav-tab" data-route="account" href="account.html">Account &amp; billing</a>
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html">Review Funnel</a>
+        <a class="nav-tab" data-route="links" href="links.html">Review Links</a>
+        <a class="nav-tab" data-route="alerts" href="alerts.html">Alerts &amp; Notifications</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html">AI Phone Agent</a>
+        <a class="nav-tab" data-route="account" href="billing.html">Account &amp; Billing</a>
       </div>
-    </nav>
+    </aside>
 
-    <main class="page-container" id="overview">
-      <header class="page-header">
-        <h1 class="page-title">Business Overview</h1>
-        <p class="page-subtitle">Monitor your customer feedback health at a glance.</p>
+    <div class="page-surface">
+      <header class="topbar">
+        <div class="topbar-title">Business dashboard</div>
+        <div class="topbar-right">
+          <a id="planBadge" class="plan-chip" href="account.html">Pro AI Suite</a>
+          <div class="profile" id="profileAvatar">RQ</div>
+        </div>
       </header>
 
-      <section class="section">
-        <div class="card hero-card">
-          <div class="hero-left hero-meta" id="heroMeta">
-            <div class="hero-avatar" id="heroAvatar">RQ</div>
-            <div class="hero-meta__text">
-              <p class="hero-title" id="heroBusinessName">Your business</p>
-              <div class="hero-status">
-                <span class="chip chip-success" id="heroStatusChip">Live</span>
-                <span class="chip chip-muted" id="heroIndustryChip">Local services</span>
-              </div>
-              <p class="hero-updated" id="heroUpdatedText">Updated recently</p>
-            </div>
-          </div>
-          <div class="hero-actions">
-            <div class="hero-actions__row">
-              <select class="pill-select" id="dateRangeSelect">
-                <option value="7">Last 7 days</option>
-                <option value="30">Last 30 days</option>
-              </select>
-              <button class="btn btn-secondary" type="button" id="refreshOverview">Refresh insights</button>
-            </div>
-            <button class="btn btn-primary" type="button" id="askForReviews">Ask for reviews</button>
-          </div>
-        </div>
-      </section>
+      <main class="content-area" id="overview">
+        <header class="page-header">
+          <p class="page-eyebrow">Business dashboard</p>
+          <h1 class="page-title">Business Overview</h1>
+          <p class="page-subtitle">Monitor your customer feedback health at a glance.</p>
+        </header>
 
-      <section class="section" data-feature="overview_ai_insights" data-lock-message="Advanced AI insights are part of Growth and Pro AI Suite.">
-        <div class="banner">
-          <div class="banner-chip">AI</div>
+        <section class="hero-row">
+          <div class="card hero-card">
+            <div class="hero-meta" id="heroMeta">
+              <div class="hero-avatar" id="heroAvatar">RQ</div>
+              <div class="hero-meta__text">
+                <p class="hero-title" id="heroBusinessName">Live Local Services</p>
+                <div class="hero-status">
+                  <span class="badge badge-success" id="heroStatusChip">Live</span>
+                  <span class="badge badge-neutral" id="heroIndustryChip">Local services</span>
+                  <span class="badge" id="heroPlanChip">Starter plan</span>
+                </div>
+                <p class="hero-sub" id="heroUpdatedText">Updated recently</p>
+              </div>
+            </div>
+            <div class="hero-actions">
+              <div class="action-row">
+                <button class="btn btn-primary" type="button">Upgrade to Pro AI Suite</button>
+                <a class="btn btn-ghost" href="billing.html">View account &amp; billing</a>
+              </div>
+              <div class="action-row">
+                <select class="pill-select" id="dateRangeSelect">
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                </select>
+                <button class="btn btn-secondary" type="button" id="refreshOverview">Refresh insights</button>
+                <button class="btn btn-primary" type="button" id="askForReviews">Ask for reviews</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="stat-grid">
+            <div class="card stat-card">
+              <div class="stat-icon" aria-hidden="true">
+                <svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>
+                </svg>
+              </div>
+              <div>
+                <p class="stat-label">Total reviews</p>
+                <p class="stat-value" id="kpiTotalReviews">0</p>
+                <p class="stat-hint">Captured across all channels</p>
+              </div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-icon" aria-hidden="true">
+                <svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+                </svg>
+              </div>
+              <div>
+                <p class="stat-label">Positive vs negative</p>
+                <p class="stat-value" id="kpiPositiveNegative">—</p>
+                <p class="stat-hint">Based on selected range</p>
+              </div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-icon" aria-hidden="true">
+                <svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 14s2 2 4 0 4 0 4 0 2 2 4 0 4 0 4 0"/><path d="M10 9h.01"/><path d="M14 9h.01"/>
+                </svg>
+              </div>
+              <div>
+                <p class="stat-label">Average sentiment</p>
+                <p class="stat-value" id="kpiAvgSentiment">—</p>
+                <p class="stat-hint">AI mood score</p>
+              </div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-icon" aria-hidden="true">
+                <svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 8h12"/><path d="M6 12h12"/><path d="M6 16h12"/><path d="M6 4h12"/><path d="M7 20h10"/>
+                </svg>
+              </div>
+              <div>
+                <p class="stat-label">Pending follow-ups</p>
+                <p class="stat-value" id="kpiPendingFollowups">0</p>
+                <p class="stat-hint">Urgent items to resolve</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="layout-split">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <p class="section-title">Reviews over time</p>
+                <p class="section-subtitle">Daily and weekly activity</p>
+              </div>
+            </div>
+            <div class="chart-card" id="reviewsOverTimeCard">
+              <div id="reviewsChart" class="chart-card__canvas">No reviews yet for this period</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <p class="section-title">Rating breakdown</p>
+                <p class="section-subtitle">1–5★ across the range</p>
+              </div>
+            </div>
+            <div class="rating-row"><span>5★</span><strong id="rating5">0%</strong></div>
+            <div class="rating-row"><span>4★</span><strong id="rating4">0%</strong></div>
+            <div class="rating-row"><span>3★</span><strong id="rating3">0%</strong></div>
+            <div class="rating-row"><span>2★</span><strong id="rating2">0%</strong></div>
+            <div class="rating-row"><span>1★</span><strong id="rating1">0%</strong></div>
+          </div>
+        </section>
+
+        <section class="layout-split" style="grid-template-columns: 1.4fr 0.8fr;">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <p class="section-title">Recent highlights</p>
+                <p class="section-subtitle">AI sentiment summary</p>
+              </div>
+              <div class="badge" aria-hidden="true">
+                <svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3v18"/><path d="M5 10l7-7 7 7"/>
+                </svg>
+                <span>AI insight</span>
+              </div>
+            </div>
+            <div class="guidance-list" style="padding-top: 4px;">
+              <div class="guidance-item">
+                <p class="guidance-title" id="insightTitle">Sentiment improving</p>
+                <p class="guidance-desc" id="insightText">
+                  Customers mention "fast response" and "great service" — keep momentum with follow-ups.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <p class="section-title">Guidance</p>
+                <p class="section-subtitle">What to do next</p>
+              </div>
+            </div>
+            <div class="guidance-list">
+              <div class="guidance-item">
+                <p class="guidance-title">Reply to 3 unhappy customers</p>
+                <p class="guidance-desc">Tackle the latest low-star feedback to turn them around.</p>
+                <div class="button-row guidance-actions">
+                  <button class="btn btn-secondary" id="guidanceInbox">Open in inbox</button>
+                </div>
+              </div>
+              <div class="guidance-item">
+                <p class="guidance-title">Send follow-up to 2 people who left 4★</p>
+                <p class="guidance-desc">Invite happy customers to share their experience on Google.</p>
+                <div class="button-row guidance-actions">
+                  <button class="btn btn-secondary" id="guidanceFollowups">View follow-ups</button>
+                </div>
+              </div>
+              <div class="guidance-item">
+                <p class="guidance-title">Schedule a reminder campaign</p>
+                <p class="guidance-desc">Automate requests for recent jobs to keep reviews flowing.</p>
+                <div class="button-row guidance-actions">
+                  <button class="btn btn-secondary" id="guidanceAutomations">Open automations</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section upgrade-section">
           <div>
-            <p class="banner-title" id="insightTitle">Sentiment improving</p>
-            <p class="banner-text" id="insightText">
-              Customers mention "fast response" and "great service" — keep momentum with follow-ups.
-            </p>
+            <p class="section-title" style="font-size:20px; margin:0;">Unlock more with Pro AI Suite</p>
+            <p class="section-subtitle" style="margin-top:6px;">Preview the advanced tools you’ll get when you upgrade.</p>
           </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="kpi-grid">
-          <div class="card kpi-card">
-            <p class="kpi-label">Total reviews</p>
-            <p class="kpi-value" id="kpiTotalReviews">0</p>
-            <p class="kpi-hint">Captured across all channels</p>
-          </div>
-          <div class="card kpi-card">
-            <p class="kpi-label">Positive vs negative</p>
-            <p class="kpi-value" id="kpiPositiveNegative">—</p>
-            <p class="kpi-hint">Based on selected range</p>
-          </div>
-          <div class="card kpi-card">
-            <p class="kpi-label">Average sentiment</p>
-            <p class="kpi-value" id="kpiAvgSentiment">—</p>
-            <p class="kpi-hint">AI mood score</p>
-          </div>
-          <div class="card kpi-card">
-            <p class="kpi-label">Pending follow-ups</p>
-            <p class="kpi-value" id="kpiPendingFollowups">0</p>
-            <p class="kpi-hint">Urgent items to resolve</p>
-          </div>
-          <div class="card kpi-card" data-feature="overview_conversion_metrics" data-lock-message="Conversion metrics unlock on Growth and above.">
-            <p class="kpi-label">Conversion to Google</p>
-            <p class="kpi-value" id="kpiConversionGoogle">—</p>
-            <p class="kpi-hint">Happy customers who posted publicly</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="section layout-split">
-        <div class="card">
-          <h3 class="card-title">Reviews over time</h3>
-          <p class="card-sub">Daily/weekly activity</p>
-          <div class="chart-card" id="reviewsOverTimeCard">
-            <div id="reviewsChart" class="chart-card__canvas">No reviews yet for this period</div>
-          </div>
-        </div>
-        <div class="card">
-          <h3 class="card-title">Rating breakdown</h3>
-          <p class="card-sub">1–5★ across the range</p>
-          <div class="rating-row" data-rating-row="5"><span>5★</span><strong id="rating5">0%</strong></div>
-          <div class="rating-row" data-rating-row="4"><span>4★</span><strong id="rating4">0%</strong></div>
-          <div class="rating-row" data-rating-row="3"><span>3★</span><strong id="rating3">0%</strong></div>
-          <div class="rating-row" data-rating-row="2"><span>2★</span><strong id="rating2">0%</strong></div>
-          <div class="rating-row" data-rating-row="1"><span>1★</span><strong id="rating1">0%</strong></div>
-        </div>
-      </section>
-
-      <section class="section" data-feature="overview_ai_insights" data-lock-message="AI-powered guidance unlocks on Growth and Pro AI Suite.">
-        <div class="card">
-          <h3 class="section-title">Guidance</h3>
-          <p class="card-sub">What to do next — AI-powered suggestions</p>
-          <div class="guidance-list">
-            <div class="guidance-item">
-              <p class="guidance-title">Reply to 3 unhappy customers</p>
-              <p class="guidance-desc">Tackle the latest low-star feedback to turn them around.</p>
-              <div class="button-row guidance-actions">
-                <button class="btn btn-secondary" id="guidanceInbox">Open in inbox</button>
+          <div class="upgrade-grid">
+            <div class="card upgrade-card" data-upgrade-title="AI Phone Agent" data-upgrade-desc="Let AI handle inbound calls, book appointments, and capture leads automatically." data-upgrade-bullets="24/7 call coverage|Human-like voice with branded scripts|Instant summaries sent to your inbox">
+              <div class="card-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <svg class="upgrade-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 5h16v10H5l-1 4z"/>
+                    <path d="M8 9h8"/>
+                  </svg>
+                  <div>
+                    <p class="section-title" style="margin:0; font-size:16px;">AI Phone Agent</p>
+                    <p class="section-subtitle" style="margin-top:2px;">Upgrade for voice automation</p>
+                  </div>
+                </div>
+                <button class="btn btn-outline upgrade-trigger" type="button">Learn more</button>
               </div>
+              <ul class="upgrade-bullets">
+                <li>Proactive scheduling and callbacks</li>
+                <li>Custom scripts tuned to your brand</li>
+                <li>Summaries and transcripts saved automatically</li>
+              </ul>
             </div>
-            <div class="guidance-item">
-              <p class="guidance-title">Send follow-up to 2 people who left 4★</p>
-              <p class="guidance-desc">Invite happy customers to share their experience on Google.</p>
-              <div class="button-row guidance-actions">
-                <button class="btn btn-secondary" id="guidanceFollowups">View follow-ups</button>
+
+            <div class="card upgrade-card" data-upgrade-title="Advanced Leads &amp; Sequences" data-upgrade-desc="Automate outreach cadences that blend SMS, email, and AI follow-ups." data-upgrade-bullets="Multi-touch nurture built-in|Quiet hours and fail-safes|Lead scoring with AI priority">
+              <div class="card-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <svg class="upgrade-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4h16v6H4z"/><path d="M4 14h10v6H4z"/><path d="M18 14h2v6h-2z"/>
+                  </svg>
+                  <div>
+                    <p class="section-title" style="margin:0; font-size:16px;">Advanced Leads &amp; Sequences</p>
+                    <p class="section-subtitle" style="margin-top:2px;">Unlock multi-channel follow-up</p>
+                  </div>
+                </div>
+                <button class="btn btn-outline upgrade-trigger" type="button">See what’s included</button>
               </div>
+              <ul class="upgrade-bullets">
+                <li>Smart cadences that react to replies</li>
+                <li>Templates with AI personalization</li>
+                <li>Pipeline insights by revenue impact</li>
+              </ul>
             </div>
-            <div class="guidance-item">
-              <p class="guidance-title">Schedule a reminder campaign</p>
-              <p class="guidance-desc">Automate requests for recent jobs to keep reviews flowing.</p>
-              <div class="button-row guidance-actions">
-                <button class="btn btn-secondary" id="guidanceAutomations">Open automations</button>
+
+            <div class="card upgrade-card" data-upgrade-title="Predictive AI Guidance" data-upgrade-desc="Stay ahead of churn risks with proactive recommendations." data-upgrade-bullets="Identify slipping sentiment early|Task suggestions prioritized by impact|Team-friendly playbooks ready to launch">
+              <div class="card-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <svg class="upgrade-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3v6"/><path d="M12 15v6"/><path d="M4.93 4.93l4.24 4.24"/><path d="M14.83 14.83l4.24 4.24"/><path d="M3 12h6"/><path d="M15 12h6"/><path d="M4.93 19.07l4.24-4.24"/><path d="M14.83 9.17l4.24-4.24"/>
+                  </svg>
+                  <div>
+                    <p class="section-title" style="margin:0; font-size:16px;">Predictive AI Guidance</p>
+                    <p class="section-subtitle" style="margin-top:2px;">Insights before issues spike</p>
+                  </div>
+                </div>
+                <button class="btn btn-outline upgrade-trigger" type="button">Learn more</button>
               </div>
+              <ul class="upgrade-bullets">
+                <li>Micro-trends across locations</li>
+                <li>Suggested outreach timing</li>
+                <li>Impact scoring for every action</li>
+              </ul>
+            </div>
+
+            <div class="card upgrade-card" data-upgrade-title="Automated escalation rules" data-upgrade-desc="Route urgent issues to the right owner with guardrails and SLAs." data-upgrade-bullets="Custom triggers for low-star events|Instant SMS alerts to managers|Auto-create tasks with due dates">
+              <div class="card-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <svg class="upgrade-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2l9 4v6c0 5-3.8 9.7-9 10-5.2-.3-9-5-9-10V6z"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+                  </svg>
+                  <div>
+                    <p class="section-title" style="margin:0; font-size:16px;">Automated escalation rules</p>
+                    <p class="section-subtitle" style="margin-top:2px;">Protect response SLAs</p>
+                  </div>
+                </div>
+                <button class="btn btn-outline upgrade-trigger" type="button">See what’s included</button>
+              </div>
+              <ul class="upgrade-bullets">
+                <li>Dynamic routing by location or owner</li>
+                <li>Time-based reminders with fallbacks</li>
+                <li>Audit trail and status history</li>
+              </ul>
             </div>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </div>
   </div>
+
+  <div class="upgrade-modal-backdrop" id="upgradeModal" role="dialog" aria-modal="true" aria-labelledby="upgradeModalTitle">
+    <div class="upgrade-modal">
+      <div style="display:flex; justify-content: space-between; align-items:center; gap:8px;">
+        <div>
+          <p class="page-eyebrow" style="margin-bottom:6px;">Pro AI Suite</p>
+          <h2 id="upgradeModalTitle" class="page-title" style="font-size:24px; margin:0;">Upgrade</h2>
+        </div>
+        <svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12l5 5L20 7"/>
+        </svg>
+      </div>
+      <p class="page-subtitle" id="upgradeModalDesc" style="margin:0;">Unlock premium automations and AI voice coverage.</p>
+      <ul class="upgrade-bullets" id="upgradeModalBullets" style="margin:4px 0 0;"></ul>
+      <p class="stat-hint" style="margin-top:4px;">Available on Growth and Pro AI Suite plans.</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" type="button" id="upgradeModalCTA">View plans</button>
+        <button class="close-link" type="button" id="upgradeModalClose">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="topbar-menu.js"></script>
   <script type="module" src="dashboard-overview.js"></script>
+  <script>
+    const modal = document.getElementById('upgradeModal');
+    const modalTitle = document.getElementById('upgradeModalTitle');
+    const modalDesc = document.getElementById('upgradeModalDesc');
+    const modalBullets = document.getElementById('upgradeModalBullets');
+    const modalClose = document.getElementById('upgradeModalClose');
+    const modalCTA = document.getElementById('upgradeModalCTA');
+
+    function openUpgradeModal(card) {
+      const title = card.dataset.upgradeTitle || 'Upgrade feature';
+      const desc = card.dataset.upgradeDesc || 'Unlock more automation and insights with Pro AI Suite.';
+      const bullets = (card.dataset.upgradeBullets || '').split('|').filter(Boolean);
+
+      modalTitle.textContent = title;
+      modalDesc.textContent = desc;
+      modalBullets.innerHTML = '';
+      bullets.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = item.trim();
+        modalBullets.appendChild(li);
+      });
+      modal.classList.add('active');
+      document.body.classList.add('modal-open');
+    }
+
+    function closeUpgradeModal() {
+      modal.classList.remove('active');
+      document.body.classList.remove('modal-open');
+    }
+
+    document.querySelectorAll('.upgrade-card, .upgrade-trigger').forEach((trigger) => {
+      trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        const hostCard = trigger.closest('.upgrade-card');
+        if (hostCard) openUpgradeModal(hostCard);
+      });
+    });
+
+    modalClose?.addEventListener('click', closeUpgradeModal);
+    modalCTA?.addEventListener('click', () => {
+      window.location.href = 'billing.html';
+    });
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeUpgradeModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && modal.classList.contains('active')) closeUpgradeModal();
+    });
+  </script>
   <script src="dashboard-nav.js"></script>
 </body>
 </html>

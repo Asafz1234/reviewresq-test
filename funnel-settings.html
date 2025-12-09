@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Review Funnel Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="stripe-dashboard.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Dashboard</div>
+        <a class="nav-tab" data-route="overview" href="overview.html">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="feedback.html">Customer Feedback</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html">Review Funnel</a>
+        <a class="nav-tab" data-route="links" href="links.html">Review Links</a>
+        <a class="nav-tab" data-route="alerts" href="alerts.html">Alerts &amp; Notifications</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html">AI Phone Agent</a>
+        <a class="nav-tab" data-route="account" href="billing.html">Account &amp; Billing</a>
+      </div>
+    </aside>
+
+    <div class="page-surface">
+      <header class="topbar">
+        <div class="topbar-title">Review Funnel</div>
+        <div class="topbar-right">
+          <a id="planBadge" class="plan-chip" href="account.html">Pro AI Suite</a>
+          <div class="profile">RQ</div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <header class="page-header">
+          <h1 class="page-title">Review Funnel Settings</h1>
+          <p class="page-subtitle">Control the copy and experience for happy and unhappy customers.</p>
+        </header>
+
+        <div class="two-column">
+          <div class="stack">
+            <section class="card large-card">
+              <h3 class="section-title">Section A: Happy → Google Review</h3>
+              <p class="section-subtitle">Guide happy customers to leave a public Google review.</p>
+              <div class="stack">
+                <label class="stack">
+                  <span class="section-title">Title</span>
+                  <input class="input" type="text" placeholder="Thanks for choosing us!" />
+                </label>
+                <label class="stack">
+                  <span class="section-title">Description</span>
+                  <textarea class="input" rows="3" placeholder="Share a few words about what you liked."></textarea>
+                </label>
+                <label class="stack">
+                  <span class="section-title">Message text</span>
+                  <textarea class="input" rows="3" placeholder="We appreciate you! Could you share this on Google?"></textarea>
+                </label>
+                <label class="stack">
+                  <span class="section-title">CTA text</span>
+                  <input class="input" type="text" placeholder="Post review on Google" />
+                </label>
+              </div>
+            </section>
+
+            <section class="card large-card">
+              <h3 class="section-title">Section B: Unhappy → Private Feedback</h3>
+              <p class="section-subtitle">Collect private feedback when a customer isn’t satisfied.</p>
+              <div class="stack">
+                <label class="stack">
+                  <span class="section-title">Title</span>
+                  <input class="input" type="text" placeholder="We want to make this right" />
+                </label>
+                <label class="stack">
+                  <span class="section-title">Description</span>
+                  <textarea class="input" rows="3" placeholder="Tell us what happened so we can fix it."></textarea>
+                </label>
+                <label class="stack">
+                  <span class="section-title">Apology message</span>
+                  <textarea class="input" rows="3" placeholder="We’re sorry your experience missed the mark."></textarea>
+                </label>
+                <label class="stack">
+                  <span class="section-title">Instructions text</span>
+                  <textarea class="input" rows="3" placeholder="Please share details so our team can respond."></textarea>
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <div class="stack">
+            <section class="card large-card">
+              <h3 class="section-title">Section C: Branding</h3>
+              <p class="section-subtitle">Upload your logo, choose a primary color, and preview live.</p>
+              <div class="stack">
+                <label class="stack">
+                  <span class="section-title">Upload Business Logo</span>
+                  <input class="input" type="file" />
+                </label>
+                <label class="stack">
+                  <span class="section-title">Primary color</span>
+                  <input class="input" type="color" value="#2563EB" />
+                </label>
+                <div class="preview-panel">
+                  <p class="section-title">Live Preview</p>
+                  <p class="section-subtitle">See how your funnel looks as you edit content.</p>
+                  <div class="card" style="padding:16px; border-style:dashed;">
+                    <div class="flex-between" style="align-items:center;">
+                      <div class="stack">
+                        <strong style="color:var(--primary);">Happy customers</strong>
+                        <span class="section-subtitle">Sent to Google review</span>
+                      </div>
+                      <button class="btn btn-primary">Open Google Review</button>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="flex-between" style="align-items:center;">
+                      <div class="stack">
+                        <strong style="color:var(--text);">Unhappy customers</strong>
+                        <span class="section-subtitle">Guided to private feedback</span>
+                      </div>
+                      <button class="btn btn-secondary">Send feedback</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="dashboard-nav.js"></script>
+</body>
+</html>
