@@ -16,6 +16,7 @@ import {
 } from "./firebase-config.js";
 import { listenForUser, formatDate, initialsFromName, hasPlanFeature } from "./session-data.js";
 import { applyPlanBadge } from "./topbar-menu.js";
+import { lockUI } from "./plan-lock.js";
 
 const statusFilter = document.getElementById("statusFilter");
 const dateFilter = document.getElementById("dateFilter");
@@ -401,7 +402,8 @@ function renderThreadDetail(thread) {
   textarea.id = "replyBox";
 
   const unhappy = isUnhappyThread(thread);
-  const aiAgentEnabled = hasPlanFeature("aiAgent");
+  const aiAgentEnabled = hasPlanFeature("inbox_escalate_ai_agent");
+  const aiRepliesEnabled = hasPlanFeature("inbox_ai_reply");
 
   if (unhappy && aiAgentEnabled) {
     const hint = document.createElement("div");
@@ -421,6 +423,15 @@ function renderThreadDetail(thread) {
   const aiBtn = document.createElement("button");
   aiBtn.className = "btn btn-secondary";
   aiBtn.textContent = "Reply with AI";
+  aiBtn.dataset.feature = "inbox_ai_reply";
+  if (!aiRepliesEnabled) {
+    aiBtn.disabled = true;
+    aiBtn.setAttribute(
+      "aria-disabled",
+      "true"
+    );
+    aiBtn.title = "Reply with AI is available on Growth and Pro AI Suite.";
+  }
   aiBtn.addEventListener("click", async () => {
     aiBtn.disabled = true;
     aiBtn.textContent = "Generating…";
@@ -441,6 +452,7 @@ function renderThreadDetail(thread) {
     handoffBtn.className = "btn btn-primary";
     handoffBtn.textContent = thread.status === "ai_agent_active" ? "AI Agent active" : "Hand off to AI Agent";
     handoffBtn.disabled = thread.status === "ai_agent_active";
+    handoffBtn.dataset.feature = "inbox_escalate_ai_agent";
     handoffBtn.addEventListener("click", () => handoffToAiAgent(thread, handoffBtn, textarea));
     actionRow.append(handoffBtn, aiBtn, sendBtn);
   } else if (unhappy) {
@@ -456,6 +468,8 @@ function renderThreadDetail(thread) {
     actionRow.append(sendBtn, aiBtn);
   }
   replyBox.append(textarea, actionRow);
+
+  lockUI(currentPlanTier, replyBox);
 
   detailEl.append(header, convo, replyBox);
 }
