@@ -22,6 +22,7 @@
   --rr-transition-med: 220ms ease-out;
   --rr-elev-card: 0 10px 30px rgba(15, 23, 42, 0.06);
   --rr-elev-floating: 0 18px 45px rgba(15, 23, 42, 0.14);
+  --rr-lock-overlay: rgba(255, 255, 255, 0.82);
 
   /* Radii + shadows */
   --radius-lg: 14px;
@@ -373,6 +374,56 @@ a {
   transform: translateY(-2px) scale(1.002);
   box-shadow: var(--rr-elev-card);
   border-color: rgba(37, 99, 235, 0.22);
+}
+
+.rr-locked {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.rr-locked .locked-preview {
+  pointer-events: auto;
+}
+
+.locked-preview {
+  position: absolute;
+  inset: 0;
+  background: var(--rr-lock-overlay);
+  backdrop-filter: blur(4px);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--rr-elev-card);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 18px;
+  text-align: center;
+  color: var(--rr-text-main);
+}
+
+.locked-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--rr-blue-light);
+  color: var(--rr-blue);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.locked-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.locked-desc {
+  margin: 0;
+  color: var(--rr-text-sub);
+  max-width: 360px;
 }
 
 @media (max-width: 640px) {

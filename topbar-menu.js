@@ -9,6 +9,7 @@ import {
   refreshSubscription,
 } from "./session-data.js";
 import { PLAN_LABELS, hasFeature, normalizePlan } from "./plan-capabilities.js";
+import { lockUI } from "./plan-lock.js";
 
 const planBadge = document.getElementById("planBadge");
 const topbarRight = document.querySelector(".topbar-right");
@@ -254,6 +255,7 @@ listenForUser(async ({ subscription, profile }) => {
   applyPlanBadge(planId);
   decorateNav(planId);
   renderLockedFeatureView(deriveRoute(), planId);
+  lockUI(planId);
   setProfileAvatar(profile?.businessName || profile?.name || "");
 });
 

@@ -9,7 +9,8 @@ import {
   getDocs,
 } from "./firebase-config.js";
 import { PLAN_LABELS, normalizePlan, upgradeTargetForFeature } from "./plan-capabilities.js";
-import { formatDate, hasPlanFeature, listenForUser } from "./session-data.js";
+import { formatDate, hasPlanFeature, listenForUser, currentPlanTier } from "./session-data.js";
+import { lockUI } from "./plan-lock.js";
 
 const statusFilter = document.getElementById("statusFilter");
 const ratingFilter = document.getElementById("ratingFilter");
@@ -26,6 +27,7 @@ let reviews = [];
 let allowAutoReply = false;
 let upgradeTarget = "growth";
 let primaryIndexError = false;
+let activePlan = normalizePlan(currentPlanTier());
 
 const statusMap = {
   none: { label: "Needs reply", tone: "badge-warning" },
@@ -124,6 +126,7 @@ function buildActions(review) {
     btn.disabled = true;
     btn.setAttribute("aria-disabled", "true");
     btn.title = "AI auto-replies to Google reviews are available on Growth and Pro AI Suite.";
+    btn.dataset.feature = "aiAutoReplyGoogle";
     return btn;
   };
 
@@ -207,6 +210,8 @@ function renderReviews() {
     actions.append(...buildActions(review));
     reviewList.appendChild(node);
   });
+
+  lockUI(activePlan, reviewList);
 }
 
 function showToast(message) {
@@ -289,6 +294,7 @@ onAuthStateChanged(auth, async (user) => {
 
 listenForUser(({ subscription }) => {
   const normalizedPlan = normalizePlan(subscription?.planId || "starter");
+  activePlan = normalizedPlan;
   allowAutoReply = hasPlanFeature("aiAutoReplyGoogle");
   renderAiPanels(normalizedPlan);
   renderReviews();
