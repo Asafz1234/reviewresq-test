@@ -140,10 +140,10 @@ function ensureLockedPreview(target, feature, upgradePlan, message) {
     preview.className = "locked-preview";
     preview.innerHTML = `
       <div class="locked-pill">${PLAN_LABELS[upgradePlan] || "Upgrade"}</div>
-      <p class="locked-title">Locked preview</p>
+      <p class="locked-title">Upgrade required</p>
       <p class="locked-desc">${message}</p>
       <button type="button" class="btn btn-primary" data-upgrade-cta="${upgradePlan}">
-        Upgrade to ${PLAN_LABELS[upgradePlan] || "Growth"}
+        See what’s included
       </button>
     `;
     target.appendChild(preview);

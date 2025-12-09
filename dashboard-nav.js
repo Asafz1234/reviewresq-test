@@ -8,6 +8,7 @@
   function deriveRoute() {
     if (hash && hash.toLowerCase().includes('inbox')) return 'inbox';
     if (hash && hash.toLowerCase().includes('overview')) return 'overview';
+    if (hash && hash.toLowerCase().includes('dashboard')) return 'dashboard';
     if (hash && hash.toLowerCase().includes('google-reviews')) return 'google-reviews';
     if (hash && hash.toLowerCase().includes('leads')) return 'leads';
     if (hash && hash.toLowerCase().includes('account')) return 'account';
@@ -15,6 +16,7 @@
     if (hash && hash.toLowerCase().includes('links')) return 'links';
     if (hash && hash.toLowerCase().includes('funnel')) return 'funnel';
 
+    if (pathname.includes('dashboard.html') || pathname.endsWith('dashboard')) return 'dashboard';
     if (pathname.includes('overview')) return 'overview';
     if (pathname.includes('feedback')) return 'inbox';
     if (pathname.includes('inbox')) return 'inbox';

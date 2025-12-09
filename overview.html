@@ -16,23 +16,91 @@
         <div class="brand-mark">RR</div>
         <div class="brand-name">ReviewResQ</div>
       </div>
-      <div class="nav-group">
-        <div class="nav-label">Dashboard</div>
-        <a class="nav-tab" data-route="overview" href="overview.html">Overview</a>
-        <a class="nav-tab" data-route="inbox" href="feedback.html">Customer Feedback</a>
-        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
-        <a class="nav-tab" data-route="funnel" href="funnel-settings.html">Review Funnel</a>
-        <a class="nav-tab" data-route="links" href="links.html">Review Links</a>
-        <a class="nav-tab" data-route="alerts" href="alerts.html">Alerts &amp; Notifications</a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html">AI Phone Agent</a>
-        <a class="nav-tab" data-route="account" href="billing.html">Account &amp; Billing</a>
-      </div>
+      <nav class="global-nav">
+        <div class="nav-group">
+          <p class="nav-label">Core</p>
+          <a class="nav-tab" data-route="dashboard" href="dashboard.html">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="2" />
+              <rect x="14" y="3" width="7" height="7" rx="2" />
+              <rect x="14" y="14" width="7" height="7" rx="2" />
+              <rect x="3" y="14" width="7" height="7" rx="2" />
+            </svg>
+            <span>Business Dashboard</span>
+          </a>
+          <a class="nav-tab active" data-route="overview" href="overview.html">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 12h16"/><path d="M4 18h10"/><path d="M4 6h8"/>
+            </svg>
+            <span>Overview</span>
+          </a>
+          <a class="nav-tab" data-route="inbox" href="feedback.html">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5h16v10H5l-1 4z"/>
+            </svg>
+            <span>Customer Feedback</span>
+          </a>
+          <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21z" />
+            </svg>
+            <span>Google Reviews</span>
+          </a>
+          <a class="nav-tab" data-route="funnel" href="funnel-settings.html">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16l-6 7v6l-4 3v-9z" />
+            </svg>
+            <span>Review Funnel</span>
+          </a>
+          <a class="nav-tab" data-route="links" href="links.html">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l1.93-1.93a5 5 0 0 0-7.07-7.07L10.7 7.24" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54L4.53 12.4a5 5 0 0 0 7.07 7.07l1.77-1.77" />
+            </svg>
+            <span>Review Links</span>
+          </a>
+          <a class="nav-tab" data-route="alerts" href="alerts.html">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span>Alerts &amp; Notifications</span>
+          </a>
+        </div>
+        <div class="nav-group">
+          <p class="nav-label">AI &amp; Upgrades</p>
+          <a class="nav-tab" data-route="ai-agent" href="ai-agent.html">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5h16v10H5l-1 4z" />
+              <path d="M9 9h6" />
+            </svg>
+            <span>AI Phone Agent</span>
+          </a>
+          <a class="nav-tab" data-route="ai-agent" href="ai-agent.html#pro-suite">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2l2.09 6.26H20l-5.05 3.67L16.9 18 12 13.97 7.1 18l1.95-6.07L4 8.26h5.91z" />
+            </svg>
+            <span>Pro AI Suite</span>
+          </a>
+        </div>
+        <div class="nav-group">
+          <p class="nav-label">Account</p>
+          <a class="nav-tab" data-route="account" href="billing.html">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path d="M3 10h18" />
+            </svg>
+            <span>Account &amp; Billing</span>
+          </a>
+        </div>
+      </nav>
     </aside>
 
     <div class="page-surface">
       <header class="topbar">
         <div class="topbar-title">Overview</div>
         <div class="topbar-right">
+          <a class="pill-button" href="billing.html">Account &amp; billing</a>
           <a id="planBadge" class="plan-chip" href="account.html">Pro AI Suite</a>
           <div class="profile" id="profileAvatar">RQ</div>
         </div>
