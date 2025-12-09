@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – AI Phone Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="stripe-dashboard.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Dashboard</div>
+        <a class="nav-tab" data-route="overview" href="overview.html">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="feedback.html">Customer Feedback</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html">Review Funnel</a>
+        <a class="nav-tab" data-route="links" href="links.html">Review Links</a>
+        <a class="nav-tab" data-route="alerts" href="alerts.html">Alerts &amp; Notifications</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html">AI Phone Agent</a>
+        <a class="nav-tab" data-route="account" href="billing.html">Account &amp; Billing</a>
+      </div>
+    </aside>
+
+    <div class="page-surface">
+      <header class="topbar">
+        <div class="topbar-title">AI Phone Agent</div>
+        <div class="topbar-right">
+          <a id="planBadge" class="plan-chip" href="account.html">Pro AI Suite</a>
+          <div class="profile">RQ</div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <header class="page-header">
+          <h1 class="page-title">AI Phone Agent</h1>
+          <p class="page-subtitle">Let AI manage customer phone calls for your business.</p>
+        </header>
+
+        <section class="cards-row">
+          <div class="card large-card">
+            <h3 class="section-title">Appointment Booking</h3>
+            <p class="section-subtitle">Capture times, confirm availability, and send calendar invites automatically.</p>
+          </div>
+          <div class="card large-card">
+            <h3 class="section-title">FAQ Assistant</h3>
+            <p class="section-subtitle">Instant answers for hours, pricing, and service areas without waiting.</p>
+          </div>
+          <div class="card large-card">
+            <h3 class="section-title">Pricing Info</h3>
+            <p class="section-subtitle">Share tailored quotes with guardrails to stay on-brand and accurate.</p>
+          </div>
+          <div class="card large-card">
+            <h3 class="section-title">Custom Script Engine</h3>
+            <p class="section-subtitle">Design call flows with conditional logic, escalations, and handoffs.</p>
+          </div>
+        </section>
+
+        <section class="card large-card">
+          <div class="card-header">
+            <div>
+              <h3 class="section-title">Flow Builder</h3>
+              <p class="section-subtitle">Node-based flow editor UI (visual placeholder)</p>
+            </div>
+            <button class="btn btn-primary">Add node</button>
+          </div>
+          <div class="chart-placeholder" style="height:340px;">Flow canvas — preserve existing JS wiring</div>
+        </section>
+
+        <section class="card large-card">
+          <div class="card-header">
+            <div>
+              <h3 class="section-title">Summary Sender</h3>
+              <p class="section-subtitle">Final text message template</p>
+            </div>
+            <button class="btn btn-secondary">Save template</button>
+          </div>
+          <textarea class="input" rows="6" placeholder="Thanks for calling. Here’s a summary of what we discussed…"></textarea>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="dashboard-nav.js"></script>
+</body>
+</html>

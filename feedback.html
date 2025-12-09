@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Customer Feedback Inbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="stripe-dashboard.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Dashboard</div>
+        <a class="nav-tab" data-route="overview" href="overview.html">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="feedback.html">Customer Feedback</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html">Review Funnel</a>
+        <a class="nav-tab" data-route="links" href="links.html">Review Links</a>
+        <a class="nav-tab" data-route="alerts" href="alerts.html">Alerts &amp; Notifications</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html">AI Phone Agent</a>
+        <a class="nav-tab" data-route="account" href="billing.html">Account &amp; Billing</a>
+      </div>
+    </aside>
+
+    <div class="page-surface">
+      <header class="topbar">
+        <div class="topbar-title">Customer Feedback Inbox</div>
+        <div class="topbar-right">
+          <a id="planBadge" class="plan-chip" href="account.html">Pro AI Suite</a>
+          <div class="profile">RQ</div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <header class="page-header">
+          <h1 class="page-title">Customer Feedback Inbox</h1>
+          <p class="page-subtitle">Manage all private feedback collected through your Review Funnel.</p>
+        </header>
+
+        <section class="card large-card">
+          <div class="flex-between" style="align-items: flex-start;">
+            <div class="tabs">
+              <button class="tab active" type="button">All</button>
+              <button class="tab" type="button">Positive</button>
+              <button class="tab" type="button">Neutral</button>
+              <button class="tab" type="button">Negative</button>
+            </div>
+            <div class="filters" style="max-width:520px;">
+              <input class="search-input" type="search" placeholder="Search by name, phone, or keyword" />
+              <input class="date-input" type="date" />
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="card-body">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Customer Name</th>
+                  <th>Phone</th>
+                  <th>Rating</th>
+                  <th>Message</th>
+                  <th>Date</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Alex Johnson</td>
+                  <td>(415) 123-4567</td>
+                  <td>5★</td>
+                  <td>"Amazing service and follow-through."</td>
+                  <td>Mar 12, 2025</td>
+                  <td><a class="inline-link" href="#">View Details →</a></td>
+                </tr>
+                <tr>
+                  <td>Priya Patel</td>
+                  <td>(503) 555-8822</td>
+                  <td>4★</td>
+                  <td>"Technician arrived on time and friendly."</td>
+                  <td>Mar 10, 2025</td>
+                  <td><a class="inline-link" href="#">View Details →</a></td>
+                </tr>
+                <tr>
+                  <td>Chris Lee</td>
+                  <td>(718) 555-1478</td>
+                  <td>2★</td>
+                  <td>"Scheduling was difficult this time."</td>
+                  <td>Mar 8, 2025</td>
+                  <td><a class="inline-link" href="#">View Details →</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="dashboard-nav.js"></script>
+</body>
+</html>
