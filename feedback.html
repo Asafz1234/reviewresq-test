@@ -75,31 +75,8 @@
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>Sarah Nolan</td>
-                  <td>sarah@example.com</td>
-                  <td><span class="badge badge-success">Positive</span></td>
-                  <td>Great experience and fast response.</td>
-                  <td>Mar 12</td>
-                  <td><button class="btn btn-link" type="button">Reply</button></td>
-                </tr>
-                <tr>
-                  <td>Michael Chen</td>
-                  <td>+1 (555) 741-2020</td>
-                  <td><span class="badge">Neutral</span></td>
-                  <td>Job was ok but took longer than expected.</td>
-                  <td>Mar 10</td>
-                  <td><button class="btn btn-link" type="button">Reply</button></td>
-                </tr>
-                <tr>
-                  <td>Andrea Lee</td>
-                  <td>andrea@example.com</td>
-                  <td><span class="badge badge-danger">Negative</span></td>
-                  <td>Still waiting to hear back about scheduling.</td>
-                  <td>Mar 9</td>
-                  <td><button class="btn btn-link" type="button">Reply</button></td>
-                </tr>
+              <tbody data-feedback-table>
+                <tr><td colspan="6">Loading...</td></tr>
               </tbody>
             </table>
           </div>
@@ -107,6 +84,66 @@
       </div>
     </div>
   </div>
+  <div class="modal" data-feedback-modal aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <p class="modal-eyebrow">Feedback details</p>
+          <p class="modal-title" data-feedback-title>Customer feedback</p>
+        </div>
+        <button class="icon-button" type="button" data-modal-close aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-row">
+          <div>
+            <p class="label">Customer</p>
+            <p class="value" data-feedback-name>—</p>
+          </div>
+          <div>
+            <p class="label">Contact</p>
+            <div class="value" data-feedback-contact>—</div>
+          </div>
+        </div>
+        <div class="detail-row">
+          <div>
+            <p class="label">Rating</p>
+            <div class="pill" data-feedback-rating>—</div>
+          </div>
+          <div>
+            <p class="label">Status</p>
+            <div class="pill pill-muted" data-feedback-status>—</div>
+          </div>
+        </div>
+        <div>
+          <p class="label">Message</p>
+          <p class="value" data-feedback-message>—</p>
+        </div>
+        <div>
+          <p class="label">Date</p>
+          <p class="value" data-feedback-date>—</p>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <div class="action-buttons">
+          <button class="btn" type="button" data-copy-feedback>Copy details</button>
+          <a class="btn btn-outline" data-email-link target="_blank" rel="noopener">Open email</a>
+          <a class="btn btn-outline" data-call-link>Call</a>
+          <button class="btn btn-secondary" type="button" data-toggle-status>Mark as resolved</button>
+        </div>
+        <div class="upgrade-hint" data-upgrade-hint>
+          <p>
+            Send replies directly from ReviewResQ and unlock AI-powered responses with the Growth plan.
+            <a href="billing.html">View plans</a>
+          </p>
+        </div>
+      </div>
+      <div class="panel-footer" data-advanced-reply-area hidden>
+        <p class="label">Reply composer (available on Growth and Pro AI Suite)</p>
+      </div>
+    </div>
+  </div>
+  <script src="modal-utils.js"></script>
+  <script type="module" src="feedback.js"></script>
   <script src="dashboard-nav.js"></script>
 </body>
 </html>
