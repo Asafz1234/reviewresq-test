@@ -686,3 +686,28 @@ textarea.input {
   pointer-events: none;
   opacity: 0.5;
 }
+
+#feedback-toast.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #111827;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 9999;
+  font-size: 14px;
+}
+
+#feedback-toast.toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#feedback-toast.toast.toast-error {
+  background: #b91c1c;
+}

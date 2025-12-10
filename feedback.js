@@ -20,6 +20,7 @@ const toggleStatusButton = modalEl?.querySelector("[data-toggle-status]");
 const upgradeHint = modalEl?.querySelector("[data-upgrade-hint]");
 const advancedArea = modalEl?.querySelector("[data-advanced-reply-area]");
 const planBadge = document.querySelector(".topbar-right .badge");
+const toastId = "feedback-toast";
 
 const feedbackCache = new Map();
 let currentPlan = normalizePlan(currentPlanTier());
@@ -81,24 +82,27 @@ async function copyFeedback(feedback) {
       document.execCommand("copy");
       document.body.removeChild(temp);
     }
+    return true;
   } catch (err) {
     console.error("Copy failed", err);
+    return false;
   }
 }
 
 function setLinkState(linkEl, href) {
   if (!linkEl) return;
-  if (href) {
+  const isActive = Boolean(href);
+  linkEl.dataset.linkHref = href || "";
+  if (isActive) {
     linkEl.href = href;
     linkEl.classList.remove("disabled");
     linkEl.setAttribute("aria-disabled", "false");
-    linkEl.target = "_blank";
   } else {
     linkEl.removeAttribute("href");
     linkEl.classList.add("disabled");
     linkEl.setAttribute("aria-disabled", "true");
-    linkEl.target = "_self";
   }
+  linkEl.target = "_self";
 }
 
 async function updateStatus(feedback, nextStatus) {
@@ -122,11 +126,22 @@ async function updateStatus(feedback, nextStatus) {
 
 function showToast(message, isError = false) {
   if (!message) return;
-  if (isError) {
-    alert(message);
-  } else {
-    console.info(message);
+  let toast = document.getElementById(toastId);
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = toastId;
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    toast.className = "toast";
+    document.body.appendChild(toast);
   }
+  toast.textContent = message;
+  toast.classList.toggle("toast-error", isError);
+  toast.classList.add("visible");
+  clearTimeout(showToast.hideTimer);
+  showToast.hideTimer = setTimeout(() => {
+    toast.classList.remove("visible");
+  }, 2500);
 }
 
 function populateDetails(feedback) {
@@ -177,9 +192,15 @@ function populateDetails(feedback) {
   const mailto = feedback.email
     ? `mailto:${encodeURIComponent(feedback.email)}?subject=${encodeURIComponent("Reply to your recent feedback")}`
     : null;
+  if (emailLink) {
+    emailLink.dataset.email = feedback.email || "";
+  }
   setLinkState(emailLink, mailto);
 
   const tel = feedback.phone ? `tel:${feedback.phone}` : null;
+  if (callLink) {
+    callLink.dataset.phone = feedback.phone || "";
+  }
   setLinkState(callLink, tel);
 
   if (toggleStatusButton) {
@@ -189,7 +210,10 @@ function populateDetails(feedback) {
   }
 
   if (copyButton) {
-    copyButton.onclick = () => copyFeedback(feedback);
+    copyButton.onclick = async () => {
+      const success = await copyFeedback(feedback);
+      showToast(success ? "Feedback details copied" : "We couldn’t copy the details. Please try again.", !success);
+    };
   }
 }
 
@@ -280,16 +304,24 @@ if (toggleStatusButton) {
 
 if (emailLink) {
   emailLink.addEventListener("click", (event) => {
-    if (emailLink.classList.contains("disabled")) {
+    const href = emailLink.dataset.linkHref;
+    if (!href) {
       event.preventDefault();
+      return;
     }
+    event.preventDefault();
+    window.location.href = href;
   });
 }
 
 if (callLink) {
   callLink.addEventListener("click", (event) => {
-    if (callLink.classList.contains("disabled")) {
+    const href = callLink.dataset.linkHref;
+    if (!href) {
       event.preventDefault();
+      return;
     }
+    event.preventDefault();
+    window.location.href = href;
   });
 }

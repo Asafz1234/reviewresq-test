@@ -5,7 +5,7 @@ import {
   buildRatingBreakdown,
   describeReview,
 } from "./dashboard-data.js";
-import { initialsFromName } from "./session-data.js";
+import { initialsFromName, formatDate } from "./session-data.js";
 
 const profileNameEl = document.querySelector("[data-google-business-name]");
 const profileSubtitleEl = document.querySelector("[data-google-business-subtitle]");
@@ -61,10 +61,8 @@ function renderReviews(items = []) {
     container.className = "review-item";
     const meta = [];
     if (review.rating) meta.push(`${review.rating} stars`);
-    const date = review.createdAt
-      ? review.createdAt.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-      : null;
-    if (date) meta.push(date);
+    const date = formatDate(review.createdAt);
+    if (date && date !== "—") meta.push(date);
     container.innerHTML = `
       <div class="strong">${review.displayName}</div>
       <p class="card-subtitle">${review.message || "—"}${meta.length ? ` · ${meta.join(" · ")}` : ""}</p>

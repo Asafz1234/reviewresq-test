@@ -100,7 +100,7 @@ export function initialsFromName(name = "") {
 export function formatDate(value) {
   if (!value) return "—";
   const date = value.toDate ? value.toDate() : new Date(value);
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
