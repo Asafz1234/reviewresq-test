@@ -75,31 +75,8 @@
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>Sarah Nolan</td>
-                  <td>sarah@example.com</td>
-                  <td><span class="badge badge-success">Positive</span></td>
-                  <td>Great experience and fast response.</td>
-                  <td>Mar 12</td>
-                  <td><button class="btn btn-link" type="button">Reply</button></td>
-                </tr>
-                <tr>
-                  <td>Michael Chen</td>
-                  <td>+1 (555) 741-2020</td>
-                  <td><span class="badge">Neutral</span></td>
-                  <td>Job was ok but took longer than expected.</td>
-                  <td>Mar 10</td>
-                  <td><button class="btn btn-link" type="button">Reply</button></td>
-                </tr>
-                <tr>
-                  <td>Andrea Lee</td>
-                  <td>andrea@example.com</td>
-                  <td><span class="badge badge-danger">Negative</span></td>
-                  <td>Still waiting to hear back about scheduling.</td>
-                  <td>Mar 9</td>
-                  <td><button class="btn btn-link" type="button">Reply</button></td>
-                </tr>
+              <tbody data-feedback-table>
+                <tr><td colspan="6">Loading...</td></tr>
               </tbody>
             </table>
           </div>
@@ -107,6 +84,7 @@
       </div>
     </div>
   </div>
+  <script type="module" src="feedback.js"></script>
   <script src="dashboard-nav.js"></script>
 </body>
 </html>

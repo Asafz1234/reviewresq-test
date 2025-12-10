@@ -76,13 +76,13 @@
         <section class="card">
           <div class="card-header">
             <div>
-              <p class="card-title">Riverstone Quality Services</p>
+              <p class="card-title" data-business="name">—</p>
               <div class="badge-row">
-                <span class="badge badge-success">Live</span>
-                <span class="badge">Handyman</span>
-                <span class="badge">Starter plan</span>
+                <span class="badge badge-success" data-business="status">Live</span>
+                <span class="badge" data-business="category">Business</span>
+                <span class="badge" data-business="plan">Starter</span>
               </div>
-              <p class="card-subtitle">Updated a few moments ago</p>
+              <p class="card-subtitle">Updated recently</p>
             </div>
             <div class="button-row">
               <button class="btn btn-outline" type="button">Refresh insights</button>
@@ -117,16 +117,16 @@
         <div class="layout-grid two-column">
           <section class="card">
             <p class="card-title">Reviews over time</p>
-            <div class="chart-placeholder">Trend visualization</div>
+            <div class="chart-placeholder" data-reviews-timeline>Trend visualization</div>
           </section>
           <section class="card">
             <p class="card-title">Rating breakdown</p>
             <div class="chart-placeholder">
-              <div class="rating-row"><span>5 stars</span><span>68%</span></div>
-              <div class="rating-row"><span>4 stars</span><span>18%</span></div>
-              <div class="rating-row"><span>3 stars</span><span>8%</span></div>
-              <div class="rating-row"><span>2 stars</span><span>4%</span></div>
-              <div class="rating-row"><span>1 star</span><span>2%</span></div>
+              <div class="rating-row" data-rating-row="5"><span>5 stars</span><span class="rating-value">—</span></div>
+              <div class="rating-row" data-rating-row="4"><span>4 stars</span><span class="rating-value">—</span></div>
+              <div class="rating-row" data-rating-row="3"><span>3 stars</span><span class="rating-value">—</span></div>
+              <div class="rating-row" data-rating-row="2"><span>2 stars</span><span class="rating-value">—</span></div>
+              <div class="rating-row" data-rating-row="1"><span>1 star</span><span class="rating-value">—</span></div>
             </div>
           </section>
         </div>

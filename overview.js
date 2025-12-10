@@ -1,11 +1,5 @@
-import {
-  collection,
-  db,
-  getDocs,
-  query,
-  where,
-} from "./firebase-config.js";
-import { listenForUser } from "./session-data.js";
+import { onSession, fetchAllReviews, calculateMetrics, buildRatingBreakdown, buildTimeline } from "./dashboard-data.js";
+import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
 const statElements = {
   totalReviews: document.querySelector('[data-metric="total-reviews"]'),
@@ -14,105 +8,46 @@ const statElements = {
   pendingFollowUps: document.querySelector('[data-metric="pending-followups"]'),
 };
 
+const businessElements = {
+  name: document.querySelector('[data-business="name"]'),
+  category: document.querySelector('[data-business="category"]'),
+  plan: document.querySelector('[data-business="plan"]'),
+  status: document.querySelector('[data-business="status"]'),
+};
+
+const ratingRows = document.querySelectorAll("[data-rating-row]");
+const timelineContainer = document.querySelector("[data-reviews-timeline]");
+
 function setLoadingState() {
   Object.values(statElements).forEach((el) => {
     if (el) {
       el.textContent = "—";
     }
   });
-}
-
-function extractRating(raw = {}) {
-  const rating = Number(raw.rating ?? raw.score ?? raw.ratingValue ?? 0);
-  if (Number.isFinite(rating) && rating > 0) return rating;
-  return null;
-}
-
-function extractSentiment(raw = {}) {
-  if (typeof raw.sentimentScore === "number") return raw.sentimentScore;
-  const rating = extractRating(raw);
-  if (rating === null) return null;
-  return Number((rating - 3).toFixed(2));
-}
-
-function normalizeStatus(raw = {}) {
-  const status = (raw.status || "open").toString().toLowerCase();
-  return status;
-}
-
-async function fetchFeedbackDocs(businessId) {
-  const reviews = [];
-  const seenRefs = new Set();
-
-  async function safeCollect(refBuilder) {
-    try {
-      const snap = await refBuilder();
-      snap.forEach((docSnap) => {
-        const path = docSnap.ref?.path || docSnap.id;
-        if (seenRefs.has(path)) return;
-        seenRefs.add(path);
-        reviews.push({ id: docSnap.id, ...docSnap.data() });
-      });
-    } catch (err) {
-      console.warn("[overview] Failed to fetch feedback", err);
-    }
+  ratingRows.forEach((row) => {
+    const value = row.querySelector(".rating-value");
+    if (value) value.textContent = "—";
+  });
+  if (timelineContainer) {
+    timelineContainer.textContent = "Loading...";
   }
-
-  await safeCollect(() => {
-    const baseRef = collection(db, "feedback");
-    return getDocs(query(baseRef, where("businessId", "==", businessId)));
-  });
-
-  await safeCollect(() => {
-    const nestedRef = collection(db, "businessProfiles", businessId, "feedback");
-    return getDocs(nestedRef);
-  });
-
-  await safeCollect(() => {
-    const googleRef = collection(db, "googleReviews");
-    return getDocs(query(googleRef, where("businessId", "==", businessId)));
-  });
-
-  return reviews;
 }
 
-function calculateMetrics(reviews = []) {
-  const total = reviews.length;
-  let positive = 0;
-  let pending = 0;
-  let ratingSum = 0;
-  let ratingCount = 0;
-
-  reviews.forEach((review) => {
-    const rating = extractRating(review);
-    const sentiment = extractSentiment(review);
-    const status = normalizeStatus(review);
-
-    if (rating !== null) {
-      ratingSum += rating;
-      ratingCount += 1;
-    }
-
-    if (status !== "resolved" && status !== "closed" && status !== "done") {
-      pending += 1;
-    }
-
-    if (rating !== null && rating >= 4) {
-      positive += 1;
-    } else if (rating === null && typeof sentiment === "number" && sentiment > 0) {
-      positive += 1;
-    }
-  });
-
-  const averageRating = ratingCount ? ratingSum / ratingCount : null;
-  const positivePercent = total ? Math.round((positive / total) * 100) : 0;
-
-  return {
-    total,
-    positivePercent,
-    averageRating,
-    pending,
-  };
+function renderBusinessCard(profile, subscription) {
+  if (businessElements.name) {
+    businessElements.name.textContent =
+      profile?.name || profile?.businessName || "Your business";
+  }
+  if (businessElements.category) {
+    businessElements.category.textContent = profile?.category || profile?.businessType || "Business";
+  }
+  if (businessElements.plan) {
+    const normalized = normalizePlan(subscription?.planId || subscription?.planTier || "starter");
+    businessElements.plan.textContent = PLAN_LABELS[normalized] || "Starter";
+  }
+  if (businessElements.status) {
+    businessElements.status.textContent = profile?.status || "Live";
+  }
 }
 
 function renderMetrics({ total, positivePercent, averageRating, pending }) {
@@ -130,12 +65,44 @@ function renderMetrics({ total, positivePercent, averageRating, pending }) {
   }
 }
 
+function renderRatingBreakdown(breakdown) {
+  ratingRows.forEach((row) => {
+    const star = row.getAttribute("data-rating-row");
+    const valueEl = row.querySelector(".rating-value");
+    if (!valueEl || !star) return;
+    const percent = breakdown.percents[star] ?? 0;
+    valueEl.textContent = `${percent}%`;
+  });
+}
+
+function renderTimeline(timeline = []) {
+  if (!timelineContainer) return;
+  if (!timeline.length) {
+    timelineContainer.textContent = "No reviews yet";
+    return;
+  }
+  const list = document.createElement("ul");
+  list.className = "list";
+  timeline.slice(-6).forEach(({ date, count }) => {
+    const item = document.createElement("li");
+    item.textContent = `${date}: ${count}`;
+    list.appendChild(item);
+  });
+  timelineContainer.innerHTML = "";
+  timelineContainer.appendChild(list);
+}
+
 setLoadingState();
 
-listenForUser(async ({ user }) => {
+onSession(async ({ user, profile, subscription }) => {
   if (!user) return;
   setLoadingState();
-  const reviews = await fetchFeedbackDocs(user.uid);
+  renderBusinessCard(profile, subscription);
+  const reviews = await fetchAllReviews(user.uid);
   const metrics = calculateMetrics(reviews);
+  const breakdown = buildRatingBreakdown(reviews);
+  const timeline = buildTimeline(reviews);
   renderMetrics(metrics);
+  renderRatingBreakdown(breakdown);
+  renderTimeline(timeline);
 });
