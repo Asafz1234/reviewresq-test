@@ -2,7 +2,6 @@ import { refreshProfile } from "./session-data.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
-let placesPromise = null;
 
 function showToast(message, isError = false) {
   let toast = document.getElementById(toastId);
@@ -20,33 +19,6 @@ function showToast(message, isError = false) {
   setTimeout(() => {
     toast.classList.remove("visible");
   }, 2400);
-}
-
-function loadGooglePlaces() {
-  if (placesPromise) return placesPromise;
-  placesPromise = new Promise((resolve, reject) => {
-    if (window.google?.maps?.places) {
-      resolve();
-      return;
-    }
-
-    const apiKey = runtimeEnv.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
-      reject(new Error("Missing Google Maps API key"));
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-      apiKey
-    )}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Maps Places"));
-    document.head.appendChild(script);
-  });
-  return placesPromise;
 }
 
 function extractShortAddress(place = {}) {
@@ -95,32 +67,34 @@ function createResultCard(place, onConnect) {
 }
 
 async function searchPlaces(query) {
-  await loadGooglePlaces();
-  return new Promise((resolve, reject) => {
-    const service = new google.maps.places.PlacesService(document.createElement("div"));
-    service.textSearch(
-      {
-        query,
-        fields: [
-          "place_id",
-          "name",
-          "formatted_address",
-          "types",
-          "rating",
-          "user_ratings_total",
-        ],
-      },
-      (results, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && Array.isArray(results)) {
-          resolve(results);
-        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-          resolve([]);
-        } else {
-          reject(new Error(`Places search failed: ${status}`));
-        }
-      }
-    );
+  const apiKey = runtimeEnv.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing Google Maps API key");
+  }
+
+  const params = new URLSearchParams({
+    input: query,
+    inputtype: "textquery",
+    fields: "place_id,name,formatted_address,types,rating,user_ratings_total",
+    key: apiKey,
   });
+
+  const response = await fetch(
+    "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
+      params.toString()
+  );
+
+  if (!response.ok) {
+    throw new Error(`Places API HTTP error ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (data.status === "ZERO_RESULTS") return [];
+  if (data.status && data.status !== "OK") {
+    throw new Error(`Places API error: ${data.status}`);
+  }
+  if (!Array.isArray(data.candidates)) return [];
+  return data.candidates;
 }
 
 export function buildGoogleReviewLink(placeId) {
