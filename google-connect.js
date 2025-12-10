@@ -72,29 +72,60 @@ async function searchPlaces(query) {
     throw new Error("Missing Google Maps API key");
   }
 
-  const params = new URLSearchParams({
-    input: query,
-    inputtype: "textquery",
-    fields: "place_id,name,formatted_address,types,rating,user_ratings_total",
-    key: apiKey,
+  const url = "https://places.googleapis.com/v1/places:searchText";
+  const headers = {
+    "Content-Type": "application/json",
+    "X-Goog-Api-Key": apiKey,
+    "X-Goog-FieldMask": [
+      "places.id",
+      "places.displayName",
+      "places.formattedAddress",
+      "places.types",
+      "places.rating",
+      "places.userRatingCount",
+    ].join(","),
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ textQuery: query }),
   });
 
-  const response = await fetch(
-    "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
-      params.toString()
-  );
+  let data;
+  try {
+    data = await response.json();
+  } catch (parseErr) {
+    console.error("[google-connect] failed to parse Places response", parseErr);
+    throw new Error("Unable to read response from Google Places API");
+  }
 
   if (!response.ok) {
-    throw new Error(`Places API HTTP error ${response.status}`);
+    const apiMessage = data?.error?.message;
+    const message = apiMessage
+      ? `Places API error: ${apiMessage}`
+      : `Places API HTTP error ${response.status}`;
+    throw new Error(message);
   }
 
-  const data = await response.json();
-  if (data.status === "ZERO_RESULTS") return [];
-  if (data.status && data.status !== "OK") {
-    throw new Error(`Places API error: ${data.status}`);
+  const places = data.places || [];
+  if (!Array.isArray(places) || places.length === 0) {
+    console.debug("[google-connect] query", query);
+    console.debug("[google-connect] candidates", []);
+    return [];
   }
-  if (!Array.isArray(data.candidates)) return [];
-  return data.candidates;
+
+  const mapped = places.map((place) => ({
+    place_id: place.id,
+    name: place.displayName?.text,
+    formatted_address: place.formattedAddress,
+    rating: place.rating,
+    user_ratings_total: place.userRatingCount,
+    types: place.types,
+  }));
+  console.debug("[google-connect] query", query);
+  console.debug("[google-connect] candidates", mapped);
+  return mapped;
 }
 
 export function buildGoogleReviewLink(placeId) {
@@ -168,7 +199,7 @@ export function renderGoogleConnect(container, options = {}) {
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.innerHTML = "";
       if (!matches.length) {
-        resultsEl.textContent = "No matching profiles found. Try a different name.";
+        resultsEl.textContent = "No matches found on Google. Try a different name.";
         return;
       }
       matches.slice(0, 5).forEach((place) => {
@@ -183,7 +214,8 @@ export function renderGoogleConnect(container, options = {}) {
       console.error("[google-connect] search failed", err);
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.textContent = "Unable to search right now. Please try again.";
-      showToast("Unable to search Google. Check your API key and try again.", true);
+      const message = err?.message || "Unable to search Google right now.";
+      showToast(message, true);
     } finally {
       searchBtn.disabled = false;
       searchBtn.textContent = "Search";
