@@ -94,8 +94,95 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
   }
 });
 
-// Alias so both names work for the same function
-exports.googlePlacesSearch2 = exports.googlePlacesSearch;
+exports.googlePlacesSearch2 = functions.https.onRequest(async (req, res) => {
+  const origin = req.headers.origin || "*";
+  const allowedOrigins = [
+    "https://reviewresq.com",
+    "https://www.reviewresq.com",
+    "http://localhost:5000",
+  ];
+
+  if (allowedOrigins.includes(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+  } else {
+    res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
+  }
+
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Vary", "Origin");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
+  if (!["GET", "POST"].includes(req.method)) {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const query =
+    (req.method === "GET" ? req.query.query : req.body?.query) || "";
+  const textQuery = String(query || "").trim();
+
+  if (!textQuery) {
+    return res.status(400).json({ error: "Missing query" });
+  }
+
+  const placesApiKey =
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.PLACES_API_KEY ||
+    functions.config().google?.places_api_key;
+
+  if (!placesApiKey) {
+    console.error("googlePlacesSearch missing Places API key");
+    return res.status(500).json({ error: "Server configuration missing" });
+  }
+
+  try {
+    const params = new URLSearchParams({
+      input: textQuery,
+      inputtype: "textquery",
+      fields: "place_id,name,formatted_address,rating,user_ratings_total",
+      key: placesApiKey,
+    });
+
+    const url =
+      "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
+      params.toString();
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Places API HTTP error", response.status, data);
+      return res.status(502).json({ error: "Places API HTTP error" });
+    }
+
+    if (data.status && data.status !== "OK") {
+      console.error("Places API status error", data.status, data);
+      return res.status(502).json({ error: data.status || "Places API error" });
+    }
+
+    const candidates = Array.isArray(data.candidates)
+      ? data.candidates.map((place) => ({
+          placeId: place.place_id,
+          name: place.name,
+          address: place.formatted_address,
+          rating: place.rating,
+          userRatingsTotal: place.user_ratings_total,
+          types: place.types,
+        }))
+      : [];
+
+    return res.status(200).json({
+      status: data.status || "OK",
+      candidates,
+    });
+  } catch (err) {
+    console.error("googlePlacesSearch failed", err);
+    return res.status(500).json({ error: "Failed to search Places" });
+  }
+});
 
 exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
   console.log("sendReviewRequestEmail invoked", req.method);
