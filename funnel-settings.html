@@ -55,17 +55,17 @@
           <div class="form-grid">
             <label>
               <span class="card-title">Headline</span>
-              <input class="input" type="text" value="Thanks for your visit!" />
+              <input class="input" type="text" value="Thanks for your visit!" data-happy-headline />
             </label>
             <label>
               <span class="card-title">Call to action</span>
-              <input class="input" type="text" value="Leave us a Google review" />
+              <input class="input" type="text" value="Leave us a Google review" data-happy-cta />
             </label>
           </div>
           <div class="form-grid">
             <label>
               <span class="card-title">Review prompt</span>
-              <textarea class="input" rows="3">Share a quick note about your experience so others know what to expect.</textarea>
+              <textarea class="input" rows="3" data-happy-prompt>Share a quick note about your experience so others know what to expect.</textarea>
             </label>
           </div>
           <div class="button-row">
@@ -83,17 +83,17 @@
           <div class="form-grid">
             <label>
               <span class="card-title">Private feedback headline</span>
-              <input class="input" type="text" value="We're here to make it right" />
+              <input class="input" type="text" value="We're here to make it right" data-unhappy-headline />
             </label>
             <label>
               <span class="card-title">Follow-up owner</span>
-              <input class="input" type="text" value="support@reviewresq.com" />
+              <input class="input" type="text" value="support@reviewresq.com" data-followup-owner />
             </label>
           </div>
           <div class="form-grid">
             <label>
               <span class="card-title">Message customers see</span>
-              <textarea class="input" rows="3">Tell us what happened and how we can improve. We'll respond quickly.</textarea>
+              <textarea class="input" rows="3" data-unhappy-message>Tell us what happened and how we can improve. We'll respond quickly.</textarea>
             </label>
           </div>
           <div class="button-row">
@@ -111,11 +111,11 @@
           <div class="form-grid">
             <label>
               <span class="card-title">Logo</span>
-              <input class="input" type="file" />
+              <input class="input" type="file" data-brand-logo />
             </label>
             <label>
               <span class="card-title">Primary color</span>
-              <input class="input" type="color" value="#2563eb" />
+              <input class="input" type="color" value="#2563eb" data-brand-primary />
             </label>
           </div>
           <div class="button-row">
@@ -125,6 +125,7 @@
       </div>
     </div>
   </div>
+  <script type="module" src="funnel-settings.js"></script>
   <script src="dashboard-nav.js"></script>
 </body>
 </html>

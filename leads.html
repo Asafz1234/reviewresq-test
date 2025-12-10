@@ -352,7 +352,7 @@
             <div class="timeline-meta">
               <span class="chip">${msg.channel}</span>
               <span class="chip">${msg.sender}</span>
-              <span class="caption">${new Date(msg.sentAt).toLocaleString()}</span>
+              <span class="caption">${new Date(msg.sentAt).toLocaleString('en-US')}</span>
             </div>
             <p class="timeline-text">${msg.text}</p>
             <span class="badge">${msg.status}</span>
@@ -370,7 +370,7 @@
               <span class="chip">${lead.source}</span>
               <span class="chip">${lead.serviceType}</span>
             </div>
-            <p class="caption">Created ${new Date(lead.createdAt).toLocaleDateString()} · Last contact ${formatRelative(lead.lastContactAt)}</p>
+            <p class="caption">Created ${new Date(lead.createdAt).toLocaleDateString('en-US')} · Last contact ${formatRelative(lead.lastContactAt)}</p>
           </div>
           <div class="button-row">
             <button class="btn btn-primary" id="startSequence">Start AI follow-up sequence</button>
