@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="/runtime-env.js"></script>
   <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
@@ -33,7 +34,7 @@
       <header class="topbar">
         <div class="topbar-title">Google reviews</div>
         <div class="topbar-right">
-          <span class="badge">Starter</span>
+          <span class="badge" data-plan-badge>—</span>
           <a class="btn btn-outline" href="billing.html">Account &amp; billing</a>
           <button class="btn btn-link" type="button" onclick="window.location.href='auth.html'">Log out</button>
         </div>
@@ -41,50 +42,61 @@
 
       <div class="page-shell">
         <header class="page-header">
-          <p class="page-title">Google Reviews</p>
-          <p class="page-subtitle">See how your business appears on Google.</p>
+          <div>
+            <p class="page-title">Google Reviews</p>
+            <p class="page-subtitle">See how your business appears on Google.</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-link" type="button" data-change-google style="display:none;">Not the right business? Change Google profile</button>
+          </div>
         </header>
 
-        <div class="layout-grid two-column">
-          <section class="card">
-            <p class="card-title">Business profile</p>
-            <div class="stacked">
-              <div class="business-row">
-                <div class="avatar" data-google-avatar>R</div>
-                <div>
-                  <p class="strong" data-google-business-name>—</p>
-                  <p class="card-subtitle" data-google-business-subtitle>—</p>
+        <div data-google-connect-slot></div>
+
+        <div data-google-connected>
+          <div class="layout-grid two-column">
+            <section class="card">
+              <p class="card-title">Business profile</p>
+              <div class="stacked">
+                <div class="business-row">
+                  <div class="avatar" data-google-avatar>R</div>
+                  <div>
+                    <p class="strong" data-google-business-name>—</p>
+                    <p class="card-subtitle" data-google-business-subtitle>—</p>
+                  </div>
+                </div>
+                <div class="badge-row">
+                  <span class="badge" data-google-rating>Google rating —</span>
+                  <span class="badge" data-google-count>0 reviews</span>
+                  <span class="badge badge-success">Verified</span>
                 </div>
               </div>
-              <div class="badge-row">
-                <span class="badge" data-google-rating>Google rating —</span>
-                <span class="badge" data-google-count>0 reviews</span>
-                <span class="badge badge-success">Verified</span>
+            </section>
+
+            <section class="card">
+              <p class="card-title">Rating summary</p>
+              <div class="list">
+                <div class="rating-row" data-rating-row="5"><span>5 stars</span><span class="rating-value">—</span></div>
+                <div class="rating-row" data-rating-row="4"><span>4 stars</span><span class="rating-value">—</span></div>
+                <div class="rating-row" data-rating-row="3"><span>3 stars</span><span class="rating-value">—</span></div>
+                <div class="rating-row" data-rating-row="2"><span>2 stars</span><span class="rating-value">—</span></div>
+                <div class="rating-row" data-rating-row="1"><span>1 star</span><span class="rating-value">—</span></div>
               </div>
-            </div>
+            </section>
+          </div>
+
+          <section class="card">
+            <p class="card-title">Rating distribution</p>
+            <div class="chart-placeholder">Distribution visualization</div>
           </section>
 
           <section class="card">
-            <p class="card-title">Rating summary</p>
-            <div class="list">
-              <div class="rating-row" data-rating-row="5"><span>5 stars</span><span class="rating-value">—</span></div>
-              <div class="rating-row" data-rating-row="4"><span>4 stars</span><span class="rating-value">—</span></div>
-              <div class="rating-row" data-rating-row="3"><span>3 stars</span><span class="rating-value">—</span></div>
-              <div class="rating-row" data-rating-row="2"><span>2 stars</span><span class="rating-value">—</span></div>
-              <div class="rating-row" data-rating-row="1"><span>1 star</span><span class="rating-value">—</span></div>
-            </div>
+            <p class="card-title">Latest Google reviews</p>
+            <div class="review-list" data-google-review-list>Loading...</div>
           </section>
         </div>
 
-        <section class="card">
-          <p class="card-title">Rating distribution</p>
-          <div class="chart-placeholder">Distribution visualization</div>
-        </section>
-
-        <section class="card">
-          <p class="card-title">Latest Google reviews</p>
-          <div class="review-list" data-google-review-list>Loading...</div>
-        </section>
+        <div data-google-upsell></div>
       </div>
     </div>
   </div>

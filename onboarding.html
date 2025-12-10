@@ -2,11 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Business Onboarding</title>
-  <link
-    rel="icon"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
-  />
   <script src="/runtime-env.js"></script>
   <link rel="stylesheet" href="dashboard.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,7 +25,7 @@
 
     .onboarding-container {
       width: 100%;
-      max-width: 700px;
+      max-width: 760px;
       background: #ffffff;
       padding: 30px;
       border-radius: 12px;
@@ -39,10 +36,16 @@
 
     h2 {
       margin-top: 0;
-      margin-bottom: 20px;
+      margin-bottom: 6px;
       font-size: 24px;
       color: #0f172a;
       font-weight: 600;
+    }
+
+    p.subtitle {
+      margin: 0 0 16px;
+      color: #4b5563;
+      font-size: 14px;
     }
 
     label {
@@ -69,6 +72,14 @@
       box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
 
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
     .btn-primary {
       background-color: #2563eb;
       color: #ffffff;
@@ -85,12 +96,18 @@
       background-color: #1e4fc5;
     }
 
+    .btn-link {
+      background: none;
+      border: none;
+      color: #2563eb;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
     .btn-save {
-      width: 100%;
-      padding: 14px;
+      padding: 12px 20px;
       border-radius: 10px;
-      font-size: 16px;
-      margin-top: 20px;
+      font-size: 15px;
     }
 
     .muted-text {
@@ -98,17 +115,14 @@
       font-size: 14px;
       margin-top: 12px;
     }
-
-    #resultsWrapper {
-      margin-top: 12px;
-    }
   </style>
 </head>
 <body>
   <div class="onboarding-container">
-    <h2>Business Setup</h2>
+    <h2>Connect your Google Business Profile</h2>
+    <p class="subtitle">We’ll use this to pull your Google rating and reviews into your dashboard.</p>
 
-    <label for="business-name">Business Name</label>
+    <label for="business-name">Business name</label>
     <input
       id="business-name"
       class="input-modern"
@@ -116,25 +130,16 @@
       placeholder="Best Pizza Miami"
     />
 
-    <button id="autoFindBtn" class="btn-primary">
-      Find Google Review Link Automatically
-    </button>
+    <div data-google-connect></div>
 
-    <div id="loading" class="muted-text" style="display:none;">Searching Google…</div>
-
-    <div id="resultsWrapper" style="display:none;">
-      <h3>Select Your Business</h3>
-      <div id="resultsList"></div>
+    <div class="actions">
+      <button id="skip-connect" class="btn-link" type="button">Skip for now</button>
+      <button id="save-and-continue" class="btn-primary btn-save" type="button">
+        Save and continue
+      </button>
     </div>
 
-    <label>Google Review Link</label>
-    <input id="google-review-link" type="url" placeholder="Will auto-fill…" />
-
-    <button id="save-and-continue" class="btn-primary btn-save" type="button">
-      Save and Continue
-    </button>
-
-    <div id="onboarding-status"></div>
+    <div id="onboarding-status" class="muted-text"></div>
   </div>
   <script type="module" src="onboarding.js"></script>
 </body>
