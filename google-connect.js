@@ -2,6 +2,9 @@ import { refreshProfile } from "./session-data.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
+const placesProxyUrl =
+  (runtimeEnv && runtimeEnv.GOOGLE_PLACES_PROXY_URL) ||
+  "https://us-central1-reviewresq-app.cloudfunctions.net/googlePlacesSearch";
 
 function showToast(message, isError = false) {
   let toast = document.getElementById(toastId);
@@ -67,60 +70,39 @@ function createResultCard(place, onConnect) {
 }
 
 async function searchPlaces(query) {
-  const apiKey = runtimeEnv.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    throw new Error("Missing Google Maps API key");
-  }
+  const url = `${placesProxyUrl}?query=${encodeURIComponent(query)}`;
 
-  const url = "https://places.googleapis.com/v1/places:searchText";
-  const headers = {
-    "Content-Type": "application/json",
-    "X-Goog-Api-Key": apiKey,
-    "X-Goog-FieldMask": [
-      "places.id",
-      "places.displayName",
-      "places.formattedAddress",
-      "places.types",
-      "places.rating",
-      "places.userRatingCount",
-    ].join(","),
-  };
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ textQuery: query }),
-  });
+  const response = await fetch(url);
 
   let data;
   try {
     data = await response.json();
   } catch (parseErr) {
     console.error("[google-connect] failed to parse Places response", parseErr);
-    throw new Error("Unable to read response from Google Places API");
+    throw new Error("Unable to read response from Places search");
   }
 
-  if (!response.ok) {
-    const apiMessage = data?.error?.message;
+  if (!response.ok || data?.error) {
+    const apiMessage = data?.error;
     const message = apiMessage
-      ? `Places API error: ${apiMessage}`
-      : `Places API HTTP error ${response.status}`;
+      ? `Places search failed: ${apiMessage}`
+      : `Places search HTTP error ${response.status}`;
     throw new Error(message);
   }
 
-  const places = data.places || [];
-  if (!Array.isArray(places) || places.length === 0) {
+  const candidates = data?.candidates || [];
+  if (!Array.isArray(candidates) || candidates.length === 0) {
     console.debug("[google-connect] query", query);
     console.debug("[google-connect] candidates", []);
     return [];
   }
 
-  const mapped = places.map((place) => ({
-    place_id: place.id,
-    name: place.displayName?.text,
-    formatted_address: place.formattedAddress,
+  const mapped = candidates.map((place) => ({
+    place_id: place.placeId,
+    name: place.name,
+    formatted_address: place.address,
     rating: place.rating,
-    user_ratings_total: place.userRatingCount,
+    user_ratings_total: place.userRatingsTotal,
     types: place.types,
   }));
   console.debug("[google-connect] query", query);
