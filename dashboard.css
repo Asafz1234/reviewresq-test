@@ -133,6 +133,15 @@ button {
 
 .page-header {
   margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
 }
 
 .page-title {
@@ -322,6 +331,36 @@ button {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.connect-card .card-subtitle {
+  margin: 4px 0;
+}
+
+.connect-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.connect-results--loading {
+  color: var(--text-muted);
+}
+
+.connect-result {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: #f9fafb;
+}
+
+.connect-result__body p {
+  margin: 2px 0;
 }
 
 .badge {
@@ -712,4 +751,21 @@ textarea.input {
 
 #feedback-toast.toast.toast-error {
   background: #b91c1c;
+}
+
+.growth-upsell {
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+  border: 1px solid #dbeafe;
+}
+
+.growth-upsell .card-title {
+  margin-bottom: 6px;
+}
+
+.growth-upsell__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
 }

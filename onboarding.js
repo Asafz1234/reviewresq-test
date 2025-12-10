@@ -7,205 +7,139 @@ import {
   setDoc,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import {
+  renderGoogleConnect,
+  buildGoogleReviewLink,
+  refetchProfileAfterConnect,
+} from "./google-connect.js";
 
 const auth = getAuth(app);
 const db = getFirestore(app);
 
 const businessNameInput = document.getElementById("business-name");
-const googleReviewLinkInput = document.getElementById("google-review-link");
 const saveBtn = document.getElementById("save-and-continue");
+const skipBtn = document.getElementById("skip-connect");
 const statusEl = document.getElementById("onboarding-status");
+const connectContainer = document.querySelector("[data-google-connect]");
 
-const loadingEl = document.getElementById("loading");
-const resultsWrapper = document.getElementById("resultsWrapper");
-const resultsList = document.getElementById("resultsList");
+let selectedPlace = null;
 
-let selectedPlaceId = null;
-
-function loadGoogleMapsPlaces(apiKey) {
-  return new Promise((resolve, reject) => {
-    if (window.google && google.maps && google.maps.places) {
-      resolve();
-      return;
-    }
-
-    if (!apiKey) {
-      reject(new Error("GOOGLE_MAPS_API_KEY is missing. Add it to your runtime env."));
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-      apiKey
-    )}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Maps Places"));
-
-    document.head.appendChild(script);
-  });
+function setStatus(message, isError = false) {
+  if (!statusEl) return;
+  statusEl.textContent = message || "";
+  statusEl.style.color = isError ? "#dc2626" : "#4b5563";
 }
 
-function initGoogleReviewAutoFinder() {
-  const nameInput = document.getElementById("business-name");
-  const linkInput = document.getElementById("google-review-link");
-  const autoBtn = document.getElementById("autoFindBtn");
-
-  if (!nameInput || !linkInput || !autoBtn) {
-    console.warn("Auto finder elements not found on page");
-    return;
-  }
-
-  autoBtn.addEventListener("click", () => {
-    const query = nameInput.value.trim();
-    if (!query) {
-      alert("Please enter your business name first.");
-      return;
-    }
-
-    autoBtn.disabled = true;
-    const originalLabel = autoBtn.textContent;
-    autoBtn.textContent = "Searching…";
-
-    // Create Places service without an actual map
-    const service = new google.maps.places.PlacesService(
-      document.createElement("div")
-    );
-
-    const request = {
-      query,
-      fields: ["place_id", "name"],
-    };
-
-    service.textSearch(request, (results, status) => {
-      autoBtn.disabled = false;
-      autoBtn.textContent = originalLabel;
-
-      if (
-        status !== google.maps.places.PlacesServiceStatus.OK ||
-        !results ||
-        !results.length
-      ) {
-        alert(
-          "We could not find this business on Google Maps. Please paste your Google review link manually."
-        );
-        return;
-      }
-
-      const placeId = results[0].place_id;
-      const reviewUrl =
-        "https://search.google.com/local/writereview?placeid=" + placeId;
-
-      linkInput.value = reviewUrl;
-    });
-  });
-}
-
-async function bootstrapGooglePlaces() {
-  try {
-    const runtimeEnv = window.RUNTIME_ENV || {};
-    if (!runtimeEnv.GOOGLE_MAPS_API_KEY) {
-      console.error(
-        "RUNTIME_ENV is missing. runtime-env.js was not loaded. Google Maps cannot initialize."
-      );
-    }
-
-    await loadGoogleMapsPlaces(runtimeEnv.GOOGLE_MAPS_API_KEY);
-    initGoogleReviewAutoFinder();
-  } catch (err) {
-    console.error("Unable to load Google Maps Places:", err);
-    const status = document.getElementById("onboarding-status");
-    if (status) {
-      status.textContent =
-        "We couldn't load Google Maps autocomplete. Please add your Google Maps API key and try again.";
-      status.style.color = "#dc2626";
-    }
-  }
-}
-
-window.addEventListener("load", bootstrapGooglePlaces);
-
-async function saveBusinessProfileAndPortalSettings() {
+async function ensureUser() {
   const user = auth.currentUser;
   if (!user) {
     window.location.href = "/auth.html";
-    return;
   }
+  return user;
+}
 
-  const uid = user.uid;
-  const businessName = businessNameInput?.value.trim() || "";
-  const googleReviewUrl = googleReviewLinkInput?.value.trim() || "";
-
-  if (!businessName || !googleReviewUrl) {
-    statusEl.textContent =
-      "Please fill in the business name and make sure a Google review link was found.";
-    statusEl.style.color = "#dc2626";
-    return;
-  }
-
-  statusEl.textContent = "Saving…";
-  statusEl.style.color = "#4b5563";
-
-  const businessDocRef = doc(db, "businessProfiles", uid);
+async function upsertPortalSettings(uid, googleReviewUrl) {
   const portalSettingsRef = doc(db, "portalSettings", uid);
+  const portalSnap = await getDoc(portalSettingsRef);
+  const basePayload = { updatedAt: serverTimestamp() };
+  if (googleReviewUrl) {
+    basePayload.googleReviewUrl = googleReviewUrl;
+  }
+  if (!portalSnap.exists()) {
+    await setDoc(portalSettingsRef, {
+      businessId: uid,
+      googleReviewUrl: googleReviewUrl || "",
+      accentColor: "#36058a",
+      backgroundStyle: "gradient",
+      primaryColor: "#171a21",
+      headline: "Share your experience",
+      subheadline: "Your voice shapes how we improve.",
+      ctaLabelHighRating: "Leave a Google review",
+      ctaLabelLowRating: "Send private feedback",
+      thankYouTitle: "Thank you!",
+      thankYouBody: "We appreciate you taking the time to help us improve.",
+      createdAt: serverTimestamp(),
+      ...basePayload,
+    });
+  } else {
+    await setDoc(portalSettingsRef, basePayload, { merge: true });
+  }
+}
+
+async function saveBusinessProfile(place, { redirect = false } = {}) {
+  const user = await ensureUser();
+  if (!user) return;
+  const uid = user.uid;
+  const businessName = (businessNameInput?.value || place?.name || "Your business").trim();
+  setStatus("Saving…");
 
   try {
-    await setDoc(
-      businessDocRef,
-      {
-        businessId: uid,
-        ownerUid: uid,
-        businessName,
-        googleReviewUrl,
-        updatedAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    const businessDocRef = doc(db, "businessProfiles", uid);
+    const payload = {
+      businessId: uid,
+      ownerUid: uid,
+      businessName,
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    };
 
-    const portalSnap = await getDoc(portalSettingsRef);
-
-    if (!portalSnap.exists()) {
-      await setDoc(portalSettingsRef, {
-        businessId: uid,
-        googleReviewUrl,
-        accentColor: "#36058a",
-        backgroundStyle: "gradient",
-        primaryColor: "#171a21",
-        headline: "Share your experience",
-        subheadline: "Your voice shapes how we improve.",
-        ctaLabelHighRating: "Leave a Google review",
-        ctaLabelLowRating: "Send private feedback",
-        thankYouTitle: "Thank you!",
-        thankYouBody: "We appreciate you taking the time to help us improve.",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+    if (place) {
+      const reviewUrl = buildGoogleReviewLink(place.place_id);
+      payload.googlePlaceId = place.place_id;
+      payload.googleProfile = {
+        name: place.name,
+        formatted_address: place.formatted_address,
+        rating: place.rating,
+        user_ratings_total: place.user_ratings_total,
+        types: place.types,
+      };
+      payload.googleReviewUrl = reviewUrl;
+      selectedPlace = place;
+      await upsertPortalSettings(uid, reviewUrl);
     } else {
-      await setDoc(
-        portalSettingsRef,
-        {
-          googleReviewUrl,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      await upsertPortalSettings(uid, null);
     }
 
-    statusEl.textContent = "Saved successfully!";
-    statusEl.style.color = "#16a34a";
-    window.location.href = "/dashboard.html";
+    await setDoc(businessDocRef, payload, { merge: true });
+    await refetchProfileAfterConnect();
+    setStatus("Saved successfully!");
+    if (redirect) {
+      window.location.href = "/dashboard.html";
+    }
   } catch (err) {
-    console.error("Error while saving onboarding data:", err);
-    statusEl.textContent = "Error while saving. Please try again.";
-    statusEl.style.color = "#dc2626";
+    console.error("[onboarding] failed to save profile", err);
+    setStatus("Error while saving. Please try again.", true);
   }
+}
+
+function setupConnectCard() {
+  renderGoogleConnect(connectContainer, {
+    title: "Connect your Google Business Profile",
+    subtitle: "We’ll use this to pull your Google rating and reviews into your dashboard.",
+    helperText: "Start typing your business name as it appears on Google.",
+    showSkip: true,
+    onSkip: () => saveBusinessProfile(null, { redirect: true }),
+    onConnect: async (place) => {
+      await saveBusinessProfile(place, { redirect: false });
+      if (businessNameInput && !businessNameInput.value) {
+        businessNameInput.value = place.name || "";
+      }
+    },
+  });
 }
 
 if (saveBtn) {
   saveBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    saveBusinessProfileAndPortalSettings();
+    saveBusinessProfile(selectedPlace, { redirect: true });
   });
 }
+
+if (skipBtn) {
+  skipBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    saveBusinessProfile(null, { redirect: true });
+  });
+}
+
+setupConnectCard();
