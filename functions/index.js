@@ -94,6 +94,9 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
   }
 });
 
+// Alias so both names work for the same function
+exports.googlePlacesSearch2 = exports.googlePlacesSearch;
+
 exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
   console.log("sendReviewRequestEmail invoked", req.method);
 
