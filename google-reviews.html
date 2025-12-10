@@ -50,15 +50,15 @@
             <p class="card-title">Business profile</p>
             <div class="stacked">
               <div class="business-row">
-                <div class="avatar">R</div>
+                <div class="avatar" data-google-avatar>R</div>
                 <div>
-                  <p class="strong">Riverstone Quality Services</p>
-                  <p class="card-subtitle">Handyman · San Francisco</p>
+                  <p class="strong" data-google-business-name>—</p>
+                  <p class="card-subtitle" data-google-business-subtitle>—</p>
                 </div>
               </div>
               <div class="badge-row">
-                <span class="badge">Google rating 4.6</span>
-                <span class="badge">312 reviews</span>
+                <span class="badge" data-google-rating>Google rating —</span>
+                <span class="badge" data-google-count>0 reviews</span>
                 <span class="badge badge-success">Verified</span>
               </div>
             </div>
@@ -67,11 +67,11 @@
           <section class="card">
             <p class="card-title">Rating summary</p>
             <div class="list">
-              <div class="rating-row"><span>5 stars</span><span>68%</span></div>
-              <div class="rating-row"><span>4 stars</span><span>18%</span></div>
-              <div class="rating-row"><span>3 stars</span><span>8%</span></div>
-              <div class="rating-row"><span>2 stars</span><span>4%</span></div>
-              <div class="rating-row"><span>1 star</span><span>2%</span></div>
+              <div class="rating-row" data-rating-row="5"><span>5 stars</span><span class="rating-value">—</span></div>
+              <div class="rating-row" data-rating-row="4"><span>4 stars</span><span class="rating-value">—</span></div>
+              <div class="rating-row" data-rating-row="3"><span>3 stars</span><span class="rating-value">—</span></div>
+              <div class="rating-row" data-rating-row="2"><span>2 stars</span><span class="rating-value">—</span></div>
+              <div class="rating-row" data-rating-row="1"><span>1 star</span><span class="rating-value">—</span></div>
             </div>
           </section>
         </div>
@@ -83,24 +83,12 @@
 
         <section class="card">
           <p class="card-title">Latest Google reviews</p>
-          <div class="review-list">
-            <div class="review-item">
-              <div class="strong">Kelsey Harper</div>
-              <p class="card-subtitle">“Excellent work, will book again.” · 5 stars · Mar 11</p>
-            </div>
-            <div class="review-item">
-              <div class="strong">Daniel Ortiz</div>
-              <p class="card-subtitle">“Friendly team but could be faster.” · 4 stars · Mar 8</p>
-            </div>
-            <div class="review-item">
-              <div class="strong">Priya Shah</div>
-              <p class="card-subtitle">“Needed a second visit to finish.” · 3 stars · Mar 3</p>
-            </div>
-          </div>
+          <div class="review-list" data-google-review-list>Loading...</div>
         </section>
       </div>
     </div>
   </div>
+  <script type="module" src="google-reviews.js"></script>
   <script src="dashboard-nav.js"></script>
 </body>
 </html>
