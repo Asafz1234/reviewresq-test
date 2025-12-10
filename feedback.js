@@ -95,12 +95,16 @@ function setLinkState(linkEl, href) {
   linkEl.dataset.linkHref = href || "";
   if (isActive) {
     linkEl.href = href;
-    linkEl.classList.remove("disabled");
+    linkEl.classList.remove("disabled", "btn--disabled");
+    linkEl.removeAttribute("disabled");
     linkEl.setAttribute("aria-disabled", "false");
+    linkEl.tabIndex = 0;
   } else {
     linkEl.removeAttribute("href");
-    linkEl.classList.add("disabled");
+    linkEl.classList.add("disabled", "btn--disabled");
+    linkEl.setAttribute("disabled", "true");
     linkEl.setAttribute("aria-disabled", "true");
+    linkEl.tabIndex = -1;
   }
   linkEl.target = "_self";
 }
@@ -188,6 +192,11 @@ function populateDetails(feedback) {
   }
   if (messageEl) messageEl.textContent = feedback.message || "—";
   if (dateEl) dateEl.textContent = feedback.createdAt ? formatDate(feedback.createdAt) : "—";
+
+  if (copyButton) {
+    copyButton.disabled = false;
+    copyButton.classList.remove("btn--disabled");
+  }
 
   const mailto = feedback.email
     ? `mailto:${encodeURIComponent(feedback.email)}?subject=${encodeURIComponent("Reply to your recent feedback")}`

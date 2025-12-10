@@ -682,7 +682,9 @@ textarea.input {
 }
 
 .btn.disabled,
-.btn[aria-disabled="true"] {
+.btn[aria-disabled="true"],
+.btn--disabled,
+.btn--disabled:hover {
   pointer-events: none;
   opacity: 0.5;
 }
