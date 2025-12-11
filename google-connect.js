@@ -1,10 +1,84 @@
-import { refreshProfile } from "./session-data.js";
+import { getCachedProfile, refreshProfile } from "./session-data.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
 const placesProxyUrl =
   (runtimeEnv && runtimeEnv.GOOGLE_PLACES_PROXY_URL) ||
   "https://us-central1-reviewresq-app.cloudfunctions.net/googlePlacesSearch";
+
+function gatherAccountData() {
+  const cachedProfile = (typeof getCachedProfile === "function" && getCachedProfile()) || {};
+  const globals =
+    window.currentAccount ||
+    window.sessionData ||
+    window.accountData ||
+    window.portalSettings ||
+    {};
+
+  return { cachedProfile, globals };
+}
+
+function buildLocationString() {
+  const { cachedProfile, globals } = gatherAccountData();
+  const googleProfile = cachedProfile.googleProfile || globals.googleProfile || {};
+
+  const address =
+    cachedProfile.address ||
+    cachedProfile.businessAddress ||
+    googleProfile.formatted_address ||
+    globals.address ||
+    globals.businessAddress ||
+    globals.companyAddress ||
+    "";
+
+  const city =
+    cachedProfile.city ||
+    cachedProfile.businessCity ||
+    globals.city ||
+    globals.businessCity ||
+    "";
+  const state =
+    cachedProfile.state ||
+    cachedProfile.businessState ||
+    globals.state ||
+    globals.businessState ||
+    "";
+  const country =
+    cachedProfile.country ||
+    cachedProfile.businessCountry ||
+    globals.country ||
+    globals.businessCountry ||
+    "";
+
+  const locationParts = [address, city, state, country]
+    .map((part) => (part || "").toString().trim())
+    .filter(Boolean);
+
+  // Remove duplicates while preserving order
+  const uniqueParts = locationParts.filter((part, index) => locationParts.indexOf(part) === index);
+  return uniqueParts.join(" ").trim();
+}
+
+function getStateValue() {
+  const stateInput = document.querySelector("[data-google-state]");
+  return stateInput?.value ? stateInput.value.trim() : "";
+}
+
+function getPhoneValue() {
+  const phoneInput = document.querySelector("[data-google-phone]");
+  return phoneInput?.value ? phoneInput.value.trim() : "";
+}
+
+function buildPlacesQuery(name = "", stateOverride = "") {
+  const trimmedName = (name || "").trim();
+  const state = (stateOverride || getStateValue() || "").trim();
+
+  const parts = [trimmedName, state]
+    .map((part) => (part || "").trim())
+    .filter(Boolean);
+
+  return parts.join(" ");
+}
 
 function showToast(message, isError = false) {
   let toast = document.getElementById(toastId);
@@ -69,8 +143,16 @@ function createResultCard(place, onConnect) {
   return item;
 }
 
-async function searchPlaces(query) {
-  const url = `${placesProxyUrl}?query=${encodeURIComponent(query)}`;
+async function searchPlaces(query, phoneDigits) {
+  if (!query && !phoneDigits) {
+    throw new Error("Missing query");
+  }
+
+  const params = new URLSearchParams();
+  if (query) params.set("query", query);
+  if (phoneDigits) params.set("phonenumber", phoneDigits);
+
+  const url = `${placesProxyUrl}?${params.toString()}`;
 
   const response = await fetch(url);
 
@@ -142,7 +224,31 @@ export function renderGoogleConnect(container, options = {}) {
       </div>
       <div class="stacked">
         <label class="strong" for="google-business-input">Business name</label>
-        <input id="google-business-input" class="input" type="text" placeholder="Business name" data-google-query value="${defaultQuery}" />
+        <input
+          id="google-business-input"
+          class="input"
+          type="text"
+          placeholder="Business name"
+          data-google-name
+          data-google-query
+          value="${defaultQuery}"
+        />
+        <label class="strong" for="google-state-input">State / Province</label>
+        <input
+          id="google-state-input"
+          class="input"
+          type="text"
+          placeholder="State (e.g. FL)"
+          data-google-state
+        />
+        <label class="strong" for="google-phone-input">Phone number</label>
+        <input
+          id="google-phone-input"
+          class="input"
+          type="text"
+          placeholder="Business phone (as shown on Google Maps)"
+          data-google-phone
+        />
         <p class="card-subtitle">${helperText}</p>
         <div class="input-row">
           <button class="btn btn-primary" type="button" data-google-search>Search</button>
@@ -154,7 +260,10 @@ export function renderGoogleConnect(container, options = {}) {
   `;
 
   const searchBtn = container.querySelector("[data-google-search]");
-  const queryInput = container.querySelector("[data-google-query]");
+  const nameInput =
+    container.querySelector("[data-google-name]") || container.querySelector("[data-google-query]");
+  const phoneInput = container.querySelector("[data-google-phone]");
+  const stateInput = container.querySelector("[data-google-state]");
   const resultsEl = container.querySelector("[data-google-results]");
   const messageEl = container.querySelector("[data-connect-message]");
   const skipBtn = container.querySelector("[data-connect-skip]");
@@ -164,10 +273,24 @@ export function renderGoogleConnect(container, options = {}) {
   }
 
   async function handleSearch() {
-    const query = (queryInput?.value || "").trim();
-    if (!query) {
-      messageEl.textContent = "Enter a business name to search.";
+    const name = (nameInput?.value || "").trim();
+    const state = (stateInput?.value || "").trim();
+    const phoneRaw = (phoneInput?.value || "").trim();
+    const phoneDigits = phoneRaw.replace(/\D+/g, "");
+    const query = buildPlacesQuery(name, state);
+
+    // Basic validation: require at least a name or phone number
+    if (!name && !phoneDigits) {
+      messageEl.textContent = "Enter a business name or phone number, then try again.";
       messageEl.style.color = "var(--danger)";
+      resultsEl.innerHTML = "";
+      return;
+    }
+
+    if (!query && !phoneDigits) {
+      messageEl.textContent = "Enter a business name or phone number, then try again.";
+      messageEl.style.color = "var(--danger)";
+      resultsEl.innerHTML = "";
       return;
     }
     messageEl.textContent = "";
@@ -177,7 +300,7 @@ export function renderGoogleConnect(container, options = {}) {
     searchBtn.textContent = "Searching…";
 
     try {
-      const matches = await searchPlaces(query);
+      const matches = await searchPlaces(query, phoneDigits);
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.innerHTML = "";
       if (!matches.length) {
@@ -196,8 +319,10 @@ export function renderGoogleConnect(container, options = {}) {
       console.error("[google-connect] search failed", err);
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.textContent = "Unable to search right now. Please try again.";
-      const message = err?.message || "Unable to search Google right now.";
-      showToast(message, true);
+      const fallbackMessage = err?.message === "Missing query"
+        ? "Enter a business name or phone number, then try again."
+        : err?.message || "Unable to search Google right now.";
+      showToast(fallbackMessage, true);
     } finally {
       searchBtn.disabled = false;
       searchBtn.textContent = "Search";
@@ -205,8 +330,8 @@ export function renderGoogleConnect(container, options = {}) {
   }
 
   if (searchBtn) searchBtn.addEventListener("click", handleSearch);
-  if (queryInput) {
-    queryInput.addEventListener("keydown", (e) => {
+  if (nameInput) {
+    nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         handleSearch();
