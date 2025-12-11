@@ -30,12 +30,37 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const query =
-    (req.method === "GET" ? req.query.query : req.body?.query) || "";
-  const textQuery = String(query || "").trim();
+  const getParam = (key) =>
+    req.method === "GET" ? (req.query?.[key] || "") : (req.body?.[key] || "");
 
-  if (!textQuery) {
-    return res.status(400).json({ error: "Missing query" });
+  const rawName = String(getParam("query") || "").trim(); // business name
+  const phoneRaw = String(getParam("phonenumber") || "").trim(); // phone number from client
+  const state = String(getParam("state") || "").trim(); // state from client
+
+  const normalizeUsPhone = (input = "") => {
+    if (!input) return null;
+    const trimmed = String(input).trim();
+    const digits = trimmed.replace(/\D/g, "");
+
+    if (trimmed.startsWith("+") && digits.length >= 11) {
+      return `+${digits}`;
+    }
+    if (digits.length === 10) {
+      return `+1${digits}`;
+    }
+    if (digits.length === 11 && digits.startsWith("1")) {
+      return `+${digits}`;
+    }
+    return null;
+  };
+
+  const normalizedPhone = normalizeUsPhone(phoneRaw);
+
+  if (!rawName && !normalizedPhone) {
+    return res.status(400).json({
+      error: "Missing query",
+      details: "Either 'phonenumber' or 'query' (business name) is required",
+    });
   }
 
   const placesApiKey =
@@ -44,53 +69,125 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     functions.config().google?.places_api_key;
 
   if (!placesApiKey) {
-    console.error("googlePlacesSearch missing Places API key");
+    console.error("[googlePlacesSearch] missing Places API key");
     return res.status(500).json({ error: "Server configuration missing" });
   }
 
-  try {
-    const params = new URLSearchParams({
-      input: textQuery,
-      inputtype: "textquery",
-      fields: "place_id,name,formatted_address,rating,user_ratings_total",
-      key: placesApiKey,
-    });
-
-    const url =
-      "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
-      params.toString();
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Places API HTTP error", response.status, data);
-      return res.status(502).json({ error: "Places API HTTP error" });
-    }
-
-    if (data.status && data.status !== "OK") {
-      console.error("Places API status error", data.status, data);
-      return res.status(502).json({ error: data.status || "Places API error" });
-    }
-
-    const candidates = Array.isArray(data.candidates)
-      ? data.candidates.map((place) => ({
+  const mapCandidates = (apiData = {}) =>
+    Array.isArray(apiData.candidates)
+      ? apiData.candidates.map((place) => ({
           placeId: place.place_id,
           name: place.name,
           address: place.formatted_address,
-          rating: place.rating,
-          userRatingsTotal: place.user_ratings_total,
-          types: place.types,
+          rating: place.rating || null,
+          userRatingsTotal: place.user_ratings_total || 0,
+          phoneNumber: place.formatted_phone_number || null,
+          types: place.types || [],
         }))
       : [];
 
-    return res.status(200).json({
-      status: data.status || "OK",
-      candidates,
+  try {
+    // 1) Phone-first lookup (if we have a usable phone)
+    if (normalizedPhone) {
+      const phoneParams = new URLSearchParams({
+        input: normalizedPhone,
+        inputtype: "phonenumber",
+        fields:
+          "place_id,name,formatted_address,rating,user_ratings_total,formatted_phone_number,types",
+        region: "us",
+        key: placesApiKey,
+      });
+
+      const phoneUrl =
+        "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
+        phoneParams.toString();
+
+      const phoneResponse = await fetch(phoneUrl);
+      const phoneData = await phoneResponse.json();
+
+      console.log("[googlePlacesSearch] phone lookup", {
+        normalizedPhone,
+        status: phoneData.status,
+        candidateCount: phoneData.candidates?.length || 0,
+      });
+
+      if (!phoneResponse.ok) {
+        console.error(
+          "[googlePlacesSearch] phone lookup HTTP error",
+          phoneResponse.status,
+          phoneData
+        );
+        return res.status(502).json({ error: "Places API error" });
+      }
+
+      if (phoneData.status === "OK" && phoneData.candidates?.length) {
+        return res.json({ candidates: mapCandidates(phoneData) });
+      }
+
+      // If phone lookup fails, fall back to text query
+      console.warn(
+        "[googlePlacesSearch] phone lookup returned no candidates, falling back to text query",
+        phoneData.status
+      );
+    }
+
+    // 2) Text lookup: name + state as a single text query
+    const textQueryBase = rawName;
+    const textQuery = [textQueryBase, state].filter(Boolean).join(" ").trim();
+
+    if (!textQuery) {
+      return res.status(400).json({
+        error: "Missing query",
+        details: "A business name is required when no phone number is provided.",
+      });
+    }
+
+    const textParams = new URLSearchParams({
+      input: textQuery, // IMPORTANT: use name + state, not rawName
+      inputtype: "textquery",
+      fields:
+        "place_id,name,formatted_address,rating,user_ratings_total,formatted_phone_number,types",
+      region: "us",
+      key: placesApiKey,
     });
+
+    const textUrl =
+      "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
+      textParams.toString();
+
+    const response = await fetch(textUrl);
+    const data = await response.json();
+
+    console.log("[googlePlacesSearch] text lookup", {
+      textQuery,
+      status: data.status,
+      candidateCount: data.candidates?.length || 0,
+    });
+
+    if (!response.ok) {
+      console.error(
+        "[googlePlacesSearch] text lookup HTTP error",
+        response.status,
+        data
+      );
+      return res.status(502).json({ error: "Places API error" });
+    }
+
+    if (data.status && data.status !== "OK") {
+      if (data.status === "ZERO_RESULTS") {
+        // return an empty list, not an error
+        return res.json({ candidates: [] });
+      }
+      console.error("[googlePlacesSearch] text lookup status error", data.status, data);
+      return res
+        .status(502)
+        .json({ error: data.status || "Places API error" });
+    }
+
+    return res.json({ candidates: mapCandidates(data) });
   } catch (err) {
-    console.error("googlePlacesSearch failed", err);
-    return res.status(500).json({ error: "Failed to search Places" });
+    console.error("[googlePlacesSearch] unexpected error", err);
+    return res.status(502).json({ error: "Places API error" });
   }
 });
 
@@ -120,13 +217,18 @@ exports.googlePlacesSearch2 = functions.https.onRequest(async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const query =
-    (req.method === "GET" ? req.query.query : req.body?.query) || "";
-  const textQuery = String(query || "").trim();
+  const getParam = (key) =>
+    req.method === "GET" ? req.query?.[key] || "" : req.body?.[key] || "";
 
-  if (!textQuery) {
+  const query = String(getParam("query") || "").trim();
+  const phoneRaw = String(getParam("phone") || "").trim();
+
+  if (!query && !phoneRaw) {
     return res.status(400).json({ error: "Missing query" });
   }
+
+  const digits = phoneRaw.replace(/\D/g, "");
+  const hasPhoneDigits = digits.length >= 7;
 
   const placesApiKey =
     process.env.GOOGLE_MAPS_API_KEY ||
@@ -139,10 +241,47 @@ exports.googlePlacesSearch2 = functions.https.onRequest(async (req, res) => {
   }
 
   try {
+    if (hasPhoneDigits) {
+      const phoneParams = new URLSearchParams({
+        input: `+1${digits}`,
+        inputtype: "phonenumber",
+        fields:
+          "place_id,name,formatted_address,formatted_phone_number,rating,user_ratings_total,types",
+        key: placesApiKey,
+      });
+
+      const phoneUrl =
+        "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
+        phoneParams.toString();
+      const phoneResponse = await fetch(phoneUrl);
+      const phoneData = await phoneResponse.json();
+
+      if (phoneResponse.ok && phoneData.status === "OK" && phoneData.candidates?.length) {
+        const candidates = phoneData.candidates.map((place) => ({
+          placeId: place.place_id,
+          name: place.name,
+          address: place.formatted_address,
+          rating: place.rating,
+          userRatingsTotal: place.user_ratings_total,
+          phone: place.formatted_phone_number,
+          types: place.types || [],
+        }));
+
+        return res.json({ candidates });
+      }
+
+      console.warn("Phone lookup failed, falling back to text query", phoneData);
+    }
+
+    if (!query) {
+      return res.status(400).json({ error: "Missing query" });
+    }
+
     const params = new URLSearchParams({
-      input: textQuery,
+      input: query,
       inputtype: "textquery",
-      fields: "place_id,name,formatted_address,rating,user_ratings_total",
+      fields: "place_id,name,formatted_address,rating,user_ratings_total,types",
+      region: "us",
       key: placesApiKey,
     });
 
@@ -170,7 +309,8 @@ exports.googlePlacesSearch2 = functions.https.onRequest(async (req, res) => {
           address: place.formatted_address,
           rating: place.rating,
           userRatingsTotal: place.user_ratings_total,
-          types: place.types,
+          phone: place.formatted_phone_number,
+          types: place.types || [],
         }))
       : [];
 
