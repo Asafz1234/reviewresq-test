@@ -44,10 +44,10 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
   const normalizePhone = (phone) => String(phone || "").replace(/\D/g, "");
   const normalizedPhone = normalizePhone(phoneRaw);
 
-  if (!rawName || !phoneRaw) {
+  if (!normalizedPhone) {
     return res.status(400).json({
-      error: "Missing fields",
-      details: "Both businessName and phone are required",
+      error: "Missing phone",
+      details: "A phone number is required for search",
     });
   }
 
@@ -94,70 +94,59 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
   };
 
   try {
-    const textQuery = `${rawName} ${normalizedPhone}`.trim();
-
-    const { response, data, url } = await callFindPlace(textQuery);
-    console.log("[googlePlacesSearch] lookup", {
-      textQuery,
-      url,
-      httpStatus: response.status,
-      status: data.status,
-      candidateCount: data.candidates?.length || 0,
-    });
-
-    if (!response.ok) {
-      console.error("[googlePlacesSearch] Places API HTTP error", response.status);
-      return res.status(502).json({ error: "Places API error" });
+    const queries = [];
+    if (rawName) {
+      queries.push(`${rawName} ${normalizedPhone}`.trim());
+    }
+    queries.push(normalizedPhone);
+    if (rawName && state) {
+      queries.push(`${rawName} ${state}`.trim());
     }
 
-    if (data.status && !["OK", "ZERO_RESULTS"].includes(data.status)) {
-      console.error("[googlePlacesSearch] Places API status error", data.status);
-      return res.status(502).json({ error: data.status || "Places API error" });
-    }
+    const seenQueries = new Set();
+    const uniqueQueries = queries.filter((q) => q && !seenQueries.has(q) && seenQueries.add(q));
 
-    const candidates = Array.isArray(data.candidates) ? data.candidates : [];
-
-    const phoneMatches = candidates.filter((place) => {
-      const placePhone = normalizePhone(
-        place.national_phone_number ||
-          place.international_phone_number ||
-          place.formatted_phone_number ||
-          ""
-      );
-
-      const last10 = normalizedPhone.slice(-10);
-      return last10 && placePhone.endsWith(last10);
-    });
-
-    let finalMatches = phoneMatches;
-
-    if (phoneMatches.length > 1 && state) {
-      const stateUpper = state.toUpperCase();
-      finalMatches = phoneMatches.filter((place) => {
-        const address = (place.formatted_address || "").toUpperCase();
-        return address.includes(stateUpper);
+    for (const textQuery of uniqueQueries) {
+      const { response, data, url } = await callFindPlace(textQuery);
+      console.log("[googlePlacesSearch] lookup", {
+        textQuery,
+        url,
+        httpStatus: response.status,
+        status: data.status,
+        candidateCount: data.candidates?.length || 0,
       });
+
+      const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+      console.log("[googlePlacesSearch] candidates", candidates);
+
+      for (const place of candidates) {
+        const placePhone = normalizePhone(
+          place.national_phone_number ||
+            place.international_phone_number ||
+            place.formatted_phone_number ||
+            ""
+        );
+
+        const phoneMatch = placePhone === normalizedPhone;
+        console.log("[googlePlacesSearch] phone compare", {
+          placeId: place.place_id,
+          placeName: place.name,
+          placePhone,
+          normalizedPhone,
+          phoneMatch,
+        });
+
+        if (phoneMatch) {
+          return res.json({ candidates: [mapCandidate(place)] });
+        }
+      }
+
+      if (!response.ok) {
+        console.error("[googlePlacesSearch] Places API HTTP error", response.status);
+      }
     }
 
-    if (finalMatches.length === 0) {
-      return res.status(200).json({
-        ok: false,
-        code: "NO_MATCHES",
-        message: "No matching business found",
-      });
-    }
-
-    if (finalMatches.length > 1) {
-      return res.status(200).json({
-        ok: false,
-        code: "MULTIPLE_MATCHES",
-        message: "Multiple matching businesses found",
-      });
-    }
-
-    const match = mapCandidate(finalMatches[0]);
-
-    return res.json({ candidates: [match] });
+    return res.json({ candidates: [] });
   } catch (err) {
     console.error("[googlePlacesSearch] unexpected server error", err);
     return res.status(500).json({ candidates: [], error: "Server error" });
