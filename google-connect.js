@@ -69,11 +69,10 @@ function getPhoneValue() {
   return phoneInput?.value ? phoneInput.value.trim() : "";
 }
 
-function buildPlacesQuery(name = "") {
+function buildPlacesQuery(name = "", stateOverride = "") {
   const trimmedName = (name || "").trim();
-  if (!trimmedName) return "";
+  const state = (stateOverride || getStateValue() || "").trim();
 
-  const state = getStateValue();
   const parts = [trimmedName, state]
     .map((part) => (part || "").trim())
     .filter(Boolean);
@@ -144,15 +143,14 @@ function createResultCard(place, onConnect) {
   return item;
 }
 
-async function searchPlaces(name) {
-  const query = buildPlacesQuery(name);
-  if (!query) {
+async function searchPlaces(query, phoneDigits) {
+  if (!query && !phoneDigits) {
     throw new Error("Missing query");
   }
 
-  const phone = getPhoneValue();
-  const params = new URLSearchParams({ query });
-  if (phone) params.set("phone", phone);
+  const params = new URLSearchParams();
+  if (query) params.set("query", query);
+  if (phoneDigits) params.set("phonenumber", phoneDigits);
 
   const url = `${placesProxyUrl}?${params.toString()}`;
 
@@ -276,22 +274,21 @@ export function renderGoogleConnect(container, options = {}) {
 
   async function handleSearch() {
     const name = (nameInput?.value || "").trim();
-    const phoneRaw = (phoneInput?.value || "").trim();
     const state = (stateInput?.value || "").trim();
+    const phoneRaw = (phoneInput?.value || "").trim();
+    const phoneDigits = phoneRaw.replace(/\D+/g, "");
+    const query = buildPlacesQuery(name, state);
 
-    // Basic validation
-    if (!name || !state || !phoneRaw) {
-      messageEl.textContent =
-        "Please fill in business name, state, and phone number before searching.";
+    // Basic validation: require at least a name or phone number
+    if (!name && !phoneDigits) {
+      messageEl.textContent = "Enter a business name or phone number, then try again.";
       messageEl.style.color = "var(--danger)";
       resultsEl.innerHTML = "";
       return;
     }
 
-    const phone = phoneRaw.replace(/[^\d+]/g, "");
-    const query = buildPlacesQuery(name);
-    if (!query) {
-      messageEl.textContent = "All fields are required to search on Google.";
+    if (!query && !phoneDigits) {
+      messageEl.textContent = "Enter a business name or phone number, then try again.";
       messageEl.style.color = "var(--danger)";
       resultsEl.innerHTML = "";
       return;
@@ -303,7 +300,7 @@ export function renderGoogleConnect(container, options = {}) {
     searchBtn.textContent = "Searching…";
 
     try {
-      const matches = await searchPlaces(name);
+      const matches = await searchPlaces(query, phoneDigits);
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.innerHTML = "";
       if (!matches.length) {
@@ -323,7 +320,7 @@ export function renderGoogleConnect(container, options = {}) {
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.textContent = "Unable to search right now. Please try again.";
       const fallbackMessage = err?.message === "Missing query"
-        ? "Enter business name and try again."
+        ? "Enter a business name or phone number, then try again."
         : err?.message || "Unable to search Google right now.";
       showToast(fallbackMessage, true);
     } finally {
