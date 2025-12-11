@@ -33,9 +33,11 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
   const getParam = (key) =>
     req.method === "GET" ? (req.query?.[key] || "") : (req.body?.[key] || "");
 
-  const rawName = String(getParam("query") || "").trim(); // business name
-  const phoneRaw = String(getParam("phonenumber") || "").trim(); // phone number from client
-  const state = String(getParam("state") || "").trim(); // state from client
+  const businessName = String(getParam("query") || "").trim();
+  const state = String(getParam("state") || "").trim();
+  const phoneInput = String(
+    getParam("phonenumber") || getParam("phone") || ""
+  ).trim();
 
   const normalizeUsPhone = (input = "") => {
     if (!input) return null;
@@ -45,28 +47,18 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     if (trimmed.startsWith("+") && digits.length >= 11) {
       return `+${digits}`;
     }
-    if (digits.length === 10) {
-      return `+1${digits}`;
-    }
     if (digits.length === 11 && digits.startsWith("1")) {
       return `+${digits}`;
+    }
+    if (digits.length === 10) {
+      return `+1${digits}`;
     }
     return null;
   };
 
-  const normalizedPhone = normalizeUsPhone(phoneRaw);
+  const normalizedPhone = normalizeUsPhone(phoneInput);
+  const textQuery = `${businessName} ${state}`.trim();
 
-  if (!rawName && !normalizedPhone) {
-    return res.status(400).json({
-      error: "Missing query",
-      details: "Either 'phonenumber' or 'query' (business name) is required",
-    });
-  }
-
-  const digits = phoneRaw.replace(/\D/g, "");
-  const hasPhoneDigits = digits.length >= 7; // כרגע לשימוש עתידי, לא חובה
-
-  // ----- קבלת מפתח ה-API של Places -----
   const placesApiKey =
     process.env.GOOGLE_MAPS_API_KEY ||
     process.env.PLACES_API_KEY ||
@@ -74,15 +66,21 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
 
   if (!placesApiKey) {
     console.error("[googlePlacesSearch] missing Places API key");
-    return res.status(500).json({ error: "Server configuration missing" });
+    return res.status(500).json({
+      error: "Server configuration missing",
+      candidates: [],
+    });
   }
+
+  const respondEmpty = () => res.status(200).json({ candidates: [] });
 
   const mapCandidates = (apiData = {}) =>
     Array.isArray(apiData.candidates)
       ? apiData.candidates.map((place) => ({
           placeId: place.place_id,
           name: place.name,
-          address: place.formatted_address,
+          address: place.formatted_address || place.address,
+          formatted_address: place.formatted_address || place.address,
           rating: place.rating || null,
           userRatingsTotal: place.user_ratings_total || 0,
           phoneNumber: place.formatted_phone_number || null,
@@ -90,8 +88,40 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
         }))
       : [];
 
+  const logResponse = (label, url, httpStatus, data = {}) => {
+    console.log(`[googlePlacesSearch] ${label}`, {
+      url,
+      httpStatus,
+      apiStatus: data.status,
+      errorMessage: data.error_message || null,
+      candidateCount: data.candidates?.length || 0,
+    });
+  };
+
+  const fetchPlaces = async (url, label) => {
+    try {
+      const response = await fetch(url);
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (err) {
+        console.error(`[googlePlacesSearch] ${label} JSON parse error`, err);
+      }
+
+      logResponse(label, url, response.status, data || {});
+
+      if (!response.ok || data?.error_message) {
+        return { error: true, data };
+      }
+
+      return { error: false, data };
+    } catch (err) {
+      console.error(`[googlePlacesSearch] ${label} request failed`, err);
+      return { error: true, data: null };
+    }
+  };
+
   try {
-    // 1) Phone-first lookup (if we have a usable phone)
     if (normalizedPhone) {
       const phoneParams = new URLSearchParams({
         input: normalizedPhone,
@@ -106,48 +136,25 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
         "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
         phoneParams.toString();
 
-      const phoneResponse = await fetch(phoneUrl);
-      const phoneData = await phoneResponse.json();
+      const phoneResult = await fetchPlaces(phoneUrl, "phone lookup");
 
-      console.log("[googlePlacesSearch] phone lookup", {
-        normalizedPhone,
-        status: phoneData.status,
-        candidateCount: phoneData.candidates?.length || 0,
-      });
-
-      if (!phoneResponse.ok) {
-        console.error(
-          "[googlePlacesSearch] phone lookup HTTP error",
-          phoneResponse.status,
-          phoneData
-        );
-        return res.status(502).json({ error: "Places API error" });
+      if (!phoneResult.error) {
+        const phoneData = phoneResult.data || {};
+        if (phoneData.status === "OK" && phoneData.candidates?.length) {
+          return res.status(200).json({ candidates: mapCandidates(phoneData) });
+        }
       }
-
-      if (phoneData.status === "OK" && phoneData.candidates?.length) {
-        return res.json({ candidates: mapCandidates(phoneData) });
-      }
-
-      // If phone lookup fails, fall back to text query
-      console.warn(
-        "[googlePlacesSearch] phone lookup returned no candidates, falling back to text query",
-        phoneData.status
-      );
+    } else if (phoneInput) {
+      console.warn("[googlePlacesSearch] malformed phone provided", { phoneInput });
     }
 
-    // 2) Text lookup: name + state as a single text query
-    const textQueryBase = rawName;
-    const textQuery = [textQueryBase, state].filter(Boolean).join(" ").trim();
-
     if (!textQuery) {
-      return res.status(400).json({
-        error: "Missing query",
-        details: "A business name is required when no phone number is provided.",
-      });
+      console.warn("[googlePlacesSearch] missing text query and phone match");
+      return respondEmpty();
     }
 
     const textParams = new URLSearchParams({
-      input: textQuery, // IMPORTANT: use name + state, not rawName
+      input: textQuery,
       inputtype: "textquery",
       fields:
         "place_id,name,formatted_address,rating,user_ratings_total,formatted_phone_number,types",
@@ -159,39 +166,22 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
       "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
       textParams.toString();
 
-    const response = await fetch(textUrl);
-    const data = await response.json();
+    const textResult = await fetchPlaces(textUrl, "text lookup");
 
-    console.log("[googlePlacesSearch] text lookup", {
-      textQuery,
-      status: data.status,
-      candidateCount: data.candidates?.length || 0,
-    });
-
-    if (!response.ok) {
-      console.error(
-        "[googlePlacesSearch] text lookup HTTP error",
-        response.status,
-        data
-      );
-      return res.status(502).json({ error: "Places API error" });
+    if (textResult.error) {
+      return respondEmpty();
     }
 
-    if (data.status && data.status !== "OK") {
-      if (data.status === "ZERO_RESULTS") {
-        // return an empty list, not an error
-        return res.json({ candidates: [] });
-      }
-      console.error("[googlePlacesSearch] text lookup status error", data.status, data);
-      return res
-        .status(502)
-        .json({ error: data.status || "Places API error" });
+    const data = textResult.data || {};
+
+    if (data.status !== "OK" || !Array.isArray(data.candidates)) {
+      return respondEmpty();
     }
 
-    return res.json({ candidates: mapCandidates(data) });
+    return res.status(200).json({ candidates: mapCandidates(data) });
   } catch (err) {
-    console.error("[googlePlacesSearch] unexpected error", err);
-    return res.status(502).json({ error: "Places API error" });
+    console.error("[googlePlacesSearch] unexpected server error", err);
+    return res.status(500).json({ candidates: [], error: "Server error" });
   }
 });
 
