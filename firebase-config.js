@@ -5,15 +5,6 @@ import {
   setLogLevel,
 } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
 
-// Quiet repeated Firebase heartbeat debug logs that clutter the console
-const originalConsoleLog = console.log;
-console.log = (...args) => {
-  if (typeof args[0] === "string" && args[0].toLowerCase().trim() === "heartbeats") {
-    return;
-  }
-  originalConsoleLog(...args);
-};
-
 import {
   getAuth,
   onAuthStateChanged,
@@ -47,44 +38,44 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
+
 import { getFunctions, httpsCallable } from "./firebase-app.js";
 
-const defaultEnv = {
-  FIREBASE_API_KEY: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
-  FIREBASE_AUTH_DOMAIN: "reviewresq-app.firebaseapp.com",
-  FIREBASE_PROJECT_ID: "reviewresq-app",
-  FIREBASE_STORAGE_BUCKET: "reviewresq-app.appspot.com",
-  FIREBASE_MESSAGING_SENDER_ID: "863497920392",
-  FIREBASE_APP_ID: "1:863497920392:web:ca99060b42a50711b9e43d",
-  FIREBASE_MEASUREMENT_ID: "G-G3P2BX845N",
+// סינון לוגי heartbeats מיותרים בקונסול
+const originalConsoleLog = console.log;
+console.log = (...args) => {
+  if (
+    typeof args[0] === "string" &&
+    args[0].toLowerCase().trim() === "heartbeats"
+  ) {
+    return;
+  }
+  originalConsoleLog(...args);
 };
 
-if (!window.RUNTIME_ENV) {
-  console.error("RUNTIME_ENV is missing. runtime-env.js was not loaded.");
-}
-
-const runtimeEnv = window.RUNTIME_ENV || {};
-
+// 🔹 זה ה-config היחיד, בדיוק כמו ב-Firebase Console
 const firebaseConfig = {
-  apiKey: runtimeEnv.FIREBASE_API_KEY || defaultEnv.FIREBASE_API_KEY,
-  authDomain: runtimeEnv.FIREBASE_AUTH_DOMAIN || defaultEnv.FIREBASE_AUTH_DOMAIN,
-  projectId: runtimeEnv.FIREBASE_PROJECT_ID || defaultEnv.FIREBASE_PROJECT_ID,
-  storageBucket: runtimeEnv.FIREBASE_STORAGE_BUCKET || defaultEnv.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId:
-    runtimeEnv.FIREBASE_MESSAGING_SENDER_ID || defaultEnv.FIREBASE_MESSAGING_SENDER_ID,
-  appId: runtimeEnv.FIREBASE_APP_ID || defaultEnv.FIREBASE_APP_ID,
-  measurementId: runtimeEnv.FIREBASE_MEASUREMENT_ID || defaultEnv.FIREBASE_MEASUREMENT_ID,
+  apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
+  authDomain: "reviewresq-app.firebaseapp.com",
+  projectId: "reviewresq-app",
+  storageBucket: "reviewresq-app.firebasestorage.app",
+  messagingSenderId: "863497920392",
+  appId: "1:863497920392:web:ca99060b42a50711b9e43d",
+  measurementId: "G-G3P2BX845N",
 };
 
-// Initialize the core Firebase services once and expose them as named exports
+// אתחול Firebase
 export const app = initializeApp(firebaseConfig);
-// Silence noisy Firebase debug logs (e.g., heartbeat messages) while keeping errors visible
+
+// משאיר רק שגיאות/אזהרות מה-SDK
 setLogLevel("error");
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
 
+// ייצוא כל הפונקציות הדרושות לשאר הקבצים
 export {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -111,6 +102,7 @@ export {
   httpsCallable,
 };
 
+// העלאת לוגו והחזרת URL
 export async function uploadLogoAndGetURL(file, userId) {
   if (!file || !userId) {
     throw new Error("File and userId are required to upload a logo.");
@@ -119,15 +111,18 @@ export async function uploadLogoAndGetURL(file, userId) {
   const ext = (file.name || "").split(".").pop();
   const safeExt = ext && ext.length < 8 ? `.${ext}` : "";
   const logoRef = storageRef(storage, `logos/${userId}/portal-logo${safeExt}`);
+
   const snapshot = await uploadBytes(logoRef, file);
   return getDownloadURL(snapshot.ref);
 }
 
+// המרת קובץ ל-DataURL
 export function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Failed to read the image file"));
+    reader.onerror = () =>
+      reject(new Error("Failed to read the image file"));
     reader.readAsDataURL(file);
   });
 }
