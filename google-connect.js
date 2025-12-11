@@ -146,9 +146,9 @@ async function searchPlaces(name, state, phone) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      query: name.trim(),
-      state: state.trim(),
-      phonenumber: phone.trim(),
+      businessName: name.trim(),
+      state: (state || "").trim() || null,
+      phone: phone.trim(),
     }),
   });
 
@@ -160,7 +160,13 @@ async function searchPlaces(name, state, phone) {
     throw new Error("Unable to read response from Places search");
   }
 
-  if (data && data.error) {
+  if (data && data.code) {
+    const codedError = new Error(data.message || "Places search failed");
+    codedError.code = data.code;
+    throw codedError;
+  }
+
+  if (!response.ok || (data && data.error)) {
     throw new Error(data.error || "Places search failed");
   }
 
@@ -264,8 +270,8 @@ export function renderGoogleConnect(container, options = {}) {
     resultsEl.classList.remove("connect-results--loading");
     resultsEl.innerHTML = "";
 
-    if (!name.trim() && !phone.trim()) {
-      messageEl.textContent = "Enter a business name or phone number, then try again.";
+    if (!name.trim() || !phone.trim()) {
+      messageEl.textContent = "Enter your business name and phone number, then try again.";
       messageEl.style.color = "var(--danger)";
       return;
     }
@@ -285,7 +291,7 @@ export function renderGoogleConnect(container, options = {}) {
 
       if (!matches.length) {
         resultsEl.textContent =
-          "No matches found on Google. Check the name, state, and phone number.";
+          "No matches found on Google. Please check your business name and phone number.";
         return;
       }
 
@@ -300,6 +306,19 @@ export function renderGoogleConnect(container, options = {}) {
     } catch (err) {
       console.error("[google-connect] search failed", err);
       resultsEl.classList.remove("connect-results--loading");
+
+      if (err && err.code === "NO_MATCHES") {
+        resultsEl.textContent =
+          "No matches found on Google. Please check your business name and phone number.";
+        return;
+      }
+
+      if (err && err.code === "MULTIPLE_MATCHES") {
+        resultsEl.textContent =
+          "We found multiple possible matches on Google. Please refine your business name, phone number, or add a state to narrow it down.";
+        return;
+      }
+
       resultsEl.textContent = "Unable to search right now. Please try again.";
       showToast("Unable to search right now. Please try again.", true);
     } finally {
