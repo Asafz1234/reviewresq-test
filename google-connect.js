@@ -1,10 +1,84 @@
-import { refreshProfile } from "./session-data.js";
+import { getCachedProfile, refreshProfile } from "./session-data.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
 const placesProxyUrl =
   (runtimeEnv && runtimeEnv.GOOGLE_PLACES_PROXY_URL) ||
   "https://us-central1-reviewresq-app.cloudfunctions.net/googlePlacesSearch";
+
+function gatherAccountData() {
+  const cachedProfile = (typeof getCachedProfile === "function" && getCachedProfile()) || {};
+  const globals =
+    window.currentAccount ||
+    window.sessionData ||
+    window.accountData ||
+    window.portalSettings ||
+    {};
+
+  return { cachedProfile, globals };
+}
+
+function buildLocationString() {
+  const { cachedProfile, globals } = gatherAccountData();
+  const googleProfile = cachedProfile.googleProfile || globals.googleProfile || {};
+
+  const address =
+    cachedProfile.address ||
+    cachedProfile.businessAddress ||
+    googleProfile.formatted_address ||
+    globals.address ||
+    globals.businessAddress ||
+    globals.companyAddress ||
+    "";
+
+  const city =
+    cachedProfile.city ||
+    cachedProfile.businessCity ||
+    globals.city ||
+    globals.businessCity ||
+    "";
+  const state =
+    cachedProfile.state ||
+    cachedProfile.businessState ||
+    globals.state ||
+    globals.businessState ||
+    "";
+  const country =
+    cachedProfile.country ||
+    cachedProfile.businessCountry ||
+    globals.country ||
+    globals.businessCountry ||
+    "";
+
+  const locationParts = [address, city, state, country]
+    .map((part) => (part || "").toString().trim())
+    .filter(Boolean);
+
+  // Remove duplicates while preserving order
+  const uniqueParts = locationParts.filter((part, index) => locationParts.indexOf(part) === index);
+  return uniqueParts.join(" ").trim();
+}
+
+function buildPlacesQuery(name = "", city = "", state = "", country = "") {
+  const trimmedName = (name || "").trim();
+  const trimmedCity = (city || "").trim();
+  const trimmedState = (state || "").trim();
+  const trimmedCountry = (country || "").trim();
+
+  if (!trimmedName) return "";
+
+  // Build a strict location string in the order: City, State, Country
+  const locationParts = [trimmedCity, trimmedState, trimmedCountry].filter(Boolean);
+  const locationString = locationParts.join(" ").trim();
+
+  if (!locationString) {
+    // If there is absolutely no location, we prefer to block the search
+    // instead of sending a vague query.
+    return "";
+  }
+
+  return `${trimmedName} ${locationString}`.trim();
+}
 
 function showToast(message, isError = false) {
   let toast = document.getElementById(toastId);
@@ -143,6 +217,37 @@ export function renderGoogleConnect(container, options = {}) {
       <div class="stacked">
         <label class="strong" for="google-business-input">Business name</label>
         <input id="google-business-input" class="input" type="text" placeholder="Business name" data-google-query value="${defaultQuery}" />
+        <label class="strong" for="google-city-input">City</label>
+        <input
+          id="google-city-input"
+          class="input"
+          type="text"
+          placeholder="City"
+          data-google-city
+        />
+
+        <label class="strong" for="google-state-input">State / Province</label>
+        <input
+          id="google-state-input"
+          class="input"
+          type="text"
+          placeholder="State (e.g. FL)"
+          data-google-state
+        />
+
+        <label class="strong" for="google-country-input">Country</label>
+        <select
+          id="google-country-input"
+          class="input"
+          data-google-country
+        >
+          <option value="">Select country...</option>
+          <option value="United States">United States</option>
+          <option value="Canada">Canada</option>
+          <option value="United Kingdom">United Kingdom</option>
+          <option value="Australia">Australia</option>
+          <option value="Israel">Israel</option>
+        </select>
         <p class="card-subtitle">${helperText}</p>
         <div class="input-row">
           <button class="btn btn-primary" type="button" data-google-search>Search</button>
@@ -155,6 +260,9 @@ export function renderGoogleConnect(container, options = {}) {
 
   const searchBtn = container.querySelector("[data-google-search]");
   const queryInput = container.querySelector("[data-google-query]");
+  const cityInput = container.querySelector("[data-google-city]");
+  const stateInput = container.querySelector("[data-google-state]");
+  const countryInput = container.querySelector("[data-google-country]");
   const resultsEl = container.querySelector("[data-google-results]");
   const messageEl = container.querySelector("[data-connect-message]");
   const skipBtn = container.querySelector("[data-connect-skip]");
@@ -164,9 +272,26 @@ export function renderGoogleConnect(container, options = {}) {
   }
 
   async function handleSearch() {
-    const query = (queryInput?.value || "").trim();
+    const name = (queryInput?.value || "").trim();
+    const city = (cityInput?.value || "").trim();
+    const state = (stateInput?.value || "").trim();
+    const country = (countryInput?.value || "").trim();
+
+    // Basic validation
+    if (!name) {
+      messageEl.textContent = "Please enter a business name.";
+      messageEl.style.color = "var(--danger)";
+      return;
+    }
+    if (!city || !state || !country) {
+      messageEl.textContent = "Please fill in City, State, and Country before searching.";
+      messageEl.style.color = "var(--danger)";
+      return;
+    }
+
+    const query = buildPlacesQuery(name, city, state, country);
     if (!query) {
-      messageEl.textContent = "Enter a business name to search.";
+      messageEl.textContent = "Location is required to search on Google.";
       messageEl.style.color = "var(--danger)";
       return;
     }
