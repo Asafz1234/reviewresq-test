@@ -59,25 +59,14 @@ function buildLocationString() {
   return uniqueParts.join(" ").trim();
 }
 
-function buildPlacesQuery(name = "", city = "", state = "", country = "") {
-  const trimmedName = (name || "").trim();
-  const trimmedCity = (city || "").trim();
-  const trimmedState = (state || "").trim();
-  const trimmedCountry = (country || "").trim();
+function buildPlacesQuery(name = "", phone = "", state = "", country = "") {
+  const trimmedParts = [name, phone, state, country]
+    .map((part) => (part || "").trim())
+    .filter(Boolean);
 
-  if (!trimmedName) return "";
+  if (trimmedParts.length < 4) return "";
 
-  // Build a strict location string in the order: City, State, Country
-  const locationParts = [trimmedCity, trimmedState, trimmedCountry].filter(Boolean);
-  const locationString = locationParts.join(" ").trim();
-
-  if (!locationString) {
-    // If there is absolutely no location, we prefer to block the search
-    // instead of sending a vague query.
-    return "";
-  }
-
-  return `${trimmedName} ${locationString}`.trim();
+  return trimmedParts.join(" ");
 }
 
 function showToast(message, isError = false) {
@@ -216,16 +205,23 @@ export function renderGoogleConnect(container, options = {}) {
       </div>
       <div class="stacked">
         <label class="strong" for="google-business-input">Business name</label>
-        <input id="google-business-input" class="input" type="text" placeholder="Business name" data-google-query value="${defaultQuery}" />
-        <label class="strong" for="google-city-input">City</label>
         <input
-          id="google-city-input"
+          id="google-business-input"
           class="input"
           type="text"
-          placeholder="City"
-          data-google-city
+          placeholder="Business name"
+          data-google-name
+          data-google-query
+          value="${defaultQuery}"
         />
-
+        <label class="strong" for="google-phone-input">Phone number</label>
+        <input
+          id="google-phone-input"
+          class="input"
+          type="text"
+          placeholder="Business phone (e.g. +1 954 555 1234)"
+          data-google-phone
+        />
         <label class="strong" for="google-state-input">State / Province</label>
         <input
           id="google-state-input"
@@ -236,18 +232,13 @@ export function renderGoogleConnect(container, options = {}) {
         />
 
         <label class="strong" for="google-country-input">Country</label>
-        <select
+        <input
           id="google-country-input"
           class="input"
+          type="text"
+          placeholder="Country"
           data-google-country
-        >
-          <option value="">Select country...</option>
-          <option value="United States">United States</option>
-          <option value="Canada">Canada</option>
-          <option value="United Kingdom">United Kingdom</option>
-          <option value="Australia">Australia</option>
-          <option value="Israel">Israel</option>
-        </select>
+        />
         <p class="card-subtitle">${helperText}</p>
         <div class="input-row">
           <button class="btn btn-primary" type="button" data-google-search>Search</button>
@@ -259,8 +250,9 @@ export function renderGoogleConnect(container, options = {}) {
   `;
 
   const searchBtn = container.querySelector("[data-google-search]");
-  const queryInput = container.querySelector("[data-google-query]");
-  const cityInput = container.querySelector("[data-google-city]");
+  const nameInput =
+    container.querySelector("[data-google-name]") || container.querySelector("[data-google-query]");
+  const phoneInput = container.querySelector("[data-google-phone]");
   const stateInput = container.querySelector("[data-google-state]");
   const countryInput = container.querySelector("[data-google-country]");
   const resultsEl = container.querySelector("[data-google-results]");
@@ -272,27 +264,26 @@ export function renderGoogleConnect(container, options = {}) {
   }
 
   async function handleSearch() {
-    const name = (queryInput?.value || "").trim();
-    const city = (cityInput?.value || "").trim();
+    const name = (nameInput?.value || "").trim();
+    const phoneRaw = (phoneInput?.value || "").trim();
     const state = (stateInput?.value || "").trim();
     const country = (countryInput?.value || "").trim();
 
     // Basic validation
-    if (!name) {
-      messageEl.textContent = "Please enter a business name.";
+    if (!name || !phoneRaw || !state || !country) {
+      messageEl.textContent =
+        "Please fill in business name, phone number, state, and country before searching.";
       messageEl.style.color = "var(--danger)";
-      return;
-    }
-    if (!city || !state || !country) {
-      messageEl.textContent = "Please fill in City, State, and Country before searching.";
-      messageEl.style.color = "var(--danger)";
+      resultsEl.innerHTML = "";
       return;
     }
 
-    const query = buildPlacesQuery(name, city, state, country);
+    const phone = phoneRaw.replace(/[^\d+]/g, "");
+    const query = buildPlacesQuery(name, phone, state, country);
     if (!query) {
-      messageEl.textContent = "Location is required to search on Google.";
+      messageEl.textContent = "All fields are required to search on Google.";
       messageEl.style.color = "var(--danger)";
+      resultsEl.innerHTML = "";
       return;
     }
     messageEl.textContent = "";
@@ -330,8 +321,8 @@ export function renderGoogleConnect(container, options = {}) {
   }
 
   if (searchBtn) searchBtn.addEventListener("click", handleSearch);
-  if (queryInput) {
-    queryInput.addEventListener("keydown", (e) => {
+  if (nameInput) {
+    nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         handleSearch();
