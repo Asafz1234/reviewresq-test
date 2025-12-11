@@ -66,6 +66,9 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     });
   }
 
+  const digits = phoneRaw.replace(/\D/g, "");
+  const hasPhoneDigits = digits.length >= 7;
+
   const placesApiKey =
     process.env.GOOGLE_MAPS_API_KEY ||
     process.env.PLACES_API_KEY ||
@@ -129,7 +132,7 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     }
 
     const params = new URLSearchParams({
-      input: textQuery,
+      input: query,
       inputtype: "textquery",
       fields: "place_id,name,formatted_address,rating,user_ratings_total,formatted_phone_number,types",
       region: "us",
