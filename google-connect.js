@@ -100,6 +100,7 @@ function showToast(message, isError = false) {
 
 function extractShortAddress(place = {}) {
   if (place.formatted_address) return place.formatted_address;
+  if (place.address) return place.address;
   if (Array.isArray(place.terms)) {
     const parts = place.terms.map((t) => t.value).filter(Boolean);
     return parts.join(", ");
@@ -108,6 +109,7 @@ function extractShortAddress(place = {}) {
 }
 
 function createResultCard(place, onConnect) {
+  const totalRatings = place.user_ratings_total ?? place.userRatingsTotal;
   const item = document.createElement("div");
   item.className = "connect-result";
   item.innerHTML = `
@@ -118,7 +120,7 @@ function createResultCard(place, onConnect) {
       </p>
       <p class="card-subtitle">
         ${place.rating ? `${place.rating.toFixed(1)} stars` : "No rating yet"}
-        ${place.user_ratings_total ? ` · ${place.user_ratings_total} reviews` : ""}
+        ${totalRatings ? ` · ${totalRatings} reviews` : ""}
       </p>
     </div>
   `;
@@ -143,14 +145,21 @@ function createResultCard(place, onConnect) {
   return item;
 }
 
-async function searchPlaces(query, phoneDigits) {
-  if (!query && !phoneDigits) {
-    throw new Error("Missing query");
+async function searchPlaces(name, state, phone) {
+  const params = new URLSearchParams();
+
+  if (name) {
+    params.append("query", String(name).trim());
   }
 
-  const params = new URLSearchParams();
-  if (query) params.set("query", query);
-  if (phoneDigits) params.set("phonenumber", phoneDigits);
+  if (state) {
+    params.append("state", String(state).trim());
+  }
+
+  if (phone) {
+    // send raw phone input; server will normalize
+    params.append("phonenumber", String(phone).trim());
+  }
 
   const url = `${placesProxyUrl}?${params.toString()}`;
 
@@ -159,37 +168,16 @@ async function searchPlaces(query, phoneDigits) {
   let data;
   try {
     data = await response.json();
-  } catch (parseErr) {
-    console.error("[google-connect] failed to parse Places response", parseErr);
+  } catch (err) {
+    console.error("[google-connect] failed to parse Places response", err);
     throw new Error("Unable to read response from Places search");
   }
 
-  if (!response.ok || data?.error) {
-    const apiMessage = data?.error;
-    const message = apiMessage
-      ? `Places search failed: ${apiMessage}`
-      : `Places search HTTP error ${response.status}`;
-    throw new Error(message);
+  if (data && Array.isArray(data.candidates)) {
+    return data.candidates;
   }
 
-  const candidates = data?.candidates || [];
-  if (!Array.isArray(candidates) || candidates.length === 0) {
-    console.debug("[google-connect] query", query);
-    console.debug("[google-connect] candidates", []);
-    return [];
-  }
-
-  const mapped = candidates.map((place) => ({
-    place_id: place.placeId,
-    name: place.name,
-    formatted_address: place.address,
-    rating: place.rating,
-    user_ratings_total: place.userRatingsTotal,
-    types: place.types,
-  }));
-  console.debug("[google-connect] query", query);
-  console.debug("[google-connect] candidates", mapped);
-  return mapped;
+  return [];
 }
 
 export function buildGoogleReviewLink(placeId) {
@@ -233,17 +221,17 @@ export function renderGoogleConnect(container, options = {}) {
           data-google-query
           value="${defaultQuery}"
         />
-        <label class="strong" for="google-state-input">State / Province</label>
+        <label class="strong" for="google-business-state">State / Province</label>
         <input
-          id="google-state-input"
+          id="google-business-state"
           class="input"
           type="text"
           placeholder="State (e.g. FL)"
           data-google-state
         />
-        <label class="strong" for="google-phone-input">Phone number</label>
+        <label class="strong" for="google-business-phone">Phone number</label>
         <input
-          id="google-phone-input"
+          id="google-business-phone"
           class="input"
           type="text"
           placeholder="Business phone (as shown on Google Maps)"
@@ -260,10 +248,13 @@ export function renderGoogleConnect(container, options = {}) {
   `;
 
   const searchBtn = container.querySelector("[data-google-search]");
-  const nameInput =
-    container.querySelector("[data-google-name]") || container.querySelector("[data-google-query]");
-  const phoneInput = container.querySelector("[data-google-phone]");
-  const stateInput = container.querySelector("[data-google-state]");
+  const nameInput = container.querySelector("#google-business-input") ||
+    container.querySelector("[data-google-name]") ||
+    container.querySelector("[data-google-query]");
+  const stateInput = container.querySelector("#google-business-state") ||
+    container.querySelector("[data-google-state]");
+  const phoneInput = container.querySelector("#google-business-phone") ||
+    container.querySelector("[data-google-phone]");
   const resultsEl = container.querySelector("[data-google-results]");
   const messageEl = container.querySelector("[data-connect-message]");
   const skipBtn = container.querySelector("[data-connect-skip]");
@@ -273,15 +264,12 @@ export function renderGoogleConnect(container, options = {}) {
   }
 
   async function handleSearch() {
-    const name = (nameInput?.value || "").trim();
-    const state = (stateInput?.value || "").trim();
-    const phoneRaw = (phoneInput?.value || "").trim();
-    const phoneDigits = phoneRaw.replace(/\D+/g, "");
-    const query = buildPlacesQuery(name, state);
+    const name = nameInput ? nameInput.value : "";
+    const state = stateInput ? stateInput.value : "";
+    const phone = phoneInput ? phoneInput.value : "";
 
-    // Basic validation: require at least a name or phone number
-    if (!name && !phoneDigits) {
-      messageEl.textContent = "Enter a business name or phone number, then try again.";
+    if (!name.trim()) {
+      messageEl.textContent = "Please enter your business name exactly as it appears on Google.";
       messageEl.style.color = "var(--danger)";
       resultsEl.innerHTML = "";
       return;
@@ -293,6 +281,7 @@ export function renderGoogleConnect(container, options = {}) {
       resultsEl.innerHTML = "";
       return;
     }
+
     messageEl.textContent = "";
     resultsEl.innerHTML = "Searching Google…";
     resultsEl.classList.add("connect-results--loading");
@@ -300,11 +289,12 @@ export function renderGoogleConnect(container, options = {}) {
     searchBtn.textContent = "Searching…";
 
     try {
-      const matches = await searchPlaces(query, phoneDigits);
+      const matches = await searchPlaces(name, state, phone);
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.innerHTML = "";
       if (!matches.length) {
-        resultsEl.textContent = "No matches found on Google. Try a different name.";
+        resultsEl.textContent =
+          "No matches found on Google. Check the name, state, and phone number, then try again.";
         return;
       }
       matches.slice(0, 5).forEach((place) => {
@@ -319,10 +309,6 @@ export function renderGoogleConnect(container, options = {}) {
       console.error("[google-connect] search failed", err);
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.textContent = "Unable to search right now. Please try again.";
-      const fallbackMessage = err?.message === "Missing query"
-        ? "Enter a business name or phone number, then try again."
-        : err?.message || "Unable to search Google right now.";
-      showToast(fallbackMessage, true);
     } finally {
       searchBtn.disabled = false;
       searchBtn.textContent = "Search";
