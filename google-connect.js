@@ -54,7 +54,6 @@ function buildLocationString() {
     .map((part) => (part || "").toString().trim())
     .filter(Boolean);
 
-  // Remove duplicates while preserving order
   const uniqueParts = locationParts.filter((part, index) => locationParts.indexOf(part) === index);
   return uniqueParts.join(" ").trim();
 }
@@ -101,10 +100,6 @@ function showToast(message, isError = false) {
 function extractShortAddress(place = {}) {
   if (place.formatted_address) return place.formatted_address;
   if (place.address) return place.address;
-  if (Array.isArray(place.terms)) {
-    const parts = place.terms.map((t) => t.value).filter(Boolean);
-    return parts.join(", ");
-  }
   return "Address unavailable";
 }
 
@@ -129,16 +124,17 @@ function createResultCard(place, onConnect) {
   action.className = "btn btn-primary";
   action.textContent = "Connect";
   action.addEventListener("click", async () => {
+    const originalText = action.textContent;
+    action.disabled = true;
+    action.textContent = "Connecting…";
     try {
-      action.disabled = true;
-      action.textContent = "Connecting…";
-      await onConnect(place, action);
+      await onConnect(place);
+      action.textContent = "Connected";
     } catch (err) {
       console.error("[google-connect] failed to connect", err);
-      showToast("Unable to connect Google profile. Please try again.", true);
-    } finally {
       action.disabled = false;
-      action.textContent = "Connect";
+      action.textContent = originalText;
+      showToast("Unable to connect Google profile. Please try again.", true);
     }
   });
   item.appendChild(action);
@@ -146,24 +142,15 @@ function createResultCard(place, onConnect) {
 }
 
 async function searchPlaces(name, state, phone) {
-  const params = new URLSearchParams();
-
-  if (name) {
-    params.append("query", String(name).trim());
-  }
-
-  if (state) {
-    params.append("state", String(state).trim());
-  }
-
-  if (phone) {
-    // send raw phone input; server will normalize
-    params.append("phonenumber", String(phone).trim());
-  }
-
-  const url = `${placesProxyUrl}?${params.toString()}`;
-
-  const response = await fetch(url);
+  const response = await fetch(placesProxyUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      businessName: name.trim(),
+      state: (state || "").trim() || null,
+      phone: phone.trim(),
+    }),
+  });
 
   let data;
   try {
@@ -173,8 +160,18 @@ async function searchPlaces(name, state, phone) {
     throw new Error("Unable to read response from Places search");
   }
 
+  if (data && data.code) {
+    const codedError = new Error(data.message || "Places search failed");
+    codedError.code = data.code;
+    throw codedError;
+  }
+
+  if (!response.ok || (data && data.error)) {
+    throw new Error(data.error || "Places search failed");
+  }
+
   if (data && Array.isArray(data.candidates)) {
-    return data.candidates;
+    return data.candidates.slice(0, 5);
   }
 
   return [];
@@ -264,40 +261,42 @@ export function renderGoogleConnect(container, options = {}) {
   }
 
   async function handleSearch() {
-    const name = nameInput ? nameInput.value : "";
-    const state = stateInput ? stateInput.value : "";
-    const phone = phoneInput ? phoneInput.value : "";
-
-    if (!name.trim()) {
-      messageEl.textContent = "Please enter your business name exactly as it appears on Google.";
-      messageEl.style.color = "var(--danger)";
-      resultsEl.innerHTML = "";
-      return;
-    }
-
-    if (!query && !phoneDigits) {
-      messageEl.textContent = "Enter a business name or phone number, then try again.";
-      messageEl.style.color = "var(--danger)";
-      resultsEl.innerHTML = "";
-      return;
-    }
+    const name = nameInput ? nameInput.value.trim() : "";
+    const state = stateInput ? stateInput.value.trim() : "";
+    const phone = phoneInput ? phoneInput.value.trim() : "";
 
     messageEl.textContent = "";
-    resultsEl.innerHTML = "Searching Google…";
+    messageEl.style.color = "";
+    resultsEl.classList.remove("connect-results--loading");
+    resultsEl.innerHTML = "";
+
+    if (!name.trim() || !phone.trim()) {
+      messageEl.textContent = "Enter your business name and phone number, then try again.";
+      messageEl.style.color = "var(--danger)";
+      resultsEl.innerHTML = "";
+      return;
+    }
+
+    resultsEl.textContent = "Searching Google…";
     resultsEl.classList.add("connect-results--loading");
-    searchBtn.disabled = true;
-    searchBtn.textContent = "Searching…";
+    const originalButtonText = searchBtn ? searchBtn.textContent : "";
+    if (searchBtn) {
+      searchBtn.disabled = true;
+      searchBtn.textContent = "Searching…";
+    }
 
     try {
       const matches = await searchPlaces(name, state, phone);
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.innerHTML = "";
+
       if (!matches.length) {
         resultsEl.textContent =
-          "No matches found on Google. Check the name, state, and phone number, then try again.";
+          "No matches found on Google. Please check your business name and phone number.";
         return;
       }
-      matches.slice(0, 5).forEach((place) => {
+
+      matches.forEach((place) => {
         const row = createResultCard(place, async (selected) => {
           await onConnect(selected);
           messageEl.textContent = "Google profile connected!";
@@ -308,10 +307,26 @@ export function renderGoogleConnect(container, options = {}) {
     } catch (err) {
       console.error("[google-connect] search failed", err);
       resultsEl.classList.remove("connect-results--loading");
+
+      if (err && err.code === "NO_MATCHES") {
+        resultsEl.textContent =
+          "No matches found on Google. Please check your business name and phone number.";
+        return;
+      }
+
+      if (err && err.code === "MULTIPLE_MATCHES") {
+        resultsEl.textContent =
+          "We found multiple possible matches on Google. Please refine your business name, phone number, or add a state to narrow it down.";
+        return;
+      }
+
       resultsEl.textContent = "Unable to search right now. Please try again.";
+      showToast("Unable to search right now. Please try again.", true);
     } finally {
-      searchBtn.disabled = false;
-      searchBtn.textContent = "Search";
+      if (searchBtn) {
+        searchBtn.disabled = false;
+        searchBtn.textContent = originalButtonText || "Search";
+      }
     }
   }
 
@@ -329,4 +344,3 @@ export function renderGoogleConnect(container, options = {}) {
 export async function refetchProfileAfterConnect() {
   return refreshProfile();
 }
-
