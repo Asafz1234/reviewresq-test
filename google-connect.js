@@ -1,10 +1,84 @@
-import { refreshProfile } from "./session-data.js";
+import { getCachedProfile, refreshProfile } from "./session-data.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
 const placesProxyUrl =
   (runtimeEnv && runtimeEnv.GOOGLE_PLACES_PROXY_URL) ||
   "https://us-central1-reviewresq-app.cloudfunctions.net/googlePlacesSearch";
+
+function gatherAccountData() {
+  const cachedProfile = (typeof getCachedProfile === "function" && getCachedProfile()) || {};
+  const globals =
+    window.currentAccount ||
+    window.sessionData ||
+    window.accountData ||
+    window.portalSettings ||
+    {};
+
+  return { cachedProfile, globals };
+}
+
+function buildLocationString() {
+  const { cachedProfile, globals } = gatherAccountData();
+  const googleProfile = cachedProfile.googleProfile || globals.googleProfile || {};
+
+  const address =
+    cachedProfile.address ||
+    cachedProfile.businessAddress ||
+    googleProfile.formatted_address ||
+    globals.address ||
+    globals.businessAddress ||
+    globals.companyAddress ||
+    "";
+
+  const city =
+    cachedProfile.city ||
+    cachedProfile.businessCity ||
+    globals.city ||
+    globals.businessCity ||
+    "";
+  const state =
+    cachedProfile.state ||
+    cachedProfile.businessState ||
+    globals.state ||
+    globals.businessState ||
+    "";
+  const country =
+    cachedProfile.country ||
+    cachedProfile.businessCountry ||
+    globals.country ||
+    globals.businessCountry ||
+    "";
+
+  const locationParts = [address, city, state, country]
+    .map((part) => (part || "").toString().trim())
+    .filter(Boolean);
+
+  // Remove duplicates while preserving order
+  const uniqueParts = locationParts.filter((part, index) => locationParts.indexOf(part) === index);
+  return uniqueParts.join(" ").trim();
+}
+
+function getStateValue() {
+  const stateInput = document.querySelector("[data-google-state]");
+  return stateInput?.value ? stateInput.value.trim() : "";
+}
+
+function getPhoneValue() {
+  const phoneInput = document.querySelector("[data-google-phone]");
+  return phoneInput?.value ? phoneInput.value.trim() : "";
+}
+
+function buildPlacesQuery(name = "", stateOverride = "") {
+  const trimmedName = (name || "").trim();
+  const state = (stateOverride || getStateValue() || "").trim();
+
+  const parts = [trimmedName, state]
+    .map((part) => (part || "").trim())
+    .filter(Boolean);
+
+  return parts.join(" ");
+}
 
 function showToast(message, isError = false) {
   let toast = document.getElementById(toastId);
@@ -197,6 +271,14 @@ export function renderGoogleConnect(container, options = {}) {
     if (!name.trim()) {
       messageEl.textContent = "Please enter your business name exactly as it appears on Google.";
       messageEl.style.color = "var(--danger)";
+      resultsEl.innerHTML = "";
+      return;
+    }
+
+    if (!query && !phoneDigits) {
+      messageEl.textContent = "Enter a business name or phone number, then try again.";
+      messageEl.style.color = "var(--danger)";
+      resultsEl.innerHTML = "";
       return;
     }
 

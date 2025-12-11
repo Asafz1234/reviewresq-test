@@ -63,6 +63,10 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     });
   }
 
+  const digits = phoneRaw.replace(/\D/g, "");
+  const hasPhoneDigits = digits.length >= 7; // כרגע לשימוש עתידי, לא חובה
+
+  // ----- קבלת מפתח ה-API של Places -----
   const placesApiKey =
     process.env.GOOGLE_MAPS_API_KEY ||
     process.env.PLACES_API_KEY ||
