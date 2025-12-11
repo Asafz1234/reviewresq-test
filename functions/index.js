@@ -61,7 +61,10 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
 
   if (!placesApiKey) {
     console.error("[googlePlacesSearch] missing Places API key");
-    return res.status(500).json({ error: "Server configuration missing" });
+    return res.status(500).json({
+      error: "Server configuration missing",
+      candidates: [],
+    });
   }
 
   const mapCandidate = (place = {}) => ({
@@ -188,8 +191,8 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
       message: "No exact match found. Try refining your business name or phone number.",
     });
   } catch (err) {
-    console.error("[googlePlacesSearch] unexpected error", err);
-    return res.status(502).json({ error: "Places API error" });
+    console.error("[googlePlacesSearch] unexpected server error", err);
+    return res.status(500).json({ candidates: [], error: "Server error" });
   }
 });
 
