@@ -267,7 +267,6 @@ export function renderGoogleConnect(container, options = {}) {
     if (!name.trim() && !phone.trim()) {
       messageEl.textContent = "Enter a business name or phone number, then try again.";
       messageEl.style.color = "var(--danger)";
-      resultsEl.innerHTML = "";
       return;
     }
 
