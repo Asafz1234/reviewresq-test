@@ -145,7 +145,11 @@ async function searchPlaces(name, state, phone) {
   const response = await fetch(placesProxyUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: name, state, phonenumber: phone }),
+    body: JSON.stringify({
+      query: name.trim(),
+      state: state.trim(),
+      phonenumber: phone.trim(),
+    }),
   });
 
   let data;
@@ -260,7 +264,7 @@ export function renderGoogleConnect(container, options = {}) {
     resultsEl.classList.remove("connect-results--loading");
     resultsEl.innerHTML = "";
 
-    if (!name && !phone) {
+    if (!name.trim() && !phone.trim()) {
       messageEl.textContent = "Enter a business name or phone number, then try again.";
       messageEl.style.color = "var(--danger)";
       return;
