@@ -53,6 +53,7 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
       input: textQuery,
       inputtype: "textquery",
       fields: "place_id,name,formatted_address,rating,user_ratings_total",
+      region: "us",
       key: placesApiKey,
     });
 
@@ -143,6 +144,7 @@ exports.googlePlacesSearch2 = functions.https.onRequest(async (req, res) => {
       input: textQuery,
       inputtype: "textquery",
       fields: "place_id,name,formatted_address,rating,user_ratings_total",
+      region: "us",
       key: placesApiKey,
     });
 
