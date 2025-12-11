@@ -60,13 +60,19 @@ function buildLocationString() {
 }
 
 function buildPlacesQuery(name = "", phone = "", state = "") {
-  const trimmedParts = [name, phone, state, "United States"]
-    .map((part) => (part || "").trim())
-    .filter(Boolean);
+  const trimmedName = (name || "").trim();
+  const trimmedPhone = (phone || "").trim();
+  const trimmedState = (state || "").trim();
 
-  if (trimmedParts.length < 4) return "";
+  if (!trimmedName || !trimmedPhone || !trimmedState) return "";
 
-  return trimmedParts.join(" ");
+  const params = new URLSearchParams({
+    businessName: trimmedName,
+    phone: trimmedPhone,
+    state: trimmedState,
+  });
+
+  return params.toString();
 }
 
 function showToast(message, isError = false) {
@@ -133,7 +139,7 @@ function createResultCard(place, onConnect) {
 }
 
 async function searchPlaces(query) {
-  const url = `${placesProxyUrl}?query=${encodeURIComponent(query)}`;
+  const url = `${placesProxyUrl}?${query}`;
 
   const response = await fetch(url);
 
