@@ -30,13 +30,19 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const query =
-    (req.method === "GET" ? req.query.query : req.body?.query) || "";
-  const textQuery = String(query || "").trim();
+  const getParam = (key) =>
+    req.method === "GET" ? req.query?.[key] || "" : req.body?.[key] || "";
 
-  if (!textQuery) {
-    return res.status(400).json({ error: "Missing query" });
-  }
+  const query = String(getParam("query") || "").trim();
+  const businessName = String(getParam("businessName") || "").trim();
+  const state = String(getParam("state") || "").trim();
+  const phoneRaw = String(getParam("phone") || "").trim();
+  const fallbackTextQuery = [businessName, state, "United States"]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const textQuery = query || fallbackTextQuery;
+  const hasPhone = Boolean(phoneRaw);
 
   const placesApiKey =
     process.env.GOOGLE_MAPS_API_KEY ||
@@ -49,12 +55,34 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    const params = new URLSearchParams({
-      input: textQuery,
-      inputtype: "textquery",
-      fields: "place_id,name,formatted_address,rating,user_ratings_total",
-      key: placesApiKey,
-    });
+    let params;
+
+    if (hasPhone) {
+      const cleanedPhone = phoneRaw.replace(/\D/g, "");
+      if (!cleanedPhone) {
+        return res.status(400).json({ error: "Invalid phone number" });
+      }
+
+      params = new URLSearchParams({
+        input: `+1${cleanedPhone}`,
+        inputtype: "phonenumber",
+        fields:
+          "place_id,name,formatted_address,formatted_phone_number,rating,user_ratings_total",
+        key: placesApiKey,
+      });
+    } else {
+      if (!textQuery) {
+        return res.status(400).json({ error: "Missing query" });
+      }
+
+      params = new URLSearchParams({
+        input: textQuery,
+        inputtype: "textquery",
+        fields: "place_id,name,formatted_address,rating,user_ratings_total",
+        region: "us",
+        key: placesApiKey,
+      });
+    }
 
     const url =
       "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
@@ -120,13 +148,19 @@ exports.googlePlacesSearch2 = functions.https.onRequest(async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const query =
-    (req.method === "GET" ? req.query.query : req.body?.query) || "";
-  const textQuery = String(query || "").trim();
+  const getParam = (key) =>
+    req.method === "GET" ? req.query?.[key] || "" : req.body?.[key] || "";
 
-  if (!textQuery) {
-    return res.status(400).json({ error: "Missing query" });
-  }
+  const query = String(getParam("query") || "").trim();
+  const businessName = String(getParam("businessName") || "").trim();
+  const state = String(getParam("state") || "").trim();
+  const phoneRaw = String(getParam("phone") || "").trim();
+  const fallbackTextQuery = [businessName, state, "United States"]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const textQuery = query || fallbackTextQuery;
+  const hasPhone = Boolean(phoneRaw);
 
   const placesApiKey =
     process.env.GOOGLE_MAPS_API_KEY ||
@@ -139,12 +173,34 @@ exports.googlePlacesSearch2 = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    const params = new URLSearchParams({
-      input: textQuery,
-      inputtype: "textquery",
-      fields: "place_id,name,formatted_address,rating,user_ratings_total",
-      key: placesApiKey,
-    });
+    let params;
+
+    if (hasPhone) {
+      const cleanedPhone = phoneRaw.replace(/\D/g, "");
+      if (!cleanedPhone) {
+        return res.status(400).json({ error: "Invalid phone number" });
+      }
+
+      params = new URLSearchParams({
+        input: `+1${cleanedPhone}`,
+        inputtype: "phonenumber",
+        fields:
+          "place_id,name,formatted_address,formatted_phone_number,rating,user_ratings_total",
+        key: placesApiKey,
+      });
+    } else {
+      if (!textQuery) {
+        return res.status(400).json({ error: "Missing query" });
+      }
+
+      params = new URLSearchParams({
+        input: textQuery,
+        inputtype: "textquery",
+        fields: "place_id,name,formatted_address,rating,user_ratings_total",
+        region: "us",
+        key: placesApiKey,
+      });
+    }
 
     const url =
       "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
