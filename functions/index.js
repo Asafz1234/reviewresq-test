@@ -45,11 +45,11 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     if (trimmed.startsWith("+") && digits.length >= 11) {
       return `+${digits}`;
     }
-    if (digits.length === 10) {
-      return `+1${digits}`;
-    }
     if (digits.length === 11 && digits.startsWith("1")) {
       return `+${digits}`;
+    }
+    if (digits.length === 10) {
+      return `+1${digits}`;
     }
     return null;
   };
@@ -71,15 +71,21 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
 
   if (!placesApiKey) {
     console.error("[googlePlacesSearch] missing Places API key");
-    return res.status(500).json({ error: "Server configuration missing" });
+    return res.status(500).json({
+      error: "Server configuration missing",
+      candidates: [],
+    });
   }
+
+  const respondEmpty = () => res.status(200).json({ candidates: [] });
 
   const mapCandidates = (apiData = {}) =>
     Array.isArray(apiData.candidates)
       ? apiData.candidates.map((place) => ({
           placeId: place.place_id,
           name: place.name,
-          address: place.formatted_address,
+          address: place.formatted_address || place.address,
+          formatted_address: place.formatted_address || place.address,
           rating: place.rating || null,
           userRatingsTotal: place.user_ratings_total || 0,
           phoneNumber: place.formatted_phone_number || null,
@@ -192,8 +198,8 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     // אם הגענו עד כאן – לא מצאנו שום דבר
     return res.json({ candidates: [] });
   } catch (err) {
-    console.error("[googlePlacesSearch] unexpected error", err);
-    return res.status(502).json({ error: "Places API error" });
+    console.error("[googlePlacesSearch] unexpected server error", err);
+    return res.status(500).json({ candidates: [], error: "Server error" });
   }
 });
 
