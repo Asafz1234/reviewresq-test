@@ -1,10 +1,79 @@
-import { refreshProfile } from "./session-data.js";
+import { getCachedProfile, refreshProfile } from "./session-data.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
 const placesProxyUrl =
   (runtimeEnv && runtimeEnv.GOOGLE_PLACES_PROXY_URL) ||
   "https://us-central1-reviewresq-app.cloudfunctions.net/googlePlacesSearch";
+
+function gatherAccountData() {
+  const cachedProfile = (typeof getCachedProfile === "function" && getCachedProfile()) || {};
+  const globals =
+    window.currentAccount ||
+    window.sessionData ||
+    window.accountData ||
+    window.portalSettings ||
+    {};
+
+  return { cachedProfile, globals };
+}
+
+function buildLocationString() {
+  const { cachedProfile, globals } = gatherAccountData();
+  const googleProfile = cachedProfile.googleProfile || globals.googleProfile || {};
+
+  const address =
+    cachedProfile.address ||
+    cachedProfile.businessAddress ||
+    googleProfile.formatted_address ||
+    globals.address ||
+    globals.businessAddress ||
+    globals.companyAddress ||
+    "";
+
+  const city =
+    cachedProfile.city ||
+    cachedProfile.businessCity ||
+    globals.city ||
+    globals.businessCity ||
+    "";
+  const state =
+    cachedProfile.state ||
+    cachedProfile.businessState ||
+    globals.state ||
+    globals.businessState ||
+    "";
+  const country =
+    cachedProfile.country ||
+    cachedProfile.businessCountry ||
+    globals.country ||
+    globals.businessCountry ||
+    "";
+
+  const locationParts = [address, city, state, country]
+    .map((part) => (part || "").toString().trim())
+    .filter(Boolean);
+
+  // Remove duplicates while preserving order
+  const uniqueParts = locationParts.filter((part, index) => locationParts.indexOf(part) === index);
+  return uniqueParts.join(" ").trim();
+}
+
+function buildPlacesQuery(name = "", manualLocation = "") {
+  const trimmedName = (name || "").trim();
+  const trimmedManualLocation = (manualLocation || "").trim();
+  if (!trimmedName) return "";
+
+  // If the user typed a manual location, use that together with the name
+  if (trimmedManualLocation) {
+    return `${trimmedName} ${trimmedManualLocation}`.trim();
+  }
+
+  // Fallback: use the existing profile-based location builder
+  const locationString = buildLocationString();
+  if (!locationString) return trimmedName;
+  return `${trimmedName} ${locationString}`.trim();
+}
 
 function showToast(message, isError = false) {
   let toast = document.getElementById(toastId);
@@ -143,6 +212,8 @@ export function renderGoogleConnect(container, options = {}) {
       <div class="stacked">
         <label class="strong" for="google-business-input">Business name</label>
         <input id="google-business-input" class="input" type="text" placeholder="Business name" data-google-query value="${defaultQuery}" />
+        <label class="strong" for="google-location-input">Location (optional)</label>
+        <input id="google-location-input" class="input" type="text" placeholder="City / State / Country" data-google-location />
         <p class="card-subtitle">${helperText}</p>
         <div class="input-row">
           <button class="btn btn-primary" type="button" data-google-search>Search</button>
@@ -155,6 +226,7 @@ export function renderGoogleConnect(container, options = {}) {
 
   const searchBtn = container.querySelector("[data-google-search]");
   const queryInput = container.querySelector("[data-google-query]");
+  const locationInput = container.querySelector("[data-google-location]");
   const resultsEl = container.querySelector("[data-google-results]");
   const messageEl = container.querySelector("[data-connect-message]");
   const skipBtn = container.querySelector("[data-connect-skip]");
@@ -164,7 +236,9 @@ export function renderGoogleConnect(container, options = {}) {
   }
 
   async function handleSearch() {
-    const query = (queryInput?.value || "").trim();
+    const name = queryInput?.value || "";
+    const manualLocation = locationInput?.value || "";
+    const query = buildPlacesQuery(name, manualLocation);
     if (!query) {
       messageEl.textContent = "Enter a business name to search.";
       messageEl.style.color = "var(--danger)";
