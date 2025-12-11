@@ -33,34 +33,24 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
   const getParam = (key) =>
     req.method === "GET" ? (req.query?.[key] || "") : (req.body?.[key] || "");
 
-  const rawName = String(getParam("query") || "").trim(); // business name
+  const rawName = String(getParam("query") || "").trim();
   const phoneRaw = String(getParam("phonenumber") || getParam("phone") || "").trim();
-  const state = String(getParam("state") || "").trim();
+  const city = String(getParam("city") || getParam("state") || "").trim();
 
-  const normalizeUsPhone = (input = "") => {
-    if (!input) return null;
-    const trimmed = String(input).trim();
-    const digits = trimmed.replace(/\D/g, "");
-
-    if (trimmed.startsWith("+") && digits.length >= 11) {
-      return `+${digits}`;
-    }
-    if (digits.length === 11 && digits.startsWith("1")) {
-      return `+${digits}`;
-    }
-    if (digits.length === 10) {
-      return `+1${digits}`;
-    }
-    return null;
+  const normalizeDigits = (value = "") => String(value).replace(/\D/g, "");
+  const normalizeComparablePhone = (value = "") => {
+    const digits = normalizeDigits(value);
+    if (digits.length === 10) return digits;
+    if (digits.length === 11 && digits.startsWith("1")) return digits.slice(1);
+    return digits || null;
   };
 
-  const normalizedPhone = normalizeUsPhone(phoneRaw);
-  const digits = phoneRaw.replace(/\D/g, "");
+  const phoneDigits = normalizeDigits(phoneRaw);
 
-  if (!rawName && !normalizedPhone && !digits) {
+  if (!rawName && !phoneDigits) {
     return res.status(400).json({
       error: "Missing query",
-      details: "Either 'phonenumber' or 'query' (business name) is required",
+      details: "Provide a business name or phone number",
     });
   }
 
@@ -77,26 +67,50 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     });
   }
 
-  const respondEmpty = () => res.status(200).json({ candidates: [] });
+  const mapCandidate = (place = {}) => ({
+    placeId: place.place_id,
+    name: place.name,
+    address: place.formatted_address,
+    rating: place.rating || null,
+    userRatingsTotal: place.user_ratings_total || 0,
+    phoneNumber: place.formatted_phone_number || null,
+    types: place.types || [],
+  });
 
-  const mapCandidates = (apiData = {}) =>
-    Array.isArray(apiData.candidates)
-      ? apiData.candidates.map((place) => ({
-          placeId: place.place_id,
-          name: place.name,
-          address: place.formatted_address || place.address,
-          formatted_address: place.formatted_address || place.address,
-          rating: place.rating || null,
-          userRatingsTotal: place.user_ratings_total || 0,
-          phoneNumber: place.formatted_phone_number || null,
-          types: place.types || [],
-        }))
-      : [];
+  const sanitizeText = (value = "") =>
+    String(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .trim();
 
-  const callFindPlace = async (input, inputtype) => {
+  const scoreCandidate = (place = {}) => {
+    let score = 0;
+    const candidatePhone = normalizeComparablePhone(
+      place.formatted_phone_number || place.phoneNumber || ""
+    );
+    const inputPhone = normalizeComparablePhone(
+      phoneDigits && phoneDigits.length >= 7 ? `+1${phoneDigits.slice(-10)}` : ""
+    );
+    if (inputPhone && candidatePhone && inputPhone === candidatePhone) {
+      score = Math.max(score, 100);
+    }
+
+    const normalizedName = sanitizeText(rawName);
+    const candidateName = sanitizeText(place.name || "");
+
+    if (normalizedName && candidateName === normalizedName) {
+      score = Math.max(score, 70);
+    } else if (normalizedName && candidateName.includes(normalizedName)) {
+      score = Math.max(score, 50);
+    }
+
+    return score;
+  };
+
+  const callFindPlace = async (input) => {
     const params = new URLSearchParams({
       input,
-      inputtype,
+      inputtype: "textquery",
       fields:
         "place_id,name,formatted_address,rating,user_ratings_total,formatted_phone_number,types",
       region: "us",
@@ -109,94 +123,73 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
 
     const response = await fetch(url);
     const data = await response.json();
-    return { response, data };
+    return { response, data, url };
   };
 
   try {
-    // 1) Phone-first lookup
-    if (normalizedPhone) {
-      const { response, data } = await callFindPlace(
-        normalizedPhone,
-        "phonenumber"
-      );
+    const queries = [];
+    if (rawName && phoneDigits) {
+      queries.push(`${rawName} ${phoneDigits}`.trim());
+    }
+    if (!rawName && phoneDigits) {
+      queries.push(phoneDigits);
+    }
+    if (rawName && city) {
+      queries.push(`${rawName} ${city}`.trim());
+    }
+    if (rawName && !city) {
+      queries.push(rawName);
+    }
 
-      console.log("[googlePlacesSearch] phone lookup", {
-        normalizedPhone,
+    let bestCandidate = null;
+    let bestScore = 0;
+    let lastHttpError = null;
+
+    for (const query of queries) {
+      const { response, data, url } = await callFindPlace(query);
+      console.log("[googlePlacesSearch] lookup", {
+        query,
+        url,
+        httpStatus: response.status,
         status: data.status,
         candidateCount: data.candidates?.length || 0,
       });
 
       if (!response.ok) {
-        console.error(
-          "[googlePlacesSearch] phone lookup HTTP error",
-          response.status,
-          data
-        );
-      } else if (data.status === "OK" && data.candidates?.length) {
-        return res.json({ candidates: mapCandidates(data) });
-      } else {
-        console.warn(
-          "[googlePlacesSearch] phone lookup returned no candidates, falling back to text queries",
-          data.status
-        );
-      }
-    }
-
-    // 2) Multiple text lookups with different levels of specificity
-    const textQueries = [];
-    if (rawName && digits.length >= 7) {
-      textQueries.push(`${rawName} ${digits}`);
-    }
-    if (rawName && state && digits.length >= 7) {
-      textQueries.push(`${rawName} ${state} ${digits}`);
-    }
-    if (rawName && state) {
-      textQueries.push(`${rawName} ${state}`);
-    }
-    if (rawName) {
-      textQueries.push(rawName);
-    }
-
-    const seen = new Set();
-    const uniqueQueries = textQueries
-      .map((q) => q.trim())
-      .filter((q) => q && !seen.has(q) && seen.add(q));
-
-    for (const textQuery of uniqueQueries) {
-      const { response, data } = await callFindPlace(textQuery, "textquery");
-
-      console.log("[googlePlacesSearch] text lookup", {
-        textQuery,
-        status: data.status,
-        candidateCount: data.candidates?.length || 0,
-      });
-
-      if (!response.ok) {
-        console.error(
-          "[googlePlacesSearch] text lookup HTTP error",
-          response.status,
-          data
-        );
-        // נמשיך לנסות שאילתות אחרות לפני שנחזיר error
+        lastHttpError = response.status;
         continue;
       }
 
-      if (data.status === "OK" && data.candidates?.length) {
-        return res.json({ candidates: mapCandidates(data) });
+      if (data.status !== "OK" || !Array.isArray(data.candidates)) {
+        continue;
       }
 
-      if (data.status && data.status !== "ZERO_RESULTS") {
-        console.warn(
-          "[googlePlacesSearch] text lookup status",
-          data.status,
-          data
-        );
+      for (const place of data.candidates) {
+        const candidate = mapCandidate(place);
+        const score = scoreCandidate(candidate);
+        if (score > bestScore) {
+          bestScore = score;
+          bestCandidate = candidate;
+        }
       }
-      // ZERO_RESULTS => נמשיך לנסות שאילתות אחרות
+
+      // If we already have a perfect phone match, break early.
+      if (bestScore === 100) break;
     }
 
-    // אם הגענו עד כאן – לא מצאנו שום דבר
-    return res.json({ candidates: [] });
+    if (bestCandidate) {
+      return res.json({ candidates: [bestCandidate] });
+    }
+
+    if (lastHttpError) {
+      console.error("[googlePlacesSearch] Places API HTTP error", lastHttpError);
+      return res.status(502).json({ error: "Places API error" });
+    }
+
+    return res.json({
+      candidates: [],
+      message: "No exact match found. Try refining your business name or phone number.",
+    });
   } catch (err) {
     console.error("[googlePlacesSearch] unexpected server error", err);
     return res.status(500).json({ candidates: [], error: "Server error" });
