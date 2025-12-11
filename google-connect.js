@@ -59,9 +59,17 @@ function buildLocationString() {
   return uniqueParts.join(" ").trim();
 }
 
-function buildPlacesQuery(name = "") {
-  const trimmedName = name.trim();
+function buildPlacesQuery(name = "", manualLocation = "") {
+  const trimmedName = (name || "").trim();
+  const trimmedManualLocation = (manualLocation || "").trim();
   if (!trimmedName) return "";
+
+  // If the user typed a manual location, use that together with the name
+  if (trimmedManualLocation) {
+    return `${trimmedName} ${trimmedManualLocation}`.trim();
+  }
+
+  // Fallback: use the existing profile-based location builder
   const locationString = buildLocationString();
   if (!locationString) return trimmedName;
   return `${trimmedName} ${locationString}`.trim();
@@ -204,6 +212,8 @@ export function renderGoogleConnect(container, options = {}) {
       <div class="stacked">
         <label class="strong" for="google-business-input">Business name</label>
         <input id="google-business-input" class="input" type="text" placeholder="Business name" data-google-query value="${defaultQuery}" />
+        <label class="strong" for="google-location-input">Location (optional)</label>
+        <input id="google-location-input" class="input" type="text" placeholder="City / State / Country" data-google-location />
         <p class="card-subtitle">${helperText}</p>
         <div class="input-row">
           <button class="btn btn-primary" type="button" data-google-search>Search</button>
@@ -216,6 +226,7 @@ export function renderGoogleConnect(container, options = {}) {
 
   const searchBtn = container.querySelector("[data-google-search]");
   const queryInput = container.querySelector("[data-google-query]");
+  const locationInput = container.querySelector("[data-google-location]");
   const resultsEl = container.querySelector("[data-google-results]");
   const messageEl = container.querySelector("[data-connect-message]");
   const skipBtn = container.querySelector("[data-connect-skip]");
@@ -225,7 +236,9 @@ export function renderGoogleConnect(container, options = {}) {
   }
 
   async function handleSearch() {
-    const query = buildPlacesQuery(queryInput?.value || "");
+    const name = queryInput?.value || "";
+    const manualLocation = locationInput?.value || "";
+    const query = buildPlacesQuery(name, manualLocation);
     if (!query) {
       messageEl.textContent = "Enter a business name to search.";
       messageEl.style.color = "var(--danger)";
