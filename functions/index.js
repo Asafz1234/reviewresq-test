@@ -30,26 +30,31 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  // ----- קריאת פרמטרים (עובד גם ל-GET וגם ל-POST) -----
   const getParam = (key) =>
     req.method === "GET" ? req.query?.[key] || "" : req.body?.[key] || "";
 
-  const query = String(getParam("query") || "").trim();
-  const phoneRaw = String(getParam("phonenumber") || "").trim();
-  const state = String(getParam("state") || "").trim();
+  const query = String(getParam("query") || "").trim(); // שם העסק
+  const phoneRaw = String(getParam("phonenumber") || "").trim(); // טלפון
+  const state = String(getParam("state") || "").trim(); // סטייט (FL, CA וכו')
 
+  // ----- נרמול טלפון אמריקאי -----
   const normalizeUsPhone = (input = "") => {
     if (!input) return null;
     const trimmed = String(input).trim();
     const digits = trimmed.replace(/\D/g, "");
 
+    // כבר מגיע עם קידומת + ו-11 ספרות או יותר
     if (trimmed.startsWith("+") && digits.length >= 11) {
       return `+${digits}`;
     }
 
+    // 10 ספרות → מוסיף +1
     if (digits.length === 10) {
       return `+1${digits}`;
     }
 
+    // 11 ספרות שמתחילות ב-1 → הופך ל-+1XXXXXXXXXX
     if (digits.length === 11 && digits.startsWith("1")) {
       return `+${digits}`;
     }
@@ -59,6 +64,7 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
 
   const normalizedPhone = normalizeUsPhone(phoneRaw);
 
+  // אם אין לא שם עסק ולא טלפון – אין מה לחפש
   if (!query && !normalizedPhone) {
     return res.status(400).json({
       error: "Missing query",
@@ -67,8 +73,9 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
   }
 
   const digits = phoneRaw.replace(/\D/g, "");
-  const hasPhoneDigits = digits.length >= 7;
+  const hasPhoneDigits = digits.length >= 7; // כרגע לשימוש עתידי, לא חובה
 
+  // ----- קבלת מפתח ה-API של Places -----
   const placesApiKey =
     process.env.GOOGLE_MAPS_API_KEY ||
     process.env.PLACES_API_KEY ||
@@ -79,6 +86,7 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     return res.status(500).json({ error: "Server configuration missing" });
   }
 
+  // מיפוי תוצאה לפורמט אחיד
   const mapCandidates = (apiData = {}) =>
     Array.isArray(apiData.candidates)
       ? apiData.candidates.map((place) => ({
@@ -93,6 +101,7 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
       : [];
 
   try {
+    // ----- חיפוש לפי טלפון קודם (אם קיים) -----
     if (normalizedPhone) {
       const phoneParams = new URLSearchParams({
         input: normalizedPhone,
@@ -106,25 +115,36 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
       const phoneUrl =
         "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?" +
         phoneParams.toString();
+
       const phoneResponse = await fetch(phoneUrl);
       const phoneData = await phoneResponse.json();
 
       if (!phoneResponse.ok) {
-        console.error("[googlePlacesSearch] phone/text search failed", phoneResponse.status, phoneData);
+        console.error(
+          "[googlePlacesSearch] phone/text search failed",
+          phoneResponse.status,
+          phoneData
+        );
         return res.status(502).json({ error: "Places API error" });
       }
 
       if (phoneData.status === "OK" && phoneData.candidates?.length) {
+        // נמצא עסק לפי טלפון – מחזירים מיד
         return res.json({ candidates: mapCandidates(phoneData) });
       }
 
-      console.warn("Phone lookup failed, falling back to text query", phoneData);
+      console.warn(
+        "[googlePlacesSearch] Phone lookup failed, falling back to text query",
+        phoneData
+      );
     }
 
+    // ----- נפילה אחורה לחיפוש טקסט (שם עסק + סטייט) -----
     const textQueryBase = String(query || "").trim();
     const textQuery = [textQueryBase, state].filter(Boolean).join(" ").trim();
 
     if (!textQuery && !normalizedPhone) {
+      // זה בעיקר מקרה קצה אם query ריק וגם state ריק
       return res.status(400).json({
         error: "Missing query",
         details: "Either 'phonenumber' or 'query' is required",
@@ -132,9 +152,10 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     }
 
     const params = new URLSearchParams({
-      input: query,
+      input: textQuery, // ←←← חשוב: כאן משתמשים ב-textQuery (שם + סטייט)
       inputtype: "textquery",
-      fields: "place_id,name,formatted_address,rating,user_ratings_total,formatted_phone_number,types",
+      fields:
+        "place_id,name,formatted_address,rating,user_ratings_total,formatted_phone_number,types",
       region: "us",
       key: placesApiKey,
     });
@@ -147,7 +168,11 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("[googlePlacesSearch] phone/text search failed", response.status, data);
+      console.error(
+        "[googlePlacesSearch] text search HTTP error",
+        response.status,
+        data
+      );
       return res.status(502).json({ error: "Places API error" });
     }
 
