@@ -59,20 +59,26 @@ function buildLocationString() {
   return uniqueParts.join(" ").trim();
 }
 
-function buildPlacesQuery(name = "", phone = "", state = "") {
+function getStateValue() {
+  const stateInput = document.querySelector("[data-google-state]");
+  return stateInput?.value ? stateInput.value.trim() : "";
+}
+
+function getPhoneValue() {
+  const phoneInput = document.querySelector("[data-google-phone]");
+  return phoneInput?.value ? phoneInput.value.trim() : "";
+}
+
+function buildPlacesQuery(name = "") {
   const trimmedName = (name || "").trim();
-  const trimmedPhone = (phone || "").trim();
-  const trimmedState = (state || "").trim();
+  if (!trimmedName) return "";
 
-  if (!trimmedName || !trimmedPhone || !trimmedState) return "";
+  const state = getStateValue();
+  const parts = [trimmedName, state]
+    .map((part) => (part || "").trim())
+    .filter(Boolean);
 
-  const params = new URLSearchParams({
-    businessName: trimmedName,
-    phone: trimmedPhone,
-    state: trimmedState,
-  });
-
-  return params.toString();
+  return parts.join(" ");
 }
 
 function showToast(message, isError = false) {
@@ -138,8 +144,17 @@ function createResultCard(place, onConnect) {
   return item;
 }
 
-async function searchPlaces(query) {
-  const url = `${placesProxyUrl}?${query}`;
+async function searchPlaces(name) {
+  const query = buildPlacesQuery(name);
+  if (!query) {
+    throw new Error("Missing query");
+  }
+
+  const phone = getPhoneValue();
+  const params = new URLSearchParams({ query });
+  if (phone) params.set("phone", phone);
+
+  const url = `${placesProxyUrl}?${params.toString()}`;
 
   const response = await fetch(url);
 
@@ -274,7 +289,7 @@ export function renderGoogleConnect(container, options = {}) {
     }
 
     const phone = phoneRaw.replace(/[^\d+]/g, "");
-    const query = buildPlacesQuery(name, phone, state);
+    const query = buildPlacesQuery(name);
     if (!query) {
       messageEl.textContent = "All fields are required to search on Google.";
       messageEl.style.color = "var(--danger)";
@@ -288,7 +303,7 @@ export function renderGoogleConnect(container, options = {}) {
     searchBtn.textContent = "Searching…";
 
     try {
-      const matches = await searchPlaces(query);
+      const matches = await searchPlaces(name);
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.innerHTML = "";
       if (!matches.length) {
@@ -307,8 +322,10 @@ export function renderGoogleConnect(container, options = {}) {
       console.error("[google-connect] search failed", err);
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.textContent = "Unable to search right now. Please try again.";
-      const message = err?.message || "Unable to search Google right now.";
-      showToast(message, true);
+      const fallbackMessage = err?.message === "Missing query"
+        ? "Enter business name and try again."
+        : err?.message || "Unable to search Google right now.";
+      showToast(fallbackMessage, true);
     } finally {
       searchBtn.disabled = false;
       searchBtn.textContent = "Search";
