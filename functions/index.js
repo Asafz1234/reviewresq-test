@@ -77,6 +77,38 @@ const extractCidFromUrl = (url = "") => {
   return match && match[1] ? decodeURIComponent(match[1]) : null;
 };
 
+const isValidGoogleBusinessUrl = (raw = "") => {
+  if (!raw) return false;
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    const path = url.pathname.toLowerCase();
+    const search = url.search.toLowerCase();
+
+    const googleHost =
+      host.includes("google.com") ||
+      host.includes("googleusercontent.com") ||
+      host.includes("goo.gl") ||
+      host.includes("g.page") ||
+      host.includes("maps.app.goo.gl");
+
+    if (!googleHost) return false;
+
+    const hasPlaceId = url.searchParams.has("placeid") || /placeid=/.test(search);
+    const hasCid = url.searchParams.has("cid") || /cid=/.test(search);
+    const hasReviewKeyword =
+      path.includes("/local/review") ||
+      path.includes("/local/reviews") ||
+      path.includes("/maps") ||
+      path.includes("/place") ||
+      path.includes("/search");
+
+    return hasPlaceId || hasCid || hasReviewKeyword;
+  } catch (err) {
+    return false;
+  }
+};
+
 const resolvePlacesApiKey = () =>
   process.env.GOOGLE_MAPS_API_KEY ||
   process.env.PLACES_API_KEY ||
@@ -959,6 +991,61 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
     };
   }
 );
+
+exports.connectGoogleManualLink = functions.https.onCall(async (data, context) => {
+  if (!context.auth || !context.auth.uid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication required to connect Google Business."
+    );
+  }
+
+  const manualLink = (data?.manualLink || data?.link || data?.url || "").trim();
+
+  if (!manualLink || !isValidGoogleBusinessUrl(manualLink)) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Please provide a valid Google Maps business or reviews link."
+    );
+  }
+
+  const uid = context.auth.uid;
+  const profileRef = db.collection("businessProfiles").doc(uid);
+  const profileSnap = await profileRef.get();
+  const profileData = profileSnap.exists ? profileSnap.data() : {};
+
+  if (
+    profileData?.googlePlaceId &&
+    profileData?.googleConnectionType !== "manual" &&
+    profileData?.connectionMethod !== "manual"
+  ) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "A Google profile is already connected automatically."
+    );
+  }
+
+  await profileRef.set(
+    {
+      businessId: uid,
+      ownerUid: uid,
+      googleManualLink: manualLink,
+      googleManualConnection: true,
+      googleConnectionType: "manual",
+      connectionMethod: "manual",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  return {
+    ok: true,
+    reason: "MANUAL_CONNECTED",
+    message: "Google profile connected manually.",
+    googleManualLink: manualLink,
+    googleConnectionType: "manual",
+  };
+});
 
 exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
   console.log("sendReviewRequestEmail invoked", req.method);

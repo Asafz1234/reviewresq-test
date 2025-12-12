@@ -113,7 +113,8 @@ function renderProfile(profile, googleMetrics = {}) {
       source?.manualConnected ||
       profile?.googleConnectionType === "manual" ||
       profile?.googleManualConnection === true ||
-      profile?.googleReviewLink
+      profile?.googleReviewLink ||
+      profile?.googleManualLink
   );
   if (profileNameEl) {
     profileNameEl.textContent = displayName;
@@ -261,12 +262,28 @@ async function loadGoogleData() {
       sessionState.profile?.googleProfile?.connectionType === "manual" ||
       sessionState.profile?.googleProfile?.manualConnected ||
       sessionState.profile?.googleManualConnection === true ||
-      sessionState.profile?.googleReviewLink
+      sessionState.profile?.googleReviewLink ||
+      sessionState.profile?.googleManualLink
   );
   const isConnected = Boolean(sessionState.profile?.googlePlaceId || manualConnected);
   toggleViews(isConnected);
   if (!isConnected) {
     await renderConnectCard();
+    return;
+  }
+  const shouldSkipGoogleData = manualConnected && !sessionState.profile?.googlePlaceId;
+  if (shouldSkipGoogleData) {
+    renderProfile(sessionState.profile, {});
+    if (ratingBadges.rating) {
+      ratingBadges.rating.textContent = "Google rating unavailable";
+    }
+    if (ratingBadges.count) {
+      ratingBadges.count.textContent = "Reviews unavailable";
+    }
+    if (reviewList) {
+      reviewList.textContent =
+        "Google reviews aren’t available for manual connections. Use your saved link to view reviews on Google.";
+    }
     return;
   }
   const reviews = await fetchAllReviews(sessionState.user.uid);
