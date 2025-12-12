@@ -10,6 +10,26 @@ const normalizePhone = (raw = "") =>
     .replace(/[^\d]/g, "")
     .replace(/^1/, "");
 
+// Normalize US phone numbers so that 10-digit and 11-digit (leading 1) inputs match.
+const canonicalizePhoneForCompare = (phoneDigits = "") => {
+  const digits = normalizePhone(phoneDigits);
+
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return digits.slice(1);
+  }
+
+  return digits;
+};
+
+const phonesMatch = (inputDigits = "", candidateDigits = "") => {
+  const a = canonicalizePhoneForCompare(inputDigits);
+  const b = canonicalizePhoneForCompare(candidateDigits);
+
+  if (!a || !b) return false;
+
+  return a === b;
+};
+
 const normalizeName = (name = "") =>
   String(name || "")
     .toLowerCase()
