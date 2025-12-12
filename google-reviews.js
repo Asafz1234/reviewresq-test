@@ -9,14 +9,6 @@ import { initialsFromName, formatDate } from "./session-data.js";
 import { normalizePlan } from "./plan-capabilities.js";
 
 const buildId = window.__REVIEWRESQ_BUILD_ID || "dev";
-const healthInfo = window.__REVIEWRESQ_HEALTH || {};
-const functionsBaseUrl =
-  window.__FUNCTIONS_BASE_URL ||
-  "https://us-central1-reviewresq-app.cloudfunctions.net";
-const testModeEnabled = Boolean(window.__TEST_MODE_ENABLED);
-const firebaseProjectId =
-  (window.RUNTIME_ENV && window.RUNTIME_ENV.FIREBASE_PROJECT_ID) ||
-  "unknown";
 
 let googleConnectModulePromise;
 
@@ -43,7 +35,6 @@ const connectedContainer = document.querySelector("[data-google-connected]");
 const changeProfileBtn = document.querySelector("[data-change-google]");
 const planBadge = document.querySelector("[data-plan-badge]");
 const upsellContainer = document.querySelector("[data-google-upsell]");
-const envBadge = document.querySelector("[data-env-badge]");
 
 const toastId = "feedback-toast";
 let sessionState = { user: null, profile: null, subscription: null };
@@ -74,25 +65,6 @@ function showToast(message, isError = false) {
   toast.classList.toggle("toast-error", isError);
   toast.classList.add("visible");
   setTimeout(() => toast.classList.remove("visible"), 2400);
-}
-
-function renderEnvBadge() {
-  if (!envBadge) return;
-  envBadge.innerHTML = "";
-  const items = [
-    { label: "Project", value: firebaseProjectId },
-    { label: "Origin", value: window.location.origin },
-    { label: "Functions", value: functionsBaseUrl },
-    { label: "Build", value: healthInfo.buildId || buildId },
-    { label: "Test mode", value: testModeEnabled ? "true" : "false" },
-  ];
-
-  items.forEach(({ label, value }) => {
-    const chip = document.createElement("span");
-    chip.className = "env-badge__chip";
-    chip.innerHTML = `<strong>${label}:</strong> ${value || "—"}`;
-    envBadge.appendChild(chip);
-  });
 }
 
 function renderProfile(profile, googleMetrics) {

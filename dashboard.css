@@ -798,3 +798,62 @@ textarea.input {
   font-weight: 600;
   color: #111827;
 }
+
+.manual-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.manual-modal {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  max-width: 560px;
+  width: calc(100% - 32px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.manual-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.manual-modal__title {
+  margin: 0 0 4px;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.manual-modal__subtitle {
+  margin: 0;
+  color: #4b5563;
+}
+
+.manual-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.helper-link {
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.helper-steps {
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
