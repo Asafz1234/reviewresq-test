@@ -95,6 +95,28 @@ function buildPlacesQuery(name = "", stateOverride = "") {
   return parts.join(" ");
 }
 
+function extractPlaceIdFromInput(raw = "") {
+  const input = (raw || "").trim();
+  if (!input) return null;
+
+  try {
+    const url = new URL(input);
+    const param = url.searchParams.get("placeid");
+    if (param) return param;
+  } catch (err) {
+    // non-URL input is allowed
+  }
+
+  const queryMatch = input.match(/[?&]placeid=([^&#]+)/i);
+  if (queryMatch && queryMatch[1]) return decodeURIComponent(queryMatch[1]);
+
+  if (/^[A-Za-z0-9_-]{10,}$/.test(input)) {
+    return input;
+  }
+
+  return null;
+}
+
 function showToast(message, isError = false) {
   let toast = document.getElementById(toastId);
   if (!toast) {
@@ -168,9 +190,27 @@ export async function connectPlaceOnBackend(
   return data;
 }
 
-async function connectByReviewLink(reviewUrl, { force = false, dryRun = false, source = "review_link" } = {}) {
+async function connectByReviewLink(
+  reviewUrl,
+  {
+    force = false,
+    dryRun = false,
+    source = "review_link",
+    mapUrl,
+    placeId,
+    businessName,
+  } = {}
+) {
   const call = connectGoogleBusinessByReviewLinkCallable();
-  const response = await call({ reviewUrl, force, dryRun, source });
+  const response = await call({
+    reviewUrl,
+    force,
+    dryRun,
+    source,
+    mapUrl,
+    placeId,
+    businessName,
+  });
   const data = response?.data || {};
 
   if (!data.ok && !dryRun) {
@@ -432,7 +472,10 @@ export function renderGoogleConnect(container, options = {}) {
     activeManualOverlay = null;
   };
 
-  const renderManualOverlay = ({ defaultInput = "" } = {}, onSuccess) => {
+  const renderManualOverlay = (
+    { defaultInput = "", defaultBusinessName = "", onRetrySearch } = {},
+    onSuccess
+  ) => {
     closeManualOverlay();
     const overlay = document.createElement("div");
     overlay.className = "manual-modal__overlay";
@@ -444,15 +487,17 @@ export function renderGoogleConnect(container, options = {}) {
         <div class="manual-modal__header">
           <div>
             <p class="manual-modal__title">Connect manually</p>
-            <p class="manual-modal__subtitle">Paste your Google review link to verify and connect.</p>
+            <p class="manual-modal__subtitle">Paste your Google review link or placeId to verify and connect.</p>
           </div>
           <button type="button" class="btn btn-link" data-manual-close aria-label="Close manual connect">✕</button>
         </div>
         <div class="stacked">
+          <label class="strong">Business name</label>
+          <input class="input" type="text" data-manual-business placeholder="Your business name" value="${defaultBusinessName}" />
           <label class="strong">Option A (recommended): Paste Google review link</label>
           <input class="input" type="url" data-manual-input placeholder="Paste your Google review link (must contain placeid=…)" value="${defaultInput}" />
-          <label class="strong">Option B: Paste Google Maps place URL</label>
-          <input class="input" type="url" data-manual-maps placeholder="Paste a Google Maps place URL (contains cid=…)" />
+          <label class="strong">Option B: Paste Google Maps place URL or placeId</label>
+          <input class="input" type="text" data-manual-maps placeholder="Paste a Google Maps place URL (contains cid=…) or a placeId" />
           <p class="card-subtitle">We’ll fetch the listing and confirm it matches your business phone.</p>
           <a class="helper-link" href="#" data-manual-helper>How do I find my Google review link?</a>
           <div class="helper-steps" data-manual-helper-steps hidden>
@@ -483,12 +528,15 @@ export function renderGoogleConnect(container, options = {}) {
     const connectBtn = overlay.querySelector("[data-manual-connect]");
     const reviewInput = overlay.querySelector("[data-manual-input]");
     const mapsInput = overlay.querySelector("[data-manual-maps]");
+    const businessInput = overlay.querySelector("[data-manual-business]");
     const statusEl = overlay.querySelector("[data-manual-status]");
     const previewCard = overlay.querySelector("[data-manual-preview-card]");
     const confirmRow = overlay.querySelector("[data-manual-confirm]");
 
     let lastPreviewInput = "";
     let lastPreviewResult = null;
+    let lastPreviewPlaceId = null;
+    let lastBusinessName = defaultBusinessName || "";
 
     const setStatus = (text, isError = false) => {
       statusEl.textContent = text || "";
@@ -524,6 +572,13 @@ export function renderGoogleConnect(container, options = {}) {
     const validateInputs = () => {
       const reviewValue = (reviewInput?.value || "").trim();
       const mapsValue = (mapsInput?.value || "").trim();
+      const businessName = (businessInput?.value || "").trim();
+      lastBusinessName = businessName;
+
+      if (!businessName) {
+        setStatus("Enter your business name to continue.", true);
+        return null;
+      }
 
       if (!reviewValue && !mapsValue) {
         setStatus("Paste a Google review link or Maps place URL to continue.", true);
@@ -531,19 +586,23 @@ export function renderGoogleConnect(container, options = {}) {
       }
 
       if (reviewValue) {
-        if (!reviewValue.includes("placeid=")) {
-          setStatus("Review link must include placeid=", true);
+        const placeId = extractPlaceIdFromInput(reviewValue);
+        if (!placeId) {
+          setStatus("Review link must include placeid= or a valid placeId.", true);
           return null;
         }
-        return { value: reviewValue, source: "review_link" };
+        lastPreviewPlaceId = placeId;
+        return { value: reviewValue, source: "review_link", placeId, businessName };
       }
 
       if (mapsValue) {
-        if (!mapsValue.includes("cid=")) {
-          setStatus("Maps place URL should include cid=", true);
+        const placeId = extractPlaceIdFromInput(mapsValue);
+        if (!mapsValue.includes("cid=") && !placeId) {
+          setStatus("Maps place URL should include cid= or a valid placeId.", true);
           return null;
         }
-        return { value: mapsValue, source: "maps_url" };
+        lastPreviewPlaceId = placeId;
+        return { value: mapsValue, source: "maps_url", placeId, businessName };
       }
 
       return null;
@@ -552,7 +611,7 @@ export function renderGoogleConnect(container, options = {}) {
     const previewManual = async () => {
       const parsed = validateInputs();
       if (!parsed) return;
-      const { value, source } = parsed;
+      const { value, source, placeId, businessName } = parsed;
       setStatus("Checking link…");
       previewCard.hidden = true;
       confirmRow.hidden = true;
@@ -562,9 +621,13 @@ export function renderGoogleConnect(container, options = {}) {
         const result = await connectByReviewLink(value, {
           dryRun: true,
           source,
+          mapUrl: source === "maps_url" ? value : undefined,
+          placeId,
+          businessName,
         });
         lastPreviewInput = value;
-        lastPreviewResult = { ...result, source };
+        lastPreviewResult = { ...result, source, placeId, businessName };
+        lastPreviewPlaceId = placeId || result.placeId || null;
         renderPreviewCard(result.googleProfilePreview || result.googleProfile);
         if (result.phoneMismatch) {
           setStatus(
@@ -600,6 +663,10 @@ export function renderGoogleConnect(container, options = {}) {
       try {
         const response = await connectByReviewLink(lastPreviewInput, {
           source: lastPreviewResult?.source || "review_link",
+          mapUrl:
+            lastPreviewResult?.source === "maps_url" ? lastPreviewInput : undefined,
+          placeId: lastPreviewPlaceId,
+          businessName: lastBusinessName,
         });
         if (response?.ok) {
           setStatus("Google profile connected.");
@@ -682,43 +749,54 @@ export function renderGoogleConnect(container, options = {}) {
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.innerHTML = "";
 
-      const afterManualConnect = async (result) => {
-        if (typeof onConnect === "function") {
-          await onConnect({
-            place_id: result?.placeId,
-            name: result?.googleProfile?.name,
-            formatted_address: result?.googleProfile?.formatted_address,
-            googleReviewUrl: result?.googleReviewUrl,
-            __alreadyConnected: true,
-          });
-        }
-        messageEl.textContent = "Google profile connected!";
-        messageEl.style.color = "var(--success)";
-      };
+        const afterManualConnect = async (result) => {
+          if (typeof onConnect === "function") {
+            await onConnect({
+              place_id: result?.placeId,
+              name: result?.googleProfile?.name,
+              formatted_address: result?.googleProfile?.formatted_address,
+              googleReviewUrl: result?.googleReviewUrl,
+              __alreadyConnected: true,
+            });
+          }
+          messageEl.textContent = "Google profile connected!";
+          messageEl.style.color = "var(--success)";
+        };
 
-      const renderManualCta = ({ headline }) => {
-        const cta = document.createElement("div");
-        cta.className = "connect-results__cta";
-        cta.innerHTML = `
-          <p class="card-subtitle">${headline || "We couldn’t find your business automatically. You can connect manually by pasting your Google review link."}</p>
-          <div class="input-row">
-            <button class="btn btn-primary" type="button" data-manual-launch>Add manually</button>
-            <button class="btn btn-outline" type="button" data-search-again>Try search again</button>
-          </div>
-        `;
-        cta.querySelector("[data-manual-launch]")?.addEventListener("click", () => {
-          renderManualOverlay({}, async (result) => {
-            await afterManualConnect(result);
-            showToast("Google profile connected.");
+        const renderManualCta = ({ headline }) => {
+          const cta = document.createElement("div");
+          cta.className = "connect-results__cta";
+          cta.innerHTML = `
+            <p class="card-subtitle">${headline || "We couldn’t find your business automatically. You can connect manually by pasting your Google review link."}</p>
+            <div class="input-row">
+              <button class="btn btn-primary" type="button" data-manual-launch>Add manually</button>
+              <button class="btn btn-outline" type="button" data-search-again>Try search again</button>
+            </div>
+          `;
+          cta.querySelector("[data-manual-launch]")?.addEventListener("click", () => {
+            renderManualOverlay(
+              {
+                defaultInput: nameInput?.value || "",
+                defaultBusinessName: nameInput?.value || "",
+                onRetrySearch: () => {
+                  resultsEl.innerHTML = "";
+                  messageEl.textContent = "";
+                  nameInput?.focus();
+                },
+              },
+              async (result) => {
+                await afterManualConnect(result);
+                showToast("Google profile connected.");
+              }
+            );
           });
-        });
-        cta.querySelector("[data-search-again]")?.addEventListener("click", () => {
-          resultsEl.innerHTML = "";
-          messageEl.textContent = "";
-          nameInput?.focus();
-        });
-        resultsEl.appendChild(cta);
-      };
+          cta.querySelector("[data-search-again]")?.addEventListener("click", () => {
+            resultsEl.innerHTML = "";
+            messageEl.textContent = "";
+            nameInput?.focus();
+          });
+          resultsEl.appendChild(cta);
+        };
 
       if (!data?.candidates?.length && !data?.match) {
         renderManualCta({

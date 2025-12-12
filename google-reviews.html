@@ -123,32 +123,12 @@
       };
 
       const functionsBaseUrl = deriveFunctionsBase();
+      const buildId = Date.now().toString();
 
-      const bootstrap = async () => {
-        let buildId = "";
-        let testMode = false;
-        try {
-          const healthResp = await fetch(`${functionsBaseUrl}/health`);
-          const healthJson = await healthResp.json();
-          window.__REVIEWRESQ_HEALTH = healthJson;
-          buildId = String(healthJson?.buildId || "");
-          testMode = Boolean(healthJson?.testMode);
-        } catch (err) {
-          console.error("[google-reviews] failed to fetch health", err);
-        }
+      window.__REVIEWRESQ_BUILD_ID = buildId;
+      window.__FUNCTIONS_BASE_URL = functionsBaseUrl;
 
-        if (!buildId) {
-          buildId = Date.now().toString();
-        }
-
-        window.__REVIEWRESQ_BUILD_ID = buildId;
-        window.__FUNCTIONS_BASE_URL = functionsBaseUrl;
-        window.__TEST_MODE_ENABLED = testMode;
-
-        await import(`./google-reviews.js?v=${encodeURIComponent(buildId)}`);
-      };
-
-      bootstrap();
+      import(`./google-reviews.js?v=${encodeURIComponent(buildId)}`);
     </script>
     <script src="dashboard-nav.js"></script>
   </body>
