@@ -49,7 +49,10 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
 
   if (!placesApiKey) {
     console.error("[googlePlacesSearch] missing Places API key");
-    return res.status(500).json({ error: "Server configuration missing" });
+    return res.status(500).json({
+      error: "Server configuration missing",
+      candidates: [],
+    });
   }
 
   const query = `${businessName} ${state || ""} USA`.trim();
