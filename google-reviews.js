@@ -36,6 +36,24 @@ const changeProfileBtn = document.querySelector("[data-change-google]");
 const planBadge = document.querySelector("[data-plan-badge]");
 const upsellContainer = document.querySelector("[data-google-upsell]");
 
+const debugBadgeLabels = ["project", "origin", "build", "test mode"];
+
+function removeDebugBadges() {
+  const badges = document.querySelectorAll(".badge");
+  badges.forEach((badge) => {
+    const label = (badge.textContent || "").trim().toLowerCase();
+    if (debugBadgeLabels.some((needle) => label.includes(needle))) {
+      badge.remove();
+    }
+  });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", removeDebugBadges);
+} else {
+  removeDebugBadges();
+}
+
 const toastId = "feedback-toast";
 let sessionState = { user: null, profile: null, subscription: null };
 let changeListenerAttached = false;
@@ -219,6 +237,7 @@ async function loadGoogleData() {
 onSession(async ({ user, profile, subscription }) => {
   sessionState = { user, profile, subscription };
   if (!user) return;
+  removeDebugBadges();
   const plan = normalizePlan(subscription?.planId || "starter");
   if (planBadge) {
     planBadge.textContent = planLabel(plan);
