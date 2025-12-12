@@ -1,15 +1,15 @@
 const initShareModal = () => {
   const modal = document.querySelector('#share-modal');
-  const openButtons = document.querySelectorAll('[data-share-open]');
-  const closeButtons = document.querySelectorAll('[data-share-close]');
+  const openButtons = document.querySelectorAll('[data-share-open]') || [];
+  const closeButtons = document.querySelectorAll('[data-share-close]') || [];
 
-  // If the modal or buttons do not exist on this page, do nothing.
   if (!modal) return;
-  if (!openButtons?.length && !closeButtons?.length) return;
+  if (!openButtons.length && !closeButtons.length) return;
 
   openButtons.forEach((btn) => {
     if (!btn) return;
     btn.addEventListener('click', () => {
+      if (!modal) return;
       modal.classList.add('is-open');
     });
   });
@@ -17,6 +17,7 @@ const initShareModal = () => {
   closeButtons.forEach((btn) => {
     if (!btn) return;
     btn.addEventListener('click', () => {
+      if (!modal) return;
       modal.classList.remove('is-open');
     });
   });
