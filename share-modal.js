@@ -9,12 +9,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (closeButtons.length === 0) return;
 
   openButtons.forEach(btn => {
+    if (!btn) return;
     btn.addEventListener('click', () => {
       modal.classList.add('is-open');
     });
   });
 
   closeButtons.forEach(btn => {
+    if (!btn) return;
     btn.addEventListener('click', () => {
       modal.classList.remove('is-open');
     });

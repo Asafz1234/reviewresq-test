@@ -379,6 +379,11 @@ button {
   color: var(--success);
 }
 
+.badge-muted {
+  border-color: var(--border-soft);
+  color: var(--text-muted);
+}
+
 .badge-danger {
   border-color: #fca5a5;
   color: var(--danger);

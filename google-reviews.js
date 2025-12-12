@@ -5,18 +5,12 @@ import {
   buildRatingBreakdown,
   describeReview,
 } from "./dashboard-data.js";
-import {
-  db,
-  doc,
-  setDoc,
-  serverTimestamp,
-} from "./firebase-config.js";
 import { initialsFromName, formatDate } from "./session-data.js";
 import { normalizePlan } from "./plan-capabilities.js";
 import {
   renderGoogleConnect,
-  buildGoogleReviewLink,
   refetchProfileAfterConnect,
+  connectPlaceWithConfirmation,
 } from "./google-connect.js";
 
 const profileNameEl = document.querySelector("[data-google-business-name]");
@@ -160,35 +154,25 @@ function renderUpsell(planId = "starter") {
 async function persistGoogleSelection(place) {
   if (!sessionState.user) return;
   try {
-    const ref = doc(db, "businessProfiles", sessionState.user.uid);
-    const googleReviewUrl = buildGoogleReviewLink(place.place_id);
+    if (place?.__alreadyConnected) {
+      sessionState.profile = await refetchProfileAfterConnect();
+      showToast("Google profile connected.");
+      loadGoogleData();
+      return;
+    }
+
     const businessName =
       sessionState.profile?.businessName || place.name || sessionState.profile?.name || "Business";
-    await setDoc(
-      ref,
-      {
-        businessId: sessionState.user.uid,
-        ownerUid: sessionState.user.uid,
-        businessName,
-        googlePlaceId: place.place_id,
-        googleProfile: {
-          name: place.name,
-          formatted_address: place.formatted_address,
-          rating: place.rating,
-          user_ratings_total: place.user_ratings_total,
-          types: place.types,
-        },
-        googleReviewUrl,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    await connectPlaceWithConfirmation(place, { businessName });
     sessionState.profile = await refetchProfileAfterConnect();
     showToast("Google profile connected.");
     loadGoogleData();
   } catch (err) {
     console.error("[google-reviews] failed to connect Google profile", err);
-    showToast("Unable to connect Google profile. Please try again.", true);
+    const message =
+      err?.message ||
+      "Unable to connect Google profile. Please ensure the phone number matches your business profile.";
+    showToast(message, true);
   }
 }
 
