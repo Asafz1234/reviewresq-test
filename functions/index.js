@@ -265,149 +265,106 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       }
     }
 
-    // ---------- 2) Text search fallback ----------
-    const textQueryParts = [businessName];
-    if (stateFilter) {
-      textQueryParts.push(stateFilter);
-    }
-    const textQuery = textQueryParts.join(" ").trim();
-    const fallbackQuery = textQuery || normalizedDigits;
+    // ---------- 2) Text search fallback (multi-query) ----------
+    const phone10 = normalizedDigits && normalizedDigits.length === 10 ? normalizedDigits : "";
+    const plus1Phone = phone10 ? `+1${phone10}` : "";
 
-    if (!fallbackQuery) {
+    const queries = [];
+    const addQuery = (query) => {
+      const trimmed = String(query || "").trim();
+      if (trimmed && !queries.includes(trimmed)) {
+        queries.push(trimmed);
+      }
+    };
+
+    if (businessName && phone10 && stateFilter)
+      addQuery(`${businessName} ${phone10} ${stateFilter}`);
+    if (businessName && plus1Phone && stateFilter)
+      addQuery(`${businessName} ${plus1Phone} ${stateFilter}`);
+    if (businessName && phone10) addQuery(`${businessName} ${phone10}`);
+    if (businessName && stateFilter) addQuery(`${businessName} ${stateFilter}`);
+    if (businessName) addQuery(businessName);
+    if (phone10) addQuery(phone10);
+    if (plus1Phone) addQuery(plus1Phone);
+
+    const seenPlaceIds = new Set();
+    const candidates = [];
+
+    for (const query of queries) {
+      const textUrl = new URL(
+        "https://maps.googleapis.com/maps/api/place/textsearch/json"
+      );
+      textUrl.searchParams.set("key", placesApiKey);
+      textUrl.searchParams.set("query", query);
+      textUrl.searchParams.set("region", "us");
+
+      console.log(`[${label}] text fallback query`, { query });
+
+      const textResponse = await fetch(textUrl);
+      if (!textResponse.ok) {
+        console.error(`[${label}] Text Search HTTP error`, textResponse.status, { query });
+        continue;
+      }
+
+      const textData = await textResponse.json();
+      const textResults = Array.isArray(textData?.results) ? textData.results : [];
+
+      console.log(`[${label}] text results`, {
+        query,
+        resultCount: textResults.length,
+      });
+
+      for (const result of textResults) {
+        if (!result?.place_id || seenPlaceIds.has(result.place_id)) continue;
+
+        const details = await getPlaceDetails(result.place_id, "text");
+        if (!details) continue;
+        if (!stateMatches(details)) continue;
+
+        seenPlaceIds.add(result.place_id);
+        const candidate = mapCandidate(details, result, normalizedDigits);
+        candidates.push(candidate);
+      }
+
+      console.log(`[${label}] cumulative candidates`, {
+        query,
+        total: candidates.length,
+        bestCandidate: candidates[0]?.placeId || null,
+      });
+    }
+
+    if (candidates.length === 0) {
       return respondWithShape({
         ok: false,
         reason: "NO_RESULTS",
         code: "NO_RESULTS",
         message:
-          "We couldn’t find your business on Google based on this name and region.",
-        candidates: [],
+          "We couldn’t find any matching business on Google for this name and region.",
         match: null,
+        candidates: [],
       });
     }
 
-    console.log(`[${label}] text search query`, { query: fallbackQuery });
-
-    const textUrl = new URL(
-      "https://maps.googleapis.com/maps/api/place/textsearch/json"
-    );
-    textUrl.searchParams.set("key", placesApiKey);
-    textUrl.searchParams.set("query", fallbackQuery);
-    textUrl.searchParams.set("region", "us");
-    textUrl.searchParams.set("type", "establishment");
-
-    const textResponse = await fetch(textUrl);
-
-    if (!textResponse.ok) {
-      console.error(`[${label}] Text Search HTTP error`, textResponse.status);
-      return respondWithShape(
-        {
-          ok: false,
-          reason: "ERROR",
-          code: "ERROR",
-          message: "Places Text Search failed",
-          error: { code: textResponse.status },
-        },
-        500
-      );
-    }
-
-    const textData = await textResponse.json();
-    const textResults = Array.isArray(textData.results) ? textData.results : [];
-
-    console.log(`[${label}] text search results`, {
-      query: fallbackQuery,
-      resultCount: textResults.length,
-    });
-
-    const candidates = [];
-    const maxCandidatesToCheck = 10;
-
-    for (const textResult of textResults.slice(0, maxCandidatesToCheck)) {
-      const details = await getPlaceDetails(textResult.place_id, "text");
-      if (!details) continue;
-
-      const stateComponent = details.address_components?.find((c) =>
-        c.types.includes("administrative_area_level_1")
-      );
-      const stateCode = stateComponent?.short_name?.toUpperCase() || null;
-      const stateMatches = !stateFilter || (stateCode && stateCode === stateFilter);
-
-      console.log(`[${label}] evaluate text candidate`, {
-        placeId: textResult.place_id,
-        name: textResult.name,
-        formattedAddress: details.formatted_address || textResult.formatted_address,
-        detectedState: stateCode,
-        stateMatches,
-      });
-
-      if (stateFilter && !stateMatches) {
-        console.log(`[${label}] skip candidate due to state mismatch`, {
-          inputState: stateFilter,
-          placeName: textResult.name,
-          detectedState: stateCode,
-        });
-        continue;
-      }
-
-      const mappedCandidate = mapCandidate(details, textResult, normalizedDigits);
-
-      console.log(`[${label}] mapped candidate`, {
-        placeId: mappedCandidate.placeId,
-        name: mappedCandidate.name,
-        address: mappedCandidate.address,
-        phoneNumber: mappedCandidate.phoneNumber,
-        phoneMatches: mappedCandidate.phoneMatches,
-      });
-
-      candidates.push(mappedCandidate);
-    }
-
-    const phoneMatchedCandidates = candidates.filter((c) => c.phoneMatches);
-    const sortedCandidates = [...candidates].sort(
-      (a, b) => Number(b.phoneMatches) - Number(a.phoneMatches)
-    );
-
-    if (phoneMatchedCandidates.length > 0) {
-      const [bestMatch] = phoneMatchedCandidates;
-      const enrichedCandidates = sortedCandidates.map((c) => ({
-        ...c,
-        isStrongMatch: c.placeId === bestMatch.placeId && c.phoneMatches,
-      }));
-
+    const exactMatch = candidates.find((c) => c.phoneMatches);
+    if (exactMatch) {
       return respondWithShape({
         ok: true,
         reason: "EXACT_MATCH",
         code: "EXACT_MATCH",
         message: "Found an exact phone match on Google.",
-        match: bestMatch,
-        candidates: enrichedCandidates,
-      });
-    }
-
-    if (sortedCandidates.length > 0) {
-      return respondWithShape({
-        ok: false,
-        reason: "NO_PHONE_MATCH",
-        code: "NO_PHONE_MATCH",
-        message:
-          "We found similar businesses on Google, but none of them uses the same phone number as your profile.",
-        match: null,
-        candidates: sortedCandidates.map((c) => ({
-          ...c,
-          phoneMatches: false,
-          samePhone: false,
-        })),
+        match: exactMatch,
+        candidates,
       });
     }
 
     return respondWithShape({
       ok: false,
-      reason: "NO_RESULTS",
-      code: "NO_RESULTS",
+      reason: "NO_PHONE_MATCH",
+      code: "NO_PHONE_MATCH",
       message:
-        "We couldn’t find any matching business on Google for this name and region.",
+        "We found similar businesses on Google, but none of them uses the same phone number as your profile.",
       match: null,
-      candidates: [],
+      candidates,
     });
   } catch (err) {
     console.error(`[${label}] unexpected error`, err);
