@@ -170,8 +170,26 @@ async function searchPlaces(name, state, phone) {
     throw new Error(data.error || "Places search failed");
   }
 
-  if (data && Array.isArray(data.candidates)) {
+  // Support both legacy candidates array responses and the newer single-place shape
+  // returned by googlePlacesSearch. The UI expects an array, so we synthesize one
+  // when the API returns a flattened place payload.
+  if (data && Array.isArray(data.candidates) && data.candidates.length) {
     return data.candidates.slice(0, 5);
+  }
+
+  if (data && data.ok && data.placeId) {
+    const placeFromApi = data;
+    const candidate =
+      placeFromApi.rawTextSearchResult || {
+        place_id: placeFromApi.placeId,
+        name: placeFromApi.name,
+        formatted_address: placeFromApi.address,
+        formatted_phone_number: placeFromApi.phoneNumber,
+        rating: placeFromApi.rating,
+        user_ratings_total: placeFromApi.userRatingsTotal,
+        url: placeFromApi.googleMapsUrl,
+      };
+    return [candidate];
   }
 
   return [];
@@ -307,7 +325,7 @@ export function renderGoogleConnect(container, options = {}) {
       console.error("[google-connect] search failed", err);
       resultsEl.classList.remove("connect-results--loading");
 
-      if (err && err.code === "NO_MATCHES") {
+      if (err && (err.code === "NO_MATCHES" || err.code === "NO_RESULTS")) {
         resultsEl.textContent =
           "No matches found on Google. Please check your business name and phone number.";
         return;
