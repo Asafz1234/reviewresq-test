@@ -20,12 +20,6 @@ const functionsBaseUrl =
   runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL ||
   defaultFunctionsBase;
 
-const isTestModeEnabled = () =>
-  Boolean(
-    window.__TEST_MODE_ENABLED ||
-    String(runtimeEnv.REVIEWRESQ_TEST_MODE || "").toLowerCase() === "true"
-  );
-
 export { functionsBaseUrl };
 
 function gatherAccountData() {
@@ -126,56 +120,13 @@ function showConfirmationModal({
   cancelLabel = "Cancel",
 } = {}) {
   return new Promise((resolve) => {
-    const existingStyle = document.getElementById("confirm-modal-style");
-    if (!existingStyle) {
-      const style = document.createElement("style");
-      style.id = "confirm-modal-style";
-      style.textContent = `
-        .confirm-modal__overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-        .confirm-modal { background: #fff; padding: 20px; border-radius: 8px; max-width: 420px; width: calc(100% - 32px); box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
-        .confirm-modal__title { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
-        .confirm-modal__message { margin: 0 0 16px; color: #333; }
-        .confirm-modal__actions { display: flex; justify-content: flex-end; gap: 12px; }
-        .confirm-modal__actions .btn-secondary { background: #e5e7eb; color: #111827; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
-      `;
-      document.head.appendChild(style);
-    }
-
-    const overlay = document.createElement("div");
-    overlay.className = "confirm-modal__overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
-
-    overlay.innerHTML = `
-      <div class="confirm-modal">
-        <p class="confirm-modal__title">${title}</p>
-        <p class="confirm-modal__message">${message}</p>
-        <div class="confirm-modal__actions">
-          <button type="button" class="btn-secondary" data-confirm-cancel>${cancelLabel}</button>
-          <button type="button" class="btn btn-primary" data-confirm-accept>${confirmLabel}</button>
-        </div>
-      </div>
-    `;
-
-    const cleanup = (result) => {
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      resolve(result);
-    };
-
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) {
-        cleanup(false);
-      }
+    console.warn("Confirmation modal is disabled for production flow", {
+      title,
+      message,
+      confirmLabel,
+      cancelLabel,
     });
-
-    overlay
-      .querySelector("[data-confirm-cancel]")
-      ?.addEventListener("click", () => cleanup(false));
-    overlay
-      .querySelector("[data-confirm-accept]")
-      ?.addEventListener("click", () => cleanup(true));
-
-    document.body.appendChild(overlay);
+    resolve(false);
   });
 }
 
@@ -186,7 +137,7 @@ const connectGoogleBusinessByReviewLinkCallable = () =>
 
 export async function connectPlaceOnBackend(
   place,
-  { businessName, forceConnect = false } = {}
+  { businessName } = {}
 ) {
   if (!place) {
     throw new Error("Missing place to connect");
@@ -194,12 +145,9 @@ export async function connectPlaceOnBackend(
 
   const call = connectGoogleBusinessCallable();
   const placeId = place.place_id || place.placeId;
-  const allowForce = Boolean(forceConnect && isTestModeEnabled());
   const requestPayload = {
     placeId,
     businessName,
-    force: allowForce,
-    forceConnect: allowForce,
   };
 
   console.log("[google-connect] connectPlace request", requestPayload);
@@ -220,12 +168,12 @@ export async function connectPlaceOnBackend(
   return data;
 }
 
-async function connectByReviewLink(reviewUrl, { force = false } = {}) {
+async function connectByReviewLink(reviewUrl, { force = false, dryRun = false, source = "review_link" } = {}) {
   const call = connectGoogleBusinessByReviewLinkCallable();
-  const response = await call({ reviewUrl, force });
+  const response = await call({ reviewUrl, force, dryRun, source });
   const data = response?.data || {};
 
-  if (!data.ok) {
+  if (!data.ok && !dryRun) {
     const error = new Error(
       data.message || "Unable to connect this Google profile right now."
     );
@@ -248,21 +196,9 @@ async function runWithPhoneMismatchConfirmation(executor, { message }) {
       const mismatchMessage =
         err?.message ||
         message ||
-        "The phone number does not match your profile. Connect anyway?";
+        "The phone number on Google doesn’t match your profile.";
       showToast(mismatchMessage, true);
-      const canForce =
-        isTestModeEnabled() && (err?.payload?.forceAllowed ?? false);
-      if (!canForce) {
-        throw err;
-      }
-      const confirmed = await showConfirmationModal({
-        title: "Connect despite phone mismatch?",
-        message: mismatchMessage,
-        confirmLabel: "Connect anyway",
-        cancelLabel: "Cancel",
-      });
-      if (!confirmed) throw err;
-      return executor(true);
+      throw err;
     }
     throw err;
   }
@@ -272,21 +208,19 @@ export function connectPlaceWithConfirmation(place, { businessName } = {}) {
   if (place?.__alreadyConnected) {
     return Promise.resolve({ ok: true, alreadyConnected: true });
   }
-  const allowForce = isTestModeEnabled();
-  const executor = (force = false) =>
+  const executor = () =>
     connectPlaceOnBackend(place, {
       businessName,
-      forceConnect: force && allowForce,
     });
   const confirmMessage =
-    "The Google listing phone does not match your profile. Connect anyway?";
+    "The phone number on Google doesn’t match the phone in your ReviewResQ profile. Please update your profile phone and try again.";
   return runWithPhoneMismatchConfirmation(executor, { message: confirmMessage });
 }
 
 export function connectReviewLinkWithConfirmation(reviewUrl) {
-  const executor = (force = false) => connectByReviewLink(reviewUrl, { force });
+  const executor = () => connectByReviewLink(reviewUrl, { force: false });
   const confirmMessage =
-    "The Google listing phone does not match your profile. Connect anyway?";
+    "The phone number on Google doesn’t match the phone in your ReviewResQ profile. Please update your profile phone and try again.";
   return runWithPhoneMismatchConfirmation(executor, { message: confirmMessage });
 }
 
@@ -489,6 +423,232 @@ export function renderGoogleConnect(container, options = {}) {
   const messageEl = container.querySelector("[data-connect-message]");
   const skipBtn = container.querySelector("[data-connect-skip]");
 
+  let activeManualOverlay = null;
+
+  const closeManualOverlay = () => {
+    if (activeManualOverlay?.parentNode) {
+      activeManualOverlay.parentNode.removeChild(activeManualOverlay);
+    }
+    activeManualOverlay = null;
+  };
+
+  const renderManualOverlay = ({ defaultInput = "" } = {}, onSuccess) => {
+    closeManualOverlay();
+    const overlay = document.createElement("div");
+    overlay.className = "manual-modal__overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+
+    overlay.innerHTML = `
+      <div class="manual-modal">
+        <div class="manual-modal__header">
+          <div>
+            <p class="manual-modal__title">Connect manually</p>
+            <p class="manual-modal__subtitle">Paste your Google review link to verify and connect.</p>
+          </div>
+          <button type="button" class="btn btn-link" data-manual-close aria-label="Close manual connect">✕</button>
+        </div>
+        <div class="stacked">
+          <label class="strong">Option A (recommended): Paste Google review link</label>
+          <input class="input" type="url" data-manual-input placeholder="Paste your Google review link (must contain placeid=…)" value="${defaultInput}" />
+          <label class="strong">Option B: Paste Google Maps place URL</label>
+          <input class="input" type="url" data-manual-maps placeholder="Paste a Google Maps place URL (contains cid=…)" />
+          <p class="card-subtitle">We’ll fetch the listing and confirm it matches your business phone.</p>
+          <a class="helper-link" href="#" data-manual-helper>How do I find my Google review link?</a>
+          <div class="helper-steps" data-manual-helper-steps hidden>
+            <ol>
+              <li>Search your business on Google Maps and click the listing.</li>
+              <li>Click “Write a review” then copy the URL (it includes <strong>placeid=</strong>).</li>
+              <li>Paste that link here to verify and connect.</li>
+            </ol>
+          </div>
+          <div class="manual-actions">
+            <button type="button" class="btn btn-primary" data-manual-preview>Check & preview</button>
+            <button type="button" class="btn btn-outline" data-manual-cancel>Cancel</button>
+          </div>
+          <p class="card-subtitle" data-manual-status></p>
+          <div class="connect-result" data-manual-preview-card hidden></div>
+          <div class="manual-actions" data-manual-confirm hidden>
+            <button type="button" class="btn btn-primary" data-manual-connect>Connect</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const helperLink = overlay.querySelector("[data-manual-helper]");
+    const helperSteps = overlay.querySelector("[data-manual-helper-steps]");
+    const closeBtn = overlay.querySelector("[data-manual-close]");
+    const cancelBtn = overlay.querySelector("[data-manual-cancel]");
+    const previewBtn = overlay.querySelector("[data-manual-preview]");
+    const connectBtn = overlay.querySelector("[data-manual-connect]");
+    const reviewInput = overlay.querySelector("[data-manual-input]");
+    const mapsInput = overlay.querySelector("[data-manual-maps]");
+    const statusEl = overlay.querySelector("[data-manual-status]");
+    const previewCard = overlay.querySelector("[data-manual-preview-card]");
+    const confirmRow = overlay.querySelector("[data-manual-confirm]");
+
+    let lastPreviewInput = "";
+    let lastPreviewResult = null;
+
+    const setStatus = (text, isError = false) => {
+      statusEl.textContent = text || "";
+      statusEl.style.color = isError ? "var(--danger)" : "";
+    };
+
+    const renderPreviewCard = (googleProfile) => {
+      if (!googleProfile) {
+        previewCard.hidden = true;
+        previewCard.innerHTML = "";
+        return;
+      }
+      const totalRatings = googleProfile.user_ratings_total;
+      previewCard.hidden = false;
+      previewCard.innerHTML = `
+        <div class="connect-result__body">
+          <div class="connect-result__header">
+            <p class="strong">${googleProfile.name || "Google listing"}</p>
+          </div>
+          <p class="card-subtitle">${googleProfile.formatted_address || "Address unavailable"}</p>
+          <p class="card-subtitle">${
+            googleProfile.formatted_phone_number ||
+            googleProfile.international_phone_number ||
+            "Phone unavailable"
+          }</p>
+          <p class="card-subtitle">${googleProfile.rating ? `${Number(googleProfile.rating).toFixed(1)} stars` : "No rating yet"}${
+        totalRatings ? ` · ${totalRatings} reviews` : ""
+      }</p>
+        </div>
+      `;
+    };
+
+    const validateInputs = () => {
+      const reviewValue = (reviewInput?.value || "").trim();
+      const mapsValue = (mapsInput?.value || "").trim();
+
+      if (!reviewValue && !mapsValue) {
+        setStatus("Paste a Google review link or Maps place URL to continue.", true);
+        return null;
+      }
+
+      if (reviewValue) {
+        if (!reviewValue.includes("placeid=")) {
+          setStatus("Review link must include placeid=", true);
+          return null;
+        }
+        return { value: reviewValue, source: "review_link" };
+      }
+
+      if (mapsValue) {
+        if (!mapsValue.includes("cid=")) {
+          setStatus("Maps place URL should include cid=", true);
+          return null;
+        }
+        return { value: mapsValue, source: "maps_url" };
+      }
+
+      return null;
+    };
+
+    const previewManual = async () => {
+      const parsed = validateInputs();
+      if (!parsed) return;
+      const { value, source } = parsed;
+      setStatus("Checking link…");
+      previewCard.hidden = true;
+      confirmRow.hidden = true;
+      connectBtn.disabled = true;
+      previewBtn.disabled = true;
+      try {
+        const result = await connectByReviewLink(value, {
+          dryRun: true,
+          source,
+        });
+        lastPreviewInput = value;
+        lastPreviewResult = { ...result, source };
+        renderPreviewCard(result.googleProfilePreview || result.googleProfile);
+        if (result.phoneMismatch) {
+          setStatus(
+            "The phone number on Google doesn’t match the phone in your ReviewResQ profile. Please update your profile phone and try again.",
+            true
+          );
+          confirmRow.hidden = true;
+          connectBtn.disabled = true;
+        } else if (result.ok) {
+          setStatus("Listing verified. Connect to link this Google profile.");
+          confirmRow.hidden = false;
+          connectBtn.disabled = false;
+        } else {
+          setStatus(result.message || "We couldn’t verify that link.", true);
+          confirmRow.hidden = true;
+        }
+      } catch (err) {
+        console.error("[google-connect] manual preview failed", err);
+        setStatus(
+          err?.message || "Unable to verify that link right now. Please try again.",
+          true
+        );
+      } finally {
+        previewBtn.disabled = false;
+      }
+    };
+
+    const finalizeManualConnect = async () => {
+      if (!lastPreviewInput) return;
+      connectBtn.disabled = true;
+      connectBtn.textContent = "Connecting…";
+      setStatus("Connecting to Google…");
+      try {
+        const response = await connectByReviewLink(lastPreviewInput, {
+          source: lastPreviewResult?.source || "review_link",
+        });
+        if (response?.ok) {
+          setStatus("Google profile connected.");
+          confirmRow.hidden = true;
+          if (typeof onSuccess === "function") {
+            await onSuccess(response);
+          }
+          closeManualOverlay();
+        } else {
+          setStatus(
+            response?.message ||
+              "We couldn’t connect that listing. Please confirm the phone number matches your profile.",
+            true
+          );
+        }
+      } catch (err) {
+        console.error("[google-connect] manual connect failed", err);
+        setStatus(
+          err?.message ||
+            "Unable to connect this listing. Please check the phone number and try again.",
+          true
+        );
+      } finally {
+        connectBtn.disabled = false;
+        connectBtn.textContent = "Connect";
+      }
+    };
+
+    helperLink?.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (!helperSteps) return;
+      helperSteps.hidden = !helperSteps.hidden;
+    });
+
+    closeBtn?.addEventListener("click", closeManualOverlay);
+    cancelBtn?.addEventListener("click", closeManualOverlay);
+    previewBtn?.addEventListener("click", previewManual);
+    connectBtn?.addEventListener("click", finalizeManualConnect);
+
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        closeManualOverlay();
+      }
+    });
+
+    activeManualOverlay = overlay;
+    document.body.appendChild(overlay);
+  };
+
   if (showSkip && skipBtn && typeof onSkip === "function") {
     skipBtn.addEventListener("click", () => onSkip());
   }
@@ -536,43 +696,36 @@ export function renderGoogleConnect(container, options = {}) {
         messageEl.style.color = "var(--success)";
       };
 
-      const renderManualCta = (onSuccess) => {
+      const renderManualCta = ({ headline }) => {
         const cta = document.createElement("div");
         cta.className = "connect-results__cta";
         cta.innerHTML = `
-          <p class="card-subtitle">Don’t see your business here?</p>
-          <button class="btn btn-link" type="button">Use manual Google review link</button>
+          <p class="card-subtitle">${headline || "We couldn’t find your business automatically. You can connect manually by pasting your Google review link."}</p>
+          <div class="input-row">
+            <button class="btn btn-primary" type="button" data-manual-launch>Add manually</button>
+            <button class="btn btn-outline" type="button" data-search-again>Try search again</button>
+          </div>
         `;
-        const btn = cta.querySelector("button");
-        if (btn) {
-          btn.addEventListener("click", async () => {
-            const reviewUrl = window.prompt(
-              "Paste your Google review link (contains placeid=)",
-              ""
-            );
-            if (!reviewUrl) return;
-            try {
-              const result = await connectReviewLinkWithConfirmation(reviewUrl);
-              await onSuccess(result);
-              showToast("Google profile connected.");
-            } catch (err) {
-              console.error("[google-connect] manual review link failed", err);
-              showToast(
-                err?.message ||
-                  "Unable to connect with that review link. Please try again.",
-                true
-              );
-            }
+        cta.querySelector("[data-manual-launch]")?.addEventListener("click", () => {
+          renderManualOverlay({}, async (result) => {
+            await afterManualConnect(result);
+            showToast("Google profile connected.");
           });
-        }
+        });
+        cta.querySelector("[data-search-again]")?.addEventListener("click", () => {
+          resultsEl.innerHTML = "";
+          messageEl.textContent = "";
+          nameInput?.focus();
+        });
         resultsEl.appendChild(cta);
       };
 
       if (!data?.candidates?.length && !data?.match) {
-        resultsEl.textContent =
-          data?.message ||
-          "We couldn’t find your business on Google based on this name and phone number.";
-        renderManualCta(afterManualConnect);
+        renderManualCta({
+          headline:
+            data?.message ||
+            "We couldn’t find your business automatically. You can connect manually by pasting your Google review link.",
+        });
         return;
       }
 
@@ -614,15 +767,16 @@ export function renderGoogleConnect(container, options = {}) {
       if (data?.reason === "NO_EXACT_MATCH") {
         messageEl.textContent =
           data?.message ||
-          "We found similar businesses, but none of them used the same phone number you entered.";
+          "We couldn’t find your business automatically. You can connect manually by pasting your Google review link.";
         messageEl.style.color = "var(--danger)";
       }
 
       if (data?.reason === "NO_PHONE_MATCH") {
         messageEl.textContent =
           data?.message ||
-          "We found similar businesses, but none of them used the same phone number you entered.";
+          "The phone number on Google doesn’t match the phone in your ReviewResQ profile. Please update your profile phone and try again.";
         messageEl.style.color = "var(--danger)";
+        renderManualCta({ headline: messageEl.textContent });
       }
 
       const list = candidates.map(normalizePlace);
@@ -643,7 +797,7 @@ export function renderGoogleConnect(container, options = {}) {
       });
 
       if (data?.reason === "NO_EXACT_MATCH" || data?.reason === "NO_PHONE_MATCH") {
-        renderManualCta(afterManualConnect);
+        renderManualCta({ headline: messageEl.textContent });
       }
     } catch (err) {
       console.error("[google-connect] search failed", err);
