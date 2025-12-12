@@ -635,7 +635,9 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
   }
 
   const placeId = data?.placeId || data?.place_id;
-  const force = Boolean(data?.force);
+  const forceConnect = Boolean(data?.forceConnect);
+  const forceLegacy = Boolean(data?.force);
+  const force = forceConnect || forceLegacy;
   if (!placeId) {
     throw new functions.https.HttpsError(
       "invalid-argument",
@@ -680,9 +682,16 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
   if (storedPhoneDigits && placePhoneDigits && !phoneMatches && !force) {
     return {
       ok: false,
-      reason: "PHONE_MISMATCH_CONFIRM_REQUIRED",
+      reason: "PHONE_MISMATCH",
       message:
-        "Phone does not match profile. Confirm to connect anyway.",
+        "The Google listing phone number does not match your business profile.",
+      details: {
+        storedPhone: profileData?.phone || profileData?.businessPhone || null,
+        placePhone:
+          details.formatted_phone_number ||
+          details.international_phone_number ||
+          null,
+      },
       placeId,
       googleProfilePreview: {
         name: details.name || null,
@@ -723,8 +732,13 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
     googlePlaceId: placeId,
     googleProfile,
     googleReviewUrl,
-    connectionMethod: force && phoneMismatch ? "force_candidate_confirm" : "candidate",
+    connectionMethod:
+      force && phoneMismatch ? "force_connect_override" : "candidate",
     phoneMismatch,
+    googlePhoneMismatch: phoneMismatch && force,
+    googlePlacePhone:
+      details.formatted_phone_number || details.international_phone_number || null,
+    businessProfilePhone: profileData?.phone || profileData?.businessPhone || null,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 

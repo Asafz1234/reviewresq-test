@@ -98,19 +98,87 @@ function showToast(message, isError = false) {
   }, 2400);
 }
 
+function showConfirmationModal({
+  title = "Confirm connection",
+  message = "Are you sure?",
+  confirmLabel = "Connect anyway",
+  cancelLabel = "Cancel",
+} = {}) {
+  return new Promise((resolve) => {
+    const existingStyle = document.getElementById("confirm-modal-style");
+    if (!existingStyle) {
+      const style = document.createElement("style");
+      style.id = "confirm-modal-style";
+      style.textContent = `
+        .confirm-modal__overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        .confirm-modal { background: #fff; padding: 20px; border-radius: 8px; max-width: 420px; width: calc(100% - 32px); box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+        .confirm-modal__title { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
+        .confirm-modal__message { margin: 0 0 16px; color: #333; }
+        .confirm-modal__actions { display: flex; justify-content: flex-end; gap: 12px; }
+        .confirm-modal__actions .btn-secondary { background: #e5e7eb; color: #111827; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "confirm-modal__overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+
+    overlay.innerHTML = `
+      <div class="confirm-modal">
+        <p class="confirm-modal__title">${title}</p>
+        <p class="confirm-modal__message">${message}</p>
+        <div class="confirm-modal__actions">
+          <button type="button" class="btn-secondary" data-confirm-cancel>${cancelLabel}</button>
+          <button type="button" class="btn btn-primary" data-confirm-accept>${confirmLabel}</button>
+        </div>
+      </div>
+    `;
+
+    const cleanup = (result) => {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      resolve(result);
+    };
+
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        cleanup(false);
+      }
+    });
+
+    overlay
+      .querySelector("[data-confirm-cancel]")
+      ?.addEventListener("click", () => cleanup(false));
+    overlay
+      .querySelector("[data-confirm-accept]")
+      ?.addEventListener("click", () => cleanup(true));
+
+    document.body.appendChild(overlay);
+  });
+}
+
 const connectGoogleBusinessCallable = () =>
   httpsCallable(functions, "connectGoogleBusiness");
 const connectGoogleBusinessByReviewLinkCallable = () =>
   httpsCallable(functions, "connectGoogleBusinessByReviewLink");
 
-export async function connectPlaceOnBackend(place, { businessName, force = false } = {}) {
+export async function connectPlaceOnBackend(
+  place,
+  { businessName, forceConnect = false } = {}
+) {
   if (!place) {
     throw new Error("Missing place to connect");
   }
 
   const call = connectGoogleBusinessCallable();
   const placeId = place.place_id || place.placeId;
-  const response = await call({ placeId, businessName, force });
+  const response = await call({
+    placeId,
+    businessName,
+    force: forceConnect,
+    forceConnect,
+  });
   const data = response?.data || {};
 
   if (!data.ok) {
@@ -146,12 +214,19 @@ async function runWithPhoneMismatchConfirmation(executor, { message }) {
   try {
     return await executor(false);
   } catch (err) {
-    if (err?.code === "PHONE_MISMATCH_CONFIRM_REQUIRED") {
-      const confirmed = window.confirm(
-        message ||
+    if (
+      err?.code === "PHONE_MISMATCH" ||
+      err?.code === "PHONE_MISMATCH_CONFIRM_REQUIRED"
+    ) {
+      const confirmed = await showConfirmationModal({
+        title: "Connect despite phone mismatch?",
+        message:
+          message ||
           err?.message ||
-          "The phone number does not match your profile. Connect anyway?"
-      );
+          "The phone number does not match your profile. Connect anyway?",
+        confirmLabel: "Connect anyway",
+        cancelLabel: "Cancel",
+      });
       if (!confirmed) throw err;
       return executor(true);
     }
@@ -164,7 +239,7 @@ export function connectPlaceWithConfirmation(place, { businessName } = {}) {
     return Promise.resolve({ ok: true, alreadyConnected: true });
   }
   const executor = (force = false) =>
-    connectPlaceOnBackend(place, { businessName, force });
+    connectPlaceOnBackend(place, { businessName, forceConnect: force });
   const confirmMessage =
     "The Google listing phone does not match your profile. Connect anyway?";
   return runWithPhoneMismatchConfirmation(executor, { message: confirmMessage });
@@ -233,6 +308,13 @@ function createResultCard(
       try {
         await onConnect(place);
         action.textContent = "Connected";
+        document
+          .querySelectorAll(".connect-result button.btn-primary")
+          .forEach((btn) => {
+            if (btn !== action) {
+              btn.disabled = true;
+            }
+          });
       } catch (err) {
         console.error("[google-connect] failed to connect", err);
         action.disabled = false;
