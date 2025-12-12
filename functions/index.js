@@ -423,9 +423,193 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
   }
 };
 
-exports.googlePlacesSearch = functions.https.onRequest((req, res) =>
-  searchGooglePlacesWithValidation(req, res, { label: "googlePlacesSearch" })
-);
+exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
+  try {
+    setCorsHeaders(req, res);
+
+    if (req.method === "OPTIONS") {
+      return res.status(204).send("");
+    }
+
+    if (!["GET", "POST"].includes(req.method)) {
+      return res.status(405).json({ ok: false, error: "METHOD_NOT_ALLOWED" });
+    }
+
+    const getParam = (key) =>
+      req.method === "GET" ? req.query?.[key] || "" : req.body?.[key] || "";
+
+    const businessName = String(getParam("businessName") || "").trim();
+    const stateRaw = String(getParam("stateOrProvince") || getParam("state") || "")
+      .trim()
+      .toUpperCase();
+    const phoneRaw = String(getParam("phoneNumber") || getParam("phone") || "")
+      .trim();
+
+    if (!phoneRaw || !stateRaw) {
+      return res.json({ ok: false, error: "MISSING_PARAMS" });
+    }
+
+    const normalizedDigits = normalizePhoneDigits(phoneRaw);
+    const e164 = normalizedDigits && normalizedDigits.length === 10 ? toE164US(normalizedDigits) : "";
+
+    const placesApiKey =
+      process.env.GOOGLE_MAPS_API_KEY ||
+      process.env.PLACES_API_KEY ||
+      functions.config().google?.places_api_key;
+
+    if (!placesApiKey) {
+      return res.json({ ok: false, error: "MISSING_API_KEY" });
+    }
+
+    const filteredCandidates = [];
+
+    const mapDetailsToCandidate = (details) => ({
+      placeId: details?.place_id || null,
+      name: details?.name || null,
+      address: details?.formatted_address || null,
+      phoneNumber:
+        details?.formatted_phone_number ||
+        details?.international_phone_number ||
+        null,
+      rating: details?.rating ?? null,
+      userRatingsTotal: details?.user_ratings_total ?? 0,
+      googleMapsUrl: details?.url || null,
+      samePhone:
+        Boolean(normalizedDigits) &&
+        normalizePhoneDigits(
+          details?.formatted_phone_number || details?.international_phone_number || ""
+        ) === normalizedDigits,
+    });
+
+    const fetchPlaceDetails = async (placeId) => {
+      if (!placeId) return null;
+      const detailsUrl = new URL(
+        "https://maps.googleapis.com/maps/api/place/details/json"
+      );
+      detailsUrl.searchParams.set("key", placesApiKey);
+      detailsUrl.searchParams.set("place_id", placeId);
+      detailsUrl.searchParams.set(
+        "fields",
+        [
+          "place_id",
+          "name",
+          "formatted_address",
+          "formatted_phone_number",
+          "international_phone_number",
+          "address_components",
+          "user_ratings_total",
+          "rating",
+          "types",
+          "url",
+        ].join(",")
+      );
+
+      const response = await fetch(detailsUrl);
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data?.result || null;
+    };
+
+    const stateMatches = (details) => {
+      const stateComp = details?.address_components?.find((c) =>
+        Array.isArray(c?.types) && c.types.includes("administrative_area_level_1")
+      );
+      const stateCode = stateComp?.short_name?.toUpperCase() || null;
+      return Boolean(stateCode && stateCode === stateRaw);
+    };
+
+    // 1) Phone-first search
+    if (normalizedDigits && normalizedDigits.length === 10 && e164) {
+      const findUrl = new URL(
+        "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
+      );
+      findUrl.searchParams.set("key", placesApiKey);
+      findUrl.searchParams.set("input", e164);
+      findUrl.searchParams.set("inputtype", "phonenumber");
+      findUrl.searchParams.set(
+        "fields",
+        [
+          "place_id",
+          "name",
+          "formatted_address",
+          "formatted_phone_number",
+          "international_phone_number",
+          "types",
+        ].join(",")
+      );
+
+      const findResponse = await fetch(findUrl);
+      if (findResponse.ok) {
+        const findData = await findResponse.json();
+        const candidates = Array.isArray(findData?.candidates)
+          ? findData.candidates
+          : [];
+
+        for (const candidate of candidates) {
+          const details = await fetchPlaceDetails(candidate?.place_id);
+          if (!details) continue;
+          if (!stateMatches(details)) continue;
+
+          const googleDigits = normalizePhoneDigits(
+            details.international_phone_number || details.formatted_phone_number || ""
+          );
+
+          if (googleDigits && normalizedDigits && googleDigits === normalizedDigits) {
+            filteredCandidates.push(mapDetailsToCandidate(details));
+          }
+        }
+
+        if (filteredCandidates.length > 0) {
+          return res.json({ ok: true, candidates: filteredCandidates });
+        }
+      }
+    }
+
+    // 2) Text search fallback
+    const textQueryParts = [businessName];
+    if (stateRaw) textQueryParts.push(stateRaw);
+    const textQuery = textQueryParts.join(" ").trim();
+
+    if (textQuery) {
+      const textUrl = new URL(
+        "https://maps.googleapis.com/maps/api/place/textsearch/json"
+      );
+      textUrl.searchParams.set("key", placesApiKey);
+      textUrl.searchParams.set("query", textQuery);
+      textUrl.searchParams.set("region", "us");
+      textUrl.searchParams.set("type", "establishment");
+
+      const textResponse = await fetch(textUrl);
+      if (textResponse.ok) {
+        const textData = await textResponse.json();
+        const results = Array.isArray(textData?.results) ? textData.results : [];
+
+        for (const result of results) {
+          const details = await fetchPlaceDetails(result?.place_id);
+          if (!details) continue;
+          if (!stateMatches(details)) continue;
+
+          filteredCandidates.push(mapDetailsToCandidate(details));
+        }
+      }
+    }
+
+    if (filteredCandidates.length === 0) {
+      return res.json({ ok: false, error: "NO_RESULTS_IN_STATE" });
+    }
+
+    filteredCandidates.sort((a, b) => Number(b.samePhone) - Number(a.samePhone));
+
+    return res.json({ ok: true, candidates: filteredCandidates });
+  } catch (err) {
+    console.error("[googlePlacesSearch] unexpected error", err);
+    return res.status(200).json({
+      ok: false,
+      error: "INTERNAL_ERROR",
+      message: "Failed to query Google Places",
+    });
+  }
+});
 
 exports.googlePlacesSearch2 = functions.https.onRequest((req, res) =>
   searchGooglePlacesWithValidation(req, res, { label: "googlePlacesSearch2" })
