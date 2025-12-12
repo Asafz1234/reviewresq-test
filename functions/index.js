@@ -685,6 +685,12 @@ exports.googlePlacesSearch2 = functions.https.onRequest((req, res) =>
 );
 
 exports.health = functions.https.onRequest((req, res) => {
+  setCorsHeaders(req, res);
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
   res.json({ ok: true, buildId: BUILD_ID, testMode: TEST_MODE });
 });
 
