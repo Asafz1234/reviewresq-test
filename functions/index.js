@@ -161,7 +161,7 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
   const getParam = (key) =>
     req.method === "GET" ? req.query?.[key] || "" : req.body?.[key] || "";
 
-  const businessName = String(
+  const businessNameRaw = String(
     getParam("businessName") || getParam("query") || ""
   ).trim();
   const stateFilter = String(
