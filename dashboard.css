@@ -774,3 +774,27 @@ textarea.input {
   align-items: center;
   margin-top: 12px;
 }
+
+.env-badge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0 12px;
+}
+
+.env-badge__chip {
+  background: #eef2ff;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.env-badge__chip strong {
+  font-weight: 600;
+  color: #111827;
+}

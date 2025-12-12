@@ -5,6 +5,16 @@ const sgMail = require("@sendgrid/mail");
 admin.initializeApp();
 
 
+const BUILD_ID = process.env.BUILD_ID || Date.now().toString();
+const TEST_MODE = [
+  process.env.REVIEWRESQ_TEST_MODE,
+  process.env.FORCE_CONNECT_TEST_MODE,
+  functions.config()?.app?.reviewresq_test_mode,
+  functions.config()?.app?.force_connect_test_mode,
+]
+  .map((v) => String(v || "").toLowerCase())
+  .some((v) => v === "true" || v === "1" || v === "yes");
+
 const normalizePhone = (raw = "") => (raw || "").replace(/[^\d]/g, "");
 
 const normalizePhoneDigits = (raw = "") => {
@@ -16,13 +26,7 @@ const normalizePhoneDigits = (raw = "") => {
 const toE164US = (digits10 = "") =>
   digits10 && digits10.length === 10 ? `+1${digits10}` : "";
 
-const isForceConnectTestMode = () =>
-  [
-    String(process.env.FORCE_CONNECT_TEST_MODE || ""),
-    String(functions.config()?.app?.force_connect_test_mode || ""),
-  ]
-    .map((v) => v.toLowerCase())
-    .some((v) => v === "true" || v === "1" || v === "yes");
+const isForceConnectTestMode = () => TEST_MODE;
 
 const extractStateFromAddress = (formattedAddress = "") => {
   const upper = String(formattedAddress || "").toUpperCase();
@@ -634,6 +638,10 @@ exports.googlePlacesSearch2 = functions.https.onRequest((req, res) =>
   searchGooglePlacesWithValidation(req, res, { label: "googlePlacesSearch2" })
 );
 
+exports.health = functions.https.onRequest((req, res) => {
+  res.json({ ok: true, buildId: BUILD_ID, testMode: TEST_MODE });
+});
+
 exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => {
   if (!context.auth || !context.auth.uid) {
     throw new functions.https.HttpsError(
@@ -753,6 +761,15 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
     googlePlacePhone:
       details.formatted_phone_number || details.international_phone_number || null,
     businessProfilePhone: profileData?.phone || profileData?.businessPhone || null,
+    googleConnectOverrideUsed: Boolean(canOverrideMismatch && phoneMismatch),
+    googleConnectOverridePlacePhone:
+      (canOverrideMismatch && phoneMismatch &&
+        (details.formatted_phone_number || details.international_phone_number)) ||
+      null,
+    googleConnectOverrideStoredPhone:
+      (canOverrideMismatch && phoneMismatch &&
+        (profileData?.phone || profileData?.businessPhone || null)) ||
+      null,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
@@ -876,14 +893,19 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
       googlePlaceId: placeId,
       googleProfile,
       googleReviewUrl,
-      connectionMethod: "review_link",
+      connectionMethod: canOverrideMismatch && phoneMismatch ? "review_link_force" : "review_link",
       phoneMismatch,
+      googleConnectOverrideUsed: Boolean(canOverrideMismatch && phoneMismatch),
+      googleConnectOverridePlacePhone:
+        (canOverrideMismatch && phoneMismatch &&
+          (details.formatted_phone_number || details.international_phone_number)) ||
+        null,
+      googleConnectOverrideStoredPhone:
+        (canOverrideMismatch && phoneMismatch &&
+          (profileData?.phone || profileData?.businessPhone || null)) ||
+        null,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-
-    if (canOverrideMismatch && phoneMismatch) {
-      payload.connectionMethod = "review_link_force";
-    }
 
     if (businessName) {
       payload.businessName = businessName;

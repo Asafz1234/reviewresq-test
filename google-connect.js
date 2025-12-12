@@ -7,6 +7,27 @@ const placesProxyUrl =
   (runtimeEnv && runtimeEnv.GOOGLE_PLACES_PROXY_URL) ||
   "https://us-central1-reviewresq-app.cloudfunctions.net/googlePlacesSearch";
 
+const defaultFunctionsBase = (() => {
+  try {
+    return new URL(placesProxyUrl).origin;
+  } catch (err) {
+    return "https://us-central1-reviewresq-app.cloudfunctions.net";
+  }
+})();
+
+const functionsBaseUrl =
+  runtimeEnv.FUNCTIONS_BASE_URL ||
+  runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL ||
+  defaultFunctionsBase;
+
+const isTestModeEnabled = () =>
+  Boolean(
+    window.__TEST_MODE_ENABLED ||
+    String(runtimeEnv.REVIEWRESQ_TEST_MODE || "").toLowerCase() === "true"
+  );
+
+export { functionsBaseUrl };
+
 function gatherAccountData() {
   const cachedProfile = (typeof getCachedProfile === "function" && getCachedProfile()) || {};
   const globals =
@@ -173,12 +194,18 @@ export async function connectPlaceOnBackend(
 
   const call = connectGoogleBusinessCallable();
   const placeId = place.place_id || place.placeId;
-  const response = await call({
+  const allowForce = Boolean(forceConnect && isTestModeEnabled());
+  const requestPayload = {
     placeId,
     businessName,
-    force: forceConnect,
-    forceConnect,
-  });
+    force: allowForce,
+    forceConnect: allowForce,
+  };
+
+  console.log("[google-connect] connectPlace request", requestPayload);
+
+  const response = await call(requestPayload);
+  console.log("[google-connect] connectPlace response", response?.data || response);
   const data = response?.data || {};
 
   if (!data.ok) {
@@ -223,7 +250,8 @@ async function runWithPhoneMismatchConfirmation(executor, { message }) {
         message ||
         "The phone number does not match your profile. Connect anyway?";
       showToast(mismatchMessage, true);
-      const canForce = err?.payload?.forceAllowed ?? true;
+      const canForce =
+        isTestModeEnabled() && (err?.payload?.forceAllowed ?? false);
       if (!canForce) {
         throw err;
       }
@@ -244,8 +272,12 @@ export function connectPlaceWithConfirmation(place, { businessName } = {}) {
   if (place?.__alreadyConnected) {
     return Promise.resolve({ ok: true, alreadyConnected: true });
   }
+  const allowForce = isTestModeEnabled();
   const executor = (force = false) =>
-    connectPlaceOnBackend(place, { businessName, forceConnect: force });
+    connectPlaceOnBackend(place, {
+      businessName,
+      forceConnect: force && allowForce,
+    });
   const confirmMessage =
     "The Google listing phone does not match your profile. Connect anyway?";
   return runWithPhoneMismatchConfirmation(executor, { message: confirmMessage });
