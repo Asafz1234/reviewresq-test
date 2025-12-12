@@ -4,8 +4,11 @@ const sgMail = require("@sendgrid/mail");
 
 admin.initializeApp();
 
-// Keep only digits from the phone input (e.g., "(954) 546-3506" -> "9545463506").
-const normalizePhone = (phone = "") => String(phone || "").replace(/\D/g, "");
+
+const normalizePhone = (raw = "") =>
+  (raw || "")
+    .replace(/[^\d]/g, "")
+    .replace(/^1/, "");
 
 const normalizeName = (name = "") =>
   String(name || "")
@@ -33,20 +36,28 @@ const setCorsHeaders = (req, res) => {
   res.set("Vary", "Origin");
 };
 
-const mapCandidate = (details, textResult) => ({
-  placeId: details.place_id || textResult.place_id,
-  name: details.name || textResult.name || null,
-  address: details.formatted_address || textResult.formatted_address || null,
-  phoneNumber:
-    details.formatted_phone_number ||
+const mapCandidate = (details, textResult, inputPhone) => {
+  const phoneNumber =
     details.international_phone_number ||
+    details.formatted_phone_number ||
+    textResult.international_phone_number ||
     textResult.formatted_phone_number ||
-    null,
-  rating: details.rating ?? textResult.rating ?? null,
-  userRatingsTotal: details.user_ratings_total ?? textResult.user_ratings_total ?? 0,
-  googleMapsUrl: details.url || null,
-  rawTextSearchResult: textResult,
-});
+    null;
+
+  const placePhone = normalizePhone(phoneNumber || "");
+  const phoneMatches = Boolean(inputPhone && placePhone && placePhone === inputPhone);
+
+  return {
+    placeId: details.place_id || textResult.place_id,
+    name: details.name || textResult.name || null,
+    address: details.formatted_address || textResult.formatted_address || null,
+    phoneNumber,
+    rating: details.rating ?? textResult.rating ?? null,
+    userRatingsTotal: details.user_ratings_total ?? textResult.user_ratings_total ?? 0,
+    googleMapsUrl: details.url || null,
+    phoneMatches,
+  };
+};
 
 const searchGooglePlacesWithValidation = async (req, res, { label }) => {
   setCorsHeaders(req, res);
@@ -65,7 +76,9 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
   const businessName = String(
     getParam("businessName") || getParam("query") || ""
   ).trim();
-  const state = String(getParam("state") || "").trim();
+  const stateOrCity = String(
+    getParam("stateOrCity") || getParam("state") || getParam("region") || ""
+  ).trim();
   const phoneNumber = String(
     getParam("phoneNumber") || getParam("phonenumber") || getParam("phone") || ""
   ).trim();
@@ -84,130 +97,176 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
     return res.status(500).json({ error: "Server configuration missing" });
   }
 
-  const normalizedPhone = normalizePhone(phoneNumber);
+  const inputPhone = normalizePhone(phoneNumber);
 
-  const respondEmptyCandidates = () => res.status(200).json({ ok: true, candidates: [] });
+  const respondWithShape = (payload, status = 200) =>
+    res.status(status).json({
+      ok: false,
+      reason: "ERROR",
+      message: "Unexpected error",
+      match: null,
+      candidates: [],
+      ...payload,
+    });
 
   try {
-    // 1) Phone-first: if the user provided a phone number, search by phone only and return
-    // the first candidate immediately. Do not mix phone results with text search results.
-    if (phoneNumber) {
-      console.log(`[${label}] phone search input`, {
-        raw: phoneNumber,
-        normalized: normalizedPhone,
+    const textQueryParts = [businessName, stateOrCity].filter(Boolean);
+    const textQuery = textQueryParts.join(" ").trim();
+    const fallbackQuery = textQuery || inputPhone;
+
+    console.log(`[${label}] text search query`, { query: fallbackQuery });
+
+    if (!fallbackQuery) {
+      return respondWithShape({
+        ok: false,
+        reason: "NO_RESULTS",
+        message:
+          "We couldn’t find your business on Google based on this name and region.",
+        candidates: [],
+        match: null,
       });
-
-      if (!normalizedPhone) {
-        console.warn(`[${label}] phone search received no digits after normalization`);
-        return respondEmptyCandidates();
-      }
-
-      const phoneUrl = new URL(
-        "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
-      );
-      phoneUrl.searchParams.set("key", placesApiKey);
-      phoneUrl.searchParams.set("input", normalizedPhone);
-      phoneUrl.searchParams.set("inputtype", "textquery");
-      phoneUrl.searchParams.set(
-        "fields",
-        [
-          "place_id",
-          "name",
-          "formatted_address",
-          "formatted_phone_number",
-          "rating",
-          "user_ratings_total",
-          "url",
-        ].join(",")
-      );
-      phoneUrl.searchParams.set("region", "us");
-
-      const phoneResponse = await fetch(phoneUrl);
-
-      if (!phoneResponse.ok) {
-        console.error(`[${label}] phone search HTTP error`, phoneResponse.status);
-        return respondEmptyCandidates();
-      }
-
-      const phoneData = await phoneResponse.json();
-      const phoneCandidates = Array.isArray(phoneData.candidates)
-        ? phoneData.candidates
-        : [];
-
-      console.log(`[${label}] phone search results`, {
-        status: phoneData.status,
-        candidateCount: phoneCandidates.length,
-      });
-
-      if (phoneData.status === "OK" && phoneCandidates.length) {
-        const first = phoneCandidates[0];
-
-        return res.status(200).json({
-          ok: true,
-          placeId: first.place_id,
-          name: first.name || null,
-          address: first.formatted_address || null,
-          phoneNumber: first.formatted_phone_number || null,
-          rating: first.rating ?? null,
-          userRatingsTotal: first.user_ratings_total ?? 0,
-          googleMapsUrl: first.url || null,
-          rawTextSearchResult: first,
-        });
-      }
-
-      return respondEmptyCandidates();
-    }
-
-    // 2) No phone provided: perform a text search using business name + optional state.
-    const textQuery = `${businessName} ${state || ""}`.trim();
-
-    console.log(`[${label}] text search query`, { query: textQuery });
-
-    if (!textQuery) {
-      return respondEmptyCandidates();
     }
 
     const textUrl = new URL(
       "https://maps.googleapis.com/maps/api/place/textsearch/json"
     );
     textUrl.searchParams.set("key", placesApiKey);
-    textUrl.searchParams.set("query", `${textQuery} USA`.trim());
+    textUrl.searchParams.set(
+      "query",
+      [fallbackQuery, "USA"].filter(Boolean).join(" ").trim()
+    );
     textUrl.searchParams.set("region", "us");
 
     const textResponse = await fetch(textUrl);
 
     if (!textResponse.ok) {
       console.error(`[${label}] Text Search HTTP error`, textResponse.status);
-      return res.status(500).json({ error: "Places Text Search failed" });
+      return respondWithShape(
+        {
+          ok: false,
+          reason: "ERROR",
+          message: "Places Text Search failed",
+          error: { code: textResponse.status },
+        },
+        500
+      );
     }
 
     const textData = await textResponse.json();
     const textResults = Array.isArray(textData.results) ? textData.results : [];
 
     console.log(`[${label}] text search results`, {
-      query: textQuery,
+      query: fallbackQuery,
       resultCount: textResults.length,
     });
 
     if (!textResults.length) {
-      return respondEmptyCandidates();
+      return respondWithShape({
+        ok: false,
+        reason: "NO_RESULTS",
+        message:
+          "We couldn’t find any matching business on Google for this name and region.",
+        candidates: [],
+        match: null,
+      });
     }
 
-    const candidates = textResults.map((textResult) => ({
-      placeId: textResult.place_id,
-      name: textResult.name,
-      address: textResult.formatted_address || null,
-      phoneNumber: textResult.formatted_phone_number || null,
-      rating: textResult.rating ?? null,
-      userRatingsTotal: textResult.user_ratings_total ?? 0,
-      googleMapsUrl: textResult.url || null,
-      rawTextSearchResult: textResult,
-    }));
+    const candidates = [];
+    const maxCandidatesToCheck = 10;
 
-    return res.status(200).json({ ok: true, candidates });
+    for (const textResult of textResults.slice(0, maxCandidatesToCheck)) {
+      const detailsUrl = new URL(
+        "https://maps.googleapis.com/maps/api/place/details/json"
+      );
+      detailsUrl.searchParams.set("key", placesApiKey);
+      detailsUrl.searchParams.set("place_id", textResult.place_id);
+      detailsUrl.searchParams.set(
+        "fields",
+        [
+          "place_id",
+          "name",
+          "formatted_address",
+          "formatted_phone_number",
+          "international_phone_number",
+          "rating",
+          "user_ratings_total",
+          "url",
+        ].join(",")
+      );
+
+      const detailsResponse = await fetch(detailsUrl);
+
+      if (!detailsResponse.ok) {
+        console.error(
+          `[${label}] Place Details HTTP error (text search)`,
+          detailsResponse.status
+        );
+        return respondWithShape(
+          {
+            ok: false,
+            reason: "ERROR",
+            message: "Places Details failed",
+            error: { code: detailsResponse.status },
+          },
+          500
+        );
+      }
+
+      const detailsData = await detailsResponse.json();
+      const details = detailsData.result || {};
+      const mappedCandidate = mapCandidate(details, textResult, inputPhone);
+
+      candidates.push(mappedCandidate);
+    }
+
+    console.log(`[${label}] mapped candidates`, {
+      total: candidates.length,
+      exactMatches: candidates.filter((c) => c.phoneMatches).length,
+      names: candidates.map((c) => c.name).filter(Boolean),
+    });
+
+    const exactMatches = candidates.filter((c) => c.phoneMatches);
+
+    if (exactMatches.length > 0) {
+      return respondWithShape({
+        ok: true,
+        reason: "EXACT_MATCH",
+        message: "Found an exact phone match on Google.",
+        match: exactMatches[0],
+        candidates,
+      });
+    }
+
+    if (candidates.length > 0) {
+      return respondWithShape({
+        ok: false,
+        reason: "NO_EXACT_MATCH",
+        message:
+          "We found similar businesses on Google, but none of them uses the same phone number as your profile.",
+        match: null,
+        candidates: candidates.map((c) => ({ ...c, phoneMatches: false })),
+      });
+    }
+
+    return respondWithShape({
+      ok: false,
+      reason: "NO_RESULTS",
+      message:
+        "We couldn’t find any matching business on Google for this name and region.",
+      match: null,
+      candidates: [],
+    });
   } catch (err) {
     console.error(`[${label}] unexpected error`, err);
-    return res.status(500).json({ error: "Places API error" });
+    return respondWithShape(
+      {
+        ok: false,
+        reason: "ERROR",
+        message: "Places API error",
+        error: { message: err?.message },
+      },
+      500
+    );
   }
 };
 
@@ -218,6 +277,127 @@ exports.googlePlacesSearch = functions.https.onRequest((req, res) =>
 exports.googlePlacesSearch2 = functions.https.onRequest((req, res) =>
   searchGooglePlacesWithValidation(req, res, { label: "googlePlacesSearch2" })
 );
+
+exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => {
+  if (!context.auth || !context.auth.uid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication required to connect Google Business."
+    );
+  }
+
+  const placeId = data?.placeId || data?.place_id;
+  if (!placeId) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "placeId is required to connect Google Business."
+    );
+  }
+
+  const placesApiKey =
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.PLACES_API_KEY ||
+    functions.config().google?.places_api_key;
+
+  if (!placesApiKey) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Server is missing the Google Places API key."
+    );
+  }
+
+  const detailsUrl = new URL(
+    "https://maps.googleapis.com/maps/api/place/details/json"
+  );
+  detailsUrl.searchParams.set("key", placesApiKey);
+  detailsUrl.searchParams.set("place_id", placeId);
+  detailsUrl.searchParams.set(
+    "fields",
+    [
+      "place_id",
+      "name",
+      "formatted_address",
+      "formatted_phone_number",
+      "international_phone_number",
+      "rating",
+      "user_ratings_total",
+      "url",
+      "types",
+    ].join(",")
+  );
+
+  const detailsResponse = await fetch(detailsUrl);
+
+  if (!detailsResponse.ok) {
+    console.error("[connectGoogleBusiness] details HTTP error", detailsResponse.status);
+    throw new functions.https.HttpsError(
+      "internal",
+      "Failed to fetch place details from Google."
+    );
+  }
+
+  const detailsData = await detailsResponse.json();
+  const details = detailsData.result || {};
+  const placePhone = normalizePhone(
+    details.international_phone_number || details.formatted_phone_number || ""
+  );
+
+  const uid = context.auth.uid;
+  const profileRef = db.collection("businessProfiles").doc(uid);
+  const profileSnap = await profileRef.get();
+  const profileData = profileSnap.exists ? profileSnap.data() : {};
+  const storedPhone = normalizePhone(profileData?.phone || "");
+
+  if (storedPhone && placePhone && storedPhone !== placePhone) {
+    return {
+      ok: false,
+      reason: "PHONE_MISMATCH",
+      message:
+        "We can’t connect this Google profile because the phone number doesn’t match your business profile.",
+    };
+  }
+
+  const googleReviewUrl = `https://search.google.com/local/review?placeid=${encodeURIComponent(
+    placeId
+  )}`;
+
+  const googleProfile = {
+    name: details.name,
+    formatted_address: details.formatted_address,
+    formatted_phone_number: details.formatted_phone_number,
+    international_phone_number: details.international_phone_number,
+    rating: details.rating,
+    user_ratings_total: details.user_ratings_total,
+    types: details.types,
+    url: details.url,
+  };
+
+  const businessName =
+    profileData?.businessName || data?.businessName || details.name || "";
+
+  const payload = {
+    businessId: uid,
+    ownerUid: uid,
+    googlePlaceId: placeId,
+    googleProfile,
+    googleReviewUrl,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (businessName) {
+    payload.businessName = businessName;
+  }
+
+  await profileRef.set(payload, { merge: true });
+
+  return {
+    ok: true,
+    reason: "CONNECTED",
+    message: "Google profile connected.",
+    googleReviewUrl,
+    googleProfile,
+  };
+});
 
 exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
   console.log("sendReviewRequestEmail invoked", req.method);
