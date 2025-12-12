@@ -9,8 +9,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   renderGoogleConnect,
-  buildGoogleReviewLink,
   refetchProfileAfterConnect,
+  connectPlaceWithConfirmation,
 } from "./google-connect.js";
 
 const auth = getAuth(app);
@@ -83,24 +83,19 @@ async function saveBusinessProfile(place, { redirect = false } = {}) {
       createdAt: serverTimestamp(),
     };
 
+    await setDoc(businessDocRef, payload, { merge: true });
+    let connectResult = null;
     if (place) {
-      const reviewUrl = buildGoogleReviewLink(place.place_id);
-      payload.googlePlaceId = place.place_id;
-      payload.googleProfile = {
-        name: place.name,
-        formatted_address: place.formatted_address,
-        rating: place.rating,
-        user_ratings_total: place.user_ratings_total,
-        types: place.types,
-      };
-      payload.googleReviewUrl = reviewUrl;
       selectedPlace = place;
-      await upsertPortalSettings(uid, reviewUrl);
-    } else {
-      await upsertPortalSettings(uid, null);
+      if (place.__alreadyConnected) {
+        connectResult = { ok: true, googleReviewUrl: place.googleReviewUrl || null };
+      } else {
+        connectResult = await connectPlaceWithConfirmation(place, { businessName });
+      }
     }
 
-    await setDoc(businessDocRef, payload, { merge: true });
+    await upsertPortalSettings(uid, connectResult?.googleReviewUrl || null);
+
     await refetchProfileAfterConnect();
     setStatus("Saved successfully!");
     if (redirect) {
@@ -108,7 +103,10 @@ async function saveBusinessProfile(place, { redirect = false } = {}) {
     }
   } catch (err) {
     console.error("[onboarding] failed to save profile", err);
-    setStatus("Error while saving. Please try again.", true);
+    const message =
+      err?.message ||
+      "Error while saving. Please verify your phone number matches your Google profile and try again.";
+    setStatus(message, true);
   }
 }
 
