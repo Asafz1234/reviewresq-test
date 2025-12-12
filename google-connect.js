@@ -100,15 +100,17 @@ function showToast(message, isError = false) {
 
 const connectGoogleBusinessCallable = () =>
   httpsCallable(functions, "connectGoogleBusiness");
+const connectGoogleBusinessByReviewLinkCallable = () =>
+  httpsCallable(functions, "connectGoogleBusinessByReviewLink");
 
-export async function connectPlaceOnBackend(place, { businessName } = {}) {
+export async function connectPlaceOnBackend(place, { businessName, force = false } = {}) {
   if (!place) {
     throw new Error("Missing place to connect");
   }
 
   const call = connectGoogleBusinessCallable();
   const placeId = place.place_id || place.placeId;
-  const response = await call({ placeId, businessName });
+  const response = await call({ placeId, businessName, force });
   const data = response?.data || {};
 
   if (!data.ok) {
@@ -116,10 +118,63 @@ export async function connectPlaceOnBackend(place, { businessName } = {}) {
       data.message || "Unable to connect this Google profile right now."
     );
     error.code = data.reason || "ERROR";
+    error.payload = data;
     throw error;
   }
 
   return data;
+}
+
+async function connectByReviewLink(reviewUrl, { force = false } = {}) {
+  const call = connectGoogleBusinessByReviewLinkCallable();
+  const response = await call({ reviewUrl, force });
+  const data = response?.data || {};
+
+  if (!data.ok) {
+    const error = new Error(
+      data.message || "Unable to connect this Google profile right now."
+    );
+    error.code = data.reason || "ERROR";
+    error.payload = data;
+    throw error;
+  }
+
+  return data;
+}
+
+async function runWithPhoneMismatchConfirmation(executor, { message }) {
+  try {
+    return await executor(false);
+  } catch (err) {
+    if (err?.code === "PHONE_MISMATCH_CONFIRM_REQUIRED") {
+      const confirmed = window.confirm(
+        message ||
+          err?.message ||
+          "The phone number does not match your profile. Connect anyway?"
+      );
+      if (!confirmed) throw err;
+      return executor(true);
+    }
+    throw err;
+  }
+}
+
+export function connectPlaceWithConfirmation(place, { businessName } = {}) {
+  if (place?.__alreadyConnected) {
+    return Promise.resolve({ ok: true, alreadyConnected: true });
+  }
+  const executor = (force = false) =>
+    connectPlaceOnBackend(place, { businessName, force });
+  const confirmMessage =
+    "The Google listing phone does not match your profile. Connect anyway?";
+  return runWithPhoneMismatchConfirmation(executor, { message: confirmMessage });
+}
+
+export function connectReviewLinkWithConfirmation(reviewUrl) {
+  const executor = (force = false) => connectByReviewLink(reviewUrl, { force });
+  const confirmMessage =
+    "The Google listing phone does not match your profile. Connect anyway?";
+  return runWithPhoneMismatchConfirmation(executor, { message: confirmMessage });
 }
 
 function extractShortAddress(place = {}) {
@@ -128,7 +183,11 @@ function extractShortAddress(place = {}) {
   return "Address unavailable";
 }
 
-function createResultCard(place, onConnect, { showConnect = true } = {}) {
+function createResultCard(
+  place,
+  onConnect,
+  { showConnect = true, buttonLabel = "Connect" } = {}
+) {
   const totalRatings = place.user_ratings_total ?? place.userRatingsTotal;
   const item = document.createElement("div");
   item.className = "connect-result";
@@ -166,7 +225,7 @@ function createResultCard(place, onConnect, { showConnect = true } = {}) {
   if (showConnect) {
     const action = document.createElement("button");
     action.className = "btn btn-primary";
-    action.textContent = "Connect";
+    action.textContent = buttonLabel;
     action.addEventListener("click", async () => {
       const originalText = action.textContent;
       action.disabled = true;
@@ -343,7 +402,21 @@ export function renderGoogleConnect(container, options = {}) {
       resultsEl.classList.remove("connect-results--loading");
       resultsEl.innerHTML = "";
 
-      const renderManualCta = () => {
+      const afterManualConnect = async (result) => {
+        if (typeof onConnect === "function") {
+          await onConnect({
+            place_id: result?.placeId,
+            name: result?.googleProfile?.name,
+            formatted_address: result?.googleProfile?.formatted_address,
+            googleReviewUrl: result?.googleReviewUrl,
+            __alreadyConnected: true,
+          });
+        }
+        messageEl.textContent = "Google profile connected!";
+        messageEl.style.color = "var(--success)";
+      };
+
+      const renderManualCta = (onSuccess) => {
         const cta = document.createElement("div");
         cta.className = "connect-results__cta";
         cta.innerHTML = `
@@ -352,8 +425,24 @@ export function renderGoogleConnect(container, options = {}) {
         `;
         const btn = cta.querySelector("button");
         if (btn) {
-          btn.addEventListener("click", () => {
-            window.location.href = "links.html";
+          btn.addEventListener("click", async () => {
+            const reviewUrl = window.prompt(
+              "Paste your Google review link (contains placeid=)",
+              ""
+            );
+            if (!reviewUrl) return;
+            try {
+              const result = await connectReviewLinkWithConfirmation(reviewUrl);
+              await onSuccess(result);
+              showToast("Google profile connected.");
+            } catch (err) {
+              console.error("[google-connect] manual review link failed", err);
+              showToast(
+                err?.message ||
+                  "Unable to connect with that review link. Please try again.",
+                true
+              );
+            }
           });
         }
         resultsEl.appendChild(cta);
@@ -363,7 +452,7 @@ export function renderGoogleConnect(container, options = {}) {
         resultsEl.textContent =
           data?.message ||
           "We couldn’t find your business on Google based on this name and phone number.";
-        renderManualCta();
+        renderManualCta(afterManualConnect);
         return;
       }
 
@@ -409,18 +498,32 @@ export function renderGoogleConnect(container, options = {}) {
         messageEl.style.color = "var(--danger)";
       }
 
+      if (data?.reason === "NO_PHONE_MATCH") {
+        messageEl.textContent =
+          data?.message ||
+          "We found similar businesses, but none of them used the same phone number you entered.";
+        messageEl.style.color = "var(--danger)";
+      }
+
       const list = candidates.map(normalizePlace);
       list.forEach((place) => {
-        const row = createResultCard(place, async (selected) => {
-          await onConnect(selected);
-          messageEl.textContent = "Google profile connected!";
-          messageEl.style.color = "var(--success)";
-        });
+        const row = createResultCard(
+          place,
+          async (selected) => {
+            await onConnect(selected);
+            messageEl.textContent = "Google profile connected!";
+            messageEl.style.color = "var(--success)";
+          },
+          {
+            buttonLabel:
+              data?.reason === "NO_PHONE_MATCH" ? "This is my business" : "Connect",
+          }
+        );
         resultsEl.appendChild(row);
       });
 
-      if (data?.reason === "NO_EXACT_MATCH") {
-        renderManualCta();
+      if (data?.reason === "NO_EXACT_MATCH" || data?.reason === "NO_PHONE_MATCH") {
+        renderManualCta(afterManualConnect);
       }
     } catch (err) {
       console.error("[google-connect] search failed", err);

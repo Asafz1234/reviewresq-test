@@ -10,7 +10,7 @@ import {
 import {
   renderGoogleConnect,
   refetchProfileAfterConnect,
-  connectPlaceOnBackend,
+  connectPlaceWithConfirmation,
 } from "./google-connect.js";
 
 const auth = getAuth(app);
@@ -87,7 +87,11 @@ async function saveBusinessProfile(place, { redirect = false } = {}) {
     let connectResult = null;
     if (place) {
       selectedPlace = place;
-      connectResult = await connectPlaceOnBackend(place, { businessName });
+      if (place.__alreadyConnected) {
+        connectResult = { ok: true, googleReviewUrl: place.googleReviewUrl || null };
+      } else {
+        connectResult = await connectPlaceWithConfirmation(place, { businessName });
+      }
     }
 
     await upsertPortalSettings(uid, connectResult?.googleReviewUrl || null);

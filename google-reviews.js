@@ -10,7 +10,7 @@ import { normalizePlan } from "./plan-capabilities.js";
 import {
   renderGoogleConnect,
   refetchProfileAfterConnect,
-  connectPlaceOnBackend,
+  connectPlaceWithConfirmation,
 } from "./google-connect.js";
 
 const profileNameEl = document.querySelector("[data-google-business-name]");
@@ -154,9 +154,16 @@ function renderUpsell(planId = "starter") {
 async function persistGoogleSelection(place) {
   if (!sessionState.user) return;
   try {
+    if (place?.__alreadyConnected) {
+      sessionState.profile = await refetchProfileAfterConnect();
+      showToast("Google profile connected.");
+      loadGoogleData();
+      return;
+    }
+
     const businessName =
       sessionState.profile?.businessName || place.name || sessionState.profile?.name || "Business";
-    await connectPlaceOnBackend(place, { businessName });
+    await connectPlaceWithConfirmation(place, { businessName });
     sessionState.profile = await refetchProfileAfterConnect();
     showToast("Google profile connected.");
     loadGoogleData();
