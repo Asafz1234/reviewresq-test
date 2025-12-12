@@ -91,8 +91,6 @@ function renderProfile(profile, googleMetrics) {
   }
 }
 
-renderEnvBadge();
-
 function renderRatingBreakdown(breakdown) {
   ratingRows.forEach((row) => {
     const star = row.getAttribute("data-rating-row");
