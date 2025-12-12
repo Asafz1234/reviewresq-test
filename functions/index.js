@@ -64,6 +64,19 @@ const extractPlaceIdFromReviewUrl = (url = "") => {
   return match && match[1] ? decodeURIComponent(match[1]) : null;
 };
 
+const extractCidFromUrl = (url = "") => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const cid = parsed.searchParams.get("cid");
+    if (cid) return cid;
+  } catch (err) {
+    // ignore parsing errors
+  }
+  const match = String(url).match(/[?&]cid=([^&#]+)/i);
+  return match && match[1] ? decodeURIComponent(match[1]) : null;
+};
+
 const resolvePlacesApiKey = () =>
   process.env.GOOGLE_MAPS_API_KEY ||
   process.env.PLACES_API_KEY ||
@@ -102,6 +115,39 @@ const fetchPlaceDetails = async ({ apiKey, placeId }) => {
 
   const detailsData = await detailsResponse.json();
   return detailsData?.result || null;
+};
+
+const resolvePlaceIdFromCid = async ({ apiKey, cid }) => {
+  if (!apiKey || !cid) return null;
+  const findPlaceUrl = new URL(
+    "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
+  );
+  findPlaceUrl.searchParams.set("key", apiKey);
+  findPlaceUrl.searchParams.set("input", cid);
+  findPlaceUrl.searchParams.set("inputtype", "textquery");
+  findPlaceUrl.searchParams.set(
+    "fields",
+    [
+      "place_id",
+      "name",
+      "formatted_address",
+      "formatted_phone_number",
+      "international_phone_number",
+      "rating",
+      "user_ratings_total",
+      "url",
+      "types",
+    ].join(",")
+  );
+
+  const response = await fetch(findPlaceUrl);
+  if (!response.ok) {
+    console.error("[resolvePlaceIdFromCid] HTTP error", response.status);
+    return null;
+  }
+  const data = await response.json();
+  const candidate = Array.isArray(data?.candidates) ? data.candidates[0] : null;
+  return candidate?.place_id || null;
 };
 
 const setCorsHeaders = (req, res) => {
@@ -639,6 +685,12 @@ exports.googlePlacesSearch2 = functions.https.onRequest((req, res) =>
 );
 
 exports.health = functions.https.onRequest((req, res) => {
+  setCorsHeaders(req, res);
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
   res.json({ ok: true, buildId: BUILD_ID, testMode: TEST_MODE });
 });
 
@@ -651,10 +703,6 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
   }
 
   const placeId = data?.placeId || data?.place_id;
-  const forceConnect = Boolean(data?.forceConnect);
-  const forceLegacy = Boolean(data?.force);
-  const force = forceConnect || forceLegacy;
-  const testMode = isForceConnectTestMode();
   if (!placeId) {
     throw new functions.https.HttpsError(
       "invalid-argument",
@@ -696,14 +744,12 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
     (placePhoneDigits.endsWith(storedPhoneDigits) ||
       storedPhoneDigits.endsWith(placePhoneDigits));
 
-  const canOverrideMismatch = testMode && force;
-
-  if (storedPhoneDigits && placePhoneDigits && !phoneMatches && !canOverrideMismatch) {
+  if (storedPhoneDigits && placePhoneDigits && !phoneMatches) {
     return {
       ok: false,
       reason: "PHONE_MISMATCH",
       message:
-        "The Google listing phone number does not match your business profile.",
+        "The phone number on Google doesn’t match the phone in your ReviewResQ profile. Please update your profile phone and try again.",
       details: {
         storedPhone: profileData?.phone || profileData?.businessPhone || null,
         placePhone:
@@ -720,7 +766,6 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
           details.international_phone_number ||
           null,
       },
-      forceAllowed: testMode,
     };
   }
 
@@ -752,24 +797,8 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
     googlePlaceId: placeId,
     googleProfile,
     googleReviewUrl,
-    connectionMethod:
-      canOverrideMismatch && phoneMismatch
-        ? "force_connect_override"
-        : "candidate",
+    connectionMethod: "candidate",
     phoneMismatch,
-    googlePhoneMismatch: phoneMismatch && canOverrideMismatch,
-    googlePlacePhone:
-      details.formatted_phone_number || details.international_phone_number || null,
-    businessProfilePhone: profileData?.phone || profileData?.businessPhone || null,
-    googleConnectOverrideUsed: Boolean(canOverrideMismatch && phoneMismatch),
-    googleConnectOverridePlacePhone:
-      (canOverrideMismatch && phoneMismatch &&
-        (details.formatted_phone_number || details.international_phone_number)) ||
-      null,
-    googleConnectOverrideStoredPhone:
-      (canOverrideMismatch && phoneMismatch &&
-        (profileData?.phone || profileData?.businessPhone || null)) ||
-      null,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
@@ -800,17 +829,10 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
     }
 
     const reviewUrl = data?.reviewUrl || data?.url || "";
-    const force = Boolean(data?.force);
-    const testMode = isForceConnectTestMode();
-    const placeId = extractPlaceIdFromReviewUrl(reviewUrl);
-
-    if (!placeId) {
-      return {
-        ok: false,
-        reason: "INVALID_REVIEW_URL",
-        message: "Please provide a valid Google review link that includes placeid=",
-      };
-    }
+    const providedPlaceId = data?.placeId || null;
+    const mapUrl = data?.mapUrl || reviewUrl;
+    const dryRun = Boolean(data?.dryRun);
+    const source = data?.source || "review_link";
 
     const placesApiKey = resolvePlacesApiKey();
 
@@ -819,6 +841,25 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
         "failed-precondition",
         "Server is missing the Google Places API key."
       );
+    }
+
+    let placeId = providedPlaceId || extractPlaceIdFromReviewUrl(reviewUrl);
+    if (!placeId) {
+      placeId = extractPlaceIdFromReviewUrl(mapUrl);
+    }
+    if (!placeId) {
+      const cid = extractCidFromUrl(reviewUrl) || extractCidFromUrl(mapUrl);
+      if (cid) {
+        placeId = await resolvePlaceIdFromCid({ apiKey: placesApiKey, cid });
+      }
+    }
+
+    if (!placeId) {
+      return {
+        ok: false,
+        reason: "INVALID_REVIEW_URL",
+        message: "Please provide a valid Google review link that includes placeid=",
+      };
     }
 
     const details = await fetchPlaceDetails({ apiKey: placesApiKey, placeId });
@@ -845,27 +886,6 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
       (placePhoneDigits.endsWith(storedPhoneDigits) ||
         storedPhoneDigits.endsWith(placePhoneDigits));
 
-    const canOverrideMismatch = testMode && force;
-
-    if (storedPhoneDigits && placePhoneDigits && !phoneMatches && !canOverrideMismatch) {
-      return {
-        ok: false,
-        reason: "PHONE_MISMATCH_CONFIRM_REQUIRED",
-        message:
-          "Phone does not match profile. Confirm to connect anyway.",
-        placeId,
-        googleProfilePreview: {
-          name: details.name || null,
-          address: details.formatted_address || null,
-          phone:
-            details.formatted_phone_number ||
-            details.international_phone_number ||
-            null,
-        },
-        forceAllowed: testMode,
-      };
-    }
-
     const googleReviewUrl = `https://search.google.com/local/review?placeid=${encodeURIComponent(
       placeId
     )}`;
@@ -887,23 +907,38 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
       storedPhoneDigits && placePhoneDigits && !phoneMatches
     );
 
+    const previewPayload = {
+      ok: phoneMatches,
+      reason: phoneMatches ? "PREVIEW_OK" : "PHONE_MISMATCH",
+      message: phoneMatches
+        ? "Listing verified."
+        : "The phone number on Google doesn’t match the phone in your ReviewResQ profile. Please update your profile phone and try again.",
+      placeId,
+      phoneMismatch,
+      googleProfilePreview: {
+        name: details.name || null,
+        address: details.formatted_address || null,
+        phone:
+          details.formatted_phone_number ||
+          details.international_phone_number ||
+          null,
+        rating: details.rating || null,
+        user_ratings_total: details.user_ratings_total || null,
+      },
+    };
+
+    if (dryRun || phoneMismatch) {
+      return previewPayload;
+    }
+
     const payload = {
       businessId: uid,
       ownerUid: uid,
       googlePlaceId: placeId,
       googleProfile,
       googleReviewUrl,
-      connectionMethod: canOverrideMismatch && phoneMismatch ? "review_link_force" : "review_link",
+      connectionMethod: source,
       phoneMismatch,
-      googleConnectOverrideUsed: Boolean(canOverrideMismatch && phoneMismatch),
-      googleConnectOverridePlacePhone:
-        (canOverrideMismatch && phoneMismatch &&
-          (details.formatted_phone_number || details.international_phone_number)) ||
-        null,
-      googleConnectOverrideStoredPhone:
-        (canOverrideMismatch && phoneMismatch &&
-          (profileData?.phone || profileData?.businessPhone || null)) ||
-        null,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
