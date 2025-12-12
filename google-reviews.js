@@ -35,6 +35,25 @@ const connectedContainer = document.querySelector("[data-google-connected]");
 const changeProfileBtn = document.querySelector("[data-change-google]");
 const planBadge = document.querySelector("[data-plan-badge]");
 const upsellContainer = document.querySelector("[data-google-upsell]");
+const connectionStateBadge = document.querySelector("[data-google-connection-state]");
+
+const debugBadgeLabels = ["project", "origin", "build", "test mode"];
+
+function removeDebugBadges() {
+  const badges = document.querySelectorAll(".badge");
+  badges.forEach((badge) => {
+    const label = (badge.textContent || "").trim().toLowerCase();
+    if (debugBadgeLabels.some((needle) => label.includes(needle))) {
+      badge.remove();
+    }
+  });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", removeDebugBadges);
+} else {
+  removeDebugBadges();
+}
 
 const toastId = "feedback-toast";
 let sessionState = { user: null, profile: null, subscription: null };
@@ -67,9 +86,17 @@ function showToast(message, isError = false) {
   setTimeout(() => toast.classList.remove("visible"), 2400);
 }
 
-function renderProfile(profile, googleMetrics) {
+function renderProfile(profile, googleMetrics = {}) {
   const source = profile?.googleProfile || profile || {};
   const displayName = source.name || source.businessName || "Business";
+  const metrics = googleMetrics || {};
+  const manualConnected = Boolean(
+    source?.connectionType === "manual" ||
+      source?.manualConnected ||
+      profile?.googleConnectionType === "manual" ||
+      profile?.googleManualConnection === true ||
+      profile?.googleReviewLink
+  );
   if (profileNameEl) {
     profileNameEl.textContent = displayName;
   }
@@ -82,16 +109,26 @@ function renderProfile(profile, googleMetrics) {
     avatar.textContent = initials;
   }
   if (ratingBadges.rating) {
-    ratingBadges.rating.textContent = googleMetrics.averageRating
-      ? `Google rating ${googleMetrics.averageRating.toFixed(1)}`
+    ratingBadges.rating.textContent = metrics.averageRating
+      ? `Google rating ${metrics.averageRating.toFixed(1)}`
       : "No rating yet";
   }
   if (ratingBadges.count) {
-    ratingBadges.count.textContent = `${googleMetrics.total || 0} reviews`;
+    ratingBadges.count.textContent = `${metrics.total || 0} reviews`;
+  }
+  if (connectionStateBadge) {
+    if (manualConnected) {
+      connectionStateBadge.textContent = "Connected manually";
+      connectionStateBadge.style.display = "inline-block";
+    } else {
+      connectionStateBadge.textContent = "";
+      connectionStateBadge.style.display = "none";
+    }
   }
 }
 
 function renderRatingBreakdown(breakdown) {
+  if (!breakdown || !breakdown.percents) return;
   ratingRows.forEach((row) => {
     const star = row.getAttribute("data-rating-row");
     const valueEl = row.querySelector(".rating-value");
@@ -201,7 +238,14 @@ async function renderConnectCard() {
 }
 
 async function loadGoogleData() {
-  const isConnected = Boolean(sessionState.profile?.googlePlaceId);
+  const manualConnected = Boolean(
+    sessionState.profile?.googleConnectionType === "manual" ||
+      sessionState.profile?.googleProfile?.connectionType === "manual" ||
+      sessionState.profile?.googleProfile?.manualConnected ||
+      sessionState.profile?.googleManualConnection === true ||
+      sessionState.profile?.googleReviewLink
+  );
+  const isConnected = Boolean(sessionState.profile?.googlePlaceId || manualConnected);
   toggleViews(isConnected);
   if (!isConnected) {
     await renderConnectCard();
@@ -219,6 +263,7 @@ async function loadGoogleData() {
 onSession(async ({ user, profile, subscription }) => {
   sessionState = { user, profile, subscription };
   if (!user) return;
+  removeDebugBadges();
   const plan = normalizePlan(subscription?.planId || "starter");
   if (planBadge) {
     planBadge.textContent = planLabel(plan);
