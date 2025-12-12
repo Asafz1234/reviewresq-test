@@ -221,6 +221,13 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
     }
 
     const phoneMatchedCandidates = candidates.filter((c) => c.phoneMatched);
+    const nameMatches = candidates.filter((c) => c.nameMatchType !== "none");
+
+    console.log(`[${label}] candidate summary`, {
+      totalCandidates: candidates.length,
+      phoneMatchedCount: phoneMatchedCandidates.length,
+      nameMatchedCount: nameMatches.length,
+    });
 
     // Prefer exact phone matches; if none, allow candidates list for manual selection
     if (phoneMatchedCandidates.length) {
@@ -241,6 +248,11 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
 
       const best = scored[0].candidate;
 
+      console.log(`[${label}] returning branch`, {
+        branch: "EXACT_MATCH",
+        placeId: best.placeId,
+      });
+
       return res.status(200).json({
         ok: true,
         status: "EXACT_MATCH",
@@ -255,33 +267,32 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       });
     }
 
-    const nameMatches = candidates.filter((c) => c.nameMatchType !== "none");
+    const fallbackFromTextSearch = textResults.slice(0, 10).map((textResult) => ({
+      placeId: textResult.place_id,
+      name: textResult.name,
+      address: textResult.formatted_address || null,
+      phoneNumber: textResult.formatted_phone_number || null,
+      rating: textResult.rating ?? null,
+      userRatingsTotal: textResult.user_ratings_total ?? 0,
+      googleMapsUrl: textResult.url || null,
+    }));
 
-    // If we have no user phone but a single strong name match, allow auto select
-    if (!normalizedPhone) {
-      const exactNameMatches = nameMatches.filter((c) => c.nameMatchType === "exact");
-      if (exactNameMatches.length === 1) {
-        const match = exactNameMatches[0];
-        return res.status(200).json({
-          ok: true,
-          status: "EXACT_MATCH",
-          placeId: match.placeId,
-          name: match.name,
-          address: match.address,
-          phoneNumber: match.phoneNumber,
-          rating: match.rating,
-          userRatingsTotal: match.userRatingsTotal,
-          googleMapsUrl: match.googleMapsUrl,
-          rawTextSearchResult: match.rawTextSearchResult,
-        });
-      }
-    }
+    const candidatesForSelection =
+      nameMatches.length || candidates.length
+        ? nameMatches.length
+          ? nameMatches
+          : candidates
+        : fallbackFromTextSearch;
 
-    if (nameMatches.length) {
+    console.log(`[${label}] returning branch`, {
+      branch: candidatesForSelection.length ? "CANDIDATES" : "NO_RESULTS",
+    });
+
+    if (candidatesForSelection.length) {
       return res.status(200).json({
         ok: true,
         status: "CANDIDATES",
-        candidates: nameMatches.map((candidate) => ({
+        candidates: candidatesForSelection.map((candidate) => ({
           placeId: candidate.placeId,
           name: candidate.name,
           address: candidate.address,
@@ -293,6 +304,7 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       });
     }
 
+    // This should only occur if text search also returned no results (handled earlier)
     return res.status(200).json({
       ok: false,
       status: "NO_RESULTS",
