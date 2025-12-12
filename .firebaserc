@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "reviewresq-app",
+    "prod": "reviewresq-app"
+  }
+}
