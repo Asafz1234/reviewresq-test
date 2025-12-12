@@ -5,29 +5,21 @@ const sgMail = require("@sendgrid/mail");
 admin.initializeApp();
 
 
-const normalizePhone = (raw = "") =>
-  (raw || "")
-    .replace(/[^\d]/g, "")
-    .replace(/^1/, "");
+const normalizePhone = (raw = "") => (raw || "").replace(/[^\d]/g, "");
 
-// Normalize US phone numbers so that 10-digit and 11-digit (leading 1) inputs match.
-const canonicalizePhoneForCompare = (phoneDigits = "") => {
-  const digits = normalizePhone(phoneDigits);
+const extractStateFromAddress = (formattedAddress = "") => {
+  const upper = String(formattedAddress || "").toUpperCase();
 
-  if (digits.length === 11 && digits.startsWith("1")) {
-    return digits.slice(1);
+  const match = upper.match(/,\s*([A-Z]{2})\s+\d{5}/);
+  if (match && match[1]) return match[1];
+
+  // Fallback: try to detect a spaced token for common state inputs
+  const tokens = upper.split(/\s+/).filter(Boolean);
+  for (const token of tokens) {
+    if (token.length === 2 && /^[A-Z]{2}$/.test(token)) return token;
   }
 
-  return digits;
-};
-
-const phonesMatch = (inputDigits = "", candidateDigits = "") => {
-  const a = canonicalizePhoneForCompare(inputDigits);
-  const b = canonicalizePhoneForCompare(candidateDigits);
-
-  if (!a || !b) return false;
-
-  return a === b;
+  return null;
 };
 
 const normalizeName = (name = "") =>
@@ -65,7 +57,9 @@ const mapCandidate = (details, textResult, inputPhone) => {
     null;
 
   const placePhone = normalizePhone(phoneNumber || "");
-  const phoneMatches = Boolean(inputPhone && placePhone && placePhone === inputPhone);
+  const phoneMatches = Boolean(
+    inputPhone && placePhone && placePhone.endsWith(inputPhone)
+  );
 
   return {
     placeId: details.place_id || textResult.place_id,
@@ -93,17 +87,21 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
   const getParam = (key) =>
     req.method === "GET" ? req.query?.[key] || "" : req.body?.[key] || "";
 
-  const businessName = String(
+  const businessNameRaw = String(
     getParam("businessName") || getParam("query") || ""
   ).trim();
-  const stateOrCity = String(
+  const stateRaw = String(
     getParam("stateOrCity") || getParam("state") || getParam("region") || ""
   ).trim();
-  const phoneNumber = String(
+  const phoneRaw = String(
     getParam("phoneNumber") || getParam("phonenumber") || getParam("phone") || ""
   ).trim();
 
-  if (!businessName && !phoneNumber) {
+  const businessName = businessNameRaw;
+  const stateFilter = stateRaw.toUpperCase();
+  const phoneDigits = phoneRaw.replace(/\D+/g, "");
+
+  if (!businessName && !phoneDigits) {
     return res.status(400).json({ error: "Missing businessName or phoneNumber" });
   }
 
@@ -117,7 +115,7 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
     return res.status(500).json({ error: "Server configuration missing" });
   }
 
-  const inputPhone = normalizePhone(phoneNumber);
+  const inputPhone = normalizePhone(phoneDigits);
 
   const respondWithShape = (payload, status = 200) =>
     res.status(status).json({
@@ -130,7 +128,16 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
     });
 
   try {
-    const textQueryParts = [businessName, stateOrCity].filter(Boolean);
+    console.log(`[${label}] inputs`, {
+      businessName,
+      stateFilter,
+      phoneDigits: inputPhone,
+    });
+
+    const textQueryParts = [businessName];
+    if (stateFilter) {
+      textQueryParts.push(stateFilter);
+    }
     const textQuery = textQueryParts.join(" ").trim();
     const fallbackQuery = textQuery || inputPhone;
 
@@ -151,11 +158,9 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       "https://maps.googleapis.com/maps/api/place/textsearch/json"
     );
     textUrl.searchParams.set("key", placesApiKey);
-    textUrl.searchParams.set(
-      "query",
-      [fallbackQuery, "USA"].filter(Boolean).join(" ").trim()
-    );
+    textUrl.searchParams.set("query", fallbackQuery);
     textUrl.searchParams.set("region", "us");
+    textUrl.searchParams.set("type", "establishment");
 
     const textResponse = await fetch(textUrl);
 
@@ -180,26 +185,12 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       resultCount: textResults.length,
     });
 
-    if (!textResults.length) {
-      return respondWithShape({
-        ok: false,
-        reason: "NO_RESULTS",
-        message:
-          "We couldn’t find any matching business on Google for this name and region.",
-        candidates: [],
-        match: null,
-      });
-    }
-
-    const candidates = [];
-    const maxCandidatesToCheck = 10;
-
-    for (const textResult of textResults.slice(0, maxCandidatesToCheck)) {
+    const getPlaceDetails = async (placeId) => {
       const detailsUrl = new URL(
         "https://maps.googleapis.com/maps/api/place/details/json"
       );
       detailsUrl.searchParams.set("key", placesApiKey);
-      detailsUrl.searchParams.set("place_id", textResult.place_id);
+      detailsUrl.searchParams.set("place_id", placeId);
       detailsUrl.searchParams.set(
         "fields",
         [
@@ -221,50 +212,97 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
           `[${label}] Place Details HTTP error (text search)`,
           detailsResponse.status
         );
-        return respondWithShape(
-          {
-            ok: false,
-            reason: "ERROR",
-            message: "Places Details failed",
-            error: { code: detailsResponse.status },
-          },
-          500
-        );
+        return null;
       }
 
       const detailsData = await detailsResponse.json();
-      const details = detailsData.result || {};
+      return detailsData.result || null;
+    };
+
+    const candidates = [];
+    const maxCandidatesToCheck = 10;
+
+    for (const textResult of textResults.slice(0, maxCandidatesToCheck)) {
+      const formattedAddress = textResult.formatted_address || "";
+      const placeState = extractStateFromAddress(formattedAddress);
+      const stateMatches = !stateFilter || (placeState && placeState === stateFilter);
+
+      console.log(`[${label}] evaluate text candidate`, {
+        placeId: textResult.place_id,
+        name: textResult.name,
+        formattedAddress,
+        detectedState: placeState,
+        stateMatches,
+      });
+
+      if (stateFilter && !stateMatches) {
+        console.log(`[${label}] skip candidate due to state mismatch`, {
+          inputState: stateFilter,
+          placeName: textResult.name,
+          formattedAddress,
+          detectedState: placeState,
+        });
+        continue;
+      }
+
+      const details = await getPlaceDetails(textResult.place_id);
+      if (!details) continue;
+
       const mappedCandidate = mapCandidate(details, textResult, inputPhone);
+
+      console.log(`[${label}] mapped candidate`, {
+        placeId: mappedCandidate.placeId,
+        name: mappedCandidate.name,
+        address: mappedCandidate.address,
+        phoneNumber: mappedCandidate.phoneNumber,
+        phoneMatches: mappedCandidate.phoneMatches,
+      });
 
       candidates.push(mappedCandidate);
     }
 
-    console.log(`[${label}] mapped candidates`, {
-      total: candidates.length,
-      exactMatches: candidates.filter((c) => c.phoneMatches).length,
-      names: candidates.map((c) => c.name).filter(Boolean),
-    });
+    const phoneMatchedCandidates = candidates.filter((c) => c.phoneMatches);
+    const sortedCandidates = [...candidates].sort(
+      (a, b) => Number(b.phoneMatches) - Number(a.phoneMatches)
+    );
 
-    const exactMatches = candidates.filter((c) => c.phoneMatches);
+    if (phoneMatchedCandidates.length > 0) {
+      const [bestMatch] = sortedCandidates;
+      const finalCandidates = sortedCandidates.map((c, idx) => ({
+        ...c,
+        isStrongMatch: idx === 0 && c.phoneMatches,
+      }));
 
-    if (exactMatches.length > 0) {
       return respondWithShape({
         ok: true,
         reason: "EXACT_MATCH",
         message: "Found an exact phone match on Google.",
-        match: exactMatches[0],
-        candidates,
+        match: bestMatch,
+        candidates: finalCandidates,
       });
     }
 
-    if (candidates.length > 0) {
+    if (sortedCandidates.length > 0) {
       return respondWithShape({
         ok: false,
         reason: "NO_EXACT_MATCH",
         message:
           "We found similar businesses on Google, but none of them uses the same phone number as your profile.",
         match: null,
-        candidates: candidates.map((c) => ({ ...c, phoneMatches: false })),
+        candidates: sortedCandidates.map((c) => ({
+          ...c,
+          phoneMatches: false,
+        })),
+      });
+    }
+
+    if (stateFilter) {
+      return respondWithShape({
+        ok: false,
+        reason: "NO_RESULTS_IN_STATE",
+        state: stateFilter,
+        message:
+          "We found similar businesses on Google, but none of them are in the requested state.",
       });
     }
 
@@ -367,8 +405,12 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
   const profileSnap = await profileRef.get();
   const profileData = profileSnap.exists ? profileSnap.data() : {};
   const storedPhone = normalizePhone(profileData?.phone || "");
+  const phoneMatches =
+    storedPhone &&
+    placePhone &&
+    (placePhone.endsWith(storedPhone) || storedPhone.endsWith(placePhone));
 
-  if (storedPhone && placePhone && storedPhone !== placePhone) {
+  if (storedPhone && placePhone && !phoneMatches) {
     return {
       ok: false,
       reason: "PHONE_MISMATCH",
