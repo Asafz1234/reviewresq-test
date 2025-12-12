@@ -74,6 +74,7 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
     getParam("businessName") || getParam("query") || ""
   ).trim();
   const state = String(getParam("state") || "").trim();
+  const city = String(getParam("city") || "").trim();
   const phoneNumber = String(
     getParam("phoneNumber") || getParam("phonenumber") || getParam("phone") || ""
   ).trim();
@@ -93,34 +94,88 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
   }
 
   const normalizedPhone = normalizePhone(phoneNumber);
-  const searchQuery = `${businessName}${state ? `, ${state}` : ""}`.trim();
+
+  const buildSearchQuery = () => `${businessName}${state ? `, ${state}` : ""}`.trim();
+
+  const queries = [
+    { label: "name+state", query: buildSearchQuery() },
+    { label: "name-only", query: businessName },
+  ];
+
+  if (city) {
+    const cityQuery = `${businessName} ${city}${state ? ` ${state}` : ""}`.trim();
+    queries.push({ label: "name+city(+state)", query: cityQuery });
+  }
 
   try {
-    console.log(`[${label}] text search query`, searchQuery);
+    const placeIdToTextResult = new Map();
+    const passSummaries = [];
 
-    const textUrl = new URL(
-      "https://maps.googleapis.com/maps/api/place/textsearch/json"
-    );
-    textUrl.searchParams.set("key", placesApiKey);
-    textUrl.searchParams.set("query", `${searchQuery} USA`.trim());
-    textUrl.searchParams.set("region", "us");
+    const runTextSearch = async ({ query, label: passLabel }) => {
+      if (!query) {
+        passSummaries.push({ passLabel, resultCount: 0 });
+        return [];
+      }
 
-    const textResponse = await fetch(textUrl);
+      console.log(`[${label}] text search query`, { pass: passLabel, query });
 
-    if (!textResponse.ok) {
-      console.error(`[${label}] Text Search HTTP error`, textResponse.status);
-      return res.status(500).json({ error: "Places Text Search failed" });
+      const textUrl = new URL(
+        "https://maps.googleapis.com/maps/api/place/textsearch/json"
+      );
+      textUrl.searchParams.set("key", placesApiKey);
+      textUrl.searchParams.set("query", `${query} USA`.trim());
+      textUrl.searchParams.set("region", "us");
+
+      const textResponse = await fetch(textUrl);
+
+      if (!textResponse.ok) {
+        console.error(
+          `[${label}] Text Search HTTP error`,
+          passLabel,
+          textResponse.status
+        );
+        return res.status(500).json({ error: "Places Text Search failed" });
+      }
+
+      const textData = await textResponse.json();
+      const textResults = Array.isArray(textData.results) ? textData.results : [];
+
+      passSummaries.push({ passLabel, resultCount: textResults.length });
+
+      console.log(`[${label}] text search results`, {
+        pass: passLabel,
+        query,
+        resultCount: textResults.length,
+      });
+
+      return textResults;
+    };
+
+    for (const queryConfig of queries) {
+      const results = await runTextSearch(queryConfig);
+      if (!Array.isArray(results)) {
+        // An HTTP error already handled with a response
+        return;
+      }
+
+      for (const textResult of results) {
+        const placeId = textResult.place_id;
+        if (!placeId) continue;
+        if (!placeIdToTextResult.has(placeId)) {
+          placeIdToTextResult.set(placeId, textResult);
+        }
+      }
     }
 
-    const textData = await textResponse.json();
-    const textResults = Array.isArray(textData.results) ? textData.results : [];
+    const mergedTextResults = Array.from(placeIdToTextResult.values());
 
-    console.log(`[${label}] text search results`, {
-      query: searchQuery,
-      resultCount: textResults.length,
+    console.log(`[${label}] text search summary`, {
+      perPass: passSummaries,
+      mergedCount: mergedTextResults.length,
     });
 
-    if (!textResults.length) {
+    if (!mergedTextResults.length) {
+      console.log(`[${label}] returning branch`, { branch: "NO_RESULTS" });
       return res.status(200).json({
         ok: false,
         status: "NO_RESULTS",
@@ -129,7 +184,7 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       });
     }
 
-    const resultsToInspect = textResults.slice(0, 10);
+    const resultsToInspect = mergedTextResults.slice(0, 10);
     const candidates = [];
 
     for (const textResult of resultsToInspect) {
@@ -267,7 +322,7 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       });
     }
 
-    const fallbackFromTextSearch = textResults.slice(0, 10).map((textResult) => ({
+    const fallbackFromTextSearch = mergedTextResults.slice(0, 10).map((textResult) => ({
       placeId: textResult.place_id,
       name: textResult.name,
       address: textResult.formatted_address || null,
@@ -284,8 +339,13 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
           : candidates
         : fallbackFromTextSearch;
 
+    const branchName = candidatesForSelection.length ? "CANDIDATES" : "NO_RESULTS";
+
     console.log(`[${label}] returning branch`, {
-      branch: candidatesForSelection.length ? "CANDIDATES" : "NO_RESULTS",
+      branch: branchName,
+      totalCandidates: candidates.length,
+      phoneMatchedCount: phoneMatchedCandidates.length,
+      nameMatchedCount: nameMatches.length,
     });
 
     if (candidatesForSelection.length) {
@@ -304,7 +364,6 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       });
     }
 
-    // This should only occur if text search also returned no results (handled earlier)
     return res.status(200).json({
       ok: false,
       status: "NO_RESULTS",
