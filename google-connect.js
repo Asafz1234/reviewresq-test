@@ -218,12 +218,18 @@ async function runWithPhoneMismatchConfirmation(executor, { message }) {
       err?.code === "PHONE_MISMATCH" ||
       err?.code === "PHONE_MISMATCH_CONFIRM_REQUIRED"
     ) {
+      const mismatchMessage =
+        err?.message ||
+        message ||
+        "The phone number does not match your profile. Connect anyway?";
+      showToast(mismatchMessage, true);
+      const canForce = err?.payload?.forceAllowed ?? true;
+      if (!canForce) {
+        throw err;
+      }
       const confirmed = await showConfirmationModal({
         title: "Connect despite phone mismatch?",
-        message:
-          message ||
-          err?.message ||
-          "The phone number does not match your profile. Connect anyway?",
+        message: mismatchMessage,
         confirmLabel: "Connect anyway",
         cancelLabel: "Cancel",
       });

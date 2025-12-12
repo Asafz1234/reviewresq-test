@@ -16,6 +16,14 @@ const normalizePhoneDigits = (raw = "") => {
 const toE164US = (digits10 = "") =>
   digits10 && digits10.length === 10 ? `+1${digits10}` : "";
 
+const isForceConnectTestMode = () =>
+  [
+    String(process.env.FORCE_CONNECT_TEST_MODE || ""),
+    String(functions.config()?.app?.force_connect_test_mode || ""),
+  ]
+    .map((v) => v.toLowerCase())
+    .some((v) => v === "true" || v === "1" || v === "yes");
+
 const extractStateFromAddress = (formattedAddress = "") => {
   const upper = String(formattedAddress || "").toUpperCase();
 
@@ -638,6 +646,7 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
   const forceConnect = Boolean(data?.forceConnect);
   const forceLegacy = Boolean(data?.force);
   const force = forceConnect || forceLegacy;
+  const testMode = isForceConnectTestMode();
   if (!placeId) {
     throw new functions.https.HttpsError(
       "invalid-argument",
@@ -679,7 +688,9 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
     (placePhoneDigits.endsWith(storedPhoneDigits) ||
       storedPhoneDigits.endsWith(placePhoneDigits));
 
-  if (storedPhoneDigits && placePhoneDigits && !phoneMatches && !force) {
+  const canOverrideMismatch = testMode && force;
+
+  if (storedPhoneDigits && placePhoneDigits && !phoneMatches && !canOverrideMismatch) {
     return {
       ok: false,
       reason: "PHONE_MISMATCH",
@@ -701,6 +712,7 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
           details.international_phone_number ||
           null,
       },
+      forceAllowed: testMode,
     };
   }
 
@@ -733,9 +745,11 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
     googleProfile,
     googleReviewUrl,
     connectionMethod:
-      force && phoneMismatch ? "force_connect_override" : "candidate",
+      canOverrideMismatch && phoneMismatch
+        ? "force_connect_override"
+        : "candidate",
     phoneMismatch,
-    googlePhoneMismatch: phoneMismatch && force,
+    googlePhoneMismatch: phoneMismatch && canOverrideMismatch,
     googlePlacePhone:
       details.formatted_phone_number || details.international_phone_number || null,
     businessProfilePhone: profileData?.phone || profileData?.businessPhone || null,
@@ -770,6 +784,7 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
 
     const reviewUrl = data?.reviewUrl || data?.url || "";
     const force = Boolean(data?.force);
+    const testMode = isForceConnectTestMode();
     const placeId = extractPlaceIdFromReviewUrl(reviewUrl);
 
     if (!placeId) {
@@ -813,7 +828,9 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
       (placePhoneDigits.endsWith(storedPhoneDigits) ||
         storedPhoneDigits.endsWith(placePhoneDigits));
 
-    if (storedPhoneDigits && placePhoneDigits && !phoneMatches && !force) {
+    const canOverrideMismatch = testMode && force;
+
+    if (storedPhoneDigits && placePhoneDigits && !phoneMatches && !canOverrideMismatch) {
       return {
         ok: false,
         reason: "PHONE_MISMATCH_CONFIRM_REQUIRED",
@@ -828,6 +845,7 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
             details.international_phone_number ||
             null,
         },
+        forceAllowed: testMode,
       };
     }
 
@@ -863,7 +881,7 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    if (force && phoneMismatch) {
+    if (canOverrideMismatch && phoneMismatch) {
       payload.connectionMethod = "review_link_force";
     }
 
