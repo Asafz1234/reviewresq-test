@@ -5,19 +5,29 @@ import {
   buildRatingBreakdown,
   describeReview,
 } from "./dashboard-data.js";
-import {
-  db,
-  doc,
-  setDoc,
-  serverTimestamp,
-} from "./firebase-config.js";
 import { initialsFromName, formatDate } from "./session-data.js";
 import { normalizePlan } from "./plan-capabilities.js";
-import {
-  renderGoogleConnect,
-  buildGoogleReviewLink,
-  refetchProfileAfterConnect,
-} from "./google-connect.js";
+
+const buildId = window.__REVIEWRESQ_BUILD_ID || "dev";
+const healthInfo = window.__REVIEWRESQ_HEALTH || {};
+const functionsBaseUrl =
+  window.__FUNCTIONS_BASE_URL ||
+  "https://us-central1-reviewresq-app.cloudfunctions.net";
+const testModeEnabled = Boolean(window.__TEST_MODE_ENABLED);
+const firebaseProjectId =
+  (window.RUNTIME_ENV && window.RUNTIME_ENV.FIREBASE_PROJECT_ID) ||
+  "unknown";
+
+let googleConnectModulePromise;
+
+async function getGoogleConnectModule() {
+  if (!googleConnectModulePromise) {
+    const moduleUrl = new URL("./google-connect.js", import.meta.url);
+    moduleUrl.searchParams.set("v", buildId);
+    googleConnectModulePromise = import(moduleUrl.toString());
+  }
+  return googleConnectModulePromise;
+}
 
 const profileNameEl = document.querySelector("[data-google-business-name]");
 const profileSubtitleEl = document.querySelector("[data-google-business-subtitle]");
@@ -33,6 +43,7 @@ const connectedContainer = document.querySelector("[data-google-connected]");
 const changeProfileBtn = document.querySelector("[data-change-google]");
 const planBadge = document.querySelector("[data-plan-badge]");
 const upsellContainer = document.querySelector("[data-google-upsell]");
+const envBadge = document.querySelector("[data-env-badge]");
 
 const toastId = "feedback-toast";
 let sessionState = { user: null, profile: null, subscription: null };
@@ -65,6 +76,25 @@ function showToast(message, isError = false) {
   setTimeout(() => toast.classList.remove("visible"), 2400);
 }
 
+function renderEnvBadge() {
+  if (!envBadge) return;
+  envBadge.innerHTML = "";
+  const items = [
+    { label: "Project", value: firebaseProjectId },
+    { label: "Origin", value: window.location.origin },
+    { label: "Functions", value: functionsBaseUrl },
+    { label: "Build", value: healthInfo.buildId || buildId },
+    { label: "Test mode", value: testModeEnabled ? "true" : "false" },
+  ];
+
+  items.forEach(({ label, value }) => {
+    const chip = document.createElement("span");
+    chip.className = "env-badge__chip";
+    chip.innerHTML = `<strong>${label}:</strong> ${value || "—"}`;
+    envBadge.appendChild(chip);
+  });
+}
+
 function renderProfile(profile, googleMetrics) {
   const source = profile?.googleProfile || profile || {};
   const displayName = source.name || source.businessName || "Business";
@@ -88,6 +118,8 @@ function renderProfile(profile, googleMetrics) {
     ratingBadges.count.textContent = `${googleMetrics.total || 0} reviews`;
   }
 }
+
+renderEnvBadge();
 
 function renderRatingBreakdown(breakdown) {
   ratingRows.forEach((row) => {
@@ -160,39 +192,33 @@ function renderUpsell(planId = "starter") {
 async function persistGoogleSelection(place) {
   if (!sessionState.user) return;
   try {
-    const ref = doc(db, "businessProfiles", sessionState.user.uid);
-    const googleReviewUrl = buildGoogleReviewLink(place.place_id);
+    const { refetchProfileAfterConnect, connectPlaceWithConfirmation } =
+      await getGoogleConnectModule();
+
+    if (place?.__alreadyConnected) {
+      sessionState.profile = await refetchProfileAfterConnect();
+      showToast("Google profile connected.");
+      loadGoogleData();
+      return;
+    }
+
     const businessName =
       sessionState.profile?.businessName || place.name || sessionState.profile?.name || "Business";
-    await setDoc(
-      ref,
-      {
-        businessId: sessionState.user.uid,
-        ownerUid: sessionState.user.uid,
-        businessName,
-        googlePlaceId: place.place_id,
-        googleProfile: {
-          name: place.name,
-          formatted_address: place.formatted_address,
-          rating: place.rating,
-          user_ratings_total: place.user_ratings_total,
-          types: place.types,
-        },
-        googleReviewUrl,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    await connectPlaceWithConfirmation(place, { businessName });
     sessionState.profile = await refetchProfileAfterConnect();
     showToast("Google profile connected.");
     loadGoogleData();
   } catch (err) {
     console.error("[google-reviews] failed to connect Google profile", err);
-    showToast("Unable to connect Google profile. Please try again.", true);
+    const message =
+      err?.message ||
+      "Unable to connect Google profile. Please ensure the phone number matches your business profile.";
+    showToast(message, true);
   }
 }
 
-function renderConnectCard() {
+async function renderConnectCard() {
+  const { renderGoogleConnect } = await getGoogleConnectModule();
   toggleViews(false);
   renderGoogleConnect(connectContainer, {
     title: "Connect your Google Reviews",
@@ -208,7 +234,7 @@ async function loadGoogleData() {
   const isConnected = Boolean(sessionState.profile?.googlePlaceId);
   toggleViews(isConnected);
   if (!isConnected) {
-    renderConnectCard();
+    await renderConnectCard();
     return;
   }
   const reviews = await fetchAllReviews(sessionState.user.uid);

@@ -51,6 +51,8 @@
           </div>
         </header>
 
+        <div class="env-badge" data-env-badge></div>
+
         <div data-google-connect-slot></div>
 
         <div data-google-connected>
@@ -100,7 +102,56 @@
       </div>
     </div>
   </div>
-  <script type="module" src="google-reviews.js"></script>
-  <script src="dashboard-nav.js"></script>
-</body>
-</html>
+    <script type="module">
+      const runtimeEnv = window.RUNTIME_ENV || {};
+      const deriveFunctionsBase = () => {
+        const configured =
+          runtimeEnv.FUNCTIONS_BASE_URL ||
+          runtimeEnv.GOOGLE_PLACES_PROXY_URL ||
+          runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL;
+        if (configured) {
+          try {
+            const url = new URL(configured);
+            return `${url.origin}`;
+          } catch (err) {
+            console.warn(
+              "[google-reviews] unable to parse configured functions base",
+              configured,
+              err
+            );
+          }
+        }
+        return "https://us-central1-reviewresq-app.cloudfunctions.net";
+      };
+
+      const functionsBaseUrl = deriveFunctionsBase();
+
+      const bootstrap = async () => {
+        let buildId = "";
+        let testMode = false;
+        try {
+          const healthResp = await fetch(`${functionsBaseUrl}/health`);
+          const healthJson = await healthResp.json();
+          window.__REVIEWRESQ_HEALTH = healthJson;
+          buildId = String(healthJson?.buildId || "");
+          testMode = Boolean(healthJson?.testMode);
+        } catch (err) {
+          console.error("[google-reviews] failed to fetch health", err);
+        }
+
+        if (!buildId) {
+          buildId = Date.now().toString();
+        }
+
+        window.__REVIEWRESQ_BUILD_ID = buildId;
+        window.__FUNCTIONS_BASE_URL = functionsBaseUrl;
+        window.__TEST_MODE_ENABLED = testMode;
+
+        await import(`./google-reviews.js?v=${encodeURIComponent(buildId)}`);
+      };
+
+      bootstrap();
+    </script>
+    <script src="dashboard-nav.js"></script>
+  </body>
+  </html>
