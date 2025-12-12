@@ -7,6 +7,26 @@ admin.initializeApp();
 // Keep only digits from the phone input (e.g., "(954) 546-3506" -> "9545463506").
 const normalizePhone = (phone = "") => String(phone || "").replace(/\D/g, "");
 
+// Normalize US phone numbers so that 10-digit and 11-digit (leading 1) inputs match.
+const canonicalizePhoneForCompare = (phoneDigits = "") => {
+  const digits = normalizePhone(phoneDigits);
+
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return digits.slice(1);
+  }
+
+  return digits;
+};
+
+const phonesMatch = (inputDigits = "", candidateDigits = "") => {
+  const a = canonicalizePhoneForCompare(inputDigits);
+  const b = canonicalizePhoneForCompare(candidateDigits);
+
+  if (!a || !b) return false;
+
+  return a === b;
+};
+
 const normalizeName = (name = "") =>
   String(name || "")
     .toLowerCase()
@@ -65,7 +85,9 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
   const businessName = String(
     getParam("businessName") || getParam("query") || ""
   ).trim();
-  const state = String(getParam("state") || "").trim();
+  const stateOrCity = String(
+    getParam("stateOrCity") || getParam("state") || ""
+  ).trim();
   const phoneNumber = String(
     getParam("phoneNumber") || getParam("phonenumber") || getParam("phone") || ""
   ).trim();
@@ -87,52 +109,35 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
   const normalizedPhone = normalizePhone(phoneNumber);
 
   const respondEmptyCandidates = () => res.status(200).json({ ok: true, candidates: [] });
+  const respondApiError = (message, code) =>
+    res.status(500).json({ ok: false, error: { message, code } });
 
   try {
-    // 1) Phone-first: if the user provided a phone number, search by phone only and return
-    // the first candidate immediately. Do not mix phone results with text search results.
-    if (phoneNumber) {
+    // 1) Phone-first search (FindPlaceFromText)
+    if (normalizedPhone.length >= 7) {
       console.log(`[${label}] phone search input`, {
         raw: phoneNumber,
         normalized: normalizedPhone,
       });
-
-      if (!normalizedPhone) {
-        console.warn(`[${label}] phone search received no digits after normalization`);
-        return respondEmptyCandidates();
-      }
 
       const phoneUrl = new URL(
         "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
       );
       phoneUrl.searchParams.set("key", placesApiKey);
       phoneUrl.searchParams.set("input", normalizedPhone);
-      phoneUrl.searchParams.set("inputtype", "textquery");
-      phoneUrl.searchParams.set(
-        "fields",
-        [
-          "place_id",
-          "name",
-          "formatted_address",
-          "formatted_phone_number",
-          "rating",
-          "user_ratings_total",
-          "url",
-        ].join(",")
-      );
+      phoneUrl.searchParams.set("inputtype", "phonenumber");
       phoneUrl.searchParams.set("region", "us");
+      phoneUrl.searchParams.set("fields", ["place_id"].join(","));
 
       const phoneResponse = await fetch(phoneUrl);
 
       if (!phoneResponse.ok) {
-        console.error(`[${label}] phone search HTTP error`, phoneResponse.status);
-        return respondEmptyCandidates();
+        console.error(`[${label}] Phone Search HTTP error`, phoneResponse.status);
+        return respondApiError("Places Phone Search failed", phoneResponse.status);
       }
 
       const phoneData = await phoneResponse.json();
-      const phoneCandidates = Array.isArray(phoneData.candidates)
-        ? phoneData.candidates
-        : [];
+      const phoneCandidates = Array.isArray(phoneData.candidates) ? phoneData.candidates : [];
 
       console.log(`[${label}] phone search results`, {
         status: phoneData.status,
@@ -142,28 +147,62 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       if (phoneData.status === "OK" && phoneCandidates.length) {
         const first = phoneCandidates[0];
 
-        return res.status(200).json({
-          ok: true,
-          placeId: first.place_id,
-          name: first.name || null,
-          address: first.formatted_address || null,
-          phoneNumber: first.formatted_phone_number || null,
-          rating: first.rating ?? null,
-          userRatingsTotal: first.user_ratings_total ?? 0,
-          googleMapsUrl: first.url || null,
-          rawTextSearchResult: first,
-        });
-      }
+        const detailsUrl = new URL(
+          "https://maps.googleapis.com/maps/api/place/details/json"
+        );
+        detailsUrl.searchParams.set("key", placesApiKey);
+        detailsUrl.searchParams.set("place_id", first.place_id);
+        detailsUrl.searchParams.set(
+          "fields",
+          [
+            "place_id",
+            "name",
+            "formatted_address",
+            "formatted_phone_number",
+            "international_phone_number",
+            "rating",
+            "user_ratings_total",
+            "url",
+          ].join(",")
+        );
 
-      return respondEmptyCandidates();
+        const detailsResponse = await fetch(detailsUrl);
+
+        if (!detailsResponse.ok) {
+          console.error(
+            `[${label}] Place Details HTTP error (phone search)`,
+            detailsResponse.status
+          );
+          return respondApiError("Places Details failed", detailsResponse.status);
+        }
+
+        const detailsData = await detailsResponse.json();
+        const details = detailsData.result || {};
+        const candidatePhone =
+          details.formatted_phone_number ||
+          details.international_phone_number ||
+          first.formatted_phone_number ||
+          "";
+
+        if (phonesMatch(normalizedPhone, candidatePhone)) {
+          const mappedCandidate = mapCandidate(details, first);
+
+          return res.status(200).json({
+            ok: true,
+            ...mappedCandidate,
+          });
+        }
+      }
     }
 
-    // 2) No phone provided: perform a text search using business name + optional state.
-    const textQuery = `${businessName} ${state || ""}`.trim();
+    // 2) Name + location fallback text search
+    const textQueryParts = [businessName, stateOrCity].filter(Boolean);
+    const textQuery = textQueryParts.join(" ").trim();
+    const fallbackQuery = textQuery || normalizedPhone;
 
-    console.log(`[${label}] text search query`, { query: textQuery });
+    console.log(`[${label}] text search query`, { query: fallbackQuery });
 
-    if (!textQuery) {
+    if (!fallbackQuery) {
       return respondEmptyCandidates();
     }
 
@@ -171,21 +210,24 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       "https://maps.googleapis.com/maps/api/place/textsearch/json"
     );
     textUrl.searchParams.set("key", placesApiKey);
-    textUrl.searchParams.set("query", `${textQuery} USA`.trim());
+    textUrl.searchParams.set(
+      "query",
+      [fallbackQuery, "USA"].filter(Boolean).join(" ").trim()
+    );
     textUrl.searchParams.set("region", "us");
 
     const textResponse = await fetch(textUrl);
 
     if (!textResponse.ok) {
       console.error(`[${label}] Text Search HTTP error`, textResponse.status);
-      return res.status(500).json({ error: "Places Text Search failed" });
+      return respondApiError("Places Text Search failed", textResponse.status);
     }
 
     const textData = await textResponse.json();
     const textResults = Array.isArray(textData.results) ? textData.results : [];
 
     console.log(`[${label}] text search results`, {
-      query: textQuery,
+      query: fallbackQuery,
       resultCount: textResults.length,
     });
 
@@ -193,21 +235,62 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
       return respondEmptyCandidates();
     }
 
-    const candidates = textResults.map((textResult) => ({
-      placeId: textResult.place_id,
-      name: textResult.name,
-      address: textResult.formatted_address || null,
-      phoneNumber: textResult.formatted_phone_number || null,
-      rating: textResult.rating ?? null,
-      userRatingsTotal: textResult.user_ratings_total ?? 0,
-      googleMapsUrl: textResult.url || null,
-      rawTextSearchResult: textResult,
-    }));
+    const candidates = [];
+    const maxCandidatesToCheck = 10;
+
+    for (const textResult of textResults.slice(0, maxCandidatesToCheck)) {
+      const detailsUrl = new URL(
+        "https://maps.googleapis.com/maps/api/place/details/json"
+      );
+      detailsUrl.searchParams.set("key", placesApiKey);
+      detailsUrl.searchParams.set("place_id", textResult.place_id);
+      detailsUrl.searchParams.set(
+        "fields",
+        [
+          "place_id",
+          "name",
+          "formatted_address",
+          "formatted_phone_number",
+          "international_phone_number",
+          "rating",
+          "user_ratings_total",
+          "url",
+        ].join(",")
+      );
+
+      const detailsResponse = await fetch(detailsUrl);
+
+      if (!detailsResponse.ok) {
+        console.error(
+          `[${label}] Place Details HTTP error (text search)`,
+          detailsResponse.status
+        );
+        return respondApiError("Places Details failed", detailsResponse.status);
+      }
+
+      const detailsData = await detailsResponse.json();
+      const details = detailsData.result || {};
+      const mappedCandidate = mapCandidate(details, textResult);
+      const candidatePhone =
+        details.formatted_phone_number ||
+        details.international_phone_number ||
+        textResult.formatted_phone_number ||
+        "";
+
+      if (normalizedPhone && phonesMatch(normalizedPhone, candidatePhone)) {
+        return res.status(200).json({
+          ok: true,
+          ...mappedCandidate,
+        });
+      }
+
+      candidates.push(mappedCandidate);
+    }
 
     return res.status(200).json({ ok: true, candidates });
   } catch (err) {
     console.error(`[${label}] unexpected error`, err);
-    return res.status(500).json({ error: "Places API error" });
+    return res.status(500).json({ ok: false, error: { message: "Places API error" } });
   }
 };
 
