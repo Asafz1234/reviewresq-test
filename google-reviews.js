@@ -55,24 +55,6 @@ if (document.readyState === "loading") {
   removeDebugBadges();
 }
 
-const debugBadgeLabels = ["project", "origin", "build", "test mode"];
-
-function removeDebugBadges() {
-  const badges = document.querySelectorAll(".badge");
-  badges.forEach((badge) => {
-    const label = (badge.textContent || "").trim().toLowerCase();
-    if (debugBadgeLabels.some((needle) => label.includes(needle))) {
-      badge.remove();
-    }
-  });
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", removeDebugBadges);
-} else {
-  removeDebugBadges();
-}
-
 const toastId = "feedback-toast";
 let sessionState = { user: null, profile: null, subscription: null };
 let changeListenerAttached = false;
@@ -225,21 +207,30 @@ async function persistGoogleSelection(place) {
       sessionState.profile = await refetchProfileAfterConnect();
       showToast("Google profile connected.");
       loadGoogleData();
-      return;
+      return { ok: true, alreadyConnected: true };
     }
 
     const businessName =
       sessionState.profile?.businessName || place.name || sessionState.profile?.name || "Business";
-    await connectPlaceWithConfirmation(place, { businessName });
+    const response = await connectPlaceWithConfirmation(place, { businessName });
+    if (!response?.ok) {
+      throw new Error(
+        response?.message ||
+          "Unable to connect Google profile. Please ensure the phone number matches your business profile."
+      );
+    }
+
     sessionState.profile = await refetchProfileAfterConnect();
     showToast("Google profile connected.");
     loadGoogleData();
+    return { ok: true };
   } catch (err) {
     console.error("[google-reviews] failed to connect Google profile", err);
     const message =
       err?.message ||
       "Unable to connect Google profile. Please ensure the phone number matches your business profile.";
-    showToast(message, true);
+    err.message = message;
+    throw err;
   }
 }
 
