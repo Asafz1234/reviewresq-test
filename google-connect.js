@@ -369,7 +369,13 @@ function createResultCard(
       action.disabled = true;
       action.textContent = "Connecting…";
       try {
-        await onConnect(place);
+        const result = await onConnect(place);
+        if (!result?.ok) {
+          throw new Error(
+            result?.message || "Unable to connect Google profile. Please try again."
+          );
+        }
+
         action.textContent = "Connected";
         document
           .querySelectorAll(".connect-result button.btn-primary")

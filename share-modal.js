@@ -3,7 +3,7 @@ const initShareModal = () => {
   const openButtons = Array.from(document.querySelectorAll('[data-share-open]'));
   const closeButtons = Array.from(document.querySelectorAll('[data-share-close]'));
 
-  if (!modal || (!openButtons.length && !closeButtons.length)) return;
+  if (!(modal instanceof Element) || (!openButtons.length && !closeButtons.length)) return;
 
   const handleOpen = () => {
     modal.classList.add('is-open');

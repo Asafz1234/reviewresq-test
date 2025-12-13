@@ -207,21 +207,30 @@ async function persistGoogleSelection(place) {
       sessionState.profile = await refetchProfileAfterConnect();
       showToast("Google profile connected.");
       loadGoogleData();
-      return;
+      return { ok: true, alreadyConnected: true };
     }
 
     const businessName =
       sessionState.profile?.businessName || place.name || sessionState.profile?.name || "Business";
-    await connectPlaceWithConfirmation(place, { businessName });
+    const response = await connectPlaceWithConfirmation(place, { businessName });
+    if (!response?.ok) {
+      throw new Error(
+        response?.message ||
+          "Unable to connect Google profile. Please ensure the phone number matches your business profile."
+      );
+    }
+
     sessionState.profile = await refetchProfileAfterConnect();
     showToast("Google profile connected.");
     loadGoogleData();
+    return { ok: true };
   } catch (err) {
     console.error("[google-reviews] failed to connect Google profile", err);
     const message =
       err?.message ||
       "Unable to connect Google profile. Please ensure the phone number matches your business profile.";
-    showToast(message, true);
+    err.message = message;
+    throw err;
   }
 }
 
