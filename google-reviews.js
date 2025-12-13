@@ -55,24 +55,6 @@ if (document.readyState === "loading") {
   removeDebugBadges();
 }
 
-const debugBadgeLabels = ["project", "origin", "build", "test mode"];
-
-function removeDebugBadges() {
-  const badges = document.querySelectorAll(".badge");
-  badges.forEach((badge) => {
-    const label = (badge.textContent || "").trim().toLowerCase();
-    if (debugBadgeLabels.some((needle) => label.includes(needle))) {
-      badge.remove();
-    }
-  });
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", removeDebugBadges);
-} else {
-  removeDebugBadges();
-}
-
 const toastId = "feedback-toast";
 let sessionState = { user: null, profile: null, subscription: null };
 let changeListenerAttached = false;
