@@ -1039,25 +1039,23 @@ const applyGoogleAuthCors = (req, res, next) => {
 };
 
 exports.googleAuthGetConfig = functions.https.onRequest((req, res) => {
-  applyGoogleAuthCors(req, res, () => {
+  cors({
+    origin: [
+      "https://reviewresq.com",
+      "https://www.reviewresq.com",
+      "http://localhost:5000",
+    ],
+    methods: ["GET", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
+  })(req, res, () => {
     if (req.method === "OPTIONS") {
       return res.status(204).send("");
     }
 
-    if (req.method !== "GET") {
-      return res.status(405).json({ error: "Method not allowed" });
-    }
-
-    try {
-      const oauthConfig = resolveGoogleOAuthServerConfig({ requireOAuth: true });
-      return res.status(200).json({
-        clientId: oauthConfig.clientId || null,
-        redirectUri: oauthConfig.redirectUri || null,
-      });
-    } catch (err) {
-      console.error("[google-oauth] configuration error", err);
-      return res.status(500).json({ error: "OAUTH_CONFIG_MISSING" });
-    }
+    return res.json({
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      redirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI,
+    });
   });
 });
 
