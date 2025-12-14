@@ -1007,6 +1007,7 @@ const isAllowedGoogleAuthOrigin = (origin = "") => {
     "https://reviewresq.com",
     "https://www.reviewresq.com",
     "http://localhost:5000",
+    "http://127.0.0.1:5000",
   ]);
   return allowedOrigins.has(origin);
 };
@@ -1040,42 +1041,40 @@ const applyGoogleAuthCors = (req, res, next) => {
 
 exports.googleAuthGetConfig = functions.https.onRequest((req, res) => {
   const origin = req.headers.origin || "";
-  if (!isAllowedGoogleAuthOrigin(origin)) {
+  const isAllowedOrigin = isAllowedGoogleAuthOrigin(origin);
+
+  res.set("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.set("Vary", "Origin");
+
+  if (isAllowedOrigin) {
+    res.set("Access-Control-Allow-Origin", origin);
+  }
+
+  if (req.method === "OPTIONS") {
+    if (!isAllowedOrigin) {
+      return res.status(403).json({ error: "ORIGIN_NOT_ALLOWED" });
+    }
+    return res.status(204).send("");
+  }
+
+  if (!isAllowedOrigin) {
     return res.status(403).json({ error: "ORIGIN_NOT_ALLOWED" });
   }
 
-  cors({
-    origin: [
-      "https://reviewresq.com",
-      "https://www.reviewresq.com",
-      "http://localhost:5000",
-    ],
-    methods: ["GET", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-    optionsSuccessStatus: 204,
-  })(req, res, () => {
-    if (req.method === "OPTIONS") {
-      return res.status(204).send("");
-    }
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
 
-    const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
+  if (!clientId || !redirectUri) {
+    console.error(
+      "[google-auth-config] Missing GOOGLE_OAUTH_CLIENT_ID or GOOGLE_OAUTH_REDIRECT_URI."
+    );
+    return res
+      .status(500)
+      .json({ error: "Missing GOOGLE_OAUTH_CLIENT_ID or GOOGLE_OAUTH_REDIRECT_URI" });
+  }
 
-    if (!clientId || !redirectUri) {
-      console.error("[google-auth-config] Missing GOOGLE_OAUTH_CLIENT_ID or GOOGLE_OAUTH_REDIRECT_URI.");
-      return res.status(500).json({ error: "CONFIG_MISSING" });
-    }
-
-    res.set("Access-Control-Allow-Origin", origin);
-    res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
-    res.set("Vary", "Origin");
-
-    return res.json({
-      clientId,
-      redirectUri,
-    });
-  });
+  return res.json({ clientId, redirectUri });
 });
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
