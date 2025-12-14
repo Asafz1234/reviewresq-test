@@ -139,6 +139,28 @@ const ensureGoogleEnvForRuntime = (
   return { ok: false, missing };
 };
 
+const assertGoogleEnvForRuntime = (
+  res,
+  { requireOAuth = false, requirePlaces = false, context = "Google config", onError } = {},
+) => {
+  const missing = collectMissingGoogleEnv({ requireOAuth, requirePlaces });
+  if (!missing.length) return true;
+
+  const message = `[google-env] Missing required env vars for ${context}: ${missing.join(", ")}`;
+  console.error(message);
+
+  if (typeof onError === "function") {
+    return onError(message, missing);
+  }
+
+  if (res) {
+    res.status(500).json({ error: "missing_config" });
+    return false;
+  }
+
+  throw new Error(message);
+};
+
 const resolveEnvConfig = (() => {
   let cached = null;
   return () => {
