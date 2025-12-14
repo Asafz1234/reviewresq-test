@@ -5,8 +5,14 @@ const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
 const GOOGLE_OAUTH_SCOPE =
   runtimeEnv.GOOGLE_OAUTH_SCOPES || "https://www.googleapis.com/auth/business.manage";
+const OAUTH_CLIENT_ID =
+  window.GOOGLE_OAUTH_CLIENT_ID ||
+  (window.GOOGLE_OAUTH && window.GOOGLE_OAUTH.clientId) ||
+  runtimeEnv.GOOGLE_OAUTH_CLIENT_ID ||
+  runtimeEnv.GOOGLE_CLIENT_ID ||
+  null;
 const baseOAuthConfig = {
-  clientId: runtimeEnv.GOOGLE_OAUTH_CLIENT_ID || runtimeEnv.GOOGLE_CLIENT_ID || "",
+  clientId: OAUTH_CLIENT_ID || "",
   redirectUri: runtimeEnv.GOOGLE_OAUTH_REDIRECT_URI || "",
   scopes: GOOGLE_OAUTH_SCOPE,
 };
@@ -29,6 +35,43 @@ const functionsBaseUrl =
 let cachedOAuthConfig = { ...baseOAuthConfig };
 let oauthConfigPromise = null;
 let oauthAvailabilityLogged = false;
+const restoreOAuthAvailable = () => {
+  const btn = document.querySelector("#connectWithGoogleBtn");
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = "Connect with Google";
+  }
+  const msg = document.querySelector("#googleOauthUnavailableMsg");
+  if (msg) {
+    msg.style.display = "none";
+    msg.textContent = "";
+  }
+};
+
+const markOAuthUnavailable = () => {
+  const applyUnavailable = () => {
+    const btn = document.querySelector("#connectWithGoogleBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Google OAuth unavailable.";
+    }
+    const msg = document.querySelector("#googleOauthUnavailableMsg");
+    if (msg) msg.style.display = "block";
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", applyUnavailable, {
+      once: true,
+    });
+  } else {
+    applyUnavailable();
+  }
+};
+
+if (!OAUTH_CLIENT_ID) {
+  console.warn("[google-oauth] unavailable if missing config");
+  markOAuthUnavailable();
+}
 
 function logOAuthAvailability(hasConfig) {
   if (oauthAvailabilityLogged) return;
@@ -42,6 +85,7 @@ function logOAuthAvailability(hasConfig) {
 async function ensureOAuthConfig({ logAvailability = false } = {}) {
   if (cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri) {
     if (logAvailability) logOAuthAvailability(true);
+    restoreOAuthAvailable();
     return cachedOAuthConfig;
   }
 
@@ -66,6 +110,11 @@ async function ensureOAuthConfig({ logAvailability = false } = {}) {
       const hasConfig = Boolean(
         cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri
       );
+      if (hasConfig) {
+        restoreOAuthAvailable();
+      } else {
+        markOAuthUnavailable();
+      }
       if (logAvailability) logOAuthAvailability(hasConfig);
       return cachedOAuthConfig;
     })();
@@ -74,23 +123,15 @@ async function ensureOAuthConfig({ logAvailability = false } = {}) {
   const resolved = await oauthConfigPromise;
   if (logAvailability) {
     const hasConfig = Boolean(resolved?.clientId && resolved?.redirectUri);
+    if (hasConfig) {
+      restoreOAuthAvailable();
+    } else {
+      markOAuthUnavailable();
+    }
     logOAuthAvailability(hasConfig);
   }
   return resolved;
 }
-
-const hasOAuthConfig = Boolean(GOOGLE_OAUTH_CLIENT_ID && GOOGLE_OAUTH_REDIRECT_URI);
-const oauthSelfCheckLogged = (() => {
-  const message = hasOAuthConfig
-    ? "[google-oauth] ready if config exists"
-    : "[google-oauth] unavailable if missing config";
-  if (hasOAuthConfig) {
-    console.log(message);
-  } else {
-    console.warn(message);
-  }
-  return true;
-})();
 
 export { functionsBaseUrl };
 
@@ -735,9 +776,16 @@ export function renderGoogleConnect(container, options = {}) {
       </div>
       <div class="stacked">
         <div class="stacked">
-          <button class="btn btn-primary" type="button" data-google-oauth>Connect with Google</button>
+          <button
+            class="btn btn-primary"
+            type="button"
+            data-google-oauth
+            id="connectWithGoogleBtn"
+          >
+            Connect with Google
+          </button>
           <p class="card-subtitle">Securely connect businesses you own or manage on Google.</p>
-          <p class="card-subtitle" data-google-oauth-status></p>
+          <p class="card-subtitle" data-google-oauth-status id="googleOauthUnavailableMsg"></p>
           <div class="connect-results" data-google-oauth-results></div>
         </div>
         <div class="divider"></div>
