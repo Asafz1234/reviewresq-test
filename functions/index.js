@@ -88,33 +88,68 @@ const upsertGoogleLocation = (existingLocations, newEntry) => {
   return merged;
 };
 
+const REQUIRED_ENV = {
+  GOOGLE_OAUTH_CLIENT_ID:
+    "Set GOOGLE_OAUTH_CLIENT_ID as a Cloud Functions environment variable (e.g. `firebase functions:secrets:set GOOGLE_OAUTH_CLIENT_ID`).",
+  GOOGLE_OAUTH_CLIENT_SECRET:
+    "Set GOOGLE_OAUTH_CLIENT_SECRET as a Cloud Functions secret (`firebase functions:secrets:set GOOGLE_OAUTH_CLIENT_SECRET`).",
+  GOOGLE_PLACES_API_KEY:
+    "Set GOOGLE_PLACES_API_KEY as a Cloud Functions secret (`firebase functions:secrets:set GOOGLE_PLACES_API_KEY`).",
+  GOOGLE_OAUTH_REDIRECT_URI:
+    "Set GOOGLE_OAUTH_REDIRECT_URI to the production callback URL ending with /oauthCallback.",
+};
+
+const assertEnvVars = (keys = [], context = "") => {
+  const missing = keys.filter((key) => !process.env[key]);
+  if (!missing.length) return;
+  const guidance = missing.map((key) => `${key}: ${REQUIRED_ENV[key] || "Set this variable before deploying."}`).join("; ");
+  const message = `[google-env] Missing required env vars for ${context || "startup"}: ${missing.join(", ")}. ${guidance}`;
+  console.error(message);
+  throw new Error(message);
+};
+
 const resolveEnvConfig = (() => {
   let cached = null;
-  return () => {
-    if (cached) return cached;
+  return ({ requireOAuth = false, requirePlaces = false } = {}) => {
+    if (cached) {
+      if (requireOAuth) {
+        assertEnvVars(
+          [
+            "GOOGLE_OAUTH_CLIENT_ID",
+            "GOOGLE_OAUTH_CLIENT_SECRET",
+            "GOOGLE_OAUTH_REDIRECT_URI",
+          ],
+          "Google OAuth"
+        );
+      }
+      if (requirePlaces) {
+        assertEnvVars(["GOOGLE_PLACES_API_KEY"], "Google Places");
+      }
+      return cached;
+    }
+
     const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID || "";
     const googleClientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || "";
     const googleRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || "";
-    const placesApiKey =
-      process.env.GOOGLE_PLACES_API_KEY ||
-      process.env.GOOGLE_MAPS_API_KEY ||
-      process.env.PLACES_API_KEY ||
-      "";
+    const placesApiKey = process.env.GOOGLE_PLACES_API_KEY || "";
 
     const scopes =
       process.env.GOOGLE_OAUTH_SCOPES ||
       "https://www.googleapis.com/auth/business.manage";
 
-    const missing = [];
-    if (!googleClientId) missing.push("GOOGLE_OAUTH_CLIENT_ID");
-    if (!googleClientSecret) missing.push("GOOGLE_OAUTH_CLIENT_SECRET");
-    if (!googleRedirectUri) missing.push("GOOGLE_OAUTH_REDIRECT_URI");
-    if (!placesApiKey) missing.push("GOOGLE_PLACES_API_KEY");
-
-    if (missing.length) {
-      console.error(
-        `[google-env] Missing required configuration: ${missing.join(", ")}`
+    if (requireOAuth) {
+      assertEnvVars(
+        [
+          "GOOGLE_OAUTH_CLIENT_ID",
+          "GOOGLE_OAUTH_CLIENT_SECRET",
+          "GOOGLE_OAUTH_REDIRECT_URI",
+        ],
+        "Google OAuth"
       );
+    }
+
+    if (requirePlaces) {
+      assertEnvVars(["GOOGLE_PLACES_API_KEY"], "Google Places");
     }
 
     cached = {
@@ -127,6 +162,17 @@ const resolveEnvConfig = (() => {
     return cached;
   };
 })();
+
+// Fail-fast during deployment if required Google configuration is missing.
+assertEnvVars(
+  [
+    "GOOGLE_OAUTH_CLIENT_ID",
+    "GOOGLE_OAUTH_CLIENT_SECRET",
+    "GOOGLE_OAUTH_REDIRECT_URI",
+    "GOOGLE_PLACES_API_KEY",
+  ],
+  "Google OAuth/Places startup validation"
+);
 
 const normalizePhone = (raw = "") => (raw || "").replace(/[^\d]/g, "");
 
@@ -149,7 +195,7 @@ const toE164US = (digits10 = "") =>
 const isForceConnectTestMode = () => TEST_MODE;
 
 const resolveGoogleOAuthServerConfig = () => {
-  const env = resolveEnvConfig();
+  const env = resolveEnvConfig({ requireOAuth: true });
   return {
     clientId: env.googleClientId || null,
     clientSecret: env.googleClientSecret || null,
@@ -240,7 +286,7 @@ const isValidGoogleBusinessUrl = (raw = "") => {
 };
 
 const resolvePlacesApiKey = () => {
-  const env = resolveEnvConfig();
+  const env = resolveEnvConfig({ requirePlaces: true });
   return env.placesApiKey || null;
 };
 
@@ -469,7 +515,19 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
     return res.status(400).json({ error: "Missing businessName or phoneNumber" });
   }
 
-  const placesApiKey = resolvePlacesApiKey();
+  let placesApiKey;
+  try {
+    placesApiKey = resolvePlacesApiKey();
+  } catch (err) {
+    console.error(`[${label}] missing Places API key`, err);
+    return res
+      .status(500)
+      .json({
+        ok: false,
+        error: "MISSING_API_KEY",
+        message: err?.message || "Server configuration missing.",
+      });
+  }
 
   if (!placesApiKey) {
     console.error(`[${label}] missing Places API key`);
@@ -757,7 +815,17 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     const normalizedDigits = normalizePhoneDigits(phoneRaw);
     const e164 = normalizedDigits && normalizedDigits.length === 10 ? toE164US(normalizedDigits) : "";
 
-    const placesApiKey = resolvePlacesApiKey();
+    let placesApiKey;
+    try {
+      placesApiKey = resolvePlacesApiKey();
+    } catch (err) {
+      console.error("[googlePlacesSearch] missing Places API key", err);
+      return res.json({
+        ok: false,
+        error: "MISSING_API_KEY",
+        message: err?.message,
+      });
+    }
 
     if (!placesApiKey) {
       return res.json({ ok: false, error: "MISSING_API_KEY" });
@@ -934,20 +1002,28 @@ exports.health = functions.https.onRequest((req, res) => {
 });
 
 exports.googleAuthGetConfig = functions.https.onCall(async () => {
-  const oauthConfig = resolveGoogleOAuthServerConfig();
-  const enabled = Boolean(oauthConfig.clientId && oauthConfig.redirectUri);
+  try {
+    const oauthConfig = resolveGoogleOAuthServerConfig();
+    const enabled = Boolean(oauthConfig.clientId && oauthConfig.redirectUri);
 
-  if (!enabled) {
-    console.error("[google-oauth] Missing clientId/redirectUri. OAuth disabled.");
+    if (!enabled) {
+      console.error("[google-oauth] Missing clientId/redirectUri. OAuth disabled.");
+    }
+
+    return {
+      ok: true,
+      enabled,
+      clientId: oauthConfig.clientId || null,
+      redirectUri: oauthConfig.redirectUri || null,
+      scopes: oauthConfig.scopes,
+    };
+  } catch (err) {
+    console.error("[google-oauth] configuration error", err);
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      err?.message || "Google OAuth is not configured."
+    );
   }
-
-  return {
-    ok: true,
-    enabled,
-    clientId: oauthConfig.clientId || null,
-    redirectUri: oauthConfig.redirectUri || null,
-    scopes: oauthConfig.scopes,
-  };
 });
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -962,34 +1038,42 @@ exports.googleAuthCreateState = functions.https.onCall(async (data, context) => 
     );
   }
 
-  const oauthConfig = resolveGoogleOAuthServerConfig();
-  if (!oauthConfig.clientId || !oauthConfig.redirectUri) {
-    console.error("[google-oauth] Missing clientId/redirectUri. OAuth disabled.");
-    return { ok: false, reason: "OAUTH_CONFIG_MISSING" };
+  try {
+    const oauthConfig = resolveGoogleOAuthServerConfig();
+    if (!oauthConfig.clientId || !oauthConfig.redirectUri) {
+      console.error("[google-oauth] Missing clientId/redirectUri. OAuth disabled.");
+      return { ok: false, reason: "OAUTH_CONFIG_MISSING" };
+    }
+
+    const state = crypto.randomBytes(24).toString("hex");
+    const now = Date.now();
+    await oauthStateCollection()
+      .doc(state)
+      .set({ uid: context.auth.uid, createdAt: now, expiresAt: now + OAUTH_STATE_TTL_MS });
+
+    const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    authUrl.searchParams.set("client_id", oauthConfig.clientId);
+    authUrl.searchParams.set("redirect_uri", oauthConfig.redirectUri);
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("state", state);
+    authUrl.searchParams.set("scope", oauthConfig.scopes);
+    authUrl.searchParams.set("access_type", "offline");
+    authUrl.searchParams.set("include_granted_scopes", "true");
+
+    return {
+      ok: true,
+      state,
+      redirectUri: oauthConfig.redirectUri,
+      scopes: oauthConfig.scopes,
+      authorizationUrl: authUrl.toString(),
+    };
+  } catch (err) {
+    console.error("[google-oauth] failed to create state", err);
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      err?.message || "Google OAuth is not configured."
+    );
   }
-
-  const state = crypto.randomBytes(24).toString("hex");
-  const now = Date.now();
-  await oauthStateCollection()
-    .doc(state)
-    .set({ uid: context.auth.uid, createdAt: now, expiresAt: now + OAUTH_STATE_TTL_MS });
-
-  const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-  authUrl.searchParams.set("client_id", oauthConfig.clientId);
-  authUrl.searchParams.set("redirect_uri", oauthConfig.redirectUri);
-  authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("state", state);
-  authUrl.searchParams.set("scope", oauthConfig.scopes);
-  authUrl.searchParams.set("access_type", "offline");
-  authUrl.searchParams.set("include_granted_scopes", "true");
-
-  return {
-    ok: true,
-    state,
-    redirectUri: oauthConfig.redirectUri,
-    scopes: oauthConfig.scopes,
-    authorizationUrl: authUrl.toString(),
-  };
 });
 
 exports.exchangeGoogleAuthCode = functions.https.onCall(async (data, context) => {
@@ -1010,7 +1094,17 @@ exports.exchangeGoogleAuthCode = functions.https.onCall(async (data, context) =>
     );
   }
 
-  const oauthConfig = resolveGoogleOAuthServerConfig();
+  let oauthConfig;
+  try {
+    oauthConfig = resolveGoogleOAuthServerConfig();
+  } catch (err) {
+    console.error("[exchangeGoogleAuthCode] missing env", err);
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      err?.message || "Google OAuth is not configured."
+    );
+  }
+
   if (!oauthConfig.clientId || !oauthConfig.clientSecret || !oauthConfig.redirectUri) {
     return {
       ok: false,
@@ -1104,7 +1198,16 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
     );
   }
 
-  const placesApiKey = resolvePlacesApiKey();
+  let placesApiKey;
+  try {
+    placesApiKey = resolvePlacesApiKey();
+  } catch (err) {
+    console.error("[connectGoogleBusiness] missing Places API key", err);
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      err?.message || "Server is missing the Google Places API key."
+    );
+  }
 
   if (!placesApiKey) {
     throw new functions.https.HttpsError(
@@ -1281,7 +1384,16 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
     const dryRun = Boolean(data?.dryRun);
     const source = data?.source || "review_link";
 
-    const placesApiKey = resolvePlacesApiKey();
+    let placesApiKey;
+    try {
+      placesApiKey = resolvePlacesApiKey();
+    } catch (err) {
+      console.error("[connectGoogleBusinessByReviewLink] missing Places API key", err);
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        err?.message || "Server is missing the Google Places API key."
+      );
+    }
 
     if (!placesApiKey) {
       throw new functions.https.HttpsError(
