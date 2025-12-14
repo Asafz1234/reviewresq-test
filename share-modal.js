@@ -18,19 +18,21 @@ const initShareModal = () => {
   };
 
   openButtons.forEach((btn) => {
-    if (!(btn instanceof Element)) return;
+    if (!(btn instanceof Element) || !btn?.addEventListener) return;
     btn.addEventListener('click', handleOpen);
   });
 
   closeButtons.forEach((btn) => {
-    if (!(btn instanceof Element)) return;
+    if (!(btn instanceof Element) || !btn?.addEventListener) return;
     btn.addEventListener('click', handleClose);
   });
 };
 
 if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initShareModal);
+    if (document.addEventListener) {
+      document.addEventListener('DOMContentLoaded', initShareModal);
+    }
   } else {
     initShareModal();
   }
