@@ -1,6 +1,6 @@
 const initShareModal = () => {
   const modal = document.querySelector('#share-modal');
-  if (!(modal instanceof Element)) return;
+  if (!modal) return;
 
   const openButtons = Array.from(document.querySelectorAll('[data-share-open]'));
   const closeButtons = Array.from(document.querySelectorAll('[data-share-close]'));
