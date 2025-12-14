@@ -1,6 +1,7 @@
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
+const cors = require("cors");
 const crypto = require("crypto");
 
 admin.initializeApp();
@@ -1001,29 +1002,61 @@ exports.health = functions.https.onRequest((req, res) => {
   res.json({ ok: true, buildId: BUILD_ID, testMode: TEST_MODE });
 });
 
-exports.googleAuthGetConfig = functions.https.onCall(async () => {
-  try {
-    const oauthConfig = resolveGoogleOAuthServerConfig();
-    const enabled = Boolean(oauthConfig.clientId && oauthConfig.redirectUri);
+const isAllowedGoogleAuthOrigin = (origin = "") => {
+  const allowedOrigins = new Set([
+    "https://reviewresq.com",
+    "https://www.reviewresq.com",
+    "http://localhost:5000",
+  ]);
+  return allowedOrigins.has(origin);
+};
 
-    if (!enabled) {
-      console.error("[google-oauth] Missing clientId/redirectUri. OAuth disabled.");
+const googleAuthCors = cors({
+  origin(origin, callback) {
+    callback(null, isAllowedGoogleAuthOrigin(origin));
+  },
+  methods: ["GET", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+});
+
+const applyGoogleAuthCors = (req, res, next) => {
+  const origin = req.headers.origin || "";
+  if (origin && !isAllowedGoogleAuthOrigin(origin)) {
+    return res.status(403).json({ error: "CORS_NOT_ALLOWED" });
+  }
+
+  googleAuthCors(req, res, () => {
+    const allowOrigin = isAllowedGoogleAuthOrigin(origin)
+      ? origin
+      : "https://reviewresq.com";
+    res.set("Access-Control-Allow-Origin", allowOrigin);
+    res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.set("Vary", "Origin");
+    next();
+  });
+};
+
+exports.googleAuthGetConfig = functions.https.onRequest((req, res) => {
+  cors({
+    origin: [
+      "https://reviewresq.com",
+      "https://www.reviewresq.com",
+      "http://localhost:5000",
+    ],
+    methods: ["GET", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
+  })(req, res, () => {
+    if (req.method === "OPTIONS") {
+      return res.status(204).send("");
     }
 
-    return {
-      ok: true,
-      enabled,
-      clientId: oauthConfig.clientId || null,
-      redirectUri: oauthConfig.redirectUri || null,
-      scopes: oauthConfig.scopes,
-    };
-  } catch (err) {
-    console.error("[google-oauth] configuration error", err);
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      err?.message || "Google OAuth is not configured."
-    );
-  }
+    return res.json({
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      redirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI,
+    });
+  });
 });
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
