@@ -9,6 +9,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="icon" href="/logo.png" />
   <script src="/runtime-env.js"></script>
+  <script>
+    // Google OAuth Client ID injected at runtime.
+    window.GOOGLE_OAUTH_CLIENT_ID =
+      (window.RUNTIME_ENV &&
+        (window.RUNTIME_ENV.GOOGLE_OAUTH_CLIENT_ID ||
+          window.RUNTIME_ENV.GOOGLE_CLIENT_ID)) ||
+      "";
+  </script>
   <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
@@ -70,7 +78,7 @@
                   <span class="badge" data-google-rating>Google rating —</span>
                   <span class="badge" data-google-count>0 reviews</span>
                   <span class="badge badge-muted" data-google-connection-state style="display:none;"></span>
-                  <span class="badge badge-success">Verified</span>
+                  <span class="badge badge-success" data-google-verification>Verified</span>
                 </div>
               </div>
             </section>
