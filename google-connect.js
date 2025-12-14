@@ -74,6 +74,25 @@ function buildLocationString() {
   return uniqueParts.join(" ").trim();
 }
 
+function resolveBusinessName(place = {}, explicitName = "") {
+  const inputBusinessName = (explicitName || place.__inputBusinessName || "").trim();
+  const { cachedProfile, globals } = gatherAccountData();
+
+  const profileBusinessName =
+    cachedProfile.businessName ||
+    cachedProfile.name ||
+    globals.businessName ||
+    globals.name ||
+    "";
+
+  return (
+    inputBusinessName ||
+    (place && (place.name || place.businessName)) ||
+    profileBusinessName ||
+    "Business"
+  );
+}
+
 function getStateValue() {
   const stateInput = document.querySelector("[data-google-state]");
   return stateInput?.value ? stateInput.value.trim() : "";
@@ -156,9 +175,10 @@ export async function connectPlaceOnBackend(
 
   const call = connectGoogleBusinessCallable();
   const placeId = place.place_id || place.placeId;
+  const resolvedBusinessName = resolveBusinessName(place, businessName);
   const requestPayload = {
     placeId,
-    businessName,
+    businessName: resolvedBusinessName,
   };
 
   console.log("[google-connect] connectPlace request", requestPayload);
@@ -509,7 +529,11 @@ export function renderGoogleConnect(container, options = {}) {
   const skipBtn = container.querySelector("[data-connect-skip]");
 
   const connectAndReport = async (place) => {
-    const result = await onConnect(place);
+    const enrichedPlace = {
+      ...place,
+      __inputBusinessName: (nameInput?.value || "").trim(),
+    };
+    const result = await onConnect(enrichedPlace);
     if (result?.ok) {
       if (messageEl) {
         messageEl.textContent = "Google profile connected!";

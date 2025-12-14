@@ -20,7 +20,14 @@ const normalizePhone = (raw = "") => (raw || "").replace(/[^\d]/g, "");
 const normalizePhoneDigits = (raw = "") => {
   const digits = (raw.match(/\d+/g) || []).join("");
   if (!digits) return "";
-  return digits.slice(-10);
+
+  const trimmed = digits.length === 11 && digits.startsWith("1")
+    ? digits.slice(1)
+    : digits;
+
+  if (trimmed.length < 10) return "";
+
+  return trimmed.slice(-10);
 };
 
 const toE164US = (digits10 = "") =>
@@ -770,13 +777,35 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
   const storedPhoneDigits = normalizePhoneDigits(
     profileData?.phone || profileData?.businessPhone || ""
   );
-  const phoneMatches =
-    storedPhoneDigits &&
-    placePhoneDigits &&
-    (placePhoneDigits.endsWith(storedPhoneDigits) ||
-      storedPhoneDigits.endsWith(placePhoneDigits));
 
-  if (storedPhoneDigits && placePhoneDigits && !phoneMatches) {
+  if (!storedPhoneDigits || !placePhoneDigits) {
+    return {
+      ok: false,
+      reason: "PHONE_MISSING",
+      message:
+        "We need a 10-digit phone number on both your profile and Google listing to connect.",
+      details: {
+        storedPhone: profileData?.phone || profileData?.businessPhone || null,
+        placePhone:
+          details.formatted_phone_number ||
+          details.international_phone_number ||
+          null,
+      },
+      placeId,
+      googleProfilePreview: {
+        name: details.name || null,
+        address: details.formatted_address || null,
+        phone:
+          details.formatted_phone_number ||
+          details.international_phone_number ||
+          null,
+      },
+    };
+  }
+
+  const phoneMatches = storedPhoneDigits === placePhoneDigits;
+
+  if (!phoneMatches) {
     return {
       ok: false,
       reason: "PHONE_MISMATCH",
@@ -912,11 +941,26 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
     const placePhoneDigits = normalizePhoneDigits(
       details.international_phone_number || details.formatted_phone_number || ""
     );
-    const phoneMatches =
-      storedPhoneDigits &&
-      placePhoneDigits &&
-      (placePhoneDigits.endsWith(storedPhoneDigits) ||
-        storedPhoneDigits.endsWith(placePhoneDigits));
+
+    if (!storedPhoneDigits || !placePhoneDigits) {
+      return {
+        ok: false,
+        reason: "PHONE_MISSING",
+        message:
+          "We need a 10-digit phone number on both your profile and Google listing to connect.",
+        placeId,
+        googleProfilePreview: {
+          name: details.name || null,
+          address: details.formatted_address || null,
+          phone:
+            details.formatted_phone_number ||
+            details.international_phone_number ||
+            null,
+        },
+      };
+    }
+
+    const phoneMatches = storedPhoneDigits === placePhoneDigits;
 
     const googleReviewUrl = `https://search.google.com/local/review?placeid=${encodeURIComponent(
       placeId
