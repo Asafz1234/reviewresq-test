@@ -234,6 +234,24 @@ async function persistGoogleSelection(place) {
   }
 }
 
+async function persistManualGoogleLink(manualResponse = {}) {
+  if (!sessionState.user) return;
+  try {
+    const { refetchProfileAfterConnect } = await getGoogleConnectModule();
+    sessionState.profile = await refetchProfileAfterConnect();
+    showToast(manualResponse?.message || "Google profile connected.");
+    await loadGoogleData();
+    return { ok: true };
+  } catch (err) {
+    console.error("[google-reviews] failed to save manual Google link", err);
+    const message =
+      err?.message ||
+      "Unable to save your manual Google link right now. Please try again.";
+    err.message = message;
+    throw err;
+  }
+}
+
 async function renderConnectCard() {
   const { renderGoogleConnect } = await getGoogleConnectModule();
   toggleViews(false);
@@ -244,6 +262,7 @@ async function renderConnectCard() {
     helperText: "Start typing your business name as it appears on Google.",
     defaultQuery: sessionState.profile?.businessName || "",
     onConnect: persistGoogleSelection,
+    onManualConnect: persistManualGoogleLink,
   });
 }
 
