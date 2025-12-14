@@ -3,7 +3,11 @@ import { functions, httpsCallable } from "./firebase-config.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
-const GOOGLE_OAUTH_SCOPE = "https://www.googleapis.com/auth/business.manage";
+const GOOGLE_OAUTH_SCOPE =
+  runtimeEnv.GOOGLE_OAUTH_SCOPES || "https://www.googleapis.com/auth/business.manage";
+const GOOGLE_OAUTH_REDIRECT_URI = runtimeEnv.GOOGLE_OAUTH_REDIRECT_URI || "";
+const GOOGLE_OAUTH_CLIENT_ID =
+  runtimeEnv.GOOGLE_OAUTH_CLIENT_ID || runtimeEnv.GOOGLE_CLIENT_ID || "";
 const placesProxyUrl =
   (runtimeEnv && runtimeEnv.GOOGLE_PLACES_PROXY_URL) ||
   "https://us-central1-reviewresq-app.cloudfunctions.net/googlePlacesSearch";
@@ -21,8 +25,18 @@ const functionsBaseUrl =
   runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL ||
   defaultFunctionsBase;
 
-const GOOGLE_OAUTH_CLIENT_ID =
-  runtimeEnv.GOOGLE_OAUTH_CLIENT_ID || runtimeEnv.GOOGLE_CLIENT_ID || "";
+const hasOAuthConfig = Boolean(GOOGLE_OAUTH_CLIENT_ID && GOOGLE_OAUTH_REDIRECT_URI);
+const oauthSelfCheckLogged = (() => {
+  const message = hasOAuthConfig
+    ? "[google-oauth] ready if config exists"
+    : "[google-oauth] unavailable if missing config";
+  if (hasOAuthConfig) {
+    console.log(message);
+  } else {
+    console.warn(message);
+  }
+  return true;
+})();
 
 export { functionsBaseUrl };
 
@@ -78,105 +92,66 @@ async function loadGoogleOAuthClient() {
   });
 }
 
-async function requestGoogleAccessToken() {
-  if (!GOOGLE_OAUTH_CLIENT_ID) {
-    throw new Error("Google OAuth unavailable.");
+function encodeBase64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  bytes.forEach((b) => {
+    binary += String.fromCharCode(b);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function createPkcePair() {
+  const randomBytes = new Uint8Array(32);
+  (window.crypto || crypto).getRandomValues(randomBytes);
+  const verifier = encodeBase64Url(randomBytes);
+
+  try {
+    const digest = await (window.crypto || crypto).subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+    const challenge = encodeBase64Url(digest);
+    return { verifier, challenge };
+  } catch (err) {
+    // Fallback to plain verifier if hashing is unavailable.
+    return { verifier, challenge: verifier };
+  }
+}
+
+async function requestGoogleAuthorizationCode() {
+  if (!hasOAuthConfig) {
+    console.warn("[google-oauth] Missing clientId/redirectUri (no stack spam)");
+    const error = new Error("Google OAuth unavailable.");
+    error.code = "OAUTH_UNAVAILABLE";
+    throw error;
   }
 
   await loadGoogleOAuthClient();
+  const { verifier, challenge } = await createPkcePair();
+  const scopeString = GOOGLE_OAUTH_SCOPE.split(/\s+/)
+    .filter(Boolean)
+    .join(" ");
 
   return new Promise((resolve, reject) => {
     try {
-      const client = window.google.accounts.oauth2.initTokenClient({
+      const client = window.google.accounts.oauth2.initCodeClient({
         client_id: GOOGLE_OAUTH_CLIENT_ID,
-        scope: GOOGLE_OAUTH_SCOPE,
-        prompt: "consent",
+        scope: scopeString,
+        ux_mode: "popup",
+        redirect_uri: GOOGLE_OAUTH_REDIRECT_URI,
+        code_challenge: challenge,
+        code_challenge_method: "S256",
         callback: (response) => {
-          if (!response || response.error || !response.access_token) {
+          if (!response || response.error || !response.code) {
             reject(new Error("Unable to authorize with Google."));
             return;
           }
-          resolve(response.access_token);
+          resolve({ code: response.code, codeVerifier: verifier });
         },
       });
-      client.requestAccessToken();
+      client.requestCode();
     } catch (err) {
       reject(err);
     }
   });
-}
-
-async function fetchGoogleBusinessLocations(accessToken) {
-  if (!accessToken) throw new Error("Missing Google access token.");
-
-  const headers = { Authorization: `Bearer ${accessToken}` };
-  const accountsResponse = await fetch(
-    "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
-    { headers }
-  );
-
-  if (!accountsResponse.ok) {
-    const error = new Error("Unable to load Google Business accounts.");
-    error.code = "ACCOUNTS_UNAVAILABLE";
-    throw error;
-  }
-
-  const accountData = await accountsResponse.json();
-  const accounts = Array.isArray(accountData?.accounts) ? accountData.accounts : [];
-  const roleMap = new Map();
-  accounts.forEach((acct) => {
-    if (acct?.name) {
-      roleMap.set(acct.name, acct?.role || null);
-    }
-  });
-
-  const locations = [];
-  for (const account of accounts) {
-    const accountName = account?.name;
-    if (!accountName) continue;
-    const locationsUrl = new URL(
-      `https://mybusinessbusinessinformation.googleapis.com/v1/${accountName}/locations`
-    );
-    locationsUrl.searchParams.set(
-      "readMask",
-      [
-        "name",
-        "locationName",
-        "storefrontAddress",
-        "metadata",
-        "primaryCategory",
-        "regularHours",
-        "phoneNumbers",
-        "websiteUri",
-      ].join(",")
-    );
-
-    const locResponse = await fetch(locationsUrl.toString(), { headers });
-    if (!locResponse.ok) {
-      console.warn("[google-connect] failed to load locations for account", accountName);
-      continue;
-    }
-    const data = await locResponse.json();
-    const locs = Array.isArray(data?.locations) ? data.locations : [];
-    locs.forEach((loc) => {
-      const placeId = loc?.metadata?.placeId || loc?.metadata?.mapsUriPlaceId || null;
-      if (!placeId) return;
-      locations.push({
-        accountId: accountName,
-        locationId: loc?.name || null,
-        placeId,
-        name: loc?.title || loc?.locationName || "Business",
-        address: loc?.storefrontAddress?.addressLines?.join(" ") || "",
-        role: roleMap.get(accountName) || null,
-        phone:
-          loc?.phoneNumbers?.primaryPhone ||
-          loc?.phoneNumbers?.additionalPhones?.[0] ||
-          "",
-      });
-    });
-  }
-
-  return { accounts, locations };
 }
 
 function gatherAccountData() {
@@ -334,6 +309,8 @@ const connectGoogleBusinessByReviewLinkCallable = () =>
   httpsCallable(functions, "connectGoogleBusinessByReviewLink");
 const connectGoogleManualLinkCallable = () =>
   httpsCallable(functions, "connectGoogleManualLink");
+const exchangeGoogleAuthCodeCallable = () =>
+  httpsCallable(functions, "exchangeGoogleAuthCode");
 
 export async function connectPlaceOnBackend(
   place,
@@ -1053,6 +1030,16 @@ export function renderGoogleConnect(container, options = {}) {
 
   const startOAuthFlow = async () => {
     if (!oauthBtn) return;
+    if (!hasOAuthConfig) {
+      const unavailable = "Google OAuth unavailable.";
+      if (oauthStatusEl) {
+        oauthStatusEl.textContent = unavailable;
+        oauthStatusEl.style.color = "var(--danger)";
+      }
+      oauthBtn.textContent = unavailable;
+      oauthBtn.disabled = false;
+      return;
+    }
     if (currentConnectionCount() >= limit) {
       const upgradeMessage = planUpgradeMessage(planId, limit + 1);
       if (oauthStatusEl) {
@@ -1074,8 +1061,24 @@ export function renderGoogleConnect(container, options = {}) {
     oauthBtn.textContent = "Authorizing…";
 
     try {
-      const token = await requestGoogleAccessToken();
-      const { locations } = await fetchGoogleBusinessLocations(token);
+      const { code, codeVerifier } = await requestGoogleAuthorizationCode();
+      const exchange = exchangeGoogleAuthCodeCallable();
+      const response = await exchange({
+        code,
+        codeVerifier,
+        redirectUri: GOOGLE_OAUTH_REDIRECT_URI,
+        scopes: GOOGLE_OAUTH_SCOPE,
+      });
+      const payload = response?.data || {};
+      if (!payload.ok) {
+        const error = new Error(
+          payload?.message || "We couldn’t start Google OAuth. Try phone verification instead."
+        );
+        error.code = payload?.reason || "OAUTH_FAILED";
+        throw error;
+      }
+
+      const locations = Array.isArray(payload.locations) ? payload.locations : [];
       renderOAuthLocations(locations);
     } catch (err) {
       const message =
