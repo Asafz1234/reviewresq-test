@@ -92,20 +92,16 @@ async function ensureOAuthConfig({ logAvailability = false } = {}) {
   if (!oauthConfigPromise) {
     oauthConfigPromise = (async () => {
       try {
-        const callable = httpsCallable(functions, "googleAuthGetConfig");
-        const response = await callable();
-        const data = response?.data || {};
+        const response = await fetch(`${functionsBaseUrl}/googleAuthGetConfig`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+        const data = (await response.json()) || {};
         if (data?.clientId) {
           cachedOAuthConfig.clientId = data.clientId;
         }
         if (data?.redirectUri) {
           cachedOAuthConfig.redirectUri = data.redirectUri;
-        }
-        if (data?.scopes) {
-          cachedOAuthConfig.scopes = data.scopes;
-        }
-        if (typeof data?.enabled === "boolean") {
-          cachedOAuthConfig.enabled = data.enabled;
         }
       } catch (err) {
         // Swallow errors so the UI can still offer the phone fallback.
