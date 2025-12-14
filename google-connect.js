@@ -243,11 +243,15 @@ async function runWithPhoneMismatchConfirmation(executor, { message }) {
       err?.code === "PHONE_MISMATCH_CONFIRM_REQUIRED"
     ) {
       const mismatchMessage =
-        err?.message ||
         message ||
-        "The phone number on Google doesn’t match your profile.";
-      showToast(mismatchMessage, true);
-      throw err;
+        err?.message ||
+        "We can’t connect this Google profile because the phone number doesn’t match your business profile.";
+      return {
+        ok: false,
+        reason: err?.code || "PHONE_MISMATCH",
+        message: mismatchMessage,
+        payload: err?.payload || null,
+      };
     }
     throw err;
   }
@@ -262,7 +266,7 @@ export function connectPlaceWithConfirmation(place, { businessName } = {}) {
       businessName,
     });
   const confirmMessage =
-    "The phone number on Google doesn’t match the phone in your ReviewResQ profile. Please update your profile phone and try again.";
+    "We can’t connect this Google profile because the phone number doesn’t match your business profile.";
   return runWithPhoneMismatchConfirmation(executor, { message: confirmMessage });
 }
 
@@ -378,9 +382,12 @@ function createResultCard(
       try {
         const result = await onConnect(place);
         if (!result?.ok) {
-          throw new Error(
-            result?.message || "Unable to connect Google profile. Please try again."
-          );
+          const failureMessage =
+            result?.message || "Unable to connect Google profile. Please try again.";
+          showToast(failureMessage, true);
+          action.disabled = false;
+          action.textContent = originalText;
+          return;
         }
 
         action.textContent = "Connected";
@@ -392,13 +399,12 @@ function createResultCard(
             }
           });
       } catch (err) {
-        console.error("[google-connect] failed to connect", err);
+        const failureMessage =
+          err?.message || "Unable to connect Google profile. Please try again.";
+        console.error("[google-connect] failed to connect", failureMessage);
         action.disabled = false;
         action.textContent = originalText;
-        showToast(
-          err?.message || "Unable to connect Google profile. Please try again.",
-          true
-        );
+        showToast(failureMessage, true);
       }
     });
     item.appendChild(action);

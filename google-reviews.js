@@ -214,7 +214,17 @@ function renderUpsell(planId = "starter") {
 }
 
 async function persistGoogleSelection(place) {
-  if (!sessionState.user) return;
+  if (!sessionState.user) {
+    return {
+      ok: false,
+      reason: "NO_USER",
+      message: "You need to be signed in to connect your Google profile.",
+    };
+  }
+  const phoneMismatchMessage =
+    "We can’t connect this Google profile because the phone number doesn’t match your business profile.";
+  const defaultErrorMessage =
+    "Unable to connect Google profile. Please ensure the phone number matches your business profile.";
   try {
     const { refetchProfileAfterConnect, connectPlaceWithConfirmation } =
       await getGoogleConnectModule();
@@ -229,10 +239,14 @@ async function persistGoogleSelection(place) {
     const businessName = resolveConnectBusinessName(place);
     const response = await connectPlaceWithConfirmation(place, { businessName });
     if (!response?.ok) {
-      throw new Error(
-        response?.message ||
-          "Unable to connect Google profile. Please ensure the phone number matches your business profile."
-      );
+      return {
+        ok: false,
+        reason: response?.reason,
+        message: response?.message ||
+          (response?.reason === "PHONE_MISMATCH"
+            ? phoneMismatchMessage
+            : defaultErrorMessage),
+      };
     }
 
     sessionState.profile = await refetchProfileAfterConnect();
@@ -240,12 +254,16 @@ async function persistGoogleSelection(place) {
     loadGoogleData();
     return { ok: true };
   } catch (err) {
-    console.error("[google-reviews] failed to connect Google profile", err);
     const message =
-      err?.message ||
-      "Unable to connect Google profile. Please ensure the phone number matches your business profile.";
-    err.message = message;
-    throw err;
+      err?.reason === "PHONE_MISMATCH" || err?.code === "PHONE_MISMATCH"
+        ? phoneMismatchMessage
+        : err?.message || defaultErrorMessage;
+    console.error("[google-reviews] failed to connect Google profile", message);
+    return {
+      ok: false,
+      reason: err?.code || err?.reason || "ERROR",
+      message,
+    };
   }
 }
 

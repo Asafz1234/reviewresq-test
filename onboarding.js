@@ -72,6 +72,8 @@ async function saveBusinessProfile(place, { redirect = false } = {}) {
   const uid = user.uid;
   const businessName = (businessNameInput?.value || place?.name || "Your business").trim();
   setStatus("Saving…");
+  const defaultConnectError =
+    "Unable to connect Google profile. Please ensure the phone number matches your business profile.";
 
   try {
     const businessDocRef = doc(db, "businessProfiles", uid);
@@ -91,6 +93,10 @@ async function saveBusinessProfile(place, { redirect = false } = {}) {
         connectResult = { ok: true, googleReviewUrl: place.googleReviewUrl || null };
       } else {
         connectResult = await connectPlaceWithConfirmation(place, { businessName });
+        if (!connectResult?.ok) {
+          setStatus(connectResult?.message || defaultConnectError, true);
+          return;
+        }
       }
     }
 
