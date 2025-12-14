@@ -1,8 +1,9 @@
-import { getCachedProfile, refreshProfile } from "./session-data.js";
+import { getCachedProfile, getCachedSubscription, refreshProfile } from "./session-data.js";
 import { functions, httpsCallable } from "./firebase-config.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
+const GOOGLE_OAUTH_SCOPE = "https://www.googleapis.com/auth/business.manage";
 const placesProxyUrl =
   (runtimeEnv && runtimeEnv.GOOGLE_PLACES_PROXY_URL) ||
   "https://us-central1-reviewresq-app.cloudfunctions.net/googlePlacesSearch";
@@ -20,7 +21,163 @@ const functionsBaseUrl =
   runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL ||
   defaultFunctionsBase;
 
+const GOOGLE_OAUTH_CLIENT_ID =
+  runtimeEnv.GOOGLE_OAUTH_CLIENT_ID || runtimeEnv.GOOGLE_CLIENT_ID || "";
+
 export { functionsBaseUrl };
+
+function normalizePlan(planId = "starter") {
+  const value = (planId || "starter").toString().toLowerCase();
+  if (value === "growth") return "growth";
+  if (value === "pro_ai" || value === "pro" || value === "pro_ai_suite") return "pro_ai";
+  return "starter";
+}
+
+function planLocationLimit(planId = "starter") {
+  const normalized = normalizePlan(planId);
+  if (normalized === "growth") return 2;
+  if (normalized === "pro_ai") return 15;
+  return 1;
+}
+
+function planUpgradeMessage(planId = "starter", attempted = 1) {
+  const normalized = normalizePlan(planId);
+  if (normalized === "starter" && attempted > 1) {
+    return "Upgrade to Growth to connect up to 2 locations.";
+  }
+  if (normalized === "growth" && attempted > 2) {
+    return "Upgrade to Pro AI Suite to connect up to 15 locations.";
+  }
+  if (normalized === "pro_ai" && attempted > 15) {
+    return "You’ve reached the maximum of 15 locations. Contact support if you need more.";
+  }
+  return "";
+}
+
+async function loadGoogleOAuthClient() {
+  if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+    return;
+  }
+
+  await new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (existing) {
+      existing.addEventListener("load", resolve, { once: true });
+      existing.addEventListener("error", () => reject(new Error("Failed to load Google OAuth")), {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Google OAuth"));
+    document.head.appendChild(script);
+  });
+}
+
+async function requestGoogleAccessToken() {
+  if (!GOOGLE_OAUTH_CLIENT_ID) {
+    throw new Error("Google OAuth unavailable.");
+  }
+
+  await loadGoogleOAuthClient();
+
+  return new Promise((resolve, reject) => {
+    try {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_OAUTH_CLIENT_ID,
+        scope: GOOGLE_OAUTH_SCOPE,
+        prompt: "consent",
+        callback: (response) => {
+          if (!response || response.error || !response.access_token) {
+            reject(new Error("Unable to authorize with Google."));
+            return;
+          }
+          resolve(response.access_token);
+        },
+      });
+      client.requestAccessToken();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+async function fetchGoogleBusinessLocations(accessToken) {
+  if (!accessToken) throw new Error("Missing Google access token.");
+
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  const accountsResponse = await fetch(
+    "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
+    { headers }
+  );
+
+  if (!accountsResponse.ok) {
+    const error = new Error("Unable to load Google Business accounts.");
+    error.code = "ACCOUNTS_UNAVAILABLE";
+    throw error;
+  }
+
+  const accountData = await accountsResponse.json();
+  const accounts = Array.isArray(accountData?.accounts) ? accountData.accounts : [];
+  const roleMap = new Map();
+  accounts.forEach((acct) => {
+    if (acct?.name) {
+      roleMap.set(acct.name, acct?.role || null);
+    }
+  });
+
+  const locations = [];
+  for (const account of accounts) {
+    const accountName = account?.name;
+    if (!accountName) continue;
+    const locationsUrl = new URL(
+      `https://mybusinessbusinessinformation.googleapis.com/v1/${accountName}/locations`
+    );
+    locationsUrl.searchParams.set(
+      "readMask",
+      [
+        "name",
+        "locationName",
+        "storefrontAddress",
+        "metadata",
+        "primaryCategory",
+        "regularHours",
+        "phoneNumbers",
+        "websiteUri",
+      ].join(",")
+    );
+
+    const locResponse = await fetch(locationsUrl.toString(), { headers });
+    if (!locResponse.ok) {
+      console.warn("[google-connect] failed to load locations for account", accountName);
+      continue;
+    }
+    const data = await locResponse.json();
+    const locs = Array.isArray(data?.locations) ? data.locations : [];
+    locs.forEach((loc) => {
+      const placeId = loc?.metadata?.placeId || loc?.metadata?.mapsUriPlaceId || null;
+      if (!placeId) return;
+      locations.push({
+        accountId: accountName,
+        locationId: loc?.name || null,
+        placeId,
+        name: loc?.title || loc?.locationName || "Business",
+        address: loc?.storefrontAddress?.addressLines?.join(" ") || "",
+        role: roleMap.get(accountName) || null,
+        phone:
+          loc?.phoneNumbers?.primaryPhone ||
+          loc?.phoneNumbers?.additionalPhones?.[0] ||
+          "",
+      });
+    });
+  }
+
+  return { accounts, locations };
+}
 
 function gatherAccountData() {
   const cachedProfile = (typeof getCachedProfile === "function" && getCachedProfile()) || {};
@@ -32,6 +189,19 @@ function gatherAccountData() {
     {};
 
   return { cachedProfile, globals };
+}
+
+function currentConnectionCount() {
+  const { cachedProfile } = gatherAccountData();
+  const multi =
+    cachedProfile?.googleLocations ||
+    cachedProfile?.connectedLocations ||
+    cachedProfile?.googleAccounts ||
+    [];
+  if (Array.isArray(multi) && multi.length) {
+    return multi.length;
+  }
+  return cachedProfile?.googlePlaceId ? 1 : 0;
 }
 
 function buildLocationString() {
@@ -270,6 +440,45 @@ export function connectPlaceWithConfirmation(place, { businessName } = {}) {
   return runWithPhoneMismatchConfirmation(executor, { message: confirmMessage });
 }
 
+async function connectSelectedLocations(locations = [], { onConnect, statusEl }) {
+  if (!Array.isArray(locations) || !locations.length) {
+    return { ok: false, reason: "NO_SELECTION", message: "Select at least one location." };
+  }
+
+  const results = [];
+  for (const loc of locations) {
+    if (statusEl) {
+      statusEl.textContent = `Connecting ${loc.name || "location"}…`;
+    }
+    const connectPayload = {
+      name: loc.name,
+      place_id: loc.placeId,
+      placeId: loc.placeId,
+      phoneNumber: loc.phone || "",
+      role: loc.role || null,
+      accountId: loc.accountId || null,
+      locationId: loc.locationId || null,
+    };
+    const response = await onConnect(connectPayload);
+    if (!response?.ok) {
+      return {
+        ok: false,
+        reason: response?.reason || "ERROR",
+        message:
+          response?.message ||
+          "Unable to connect this Google profile right now. Please try again.",
+      };
+    }
+    results.push({ location: loc, response });
+  }
+
+  if (statusEl) {
+    statusEl.textContent = "Connected";
+  }
+
+  return { ok: true, results };
+}
+
 export function connectReviewLinkWithConfirmation(reviewUrl) {
   const executor = () => connectByReviewLink(reviewUrl, { force: false });
   const confirmMessage =
@@ -463,13 +672,14 @@ export function renderGoogleConnect(container, options = {}) {
   if (!container) return;
   const {
     title = "Connect your Google Reviews",
-    subtitle = "Link your Google Business Profile to see your live rating, distribution, and recent reviews here.",
+    subtitle = "Securely connect businesses you own or manage on Google.",
     helperText = "Start typing your business name as it appears on Google.",
     onConnect = () => {},
     onManualConnect = null,
     onSkip,
     showSkip = false,
     defaultQuery = "",
+    planId: providedPlanId = "starter",
   } = options;
 
   container.innerHTML = `
@@ -486,6 +696,13 @@ export function renderGoogleConnect(container, options = {}) {
         }
       </div>
       <div class="stacked">
+        <div class="stacked">
+          <button class="btn btn-primary" type="button" data-google-oauth>Connect with Google</button>
+          <p class="card-subtitle">Securely connect businesses you own or manage on Google.</p>
+          <p class="card-subtitle" data-google-oauth-status></p>
+          <div class="connect-results" data-google-oauth-results></div>
+        </div>
+        <div class="divider"></div>
         <label class="strong" for="google-business-input">Business name</label>
         <input
           id="google-business-input"
@@ -514,7 +731,7 @@ export function renderGoogleConnect(container, options = {}) {
         />
         <p class="card-subtitle">${helperText}</p>
         <div class="input-row">
-          <button class="btn btn-primary" type="button" data-google-search>Search</button>
+          <button class="btn btn-outline" type="button" data-google-search>Use phone verification</button>
         </div>
         <div class="connect-results" data-google-results></div>
         <p class="card-subtitle" data-connect-message></p>
@@ -523,6 +740,7 @@ export function renderGoogleConnect(container, options = {}) {
   `;
 
   const searchBtn = container.querySelector("[data-google-search]");
+  const oauthBtn = container.querySelector("[data-google-oauth]");
   const nameInput = container.querySelector("#google-business-input") ||
     container.querySelector("[data-google-name]") ||
     container.querySelector("[data-google-query]");
@@ -531,8 +749,13 @@ export function renderGoogleConnect(container, options = {}) {
   const phoneInput = container.querySelector("#google-business-phone") ||
     container.querySelector("[data-google-phone]");
   const resultsEl = container.querySelector("[data-google-results]");
+  const oauthResultsEl = container.querySelector("[data-google-oauth-results]");
+  const oauthStatusEl = container.querySelector("[data-google-oauth-status]");
   const messageEl = container.querySelector("[data-connect-message]");
   const skipBtn = container.querySelector("[data-connect-skip]");
+  const subscription = getCachedSubscription?.();
+  const planId = normalizePlan(providedPlanId || subscription?.planId || "starter");
+  const limit = planLocationLimit(planId);
 
   const connectAndReport = async (place) => {
     const enrichedPlace = {
@@ -710,6 +933,164 @@ export function renderGoogleConnect(container, options = {}) {
     skipBtn.addEventListener("click", () => onSkip());
   }
 
+  const renderOAuthLocations = (locations = []) => {
+    if (!oauthResultsEl) return;
+    oauthResultsEl.innerHTML = "";
+    const info = document.createElement("p");
+    info.className = "card-subtitle";
+    info.textContent = `Select up to ${limit} location${limit > 1 ? "s" : ""} based on your plan.`;
+    oauthResultsEl.appendChild(info);
+
+    if (!locations.length) {
+      const empty = document.createElement("p");
+      empty.className = "card-subtitle";
+      empty.textContent = "We couldn’t find any Google Business locations for this account.";
+      oauthResultsEl.appendChild(empty);
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "stacked";
+    locations.forEach((loc) => {
+      const row = document.createElement("label");
+      row.className = "connect-result__row";
+      row.innerHTML = `
+        <input type="checkbox" value="${loc.placeId}" data-google-oauth-location />
+        <div>
+          <p class="strong">${loc.name || "Business"}</p>
+          <p class="card-subtitle">${loc.address || "Address unavailable"}</p>
+          <p class="card-subtitle">${loc.role ? `Role: ${loc.role}` : ""}</p>
+        </div>
+      `;
+      const checkbox = row.querySelector("input[type=checkbox]");
+      if (checkbox) {
+        checkbox.dataset.accountId = loc.accountId || "";
+        checkbox.dataset.locationId = loc.locationId || "";
+        checkbox.dataset.name = loc.name || "";
+        checkbox.dataset.phone = loc.phone || "";
+      }
+      list.appendChild(row);
+    });
+    oauthResultsEl.appendChild(list);
+
+    const actions = document.createElement("div");
+    actions.className = "input-row";
+    const connectBtn = document.createElement("button");
+    connectBtn.className = "btn btn-primary";
+    connectBtn.textContent = "Connect selected";
+    const status = document.createElement("p");
+    status.className = "card-subtitle";
+    status.dataset.status = "";
+
+    const handleSelection = async () => {
+      const selectedBoxes = Array.from(
+        list.querySelectorAll('input[type="checkbox"]:checked') || []
+      );
+      const selectedLocations = selectedBoxes.map((box) => ({
+        placeId: box.value,
+        accountId: box.dataset.accountId || "",
+        locationId: box.dataset.locationId || "",
+        name: box.dataset.name || "",
+        phone: box.dataset.phone || "",
+      }));
+
+      const attempted = selectedLocations.length + currentConnectionCount();
+      const overLimit = attempted > limit;
+      if (!selectedLocations.length || overLimit) {
+        const upgrade = planUpgradeMessage(planId, attempted || limit + 1);
+        const message = upgrade || "Select at least one location to continue.";
+        if (status) {
+          status.textContent = message;
+          status.style.color = "var(--danger)";
+        }
+        if (upgrade) {
+          showToast(upgrade, true);
+        }
+        return;
+      }
+
+      connectBtn.disabled = true;
+      connectBtn.textContent = "Connecting…";
+      status.textContent = "";
+      status.style.color = "";
+      try {
+        const response = await connectSelectedLocations(selectedLocations, {
+          onConnect: connectAndReport,
+          statusEl: status,
+        });
+        if (!response?.ok) {
+          const failure =
+            response?.message ||
+            "Unable to connect this Google profile right now. Please try again.";
+          status.textContent = failure;
+          status.style.color = "var(--danger)";
+          showToast(failure, true);
+          connectBtn.disabled = false;
+          connectBtn.textContent = "Connect selected";
+          return;
+        }
+
+        status.textContent = "Connected";
+        status.style.color = "var(--success)";
+        showToast("Google profile connected.");
+      } catch (err) {
+        const failure =
+          err?.message || "Unable to connect Google profile right now. Please try again.";
+        status.textContent = failure;
+        status.style.color = "var(--danger)";
+        showToast(failure, true);
+      } finally {
+        connectBtn.disabled = false;
+        connectBtn.textContent = "Connect selected";
+      }
+    };
+
+    connectBtn.addEventListener("click", handleSelection);
+    actions.appendChild(connectBtn);
+    oauthResultsEl.appendChild(actions);
+    oauthResultsEl.appendChild(status);
+  };
+
+  const startOAuthFlow = async () => {
+    if (!oauthBtn) return;
+    if (currentConnectionCount() >= limit) {
+      const upgradeMessage = planUpgradeMessage(planId, limit + 1);
+      if (oauthStatusEl) {
+        oauthStatusEl.textContent = upgradeMessage;
+        oauthStatusEl.style.color = "var(--danger)";
+      }
+      showToast(upgradeMessage || "Plan limit reached.", true);
+      return;
+    }
+    if (oauthStatusEl) {
+      oauthStatusEl.textContent = "";
+      oauthStatusEl.style.color = "";
+    }
+    if (oauthResultsEl) {
+      oauthResultsEl.innerHTML = "";
+    }
+    oauthBtn.disabled = true;
+    const originalText = oauthBtn.textContent;
+    oauthBtn.textContent = "Authorizing…";
+
+    try {
+      const token = await requestGoogleAccessToken();
+      const { locations } = await fetchGoogleBusinessLocations(token);
+      renderOAuthLocations(locations);
+    } catch (err) {
+      const message =
+        err?.message || "We couldn’t start Google OAuth. Try phone verification instead.";
+      if (oauthStatusEl) {
+        oauthStatusEl.textContent = message;
+        oauthStatusEl.style.color = "var(--danger)";
+      }
+      showToast(message, true);
+    } finally {
+      oauthBtn.disabled = false;
+      oauthBtn.textContent = originalText || "Connect with Google";
+    }
+  };
+
   async function handleSearch() {
     const name = nameInput ? nameInput.value.trim() : "";
     const state = stateInput ? stateInput.value.trim() : "";
@@ -881,6 +1262,7 @@ export function renderGoogleConnect(container, options = {}) {
   }
 
   if (searchBtn) searchBtn.addEventListener("click", handleSearch);
+  if (oauthBtn) oauthBtn.addEventListener("click", startOAuthFlow);
   if (nameInput) {
     nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
