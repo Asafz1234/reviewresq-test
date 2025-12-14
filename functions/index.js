@@ -35,6 +35,21 @@ const toE164US = (digits10 = "") =>
 
 const isForceConnectTestMode = () => TEST_MODE;
 
+const resolveGoogleOAuthServerConfig = () => ({
+  clientId:
+    process.env.GOOGLE_OAUTH_CLIENT_ID ||
+    functions.config()?.google?.oauth_client_id ||
+    null,
+  clientSecret:
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET ||
+    functions.config()?.google?.oauth_client_secret ||
+    null,
+  redirectUri:
+    process.env.GOOGLE_OAUTH_REDIRECT_URI ||
+    functions.config()?.google?.oauth_redirect_uri ||
+    null,
+});
+
 const extractStateFromAddress = (formattedAddress = "") => {
   const upper = String(formattedAddress || "").toUpperCase();
 
@@ -187,6 +202,83 @@ const resolvePlaceIdFromCid = async ({ apiKey, cid }) => {
   const data = await response.json();
   const candidate = Array.isArray(data?.candidates) ? data.candidates[0] : null;
   return candidate?.place_id || null;
+};
+
+const fetchGoogleBusinessLocationsWithToken = async (accessToken) => {
+  if (!accessToken) {
+    const error = new Error("Missing Google access token.");
+    error.code = "ACCESS_TOKEN_MISSING";
+    throw error;
+  }
+
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  const accountsResponse = await fetch(
+    "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
+    { headers }
+  );
+
+  if (!accountsResponse.ok) {
+    const error = new Error("Unable to load Google Business accounts.");
+    error.code = "ACCOUNTS_UNAVAILABLE";
+    throw error;
+  }
+
+  const accountData = await accountsResponse.json();
+  const accounts = Array.isArray(accountData?.accounts) ? accountData.accounts : [];
+  const roleMap = new Map();
+  accounts.forEach((acct) => {
+    if (acct?.name) {
+      roleMap.set(acct.name, acct?.role || null);
+    }
+  });
+
+  const locations = [];
+  for (const account of accounts) {
+    const accountName = account?.name;
+    if (!accountName) continue;
+    const locationsUrl = new URL(
+      `https://mybusinessbusinessinformation.googleapis.com/v1/${accountName}/locations`
+    );
+    locationsUrl.searchParams.set(
+      "readMask",
+      [
+        "name",
+        "locationName",
+        "storefrontAddress",
+        "metadata",
+        "primaryCategory",
+        "regularHours",
+        "phoneNumbers",
+        "websiteUri",
+      ].join(",")
+    );
+
+    const locResponse = await fetch(locationsUrl.toString(), { headers });
+    if (!locResponse.ok) {
+      console.warn("[exchangeGoogleAuthCode] failed to load locations for account", accountName);
+      continue;
+    }
+    const data = await locResponse.json();
+    const locs = Array.isArray(data?.locations) ? data.locations : [];
+    locs.forEach((loc) => {
+      const placeId = loc?.metadata?.placeId || loc?.metadata?.mapsUriPlaceId || null;
+      if (!placeId) return;
+      locations.push({
+        accountId: accountName,
+        locationId: loc?.name || null,
+        placeId,
+        name: loc?.title || loc?.locationName || "Business",
+        address: loc?.storefrontAddress?.addressLines?.join(" ") || "",
+        role: roleMap.get(accountName) || null,
+        phone:
+          loc?.phoneNumbers?.primaryPhone ||
+          loc?.phoneNumbers?.additionalPhones?.[0] ||
+          "",
+      });
+    });
+  }
+
+  return { accounts, locations };
 };
 
 const setCorsHeaders = (req, res) => {
@@ -731,6 +823,95 @@ exports.health = functions.https.onRequest((req, res) => {
   }
 
   res.json({ ok: true, buildId: BUILD_ID, testMode: TEST_MODE });
+});
+
+exports.googleAuthGetConfig = functions.https.onCall(async () => {
+  const oauthConfig = resolveGoogleOAuthServerConfig();
+  const scopes =
+    process.env.GOOGLE_OAUTH_SCOPES ||
+    functions.config()?.google?.oauth_scopes ||
+    "https://www.googleapis.com/auth/business.manage";
+
+  return {
+    ok: true,
+    enabled: Boolean(oauthConfig.clientId && oauthConfig.redirectUri),
+    clientId: oauthConfig.clientId || null,
+    redirectUri: oauthConfig.redirectUri || null,
+    scopes,
+  };
+});
+
+exports.exchangeGoogleAuthCode = functions.https.onCall(async (data, context) => {
+  if (!context.auth || !context.auth.uid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication required to exchange Google OAuth code."
+    );
+  }
+
+  const code = data?.code;
+  const codeVerifier = data?.codeVerifier;
+  if (!code || !codeVerifier) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Authorization code and codeVerifier are required."
+    );
+  }
+
+  const oauthConfig = resolveGoogleOAuthServerConfig();
+  if (!oauthConfig.clientId || !oauthConfig.clientSecret || !oauthConfig.redirectUri) {
+    return {
+      ok: false,
+      reason: "OAUTH_CONFIG_MISSING",
+      message: "Google OAuth is not configured.",
+    };
+  }
+
+  try {
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        code_verifier: codeVerifier,
+        client_id: oauthConfig.clientId,
+        client_secret: oauthConfig.clientSecret,
+        redirect_uri: oauthConfig.redirectUri,
+        grant_type: "authorization_code",
+      }).toString(),
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text().catch(() => "");
+      return {
+        ok: false,
+        reason: "TOKEN_EXCHANGE_FAILED",
+        message: "Unable to exchange Google authorization code.",
+        details: errorText || null,
+      };
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData?.access_token;
+    if (!accessToken) {
+      return {
+        ok: false,
+        reason: "TOKEN_MISSING",
+        message: "Google OAuth response did not include an access token.",
+      };
+    }
+
+    const { accounts, locations } = await fetchGoogleBusinessLocationsWithToken(accessToken);
+
+    return { ok: true, accounts, locations };
+  } catch (err) {
+    console.error("[exchangeGoogleAuthCode] unexpected error", err);
+    return {
+      ok: false,
+      reason: err?.code || "OAUTH_ERROR",
+      message: err?.message || "Failed to complete Google OAuth.",
+    };
+  }
 });
 
 exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => {

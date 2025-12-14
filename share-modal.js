@@ -1,4 +1,6 @@
 const initShareModal = () => {
+  if (typeof document === 'undefined') return;
+
   const modal = document.querySelector('#share-modal');
   if (!modal) return;
 
@@ -26,9 +28,11 @@ const initShareModal = () => {
   });
 };
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initShareModal);
-} else {
-  initShareModal();
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initShareModal);
+  } else {
+    initShareModal();
+  }
 }
 

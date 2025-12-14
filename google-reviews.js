@@ -39,6 +39,9 @@ const changeProfileBtn = document.querySelector("[data-change-google]");
 const planBadge = document.querySelector("[data-plan-badge]");
 const upsellContainer = document.querySelector("[data-google-upsell]");
 const connectionStateBadge = document.querySelector("[data-google-connection-state]");
+const verificationBadge = document.querySelector("[data-google-verification]");
+const pageHeaderActions = document.querySelector(".page-header-actions");
+let locationSelectorEl = null;
 
 const debugBadgeLabels = ["project", "origin", "build", "test mode"];
 
@@ -62,6 +65,7 @@ if (document.readyState === "loading") {
 const toastId = "feedback-toast";
 let sessionState = { user: null, profile: null, subscription: null };
 let changeListenerAttached = false;
+let activeLocationId = null;
 
 function resolveConnectBusinessName(place = {}) {
   const inputName = (place.__inputBusinessName || "").trim();
@@ -83,6 +87,74 @@ function planLabel(plan) {
       return "Pro AI Suite";
     default:
       return "Starter";
+  }
+}
+
+function planLocationLimit(plan) {
+  switch (plan) {
+    case "growth":
+      return 2;
+    case "pro_ai":
+      return 15;
+    default:
+      return 1;
+  }
+}
+
+function deriveConnectedLocations(profile = {}) {
+  const sources =
+    profile.googleLocations ||
+    profile.connectedLocations ||
+    profile.googleAccounts ||
+    [];
+  if (Array.isArray(sources) && sources.length) {
+    return sources
+      .map((item) => ({
+        id: item.locationId || item.placeId || item.googlePlaceId || item.id || item.name,
+        placeId: item.placeId || item.googlePlaceId || item.id,
+        googleProfile: item.googleProfile || item,
+        verificationMethod: item.verificationMethod || item.connectionMethod,
+        provider: item.provider || "google",
+        role: item.role || item.userRole || null,
+        phoneVerified: item.verificationMethod === "phone",
+        googleReviewUrl: item.googleReviewUrl || profile.googleReviewUrl || "",
+      }))
+      .filter((loc) => loc.placeId || loc.id);
+  }
+
+  if (profile.googlePlaceId || profile.googleProfile) {
+    return [
+      {
+        id: profile.googlePlaceId || profile.id || "primary",
+        placeId: profile.googlePlaceId || profile.id,
+        googleProfile: profile.googleProfile || profile,
+        verificationMethod: profile.connectionMethod || profile.verificationMethod || "google_oauth",
+        provider: "google",
+        googleReviewUrl: profile.googleReviewUrl || "",
+      },
+    ];
+  }
+  return [];
+}
+
+function storeActiveLocation(id) {
+  activeLocationId = id || null;
+  try {
+    if (id) {
+      sessionStorage.setItem("rrq_active_google_location", id);
+    } else {
+      sessionStorage.removeItem("rrq_active_google_location");
+    }
+  } catch (err) {
+    console.warn("[google-reviews] unable to persist active location", err);
+  }
+}
+
+function resolveStoredLocationId() {
+  try {
+    return sessionStorage.getItem("rrq_active_google_location");
+  } catch (err) {
+    return null;
   }
 }
 
@@ -142,6 +214,12 @@ function renderProfile(profile, googleMetrics = {}) {
       connectionStateBadge.style.display = "none";
     }
   }
+  if (verificationBadge) {
+    verificationBadge.textContent = manualConnected
+      ? "Verified via phone"
+      : "Verified by Google";
+    verificationBadge.style.display = "inline-block";
+  }
 }
 
 function renderRatingBreakdown(breakdown) {
@@ -175,6 +253,51 @@ function renderReviews(items = []) {
     `;
     reviewList.appendChild(container);
   });
+}
+
+function renderLocationSelector(locations = [], plan = "starter") {
+  if (!pageHeaderActions) return;
+  const normalizedPlan = normalizePlan(plan);
+  const shouldShowSelector =
+    (normalizedPlan === "growth" && locations.length >= 2) ||
+    (normalizedPlan === "pro_ai" && locations.length >= 2);
+
+  if (!shouldShowSelector) {
+    if (locationSelectorEl?.parentNode) {
+      locationSelectorEl.parentNode.removeChild(locationSelectorEl);
+    }
+    locationSelectorEl = null;
+    return;
+  }
+
+  if (!locationSelectorEl) {
+    locationSelectorEl = document.createElement("div");
+    locationSelectorEl.className = "input-row";
+    locationSelectorEl.innerHTML = `
+      <label class="strong" for="active-google-location">Active location</label>
+      <select class="input" id="active-google-location" data-active-location></select>
+    `;
+    pageHeaderActions.appendChild(locationSelectorEl);
+  }
+
+  const select = locationSelectorEl.querySelector("select[data-active-location]");
+  if (!select) return;
+  select.innerHTML = "";
+  locations.forEach((loc) => {
+    const option = document.createElement("option");
+    option.value = loc.id || loc.placeId;
+    option.textContent = loc.googleProfile?.name || loc.name || "Location";
+    if (option.value === activeLocationId) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+
+  select.onchange = (event) => {
+    const value = event.target?.value || null;
+    storeActiveLocation(value);
+    loadGoogleData();
+  };
 }
 
 function toggleViews(isConnected) {
@@ -250,6 +373,9 @@ async function persistGoogleSelection(place) {
     }
 
     sessionState.profile = await refetchProfileAfterConnect();
+    if (place?.place_id || place?.placeId) {
+      storeActiveLocation(place.place_id || place.placeId);
+    }
     showToast("Google profile connected.");
     loadGoogleData();
     return { ok: true };
@@ -290,33 +416,51 @@ async function renderConnectCard() {
   toggleViews(false);
   renderGoogleConnect(connectContainer, {
     title: "Connect your Google Reviews",
-    subtitle:
-      "Link your Google Business Profile to see your live rating, distribution, and recent reviews here.",
+    subtitle: "Securely connect businesses you own or manage on Google.",
     helperText: "Start typing your business name as it appears on Google.",
     defaultQuery: sessionState.profile?.businessName || "",
     onConnect: persistGoogleSelection,
     onManualConnect: persistManualGoogleLink,
+    planId: normalizePlan(sessionState.subscription?.planId || "starter"),
   });
 }
 
 async function loadGoogleData() {
+  const plan = normalizePlan(sessionState.subscription?.planId || "starter");
+  const locations = deriveConnectedLocations(sessionState.profile || {});
+  if (!activeLocationId) {
+    activeLocationId = resolveStoredLocationId();
+  }
+  const selected =
+    locations.find((loc) => loc.id === activeLocationId || loc.placeId === activeLocationId) ||
+    locations[0] ||
+    null;
+  if (selected && selected.id !== activeLocationId) {
+    storeActiveLocation(selected.id);
+  }
+  renderLocationSelector(locations, plan);
+  const profileView = selected?.googleProfile
+    ? { ...sessionState.profile, googleProfile: selected.googleProfile, googlePlaceId: selected.placeId }
+    : sessionState.profile;
+
   const manualConnected = Boolean(
-    sessionState.profile?.googleConnectionType === "manual" ||
-      sessionState.profile?.googleProfile?.connectionType === "manual" ||
-      sessionState.profile?.googleProfile?.manualConnected ||
-      sessionState.profile?.googleManualConnection === true ||
-      sessionState.profile?.googleReviewLink ||
-      sessionState.profile?.googleManualLink
+    profileView?.googleConnectionType === "manual" ||
+      profileView?.googleProfile?.connectionType === "manual" ||
+      profileView?.googleProfile?.manualConnected ||
+      profileView?.googleManualConnection === true ||
+      profileView?.googleReviewLink ||
+      profileView?.googleManualLink ||
+      selected?.verificationMethod === "phone"
   );
-  const isConnected = Boolean(sessionState.profile?.googlePlaceId || manualConnected);
+  const isConnected = Boolean(profileView?.googlePlaceId || manualConnected);
   toggleViews(isConnected);
   if (!isConnected) {
     await renderConnectCard();
     return;
   }
-  const shouldSkipGoogleData = manualConnected && !sessionState.profile?.googlePlaceId;
+  const shouldSkipGoogleData = manualConnected && !profileView?.googlePlaceId;
   if (shouldSkipGoogleData) {
-    renderProfile(sessionState.profile, {});
+    renderProfile(profileView, {});
     if (ratingBadges.rating) {
       ratingBadges.rating.textContent = "Google rating unavailable";
     }
@@ -333,7 +477,7 @@ async function loadGoogleData() {
   const googleReviews = reviews.filter((r) => r.source === "google").map(describeReview);
   const metrics = calculateMetrics(googleReviews);
   const breakdown = buildRatingBreakdown(googleReviews);
-  renderProfile(sessionState.profile, metrics);
+  renderProfile(profileView, metrics);
   renderRatingBreakdown(breakdown);
   renderReviews(googleReviews.slice(0, 10));
 }
