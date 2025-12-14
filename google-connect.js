@@ -520,6 +520,23 @@ export function renderGoogleConnect(container, options = {}) {
   const messageEl = container.querySelector("[data-connect-message]");
   const skipBtn = container.querySelector("[data-connect-skip]");
 
+  const connectAndReport = async (place) => {
+    const result = await onConnect(place);
+    if (result?.ok) {
+      if (messageEl) {
+        messageEl.textContent = "Google profile connected!";
+        messageEl.style.color = "var(--success)";
+      }
+      return result;
+    }
+
+    const error = new Error(
+      result?.message || "Unable to connect Google profile. Please try again."
+    );
+    error.payload = result;
+    throw error;
+  };
+
   let activeManualOverlay = null;
 
   const closeManualOverlay = () => {
@@ -748,11 +765,7 @@ export function renderGoogleConnect(container, options = {}) {
 
       if (data?.reason === "EXACT_MATCH" && data.match) {
         const primary = normalizePlace(data.match);
-        const primaryCard = createResultCard(primary, async (selected) => {
-          await onConnect(selected);
-          messageEl.textContent = "Google profile connected!";
-          messageEl.style.color = "var(--success)";
-        });
+        const primaryCard = createResultCard(primary, connectAndReport);
         const heading = document.createElement("p");
         heading.className = "strong";
         heading.textContent = "Best match";
@@ -793,11 +806,7 @@ export function renderGoogleConnect(container, options = {}) {
       list.forEach((place) => {
         const row = createResultCard(
           place,
-          async (selected) => {
-            await onConnect(selected);
-            messageEl.textContent = "Google profile connected!";
-            messageEl.style.color = "var(--success)";
-          },
+          connectAndReport,
           {
             buttonLabel:
               data?.reason === "NO_PHONE_MATCH" ? "This is my business" : "Connect",
