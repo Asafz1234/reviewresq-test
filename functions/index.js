@@ -1006,9 +1006,9 @@ const isAllowedGoogleAuthOrigin = (origin = "") => {
   const allowedOrigins = new Set([
     "https://reviewresq.com",
     "https://www.reviewresq.com",
+    "http://localhost:5000",
   ]);
-  if (allowedOrigins.has(origin)) return true;
-  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin || "");
+  return allowedOrigins.has(origin);
 };
 
 const googleAuthCors = cors({
