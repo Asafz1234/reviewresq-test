@@ -104,11 +104,16 @@ async function ensureOAuthConfig({ logAvailability = false } = {}) {
         if (data?.scopes) {
           cachedOAuthConfig.scopes = data.scopes;
         }
+        if (typeof data?.enabled === "boolean") {
+          cachedOAuthConfig.enabled = data.enabled;
+        }
       } catch (err) {
         // Swallow errors so the UI can still offer the phone fallback.
       }
       const hasConfig = Boolean(
-        cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri
+        cachedOAuthConfig.clientId &&
+          cachedOAuthConfig.redirectUri &&
+          (cachedOAuthConfig.enabled ?? true)
       );
       if (hasConfig) {
         restoreOAuthAvailable();
@@ -122,7 +127,9 @@ async function ensureOAuthConfig({ logAvailability = false } = {}) {
 
   const resolved = await oauthConfigPromise;
   if (logAvailability) {
-    const hasConfig = Boolean(resolved?.clientId && resolved?.redirectUri);
+    const hasConfig = Boolean(
+      resolved?.clientId && resolved?.redirectUri && (resolved?.enabled ?? true)
+    );
     if (hasConfig) {
       restoreOAuthAvailable();
     } else {
@@ -216,6 +223,18 @@ async function createPkcePair() {
   }
 }
 
+async function createOAuthStateToken() {
+  const callable = createGoogleOAuthStateCallable();
+  const response = await callable();
+  const data = response?.data || {};
+  if (!data.ok || !data.state) {
+    const error = new Error("Google OAuth unavailable.");
+    error.code = data?.reason || "OAUTH_UNAVAILABLE";
+    throw error;
+  }
+  return data.state;
+}
+
 async function requestGoogleAuthorizationCode() {
   const config = await ensureOAuthConfig({ logAvailability: true });
   if (!config?.clientId || !config?.redirectUri) {
@@ -227,6 +246,7 @@ async function requestGoogleAuthorizationCode() {
 
   await loadGoogleOAuthClient();
   const { verifier, challenge } = await createPkcePair();
+  const state = await createOAuthStateToken();
   const scopeString = (config.scopes || GOOGLE_OAUTH_SCOPE)
     .split(/\s+/)
     .filter(Boolean)
@@ -239,6 +259,7 @@ async function requestGoogleAuthorizationCode() {
         scope: scopeString,
         ux_mode: "popup",
         redirect_uri: config.redirectUri,
+        state,
         code_challenge: challenge,
         code_challenge_method: "S256",
         callback: (response) => {
@@ -246,7 +267,7 @@ async function requestGoogleAuthorizationCode() {
             reject(new Error("Unable to authorize with Google."));
             return;
           }
-          resolve({ code: response.code, codeVerifier: verifier });
+          resolve({ code: response.code, codeVerifier: verifier, state });
         },
       });
       client.requestCode();
@@ -413,6 +434,8 @@ const connectGoogleManualLinkCallable = () =>
   httpsCallable(functions, "connectGoogleManualLink");
 const exchangeGoogleAuthCodeCallable = () =>
   httpsCallable(functions, "exchangeGoogleAuthCode");
+const createGoogleOAuthStateCallable = () =>
+  httpsCallable(functions, "googleAuthCreateState");
 
 export async function connectPlaceOnBackend(
   place,
@@ -1171,13 +1194,14 @@ export function renderGoogleConnect(container, options = {}) {
     oauthBtn.textContent = "Authorizing…";
 
     try {
-      const { code, codeVerifier } = await requestGoogleAuthorizationCode();
+      const { code, codeVerifier, state } = await requestGoogleAuthorizationCode();
       const exchange = exchangeGoogleAuthCodeCallable();
       const response = await exchange({
         code,
         codeVerifier,
         redirectUri: oauthConfig.redirectUri,
         scopes: oauthConfig.scopes || GOOGLE_OAUTH_SCOPE,
+        state,
       });
       const payload = response?.data || {};
       if (!payload.ok) {
@@ -1198,6 +1222,9 @@ export function renderGoogleConnect(container, options = {}) {
         oauthStatusEl.style.color = "var(--danger)";
       }
       showToast(message, true);
+      if (err?.code === "OAUTH_CONFIG_MISSING" || err?.code === "OAUTH_UNAVAILABLE") {
+        markOAuthUnavailable();
+      }
     } finally {
       oauthBtn.disabled = false;
       oauthBtn.textContent = originalText || "Connect with Google";

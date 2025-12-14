@@ -1,6 +1,7 @@
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
+const crypto = require("crypto");
 
 admin.initializeApp();
 
@@ -9,11 +10,123 @@ const BUILD_ID = process.env.BUILD_ID || Date.now().toString();
 const TEST_MODE = [
   process.env.REVIEWRESQ_TEST_MODE,
   process.env.FORCE_CONNECT_TEST_MODE,
-  functions.config()?.app?.reviewresq_test_mode,
-  functions.config()?.app?.force_connect_test_mode,
 ]
   .map((v) => String(v || "").toLowerCase())
   .some((v) => v === "true" || v === "1" || v === "yes");
+
+const normalizePlan = (raw = "starter") => {
+  const value = String(raw || "starter").toLowerCase();
+  if (value === "growth") return "growth";
+  if (value === "pro_ai" || value === "pro" || value === "pro_ai_suite") return "pro_ai";
+  return "starter";
+};
+
+const planLocationLimit = (planId = "starter") => {
+  const normalized = normalizePlan(planId);
+  if (normalized === "growth") return 2;
+  if (normalized === "pro_ai") return 15;
+  return 1;
+};
+
+const planUpgradeMessage = (planId = "starter") => {
+  const normalized = normalizePlan(planId);
+  if (normalized === "starter") {
+    return "Upgrade to Growth to connect up to 2 locations.";
+  }
+  if (normalized === "growth") {
+    return "Upgrade to Pro AI Suite to connect up to 15 locations.";
+  }
+  return "You’ve reached the maximum of 15 locations. Contact support if you need more.";
+};
+
+const resolveUserPlanId = async (uid, existingProfile = null) => {
+  const profileData = existingProfile || {};
+  const directPlan = profileData.subscription?.planId || profileData.planId;
+  if (directPlan) return normalizePlan(directPlan);
+
+  try {
+    const subSnap = await admin.firestore().collection("subscriptions").doc(uid).get();
+    if (subSnap.exists && subSnap.data()?.planId) {
+      return normalizePlan(subSnap.data().planId);
+    }
+  } catch (err) {
+    console.error("[plan] failed to resolve subscription", err);
+  }
+
+  return "starter";
+};
+
+const deriveExistingLocations = (profileData = {}) => {
+  const sources =
+    profileData.googleLocations ||
+    profileData.connectedLocations ||
+    profileData.googleAccounts ||
+    [];
+  if (Array.isArray(sources)) return sources.filter(Boolean);
+  return [];
+};
+
+const isAtPlanLimit = (existingLocations, limit, placeId) => {
+  if (!Array.isArray(existingLocations)) return false;
+  const alreadyConnected = existingLocations.some(
+    (loc) => loc?.placeId === placeId || loc?.googlePlaceId === placeId
+  );
+  if (alreadyConnected) return false;
+  return existingLocations.length >= limit;
+};
+
+const upsertGoogleLocation = (existingLocations, newEntry) => {
+  const merged = Array.isArray(existingLocations) ? [...existingLocations] : [];
+  const idx = merged.findIndex(
+    (loc) => loc?.placeId === newEntry.placeId || loc?.googlePlaceId === newEntry.placeId
+  );
+  if (idx >= 0) {
+    merged[idx] = { ...merged[idx], ...newEntry };
+  } else {
+    merged.push(newEntry);
+  }
+  return merged;
+};
+
+const resolveEnvConfig = (() => {
+  let cached = null;
+  return () => {
+    if (cached) return cached;
+    const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID || "";
+    const googleClientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || "";
+    const googleRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || "";
+    const placesApiKey =
+      process.env.GOOGLE_PLACES_API_KEY ||
+      process.env.GOOGLE_MAPS_API_KEY ||
+      process.env.PLACES_API_KEY ||
+      "";
+
+    const scopes =
+      process.env.GOOGLE_OAUTH_SCOPES ||
+      "https://www.googleapis.com/auth/business.manage";
+
+    const missing = [];
+    if (!googleClientId) missing.push("GOOGLE_OAUTH_CLIENT_ID");
+    if (!googleClientSecret) missing.push("GOOGLE_OAUTH_CLIENT_SECRET");
+    if (!googleRedirectUri) missing.push("GOOGLE_OAUTH_REDIRECT_URI");
+    if (!placesApiKey) missing.push("GOOGLE_PLACES_API_KEY");
+
+    if (missing.length) {
+      console.error(
+        `[google-env] Missing required configuration: ${missing.join(", ")}`
+      );
+    }
+
+    cached = {
+      googleClientId,
+      googleClientSecret,
+      googleRedirectUri,
+      placesApiKey,
+      scopes,
+    };
+    return cached;
+  };
+})();
 
 const normalizePhone = (raw = "") => (raw || "").replace(/[^\d]/g, "");
 
@@ -35,20 +148,15 @@ const toE164US = (digits10 = "") =>
 
 const isForceConnectTestMode = () => TEST_MODE;
 
-const resolveGoogleOAuthServerConfig = () => ({
-  clientId:
-    process.env.GOOGLE_OAUTH_CLIENT_ID ||
-    functions.config()?.google?.oauth_client_id ||
-    null,
-  clientSecret:
-    process.env.GOOGLE_OAUTH_CLIENT_SECRET ||
-    functions.config()?.google?.oauth_client_secret ||
-    null,
-  redirectUri:
-    process.env.GOOGLE_OAUTH_REDIRECT_URI ||
-    functions.config()?.google?.oauth_redirect_uri ||
-    null,
-});
+const resolveGoogleOAuthServerConfig = () => {
+  const env = resolveEnvConfig();
+  return {
+    clientId: env.googleClientId || null,
+    clientSecret: env.googleClientSecret || null,
+    redirectUri: env.googleRedirectUri || null,
+    scopes: env.scopes,
+  };
+};
 
 const extractStateFromAddress = (formattedAddress = "") => {
   const upper = String(formattedAddress || "").toUpperCase();
@@ -131,10 +239,10 @@ const isValidGoogleBusinessUrl = (raw = "") => {
   }
 };
 
-const resolvePlacesApiKey = () =>
-  process.env.GOOGLE_MAPS_API_KEY ||
-  process.env.PLACES_API_KEY ||
-  functions.config().google?.places_api_key;
+const resolvePlacesApiKey = () => {
+  const env = resolveEnvConfig();
+  return env.placesApiKey || null;
+};
 
 const fetchPlaceDetails = async ({ apiKey, placeId }) => {
   if (!apiKey || !placeId) return null;
@@ -361,10 +469,7 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
     return res.status(400).json({ error: "Missing businessName or phoneNumber" });
   }
 
-  const placesApiKey =
-    process.env.GOOGLE_MAPS_API_KEY ||
-    process.env.PLACES_API_KEY ||
-    functions.config().google?.places_api_key;
+  const placesApiKey = resolvePlacesApiKey();
 
   if (!placesApiKey) {
     console.error(`[${label}] missing Places API key`);
@@ -652,10 +757,7 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
     const normalizedDigits = normalizePhoneDigits(phoneRaw);
     const e164 = normalizedDigits && normalizedDigits.length === 10 ? toE164US(normalizedDigits) : "";
 
-    const placesApiKey =
-      process.env.GOOGLE_MAPS_API_KEY ||
-      process.env.PLACES_API_KEY ||
-      functions.config().google?.places_api_key;
+    const placesApiKey = resolvePlacesApiKey();
 
     if (!placesApiKey) {
       return res.json({ ok: false, error: "MISSING_API_KEY" });
@@ -746,7 +848,10 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
           : [];
 
         for (const candidate of candidates) {
-          const details = await fetchPlaceDetails(candidate?.place_id);
+          const details = await fetchPlaceDetails({
+            apiKey: placesApiKey,
+            placeId: candidate?.place_id,
+          });
           if (!details) continue;
           if (!stateMatches(details)) continue;
 
@@ -785,7 +890,10 @@ exports.googlePlacesSearch = functions.https.onRequest(async (req, res) => {
         const results = Array.isArray(textData?.results) ? textData.results : [];
 
         for (const result of results) {
-          const details = await fetchPlaceDetails(result?.place_id);
+          const details = await fetchPlaceDetails({
+            apiKey: placesApiKey,
+            placeId: result?.place_id,
+          });
           if (!details) continue;
           if (!stateMatches(details)) continue;
 
@@ -827,17 +935,60 @@ exports.health = functions.https.onRequest((req, res) => {
 
 exports.googleAuthGetConfig = functions.https.onCall(async () => {
   const oauthConfig = resolveGoogleOAuthServerConfig();
-  const scopes =
-    process.env.GOOGLE_OAUTH_SCOPES ||
-    functions.config()?.google?.oauth_scopes ||
-    "https://www.googleapis.com/auth/business.manage";
+  const enabled = Boolean(oauthConfig.clientId && oauthConfig.redirectUri);
+
+  if (!enabled) {
+    console.error("[google-oauth] Missing clientId/redirectUri. OAuth disabled.");
+  }
 
   return {
     ok: true,
-    enabled: Boolean(oauthConfig.clientId && oauthConfig.redirectUri),
+    enabled,
     clientId: oauthConfig.clientId || null,
     redirectUri: oauthConfig.redirectUri || null,
-    scopes,
+    scopes: oauthConfig.scopes,
+  };
+});
+
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const oauthStateCollection = () =>
+  admin.firestore().collection("googleOAuthStates");
+
+exports.googleAuthCreateState = functions.https.onCall(async (data, context) => {
+  if (!context.auth || !context.auth.uid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication required to start Google OAuth."
+    );
+  }
+
+  const oauthConfig = resolveGoogleOAuthServerConfig();
+  if (!oauthConfig.clientId || !oauthConfig.redirectUri) {
+    console.error("[google-oauth] Missing clientId/redirectUri. OAuth disabled.");
+    return { ok: false, reason: "OAUTH_CONFIG_MISSING" };
+  }
+
+  const state = crypto.randomBytes(24).toString("hex");
+  const now = Date.now();
+  await oauthStateCollection()
+    .doc(state)
+    .set({ uid: context.auth.uid, createdAt: now, expiresAt: now + OAUTH_STATE_TTL_MS });
+
+  const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authUrl.searchParams.set("client_id", oauthConfig.clientId);
+  authUrl.searchParams.set("redirect_uri", oauthConfig.redirectUri);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("state", state);
+  authUrl.searchParams.set("scope", oauthConfig.scopes);
+  authUrl.searchParams.set("access_type", "offline");
+  authUrl.searchParams.set("include_granted_scopes", "true");
+
+  return {
+    ok: true,
+    state,
+    redirectUri: oauthConfig.redirectUri,
+    scopes: oauthConfig.scopes,
+    authorizationUrl: authUrl.toString(),
   };
 });
 
@@ -851,10 +1002,11 @@ exports.exchangeGoogleAuthCode = functions.https.onCall(async (data, context) =>
 
   const code = data?.code;
   const codeVerifier = data?.codeVerifier;
-  if (!code || !codeVerifier) {
+  const state = data?.state;
+  if (!code || !codeVerifier || !state) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "Authorization code and codeVerifier are required."
+      "Authorization code, codeVerifier, and state are required."
     );
   }
 
@@ -864,6 +1016,26 @@ exports.exchangeGoogleAuthCode = functions.https.onCall(async (data, context) =>
       ok: false,
       reason: "OAUTH_CONFIG_MISSING",
       message: "Google OAuth is not configured.",
+    };
+  }
+
+  const stateRef = oauthStateCollection().doc(state);
+  const stateSnap = await stateRef.get();
+  if (!stateSnap.exists) {
+    return {
+      ok: false,
+      reason: "INVALID_STATE",
+      message: "OAuth state is invalid or has expired.",
+    };
+  }
+  const stateData = stateSnap.data() || {};
+  const expired = stateData.expiresAt && Date.now() > stateData.expiresAt;
+  if (expired || stateData.uid !== context.auth.uid) {
+    await stateRef.delete().catch(() => {});
+    return {
+      ok: false,
+      reason: "INVALID_STATE",
+      message: "OAuth state is invalid or has expired.",
     };
   }
 
@@ -902,6 +1074,8 @@ exports.exchangeGoogleAuthCode = functions.https.onCall(async (data, context) =>
     }
 
     const { accounts, locations } = await fetchGoogleBusinessLocationsWithToken(accessToken);
+
+    await stateRef.delete().catch(() => {});
 
     return { ok: true, accounts, locations };
   } catch (err) {
@@ -955,6 +1129,17 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
   const profileRef = db.collection("businessProfiles").doc(uid);
   const profileSnap = await profileRef.get();
   const profileData = profileSnap.exists ? profileSnap.data() : {};
+  const existingLocations = deriveExistingLocations(profileData);
+  const planId = await resolveUserPlanId(uid, profileData);
+  const limit = planLocationLimit(planId);
+  if (isAtPlanLimit(existingLocations, limit, placeId)) {
+    return {
+      ok: false,
+      reason: "PLAN_LIMIT",
+      message: planUpgradeMessage(planId),
+      limit,
+    };
+  }
   const storedPhoneDigits = normalizePhoneDigits(
     profileData?.phone || profileData?.businessPhone || ""
   );
@@ -1040,9 +1225,29 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
     googleProfile,
     googleReviewUrl,
     connectionMethod: "candidate",
+    verificationMethod: "phone",
     phoneMismatch,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+
+  const newLocationEntry = {
+    provider: "google",
+    verificationMethod: "phone",
+    connectionMethod: "candidate",
+    locationId: placeId,
+    placeId,
+    googlePlaceId: placeId,
+    googleProfile,
+    googleReviewUrl,
+    role: profileData?.role || null,
+    connectedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  payload.googleLocations = upsertGoogleLocation(existingLocations, newLocationEntry);
+
+  if (!profileData.googlePlaceId) {
+    payload.googlePlaceId = placeId;
+  }
 
   if (businessName) {
     payload.businessName = businessName;
@@ -1116,6 +1321,17 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
     const profileRef = db.collection("businessProfiles").doc(uid);
     const profileSnap = await profileRef.get();
     const profileData = profileSnap.exists ? profileSnap.data() : {};
+    const existingLocations = deriveExistingLocations(profileData);
+    const planId = await resolveUserPlanId(uid, profileData);
+    const limit = planLocationLimit(planId);
+    if (isAtPlanLimit(existingLocations, limit, placeId)) {
+      return {
+        ok: false,
+        reason: "PLAN_LIMIT",
+        message: planUpgradeMessage(planId),
+        limit,
+      };
+    }
     const storedPhoneDigits = normalizePhoneDigits(
       profileData?.phone || profileData?.businessPhone || ""
     );
@@ -1195,9 +1411,29 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
       googleProfile,
       googleReviewUrl,
       connectionMethod: source,
+      verificationMethod: "phone",
       phoneMismatch,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
+
+    const newLocationEntry = {
+      provider: "google",
+      verificationMethod: "phone",
+      connectionMethod: source,
+      locationId: placeId,
+      placeId,
+      googlePlaceId: placeId,
+      googleProfile,
+      googleReviewUrl,
+      role: profileData?.role || null,
+      connectedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    payload.googleLocations = upsertGoogleLocation(existingLocations, newLocationEntry);
+
+    if (!profileData.googlePlaceId) {
+      payload.googlePlaceId = placeId;
+    }
 
     if (businessName) {
       payload.businessName = businessName;
