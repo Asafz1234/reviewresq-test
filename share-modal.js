@@ -1,25 +1,28 @@
 const initShareModal = () => {
   const modal = document.querySelector('#share-modal');
-  const openButtons = document.querySelectorAll('[data-share-open]') || [];
-  const closeButtons = document.querySelectorAll('[data-share-close]') || [];
+  if (!(modal instanceof Element)) return;
 
-  if (!modal) return;
+  const openButtons = Array.from(document.querySelectorAll('[data-share-open]'));
+  const closeButtons = Array.from(document.querySelectorAll('[data-share-close]'));
+
   if (!openButtons.length && !closeButtons.length) return;
 
+  const handleOpen = () => {
+    modal.classList.add('is-open');
+  };
+
+  const handleClose = () => {
+    modal.classList.remove('is-open');
+  };
+
   openButtons.forEach((btn) => {
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      if (!modal) return;
-      modal.classList.add('is-open');
-    });
+    if (!(btn instanceof Element)) return;
+    btn.addEventListener('click', handleOpen);
   });
 
   closeButtons.forEach((btn) => {
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      if (!modal) return;
-      modal.classList.remove('is-open');
-    });
+    if (!(btn instanceof Element)) return;
+    btn.addEventListener('click', handleClose);
   });
 };
 
