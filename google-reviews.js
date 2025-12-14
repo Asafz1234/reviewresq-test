@@ -9,6 +9,9 @@ import { initialsFromName, formatDate } from "./session-data.js";
 import { normalizePlan } from "./plan-capabilities.js";
 
 const buildId = window.__REVIEWRESQ_BUILD_ID || "dev";
+const allowDebugBadges =
+  window.location.hostname === "localhost" ||
+  new URLSearchParams(window.location.search || "").get("debug") === "1";
 
 let googleConnectModulePromise;
 
@@ -40,24 +43,7 @@ const connectionStateBadge = document.querySelector("[data-google-connection-sta
 const debugBadgeLabels = ["project", "origin", "build", "test mode"];
 
 function removeDebugBadges() {
-  const badges = document.querySelectorAll(".badge");
-  badges.forEach((badge) => {
-    const label = (badge.textContent || "").trim().toLowerCase();
-    if (debugBadgeLabels.some((needle) => label.includes(needle))) {
-      badge.remove();
-    }
-  });
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", removeDebugBadges);
-} else {
-  removeDebugBadges();
-}
-
-const debugBadgeLabels = ["project", "origin", "build", "test mode"];
-
-function removeDebugBadges() {
+  if (allowDebugBadges) return;
   const badges = document.querySelectorAll(".badge");
   badges.forEach((badge) => {
     const label = (badge.textContent || "").trim().toLowerCase();
@@ -76,6 +62,18 @@ if (document.readyState === "loading") {
 const toastId = "feedback-toast";
 let sessionState = { user: null, profile: null, subscription: null };
 let changeListenerAttached = false;
+
+function resolveConnectBusinessName(place = {}) {
+  const inputName = (place.__inputBusinessName || "").trim();
+  const profile = sessionState.profile || {};
+  return (
+    inputName ||
+    place.name ||
+    profile.businessName ||
+    profile.name ||
+    "Business"
+  );
+}
 
 function planLabel(plan) {
   switch (plan) {
@@ -225,21 +223,47 @@ async function persistGoogleSelection(place) {
       sessionState.profile = await refetchProfileAfterConnect();
       showToast("Google profile connected.");
       loadGoogleData();
-      return;
+      return { ok: true, alreadyConnected: true };
     }
 
-    const businessName =
-      sessionState.profile?.businessName || place.name || sessionState.profile?.name || "Business";
-    await connectPlaceWithConfirmation(place, { businessName });
+    const businessName = resolveConnectBusinessName(place);
+    const response = await connectPlaceWithConfirmation(place, { businessName });
+    if (!response?.ok) {
+      throw new Error(
+        response?.message ||
+          "Unable to connect Google profile. Please ensure the phone number matches your business profile."
+      );
+    }
+
     sessionState.profile = await refetchProfileAfterConnect();
     showToast("Google profile connected.");
     loadGoogleData();
+    return { ok: true };
   } catch (err) {
     console.error("[google-reviews] failed to connect Google profile", err);
     const message =
       err?.message ||
       "Unable to connect Google profile. Please ensure the phone number matches your business profile.";
-    showToast(message, true);
+    err.message = message;
+    throw err;
+  }
+}
+
+async function persistManualGoogleLink(manualResponse = {}) {
+  if (!sessionState.user) return;
+  try {
+    const { refetchProfileAfterConnect } = await getGoogleConnectModule();
+    sessionState.profile = await refetchProfileAfterConnect();
+    showToast(manualResponse?.message || "Google profile connected.");
+    await loadGoogleData();
+    return { ok: true };
+  } catch (err) {
+    console.error("[google-reviews] failed to save manual Google link", err);
+    const message =
+      err?.message ||
+      "Unable to save your manual Google link right now. Please try again.";
+    err.message = message;
+    throw err;
   }
 }
 
@@ -253,6 +277,7 @@ async function renderConnectCard() {
     helperText: "Start typing your business name as it appears on Google.",
     defaultQuery: sessionState.profile?.businessName || "",
     onConnect: persistGoogleSelection,
+    onManualConnect: persistManualGoogleLink,
   });
 }
 

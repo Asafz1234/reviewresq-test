@@ -74,6 +74,25 @@ function buildLocationString() {
   return uniqueParts.join(" ").trim();
 }
 
+function resolveBusinessName(place = {}, explicitName = "") {
+  const inputBusinessName = (explicitName || place.__inputBusinessName || "").trim();
+  const { cachedProfile, globals } = gatherAccountData();
+
+  const profileBusinessName =
+    cachedProfile.businessName ||
+    cachedProfile.name ||
+    globals.businessName ||
+    globals.name ||
+    "";
+
+  return (
+    inputBusinessName ||
+    (place && (place.name || place.businessName)) ||
+    profileBusinessName ||
+    "Business"
+  );
+}
+
 function getStateValue() {
   const stateInput = document.querySelector("[data-google-state]");
   return stateInput?.value ? stateInput.value.trim() : "";
@@ -135,21 +154,8 @@ function showToast(message, isError = false) {
   }, 2400);
 }
 
-function showConfirmationModal({
-  title = "Confirm connection",
-  message = "Are you sure?",
-  confirmLabel = "Connect anyway",
-  cancelLabel = "Cancel",
-} = {}) {
-  return new Promise((resolve) => {
-    console.warn("Confirmation modal is disabled for production flow", {
-      title,
-      message,
-      confirmLabel,
-      cancelLabel,
-    });
-    resolve(false);
-  });
+function showConfirmationModal() {
+  return Promise.resolve(false);
 }
 
 const connectGoogleBusinessCallable = () =>
@@ -169,9 +175,10 @@ export async function connectPlaceOnBackend(
 
   const call = connectGoogleBusinessCallable();
   const placeId = place.place_id || place.placeId;
+  const resolvedBusinessName = resolveBusinessName(place, businessName);
   const requestPayload = {
     placeId,
-    businessName,
+    businessName: resolvedBusinessName,
   };
 
   console.log("[google-connect] connectPlace request", requestPayload);
@@ -298,9 +305,9 @@ const isValidGoogleManualLink = (raw = "") => {
   }
 };
 
-async function connectManualLink(manualLink) {
+async function connectManualLink(manualLink, businessName = "") {
   const call = connectGoogleManualLinkCallable();
-  const response = await call({ manualLink });
+  const response = await call({ manualLink, businessName });
   const data = response?.data || {};
 
   if (!data.ok) {
@@ -369,7 +376,13 @@ function createResultCard(
       action.disabled = true;
       action.textContent = "Connecting…";
       try {
-        await onConnect(place);
+        const result = await onConnect(place);
+        if (!result?.ok) {
+          throw new Error(
+            result?.message || "Unable to connect Google profile. Please try again."
+          );
+        }
+
         action.textContent = "Connected";
         document
           .querySelectorAll(".connect-result button.btn-primary")
@@ -447,6 +460,7 @@ export function renderGoogleConnect(container, options = {}) {
     subtitle = "Link your Google Business Profile to see your live rating, distribution, and recent reviews here.",
     helperText = "Start typing your business name as it appears on Google.",
     onConnect = () => {},
+    onManualConnect = null,
     onSkip,
     showSkip = false,
     defaultQuery = "",
@@ -514,6 +528,27 @@ export function renderGoogleConnect(container, options = {}) {
   const messageEl = container.querySelector("[data-connect-message]");
   const skipBtn = container.querySelector("[data-connect-skip]");
 
+  const connectAndReport = async (place) => {
+    const enrichedPlace = {
+      ...place,
+      __inputBusinessName: (nameInput?.value || "").trim(),
+    };
+    const result = await onConnect(enrichedPlace);
+    if (result?.ok) {
+      if (messageEl) {
+        messageEl.textContent = "Google profile connected!";
+        messageEl.style.color = "var(--success)";
+      }
+      return result;
+    }
+
+    const error = new Error(
+      result?.message || "Unable to connect Google profile. Please try again."
+    );
+    error.payload = result;
+    throw error;
+  };
+
   let activeManualOverlay = null;
 
   const closeManualOverlay = () => {
@@ -546,19 +581,21 @@ export function renderGoogleConnect(container, options = {}) {
 
     overlay.innerHTML = `
       <div class="manual-modal">
-        <div class="manual-modal__header">
-          <div>
-            <p class="manual-modal__title">Connect manually</p>
-            <p class="manual-modal__subtitle">Paste your Google Maps business link or Google Reviews link to continue.</p>
-          </div>
-          <button type="button" class="btn btn-link" data-manual-close aria-label="Close manual connect">✕</button>
+      <div class="manual-modal__header">
+        <div>
+          <p class="manual-modal__title">Connect manually</p>
+          <p class="manual-modal__subtitle">Paste your Google Maps business link or Google Reviews link to continue.</p>
         </div>
-        <div class="stacked">
-          <label class="strong">Google link</label>
-          <input class="input" type="url" data-manual-input placeholder="https://www.google.com/maps/place/… or local/review?placeid=…" value="${defaultInput}" />
-          <p class="card-subtitle">We’ll validate the link format and save it to your profile without requiring phone verification.</p>
-          <div class="manual-actions">
-            <button type="button" class="btn btn-primary" data-manual-connect>Connect manually</button>
+        <button type="button" class="btn btn-link" data-manual-close aria-label="Close manual connect">✕</button>
+      </div>
+      <div class="stacked">
+        <label class="strong">Business name</label>
+        <input class="input" type="text" data-manual-business-name placeholder="Business name" />
+        <label class="strong">Google link</label>
+        <input class="input" type="url" data-manual-input placeholder="https://www.google.com/maps/place/… or local/review?placeid=…" value="${defaultInput}" />
+        <p class="card-subtitle">We’ll validate the link details with Google before saving it to your profile.</p>
+        <div class="manual-actions">
+          <button type="button" class="btn btn-primary" data-manual-connect>Connect manually</button>
             <button type="button" class="btn btn-outline" data-manual-cancel>Cancel</button>
           </div>
           <p class="card-subtitle" data-manual-status></p>
@@ -574,47 +611,58 @@ export function renderGoogleConnect(container, options = {}) {
       </div>
     `;
 
-    const helperLink = overlay.querySelector("[data-manual-helper]");
-    const helperSteps = overlay.querySelector("[data-manual-helper-steps]");
-    const closeBtn = overlay.querySelector("[data-manual-close]");
-    const cancelBtn = overlay.querySelector("[data-manual-cancel]");
-    const connectBtn = overlay.querySelector("[data-manual-connect]");
-    const reviewInput = overlay.querySelector("[data-manual-input]");
-    const statusEl = overlay.querySelector("[data-manual-status]");
+  const helperLink = overlay.querySelector("[data-manual-helper]");
+  const helperSteps = overlay.querySelector("[data-manual-helper-steps]");
+  const closeBtn = overlay.querySelector("[data-manual-close]");
+  const cancelBtn = overlay.querySelector("[data-manual-cancel]");
+  const connectBtn = overlay.querySelector("[data-manual-connect]");
+  const reviewInput = overlay.querySelector("[data-manual-input]");
+  const businessNameInput = overlay.querySelector("[data-manual-business-name]");
+  const statusEl = overlay.querySelector("[data-manual-status]");
 
     const setStatus = (text, isError = false) => {
       statusEl.textContent = text || "";
       statusEl.style.color = isError ? "var(--danger)" : "";
     };
 
-    const finalizeManualConnect = async () => {
-      const value = (reviewInput?.value || "").trim();
-      if (!value) {
-        setStatus("Paste your Google Maps business link or Google Reviews link.", true);
-        return;
-      }
+  const finalizeManualConnect = async () => {
+    const value = (reviewInput?.value || "").trim();
+    const businessName = (businessNameInput?.value || "").trim();
+    if (!value) {
+      setStatus("Paste your Google Maps business link or Google Reviews link.", true);
+      return;
+    }
 
-      if (!isValidGoogleManualLink(value)) {
-        setStatus("That doesn’t look like a Google business or reviews link.", true);
-        return;
-      }
+    if (!businessName) {
+      setStatus("Enter your business name to continue.", true);
+      return;
+    }
 
-      connectBtn.disabled = true;
-      setStatus("Saving your manual connection…");
-      try {
-        const response = await connectManualLink(value);
+    if (!isValidGoogleManualLink(value)) {
+      setStatus("That doesn’t look like a Google business or reviews link.", true);
+      return;
+    }
+
+    connectBtn.disabled = true;
+    setStatus("Saving your manual connection…");
+    try {
+      const response = await connectManualLink(value, businessName);
         if (response?.ok) {
           setStatus("Connected manually.");
           if (typeof onSuccess === "function") {
-            await onSuccess({ ...response, manualLink: value });
+            await onSuccess({ ...response, manualLink: value, businessName });
           }
           closeManualOverlay();
         } else {
-          setStatus(response?.message || "Unable to save that link right now.", true);
+          const message = response?.message || "Unable to save that link right now.";
+          setStatus(message, true);
+          showToast(message, true);
         }
       } catch (err) {
         console.error("[google-connect] manual connect failed", err);
-        setStatus(err?.message || "Unable to save that link right now.", true);
+        const message = err?.message || "Unable to save that link right now.";
+        setStatus(message, true);
+        showToast(message, true);
       } finally {
         connectBtn.disabled = false;
       }
@@ -680,9 +728,10 @@ export function renderGoogleConnect(container, options = {}) {
       searchBtn.textContent = "Searching…";
     }
 
-    const afterManualConnect = async () => {
-      if (typeof onConnect === "function") {
-        await onConnect({ __alreadyConnected: true });
+    const afterManualConnect = async (response = {}) => {
+      const handler = typeof onManualConnect === "function" ? onManualConnect : onConnect;
+      if (typeof handler === "function") {
+        await handler({ ...response, __manual: true });
       }
       messageEl.textContent = "Connected manually.";
       messageEl.style.color = "var(--success)";
@@ -708,9 +757,9 @@ export function renderGoogleConnect(container, options = {}) {
               nameInput?.focus();
             },
           },
-          async () => {
-            await afterManualConnect();
-            showToast("Google profile connected.");
+          async (response) => {
+            await afterManualConnect(response);
+            showToast(response?.message || "Google profile connected.");
           }
         );
       });
@@ -742,11 +791,7 @@ export function renderGoogleConnect(container, options = {}) {
 
       if (data?.reason === "EXACT_MATCH" && data.match) {
         const primary = normalizePlace(data.match);
-        const primaryCard = createResultCard(primary, async (selected) => {
-          await onConnect(selected);
-          messageEl.textContent = "Google profile connected!";
-          messageEl.style.color = "var(--success)";
-        });
+        const primaryCard = createResultCard(primary, connectAndReport);
         const heading = document.createElement("p");
         heading.className = "strong";
         heading.textContent = "Best match";
@@ -787,11 +832,7 @@ export function renderGoogleConnect(container, options = {}) {
       list.forEach((place) => {
         const row = createResultCard(
           place,
-          async (selected) => {
-            await onConnect(selected);
-            messageEl.textContent = "Google profile connected!";
-            messageEl.style.color = "var(--success)";
-          },
+          connectAndReport,
           {
             buttonLabel:
               data?.reason === "NO_PHONE_MATCH" ? "This is my business" : "Connect",
