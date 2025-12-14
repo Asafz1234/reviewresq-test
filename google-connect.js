@@ -5,9 +5,11 @@ const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
 const GOOGLE_OAUTH_SCOPE =
   runtimeEnv.GOOGLE_OAUTH_SCOPES || "https://www.googleapis.com/auth/business.manage";
-const GOOGLE_OAUTH_REDIRECT_URI = runtimeEnv.GOOGLE_OAUTH_REDIRECT_URI || "";
-const GOOGLE_OAUTH_CLIENT_ID =
-  runtimeEnv.GOOGLE_OAUTH_CLIENT_ID || runtimeEnv.GOOGLE_CLIENT_ID || "";
+const baseOAuthConfig = {
+  clientId: runtimeEnv.GOOGLE_OAUTH_CLIENT_ID || runtimeEnv.GOOGLE_CLIENT_ID || "",
+  redirectUri: runtimeEnv.GOOGLE_OAUTH_REDIRECT_URI || "",
+  scopes: GOOGLE_OAUTH_SCOPE,
+};
 const placesProxyUrl =
   (runtimeEnv && runtimeEnv.GOOGLE_PLACES_PROXY_URL) ||
   "https://us-central1-reviewresq-app.cloudfunctions.net/googlePlacesSearch";
@@ -24,6 +26,58 @@ const functionsBaseUrl =
   runtimeEnv.FUNCTIONS_BASE_URL ||
   runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL ||
   defaultFunctionsBase;
+let cachedOAuthConfig = { ...baseOAuthConfig };
+let oauthConfigPromise = null;
+let oauthAvailabilityLogged = false;
+
+function logOAuthAvailability(hasConfig) {
+  if (oauthAvailabilityLogged) return;
+  const message = hasConfig
+    ? "[google-oauth] ready if config exists"
+    : "[google-oauth] unavailable if missing config";
+  (hasConfig ? console.log : console.warn)(message);
+  oauthAvailabilityLogged = true;
+}
+
+async function ensureOAuthConfig({ logAvailability = false } = {}) {
+  if (cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri) {
+    if (logAvailability) logOAuthAvailability(true);
+    return cachedOAuthConfig;
+  }
+
+  if (!oauthConfigPromise) {
+    oauthConfigPromise = (async () => {
+      try {
+        const callable = httpsCallable(functions, "googleAuthGetConfig");
+        const response = await callable();
+        const data = response?.data || {};
+        if (data?.clientId) {
+          cachedOAuthConfig.clientId = data.clientId;
+        }
+        if (data?.redirectUri) {
+          cachedOAuthConfig.redirectUri = data.redirectUri;
+        }
+        if (data?.scopes) {
+          cachedOAuthConfig.scopes = data.scopes;
+        }
+      } catch (err) {
+        // Swallow errors so the UI can still offer the phone fallback.
+      }
+      const hasConfig = Boolean(
+        cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri
+      );
+      if (logAvailability) logOAuthAvailability(hasConfig);
+      return cachedOAuthConfig;
+    })();
+  }
+
+  const resolved = await oauthConfigPromise;
+  if (logAvailability) {
+    const hasConfig = Boolean(resolved?.clientId && resolved?.redirectUri);
+    logOAuthAvailability(hasConfig);
+  }
+  return resolved;
+}
 
 const hasOAuthConfig = Boolean(GOOGLE_OAUTH_CLIENT_ID && GOOGLE_OAUTH_REDIRECT_URI);
 const oauthSelfCheckLogged = (() => {
@@ -39,6 +93,11 @@ const oauthSelfCheckLogged = (() => {
 })();
 
 export { functionsBaseUrl };
+
+// Trigger a config lookup on load to emit the readiness log once.
+ensureOAuthConfig({ logAvailability: true }).catch(() => {
+  // Swallow errors here; the UI will offer fallback options when unavailable.
+});
 
 function normalizePlan(planId = "starter") {
   const value = (planId || "starter").toString().toLowerCase();
@@ -117,7 +176,8 @@ async function createPkcePair() {
 }
 
 async function requestGoogleAuthorizationCode() {
-  if (!hasOAuthConfig) {
+  const config = await ensureOAuthConfig({ logAvailability: true });
+  if (!config?.clientId || !config?.redirectUri) {
     console.warn("[google-oauth] Missing clientId/redirectUri (no stack spam)");
     const error = new Error("Google OAuth unavailable.");
     error.code = "OAUTH_UNAVAILABLE";
@@ -126,17 +186,18 @@ async function requestGoogleAuthorizationCode() {
 
   await loadGoogleOAuthClient();
   const { verifier, challenge } = await createPkcePair();
-  const scopeString = GOOGLE_OAUTH_SCOPE.split(/\s+/)
+  const scopeString = (config.scopes || GOOGLE_OAUTH_SCOPE)
+    .split(/\s+/)
     .filter(Boolean)
     .join(" ");
 
   return new Promise((resolve, reject) => {
     try {
       const client = window.google.accounts.oauth2.initCodeClient({
-        client_id: GOOGLE_OAUTH_CLIENT_ID,
+        client_id: config.clientId,
         scope: scopeString,
         ux_mode: "popup",
-        redirect_uri: GOOGLE_OAUTH_REDIRECT_URI,
+        redirect_uri: config.redirectUri,
         code_challenge: challenge,
         code_challenge_method: "S256",
         callback: (response) => {
@@ -1030,7 +1091,8 @@ export function renderGoogleConnect(container, options = {}) {
 
   const startOAuthFlow = async () => {
     if (!oauthBtn) return;
-    if (!hasOAuthConfig) {
+    const oauthConfig = await ensureOAuthConfig({ logAvailability: true });
+    if (!oauthConfig?.clientId || !oauthConfig?.redirectUri) {
       const unavailable = "Google OAuth unavailable.";
       if (oauthStatusEl) {
         oauthStatusEl.textContent = unavailable;
@@ -1066,8 +1128,8 @@ export function renderGoogleConnect(container, options = {}) {
       const response = await exchange({
         code,
         codeVerifier,
-        redirectUri: GOOGLE_OAUTH_REDIRECT_URI,
-        scopes: GOOGLE_OAUTH_SCOPE,
+        redirectUri: oauthConfig.redirectUri,
+        scopes: oauthConfig.scopes || GOOGLE_OAUTH_SCOPE,
       });
       const payload = response?.data || {};
       if (!payload.ok) {

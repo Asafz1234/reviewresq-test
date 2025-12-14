@@ -825,6 +825,22 @@ exports.health = functions.https.onRequest((req, res) => {
   res.json({ ok: true, buildId: BUILD_ID, testMode: TEST_MODE });
 });
 
+exports.googleAuthGetConfig = functions.https.onCall(async () => {
+  const oauthConfig = resolveGoogleOAuthServerConfig();
+  const scopes =
+    process.env.GOOGLE_OAUTH_SCOPES ||
+    functions.config()?.google?.oauth_scopes ||
+    "https://www.googleapis.com/auth/business.manage";
+
+  return {
+    ok: true,
+    enabled: Boolean(oauthConfig.clientId && oauthConfig.redirectUri),
+    clientId: oauthConfig.clientId || null,
+    redirectUri: oauthConfig.redirectUri || null,
+    scopes,
+  };
+});
+
 exports.exchangeGoogleAuthCode = functions.https.onCall(async (data, context) => {
   if (!context.auth || !context.auth.uid) {
     throw new functions.https.HttpsError(
