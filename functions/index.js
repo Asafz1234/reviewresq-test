@@ -100,8 +100,9 @@ const REQUIRED_ENV = {
     "Set GOOGLE_OAUTH_REDIRECT_URI to the production callback URL ending with /oauthCallback.",
 };
 
-const collectMissingGoogleEnv = ({ requireOAuth = false, requirePlaces = false } = {}) => {
+const getMissingGoogleEnv = ({ requireOAuth = false, requirePlaces = false } = {}) => {
   const missing = [];
+
   if (requireOAuth) {
     [
       "GOOGLE_OAUTH_CLIENT_ID",
@@ -119,15 +120,23 @@ const collectMissingGoogleEnv = ({ requireOAuth = false, requirePlaces = false }
   return missing;
 };
 
-const assertEnvVars = (keys = [], context = "") => {
-  const missing = keys.filter((key) => !process.env[key]);
-  if (!missing.length) return;
-  const guidance = missing
-    .map((key) => `${key}: ${REQUIRED_ENV[key] || "Set this variable before deploying."}`)
-    .join("; ");
-  const message = `[google-env] Missing required env vars for ${context || "runtime"}: ${missing.join(", ")}. ${guidance}`;
+const ensureGoogleEnvForRuntime = (
+  res,
+  { requireOAuth = false, requirePlaces = false, context = "Google config" } = {},
+) => {
+  const missing = getMissingGoogleEnv({ requireOAuth, requirePlaces });
+  if (!missing.length) {
+    return { ok: true, missing: [] };
+  }
+
+  const message = `[google-env] Missing required env vars for ${context}: ${missing.join(", ")}`;
   console.error(message);
-  throw new Error(message);
+
+  if (res) {
+    res.status(500).json({ error: "missing_config", missing });
+  }
+
+  return { ok: false, missing };
 };
 
 const assertGoogleEnvForRuntime = (
@@ -518,12 +527,11 @@ const searchGooglePlacesWithValidation = async (req, res, { label }) => {
     return res.status(400).json({ error: "Missing businessName or phoneNumber" });
   }
 
-  if (
-    !assertGoogleEnvForRuntime(res, {
-      requirePlaces: true,
-      context: label,
-    })
-  ) {
+  const envCheck = ensureGoogleEnvForRuntime(res, {
+    requirePlaces: true,
+    context: label,
+  });
+  if (!envCheck.ok) {
     return;
   }
 
@@ -1063,9 +1071,16 @@ exports.googleAuthGetConfig = functions.https.onRequest((req, res) => {
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || null;
   const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || null;
-  const ok = Boolean(clientId && redirectUri);
+  const missing = getMissingGoogleEnv({ requireOAuth: true });
+  const configured = missing.length === 0;
 
-  return res.json({ ok, clientId, redirectUri });
+  return res.status(200).json({
+    ok: true,
+    configured,
+    missing,
+    clientId,
+    redirectUri,
+  });
 });
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -1080,17 +1095,17 @@ exports.googleAuthCreateState = functions.https.onCall(async (data, context) => 
     );
   }
 
-  const envReady = assertGoogleEnvForRuntime(null, {
+  const envCheck = ensureGoogleEnvForRuntime(null, {
     requireOAuth: true,
     context: "googleAuthCreateState",
-    onError: () => false,
   });
 
-  if (!envReady) {
+  if (!envCheck.ok) {
     return {
       ok: false,
       reason: "missing_config",
       message: "Google OAuth is not configured.",
+      missing: envCheck.missing,
     };
   }
 
@@ -1150,17 +1165,17 @@ exports.exchangeGoogleAuthCode = functions.https.onCall(async (data, context) =>
     );
   }
 
-  const envReady = assertGoogleEnvForRuntime(null, {
+  const envCheck = ensureGoogleEnvForRuntime(null, {
     requireOAuth: true,
     context: "exchangeGoogleAuthCode",
-    onError: () => false,
   });
 
-  if (!envReady) {
+  if (!envCheck.ok) {
     return {
       ok: false,
       reason: "missing_config",
       message: "Google OAuth is not configured.",
+      missing: envCheck.missing,
     };
   }
 
@@ -1259,16 +1274,16 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
     );
   }
 
-  const envReady = assertGoogleEnvForRuntime(null, {
+  const envCheck = ensureGoogleEnvForRuntime(null, {
     requirePlaces: true,
     context: "connectGoogleBusiness",
-    onError: () => false,
   });
 
-  if (!envReady) {
+  if (!envCheck.ok) {
     throw new functions.https.HttpsError(
       "failed-precondition",
       "missing_config",
+      { missing: envCheck.missing },
     );
   }
 
@@ -1449,16 +1464,16 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
     const dryRun = Boolean(data?.dryRun);
     const source = data?.source || "review_link";
 
-    const envReady = assertGoogleEnvForRuntime(null, {
+    const envCheck = ensureGoogleEnvForRuntime(null, {
       requirePlaces: true,
       context: "connectGoogleBusinessByReviewLink",
-      onError: () => false,
     });
 
-    if (!envReady) {
+    if (!envCheck.ok) {
       throw new functions.https.HttpsError(
         "failed-precondition",
         "missing_config",
+        { missing: envCheck.missing },
       );
     }
 
