@@ -79,6 +79,19 @@ async function ensureOAuthConfig({ logAvailability = false } = {}) {
   return resolved;
 }
 
+const hasOAuthConfig = Boolean(GOOGLE_OAUTH_CLIENT_ID && GOOGLE_OAUTH_REDIRECT_URI);
+const oauthSelfCheckLogged = (() => {
+  const message = hasOAuthConfig
+    ? "[google-oauth] ready if config exists"
+    : "[google-oauth] unavailable if missing config";
+  if (hasOAuthConfig) {
+    console.log(message);
+  } else {
+    console.warn(message);
+  }
+  return true;
+})();
+
 export { functionsBaseUrl };
 
 // Trigger a config lookup on load to emit the readiness log once.
