@@ -34,9 +34,24 @@ const functionsBaseUrl =
   defaultFunctionsBase;
 const defaultGoogleAuthConfigUrl =
   "https://us-central1-reviewresq-app.cloudfunctions.net/googleAuthGetConfig";
+const resolvedFunctionsBaseForAuth = (() => {
+  const base = runtimeEnv.GOOGLE_AUTH_CONFIG_URL
+    ? null
+    : runtimeEnv.FUNCTIONS_BASE_URL || runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL;
+  if (!base) return null;
+  try {
+    const parsed = new URL(base);
+    return parsed.origin;
+  } catch (err) {
+    console.warn("[google-oauth] invalid FUNCTIONS_BASE_URL for auth", base, err);
+    return null;
+  }
+})();
 const googleAuthConfigUrl =
   runtimeEnv.GOOGLE_AUTH_CONFIG_URL ||
-  `${functionsBaseUrl}/googleAuthGetConfig` ||
+  (resolvedFunctionsBaseForAuth
+    ? `${resolvedFunctionsBaseForAuth}/googleAuthGetConfig`
+    : null) ||
   defaultGoogleAuthConfigUrl;
 let cachedOAuthConfig = { ...baseOAuthConfig, configured: false, missing: [] };
 let oauthConfigPromise = null;
@@ -84,11 +99,6 @@ const markOAuthUnavailable = (missing = [], message = "") => {
     applyUnavailable();
   }
 };
-
-if (!OAUTH_CLIENT_ID) {
-  console.warn("[google-oauth] unavailable if missing config");
-  markOAuthUnavailable(["GOOGLE_OAUTH_CLIENT_ID"]);
-}
 
 function logOAuthAvailability(hasConfig) {
   if (oauthAvailabilityLogged) return;
