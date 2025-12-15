@@ -1018,10 +1018,12 @@ const applyGoogleAuthCors = (req, res, next) => {
   }
 
   googleAuthCors(req, res, () => {
-    const allowOrigin = isAllowedGoogleAuthOrigin(origin)
+    const allowOrigin = origin
       ? origin
       : "https://reviewresq.com";
-    res.set("Access-Control-Allow-Origin", allowOrigin);
+    if (allowOrigin) {
+      res.set("Access-Control-Allow-Origin", allowOrigin);
+    }
     res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.set("Vary", "Origin");
@@ -1037,8 +1039,11 @@ exports.googleAuthGetConfig = functions.https.onRequest((req, res) => {
   res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.set("Vary", "Origin");
 
-  if (isAllowedOrigin) {
-    res.set("Access-Control-Allow-Origin", origin);
+  const allowOrigin = origin
+    ? (isAllowedOrigin ? origin : null)
+    : "https://reviewresq.com";
+  if (allowOrigin) {
+    res.set("Access-Control-Allow-Origin", allowOrigin);
   }
 
   if (req.method === "OPTIONS") {
