@@ -427,6 +427,48 @@ const fetchGoogleBusinessLocationsWithToken = async (accessToken) => {
   return { accounts, locations };
 };
 
+const oauthAllowedOrigins = [
+  "https://reviewresq.com",
+  "https://www.reviewresq.com",
+  "http://localhost:5000",
+  "http://localhost:5173",
+];
+
+const applyOAuthCors = (req, res) => {
+  const origin = req.headers.origin;
+  const isAllowed = !origin || oauthAllowedOrigins.includes(origin);
+  res.set("Vary", "Origin");
+  if (origin && isAllowed) {
+    res.set("Access-Control-Allow-Origin", origin);
+  }
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (origin && !isAllowed) {
+    return false;
+  }
+  return true;
+};
+
+const verifyRequestAuth = async (req) => {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
+  if (!token) {
+    const error = new Error("Authentication required");
+    error.code = "UNAUTHENTICATED";
+    throw error;
+  }
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    return decoded;
+  } catch (err) {
+    const error = new Error("Invalid or expired token");
+    error.code = "UNAUTHENTICATED";
+    throw error;
+  }
+};
+
 const setCorsHeaders = (req, res) => {
   const origin = req.headers.origin || "*";
   const allowedOrigins = [
@@ -1075,174 +1117,218 @@ const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const oauthStateCollection = () =>
   admin.firestore().collection("googleOAuthStates");
 
-exports.googleAuthCreateState = functions.https.onCall(async (data, context) => {
-  if (!context.auth || !context.auth.uid) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "Authentication required to start Google OAuth."
-    );
+exports.googleAuthCreateState = functions.https.onRequest(async (req, res) => {
+  const corsOk = applyOAuthCors(req, res);
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
   }
-
-  const envCheck = ensureGoogleEnvForRuntime(null, {
-    requireOAuth: true,
-    context: "googleAuthCreateState",
-  });
-
-  if (!envCheck.ok) {
-    return {
-      ok: false,
-      reason: "missing_config",
-      message: "Google OAuth is not configured.",
-      missing: envCheck.missing,
-    };
+  if (!corsOk) {
+    return res.status(403).json({ error: "ORIGIN_NOT_ALLOWED" });
+  }
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "METHOD_NOT_ALLOWED" });
   }
 
   try {
+    const decoded = await verifyRequestAuth(req);
+    const envCheck = ensureGoogleEnvForRuntime(null, {
+      requireOAuth: true,
+      context: "googleAuthCreateState",
+    });
+    if (!envCheck.ok) {
+      return res.status(500).json({
+        ok: false,
+        reason: "missing_config",
+        message: "Google OAuth is not configured.",
+        missing: envCheck.missing,
+      });
+    }
+
     const oauthConfig = resolveGoogleOAuthServerConfig();
     if (!oauthConfig.clientId || !oauthConfig.redirectUri) {
       console.error("[google-oauth] Missing clientId/redirectUri. OAuth disabled.");
-      return { ok: false, reason: "OAUTH_CONFIG_MISSING" };
+      return res.status(500).json({ ok: false, reason: "OAUTH_CONFIG_MISSING" });
     }
 
     const state = crypto.randomBytes(24).toString("hex");
     const now = Date.now();
-    await oauthStateCollection()
-      .doc(state)
-      .set({ uid: context.auth.uid, createdAt: now, expiresAt: now + OAUTH_STATE_TTL_MS });
+    const returnTo = req.body?.returnTo || null;
+    await oauthStateCollection().doc(state).set({
+      uid: decoded.uid,
+      createdAt: now,
+      expiresAt: now + OAUTH_STATE_TTL_MS,
+      returnTo,
+    });
 
     const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     authUrl.searchParams.set("client_id", oauthConfig.clientId);
     authUrl.searchParams.set("redirect_uri", oauthConfig.redirectUri);
     authUrl.searchParams.set("response_type", "code");
     authUrl.searchParams.set("state", state);
-    authUrl.searchParams.set("scope", oauthConfig.scopes);
+    authUrl.searchParams.set(
+      "scope",
+      "openid email profile https://www.googleapis.com/auth/business.manage"
+    );
     authUrl.searchParams.set("access_type", "offline");
+    authUrl.searchParams.set("prompt", "consent");
     authUrl.searchParams.set("include_granted_scopes", "true");
 
-    return {
+    return res.json({
       ok: true,
       state,
       redirectUri: oauthConfig.redirectUri,
       scopes: oauthConfig.scopes,
-      authorizationUrl: authUrl.toString(),
-    };
+      authUrl: authUrl.toString(),
+    });
   } catch (err) {
+    const status = err?.code === "UNAUTHENTICATED" ? 401 : 500;
     console.error("[google-oauth] failed to create state", err);
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      err?.message || "Google OAuth is not configured."
-    );
+    return res.status(status).json({ ok: false, message: err?.message || "OAuth unavailable" });
   }
 });
 
-exports.exchangeGoogleAuthCode = functions.https.onCall(async (data, context) => {
-  if (!context.auth || !context.auth.uid) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "Authentication required to exchange Google OAuth code."
-    );
+exports.exchangeGoogleAuthCode = functions.https.onRequest(async (req, res) => {
+  const corsOk = applyOAuthCors(req, res);
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
   }
-
-  const code = data?.code;
-  const codeVerifier = data?.codeVerifier;
-  const state = data?.state;
-  if (!code || !codeVerifier || !state) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "Authorization code, codeVerifier, and state are required."
-    );
+  if (!corsOk) {
+    return res.status(403).json({ error: "ORIGIN_NOT_ALLOWED" });
   }
-
-  const envCheck = ensureGoogleEnvForRuntime(null, {
-    requireOAuth: true,
-    context: "exchangeGoogleAuthCode",
-  });
-
-  if (!envCheck.ok) {
-    return {
-      ok: false,
-      reason: "missing_config",
-      message: "Google OAuth is not configured.",
-      missing: envCheck.missing,
-    };
-  }
-
-  const oauthConfig = resolveGoogleOAuthServerConfig();
-
-  if (!oauthConfig.clientId || !oauthConfig.clientSecret || !oauthConfig.redirectUri) {
-    return {
-      ok: false,
-      reason: "OAUTH_CONFIG_MISSING",
-      message: "Google OAuth is not configured.",
-    };
-  }
-
-  const stateRef = oauthStateCollection().doc(state);
-  const stateSnap = await stateRef.get();
-  if (!stateSnap.exists) {
-    return {
-      ok: false,
-      reason: "INVALID_STATE",
-      message: "OAuth state is invalid or has expired.",
-    };
-  }
-  const stateData = stateSnap.data() || {};
-  const expired = stateData.expiresAt && Date.now() > stateData.expiresAt;
-  if (expired || stateData.uid !== context.auth.uid) {
-    await stateRef.delete().catch(() => {});
-    return {
-      ok: false,
-      reason: "INVALID_STATE",
-      message: "OAuth state is invalid or has expired.",
-    };
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "METHOD_NOT_ALLOWED" });
   }
 
   try {
+    const decoded = await verifyRequestAuth(req);
+    const code = req.body?.code;
+    const state = req.body?.state;
+    if (!code || !state) {
+      return res
+        .status(400)
+        .json({ ok: false, reason: "invalid_request", message: "Missing code or state" });
+    }
+
+    const envCheck = ensureGoogleEnvForRuntime(null, {
+      requireOAuth: true,
+      context: "exchangeGoogleAuthCode",
+    });
+    if (!envCheck.ok) {
+      return res.status(500).json({
+        ok: false,
+        reason: "missing_config",
+        message: "Google OAuth is not configured.",
+        missing: envCheck.missing,
+      });
+    }
+
+    const oauthConfig = resolveGoogleOAuthServerConfig();
+
+    if (!oauthConfig.clientId || !oauthConfig.clientSecret || !oauthConfig.redirectUri) {
+      return res.status(500).json({
+        ok: false,
+        reason: "OAUTH_CONFIG_MISSING",
+        message: "Google OAuth is not configured.",
+      });
+    }
+
+    const stateRef = oauthStateCollection().doc(state);
+    const stateSnap = await stateRef.get();
+    if (!stateSnap.exists) {
+      return res.status(400).json({
+        ok: false,
+        reason: "INVALID_STATE",
+        message: "OAuth state is invalid or has expired.",
+      });
+    }
+    const stateData = stateSnap.data() || {};
+    const expired = stateData.expiresAt && Date.now() > stateData.expiresAt;
+    if (expired || stateData.uid !== decoded.uid) {
+      await stateRef.delete().catch(() => {});
+      return res.status(400).json({
+        ok: false,
+        reason: "INVALID_STATE",
+        message: "OAuth state is invalid or has expired.",
+      });
+    }
+
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         code,
-        code_verifier: codeVerifier,
         client_id: oauthConfig.clientId,
         client_secret: oauthConfig.clientSecret,
         redirect_uri: oauthConfig.redirectUri,
         grant_type: "authorization_code",
+        access_type: "offline",
+        prompt: "consent",
       }).toString(),
     });
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text().catch(() => "");
-      return {
+      return res.status(400).json({
         ok: false,
         reason: "TOKEN_EXCHANGE_FAILED",
         message: "Unable to exchange Google authorization code.",
         details: errorText || null,
-      };
+      });
     }
 
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData?.access_token;
     if (!accessToken) {
-      return {
+      return res.status(400).json({
         ok: false,
         reason: "TOKEN_MISSING",
         message: "Google OAuth response did not include an access token.",
-      };
+      });
     }
 
     const { accounts, locations } = await fetchGoogleBusinessLocationsWithToken(accessToken);
+    const profileRef = db.collection("businessProfiles").doc(decoded.uid);
+    const connection = {
+      provider: "google",
+      connectedAt: admin.firestore.FieldValue.serverTimestamp(),
+      accessToken,
+      refreshToken: tokenData?.refresh_token || null,
+      expiresAt:
+        tokenData?.expires_in && tokenData.expires_in > 0
+          ? Date.now() + tokenData.expires_in * 1000
+          : null,
+      scope: tokenData?.scope || null,
+    };
+    const cleanedLocations = Array.isArray(locations)
+      ? locations.map((loc) => ({
+          ...loc,
+          provider: "google",
+          connectionMethod: "google_oauth",
+        }))
+      : [];
+
+    await profileRef.set(
+      {
+        googleOAuth: connection,
+        googleAccounts: accounts || [],
+        googleLocations: cleanedLocations,
+        googleConnectionType: "oauth",
+      },
+      { merge: true }
+    );
 
     await stateRef.delete().catch(() => {});
 
-    return { ok: true, accounts, locations };
+    const returnTo = stateData.returnTo || "/google-reviews.html";
+    return res.json({ ok: true, accounts, locations, returnTo });
   } catch (err) {
+    const status = err?.code === "UNAUTHENTICATED" ? 401 : 500;
     console.error("[exchangeGoogleAuthCode] unexpected error", err);
-    return {
+    return res.status(status).json({
       ok: false,
       reason: err?.code || "OAUTH_ERROR",
       message: err?.message || "Failed to complete Google OAuth.",
-    };
+    });
   }
 });
 
