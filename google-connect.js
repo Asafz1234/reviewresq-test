@@ -1,5 +1,5 @@
 import { getCachedProfile, getCachedSubscription, refreshProfile } from "./session-data.js";
-import { functions, httpsCallable } from "./firebase-config.js";
+import { auth, functions, httpsCallable } from "./firebase-config.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
@@ -185,6 +185,93 @@ async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false
   }
 
 export { functionsBaseUrl };
+
+let oauthClickBound = false;
+
+function resolveOAuthButton() {
+  return document.getElementById("connectWithGoogleBtn");
+}
+
+function ensureOAuthClickHandler() {
+  if (oauthClickBound) return;
+  const attach = () => {
+    const btn = resolveOAuthButton();
+    if (!btn) return;
+    btn.addEventListener("click", () => startGoogleOAuth());
+    oauthClickBound = true;
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", attach, { once: true });
+  } else {
+    attach();
+  }
+}
+
+async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
+  const btn = resolveOAuthButton();
+  const statusEl = document.querySelector("[data-google-oauth-status]");
+  const resultsEl = document.querySelector("[data-google-oauth-results]");
+  const originalText = btn ? btn.textContent : "";
+
+  if (resultsEl) resultsEl.innerHTML = "";
+  if (statusEl) {
+    statusEl.textContent = "";
+    statusEl.style.color = "";
+  }
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Redirecting…';
+    }
+
+    const idToken = await getIdTokenOrThrow();
+    const response = await fetch(`${functionsBaseUrl}/googleAuthCreateState`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ returnTo }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to start Google OAuth right now.");
+    }
+
+    const payload = await response.json();
+    if (!payload?.authUrl) {
+      const message = payload?.message || "Google OAuth is unavailable.";
+      throw new Error(message);
+    }
+
+    console.log("[google-oauth] redirecting to consent screen");
+    window.location.href = payload.authUrl;
+  } catch (err) {
+    console.error("[google-oauth] start failed", err);
+    if (statusEl) {
+      statusEl.textContent = err?.message || "Unable to start Google OAuth.";
+      statusEl.style.color = "var(--danger, #b00020)";
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText || "Connect with Google";
+    }
+  }
+}
+
+
+async function getIdTokenOrThrow() {
+  const user = auth.currentUser;
+  if (!user) {
+    const error = new Error("You need to be signed in.");
+    error.code = "AUTH_REQUIRED";
+    throw error;
+  }
+  return user.getIdToken();
+}
 
 // Trigger a config lookup on load to emit the readiness log once.
 ensureOAuthConfig({ logAvailability: true }).catch(() => {
@@ -828,6 +915,17 @@ export function renderGoogleConnect(container, options = {}) {
     planId: providedPlanId = "starter",
   } = options;
 
+  const queryParams = new URLSearchParams(window.location.search || "");
+  const debugEnabled = queryParams.get("debug") === "1";
+  const cachedProfile = getCachedProfile?.();
+  const isAdminUser = Boolean(
+    cachedProfile?.isAdmin ||
+      cachedProfile?.role === "admin" ||
+      window.currentAccount?.isAdmin ||
+      window.sessionData?.role === "admin"
+  );
+  const showTestButton = debugEnabled || isAdminUser;
+
   container.innerHTML = `
     <section class="card connect-card">
       <div class="card-header">
@@ -852,58 +950,67 @@ export function renderGoogleConnect(container, options = {}) {
             >
               Connect with Google
             </button>
-            <button
+            ${
+              showTestButton
+                ? `<button
               class="btn btn-outline"
               type="button"
               data-google-oauth-test
               id="testGoogleOauthBtn"
             >
               Test OAuth Config
-            </button>
+            </button>`
+                : ""
+            }
           </div>
           <p class="card-subtitle">Securely connect businesses you own or manage on Google.</p>
           <p class="card-subtitle" data-google-oauth-status id="googleOauthUnavailableMsg"></p>
           <div class="connect-results" data-google-oauth-results></div>
         </div>
         <div class="divider"></div>
-        <label class="strong" for="google-business-input">Business name</label>
-        <input
-          id="google-business-input"
-          class="input"
-          type="text"
-          placeholder="Business name"
-          data-google-name
-          data-google-query
-          value="${defaultQuery}"
-        />
-        <label class="strong" for="google-business-state">State / Province</label>
-        <input
-          id="google-business-state"
-          class="input"
-          type="text"
-          placeholder="State (e.g. FL)"
-          data-google-state
-        />
-        <label class="strong" for="google-business-phone">Phone number</label>
-        <input
-          id="google-business-phone"
-          class="input"
-          type="text"
-          placeholder="Business phone (as shown on Google Maps)"
-          data-google-phone
-        />
-        <p class="card-subtitle">${helperText}</p>
-        <div class="input-row">
-          <button class="btn btn-outline" type="button" data-google-search>Use phone verification</button>
+        <button class="btn btn-link" type="button" data-toggle-manual>Can’t find my business?</button>
+        <div class="stacked" data-manual-block hidden>
+          <label class="strong" for="google-business-input">Business name</label>
+          <input
+            id="google-business-input"
+            class="input"
+            type="text"
+            placeholder="Business name"
+            data-google-name
+            data-google-query
+            value="${defaultQuery}"
+          />
+          <label class="strong" for="google-business-state">State / Province</label>
+          <input
+            id="google-business-state"
+            class="input"
+            type="text"
+            placeholder="State (e.g. FL)"
+            data-google-state
+          />
+          <label class="strong" for="google-business-phone">Phone number</label>
+          <input
+            id="google-business-phone"
+            class="input"
+            type="text"
+            placeholder="Business phone (as shown on Google Maps)"
+            data-google-phone
+          />
+          <p class="card-subtitle">${helperText}</p>
+          <div class="input-row">
+            <button class="btn btn-outline" type="button" data-google-search>Use phone verification</button>
+          </div>
+          <div class="connect-results" data-google-results></div>
+          <p class="card-subtitle" data-connect-message></p>
         </div>
-        <div class="connect-results" data-google-results></div>
-        <p class="card-subtitle" data-connect-message></p>
       </div>
     </section>
   `;
 
   const searchBtn = container.querySelector("[data-google-search]");
   const oauthBtn = container.querySelector("[data-google-oauth]");
+  const manualBlock = container.querySelector("[data-manual-block]");
+  const manualToggle = container.querySelector("[data-toggle-manual]");
   const nameInput = container.querySelector("#google-business-input") ||
     container.querySelector("[data-google-name]") ||
     container.querySelector("[data-google-query]");
@@ -920,6 +1027,12 @@ export function renderGoogleConnect(container, options = {}) {
   const subscription = getCachedSubscription?.();
   const planId = normalizePlan(providedPlanId || subscription?.planId || "starter");
   const limit = planLocationLimit(planId);
+
+  if (manualToggle && manualBlock) {
+    manualToggle.addEventListener("click", () => {
+      manualBlock.hidden = !manualBlock.hidden;
+    });
+  }
 
   const showOAuthStatus = (config) => {
     if (!oauthStatusEl) return;
@@ -1259,29 +1372,9 @@ export function renderGoogleConnect(container, options = {}) {
     }
     oauthBtn.disabled = true;
     const originalText = oauthBtn.textContent;
-    oauthBtn.textContent = "Authorizing…";
-
+      oauthBtn.textContent = "Authorizing…";
     try {
-      const { code, codeVerifier, state } = await requestGoogleAuthorizationCode();
-      const exchange = exchangeGoogleAuthCodeCallable();
-      const response = await exchange({
-        code,
-        codeVerifier,
-        redirectUri: oauthConfig.redirectUri,
-        scopes: oauthConfig.scopes || GOOGLE_OAUTH_SCOPE,
-        state,
-      });
-      const payload = response?.data || {};
-      if (!payload.ok) {
-        const error = new Error(
-          payload?.message || "We couldn’t start Google OAuth. Try phone verification instead."
-        );
-        error.code = payload?.reason || "OAUTH_FAILED";
-        throw error;
-      }
-
-      const locations = Array.isArray(payload.locations) ? payload.locations : [];
-      renderOAuthLocations(locations);
+      await startGoogleOAuth();
     } catch (err) {
       const message =
         err?.message || "We couldn’t start Google OAuth. Try phone verification instead.";
@@ -1504,3 +1597,5 @@ export function renderGoogleConnect(container, options = {}) {
 export async function refetchProfileAfterConnect() {
   return refreshProfile();
 }
+
+export { startGoogleOAuth };
