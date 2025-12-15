@@ -32,7 +32,28 @@ const functionsBaseUrl =
   runtimeEnv.FUNCTIONS_BASE_URL ||
   runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL ||
   defaultFunctionsBase;
-let cachedOAuthConfig = { ...baseOAuthConfig };
+const defaultGoogleAuthConfigUrl =
+  "https://us-central1-reviewresq-app.cloudfunctions.net/googleAuthGetConfig";
+const resolvedFunctionsBaseForAuth = (() => {
+  const base = runtimeEnv.GOOGLE_AUTH_CONFIG_URL
+    ? null
+    : runtimeEnv.FUNCTIONS_BASE_URL || runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL;
+  if (!base) return null;
+  try {
+    const parsed = new URL(base);
+    return parsed.origin;
+  } catch (err) {
+    console.warn("[google-oauth] invalid FUNCTIONS_BASE_URL for auth", base, err);
+    return null;
+  }
+})();
+const googleAuthConfigUrl =
+  runtimeEnv.GOOGLE_AUTH_CONFIG_URL ||
+  (resolvedFunctionsBaseForAuth
+    ? `${resolvedFunctionsBaseForAuth}/googleAuthGetConfig`
+    : null) ||
+  defaultGoogleAuthConfigUrl;
+let cachedOAuthConfig = { ...baseOAuthConfig, configured: false, missing: [] };
 let oauthConfigPromise = null;
 let oauthAvailabilityLogged = false;
 const restoreOAuthAvailable = () => {
@@ -48,15 +69,26 @@ const restoreOAuthAvailable = () => {
   }
 };
 
-const markOAuthUnavailable = () => {
+function missingConfigMessage(missing = []) {
+  const list = (Array.isArray(missing) ? missing : []).filter(Boolean);
+  if (!list.length) return "Google OAuth not configured. Missing fields.";
+  return `Google OAuth not configured. Missing: ${list.join(", ")}`;
+}
+
+const markOAuthUnavailable = (missing = [], message = "") => {
   const applyUnavailable = () => {
     const btn = document.querySelector("#connectWithGoogleBtn");
     if (btn) {
       btn.disabled = true;
-      btn.textContent = "Google OAuth unavailable.";
+      btn.textContent = "Connect with Google";
     }
     const msg = document.querySelector("#googleOauthUnavailableMsg");
-    if (msg) msg.style.display = "block";
+    if (msg) {
+      msg.style.display = "block";
+      msg.textContent = message || missingConfigMessage(missing);
+      msg.style.color = "var(--warning, #b26b00)";
+      msg.setAttribute("role", "status");
+    }
   };
 
   if (document.readyState === "loading") {
@@ -68,11 +100,6 @@ const markOAuthUnavailable = () => {
   }
 };
 
-if (!OAUTH_CLIENT_ID) {
-  console.warn("[google-oauth] unavailable if missing config");
-  markOAuthUnavailable();
-}
-
 function logOAuthAvailability(hasConfig) {
   if (oauthAvailabilityLogged) return;
   const message = hasConfig
@@ -82,8 +109,17 @@ function logOAuthAvailability(hasConfig) {
   oauthAvailabilityLogged = true;
 }
 
-async function ensureOAuthConfig({ logAvailability = false } = {}) {
-  if (cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri) {
+async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false } = {}) {
+  if (forceRefresh) {
+    oauthConfigPromise = null;
+  }
+
+  if (
+    cachedOAuthConfig.configured &&
+    cachedOAuthConfig.clientId &&
+    cachedOAuthConfig.redirectUri &&
+    !forceRefresh
+  ) {
     if (logAvailability) logOAuthAvailability(true);
     restoreOAuthAvailable();
     return cachedOAuthConfig;
@@ -92,29 +128,41 @@ async function ensureOAuthConfig({ logAvailability = false } = {}) {
   if (!oauthConfigPromise) {
     oauthConfigPromise = (async () => {
       try {
-        const response = await fetch(`${functionsBaseUrl}/googleAuthGetConfig`, {
+        const response = await fetch(googleAuthConfigUrl || defaultGoogleAuthConfigUrl, {
           method: "GET",
           headers: { Accept: "application/json" },
         });
         const data = (await response.json()) || {};
+        console.log("[google-oauth] config response", data);
         if (data?.clientId) {
           cachedOAuthConfig.clientId = data.clientId;
         }
         if (data?.redirectUri) {
           cachedOAuthConfig.redirectUri = data.redirectUri;
         }
+        cachedOAuthConfig.configured = Boolean(
+          data?.configured ?? (cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri)
+        );
+        cachedOAuthConfig.missing = Array.isArray(data?.missing) ? data.missing : [];
       } catch (err) {
-        // Swallow errors so the UI can still offer the phone fallback.
+        console.error("[google-oauth] failed to fetch config", err);
+        cachedOAuthConfig.configured = false;
+        cachedOAuthConfig.missing = cachedOAuthConfig.missing || [];
+        markOAuthUnavailable(
+          cachedOAuthConfig.missing,
+          "Unable to load Google OAuth configuration. Please try again."
+        );
       }
       const hasConfig = Boolean(
-        cachedOAuthConfig.clientId &&
+        cachedOAuthConfig.configured &&
+          cachedOAuthConfig.clientId &&
           cachedOAuthConfig.redirectUri &&
           (cachedOAuthConfig.enabled ?? true)
       );
       if (hasConfig) {
         restoreOAuthAvailable();
       } else {
-        markOAuthUnavailable();
+        markOAuthUnavailable(cachedOAuthConfig.missing);
       }
       if (logAvailability) logOAuthAvailability(hasConfig);
       return cachedOAuthConfig;
@@ -123,18 +171,18 @@ async function ensureOAuthConfig({ logAvailability = false } = {}) {
 
   const resolved = await oauthConfigPromise;
   if (logAvailability) {
-    const hasConfig = Boolean(
-      resolved?.clientId && resolved?.redirectUri && (resolved?.enabled ?? true)
-    );
-    if (hasConfig) {
-      restoreOAuthAvailable();
-    } else {
-      markOAuthUnavailable();
+      const hasConfig = Boolean(
+        resolved?.clientId && resolved?.redirectUri && (resolved?.enabled ?? true)
+      );
+      if (hasConfig) {
+        restoreOAuthAvailable();
+      } else {
+        markOAuthUnavailable(resolved?.missing);
+      }
+      logOAuthAvailability(hasConfig);
     }
-    logOAuthAvailability(hasConfig);
+    return resolved;
   }
-  return resolved;
-}
 
 export { functionsBaseUrl };
 
@@ -795,14 +843,24 @@ export function renderGoogleConnect(container, options = {}) {
       </div>
       <div class="stacked">
         <div class="stacked">
-          <button
-            class="btn btn-primary"
-            type="button"
-            data-google-oauth
-            id="connectWithGoogleBtn"
-          >
-            Connect with Google
-          </button>
+          <div class="input-row">
+            <button
+              class="btn btn-primary"
+              type="button"
+              data-google-oauth
+              id="connectWithGoogleBtn"
+            >
+              Connect with Google
+            </button>
+            <button
+              class="btn btn-outline"
+              type="button"
+              data-google-oauth-test
+              id="testGoogleOauthBtn"
+            >
+              Test OAuth Config
+            </button>
+          </div>
           <p class="card-subtitle">Securely connect businesses you own or manage on Google.</p>
           <p class="card-subtitle" data-google-oauth-status id="googleOauthUnavailableMsg"></p>
           <div class="connect-results" data-google-oauth-results></div>
@@ -856,11 +914,25 @@ export function renderGoogleConnect(container, options = {}) {
   const resultsEl = container.querySelector("[data-google-results]");
   const oauthResultsEl = container.querySelector("[data-google-oauth-results]");
   const oauthStatusEl = container.querySelector("[data-google-oauth-status]");
+  const oauthTestBtn = container.querySelector("[data-google-oauth-test]");
   const messageEl = container.querySelector("[data-connect-message]");
   const skipBtn = container.querySelector("[data-connect-skip]");
   const subscription = getCachedSubscription?.();
   const planId = normalizePlan(providedPlanId || subscription?.planId || "starter");
   const limit = planLocationLimit(planId);
+
+  const showOAuthStatus = (config) => {
+    if (!oauthStatusEl) return;
+    const missing = Array.isArray(config?.missing) ? config.missing : [];
+    const configured = Boolean(config?.configured);
+    oauthStatusEl.style.display = "block";
+    oauthStatusEl.textContent = configured
+      ? "Google OAuth configured and ready."
+      : missingConfigMessage(missing);
+    oauthStatusEl.style.color = configured
+      ? "var(--success, #0a7f4f)"
+      : "var(--warning, #b26b00)";
+  };
 
   const connectAndReport = async (place) => {
     const enrichedPlace = {
@@ -1159,14 +1231,14 @@ export function renderGoogleConnect(container, options = {}) {
   const startOAuthFlow = async () => {
     if (!oauthBtn) return;
     const oauthConfig = await ensureOAuthConfig({ logAvailability: true });
-    if (!oauthConfig?.clientId || !oauthConfig?.redirectUri) {
-      const unavailable = "Google OAuth unavailable.";
-      if (oauthStatusEl) {
-        oauthStatusEl.textContent = unavailable;
-        oauthStatusEl.style.color = "var(--danger)";
-      }
-      oauthBtn.textContent = unavailable;
-      oauthBtn.disabled = false;
+    const configured = Boolean(
+      oauthConfig?.configured && oauthConfig?.clientId && oauthConfig?.redirectUri
+    );
+    if (!configured) {
+      showOAuthStatus({ ...oauthConfig, configured: false });
+      markOAuthUnavailable(oauthConfig?.missing);
+      oauthBtn.textContent = "Connect with Google";
+      oauthBtn.disabled = true;
       return;
     }
     if (currentConnectionCount() >= limit) {
@@ -1399,6 +1471,26 @@ export function renderGoogleConnect(container, options = {}) {
 
   if (searchBtn) searchBtn.addEventListener("click", handleSearch);
   if (oauthBtn) oauthBtn.addEventListener("click", startOAuthFlow);
+  if (oauthTestBtn)
+    oauthTestBtn.addEventListener("click", async () => {
+      try {
+        const config = await ensureOAuthConfig({ logAvailability: true, forceRefresh: true });
+        showOAuthStatus(config);
+      } catch (err) {
+        console.error("[google-oauth] test config failed", err);
+        markOAuthUnavailable([], "Unable to test Google OAuth configuration.");
+      }
+    });
+
+  ensureOAuthConfig({ logAvailability: true })
+    .then((config) => {
+      if (!config?.configured) {
+        showOAuthStatus(config);
+      }
+    })
+    .catch((err) => {
+      console.error("[google-oauth] initial config lookup failed", err);
+    });
   if (nameInput) {
     nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
