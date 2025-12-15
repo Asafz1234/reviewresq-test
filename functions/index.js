@@ -6,6 +6,8 @@ const crypto = require("crypto");
 
 admin.initializeApp();
 
+const db = admin.firestore();
+
 
 const BUILD_ID = process.env.BUILD_ID || Date.now().toString();
 const TEST_MODE = [
@@ -991,10 +993,13 @@ const isAllowedGoogleAuthOrigin = (origin = "") => {
   const allowedOrigins = new Set([
     "https://reviewresq.com",
     "https://www.reviewresq.com",
-    "http://localhost:5000",
-    "http://127.0.0.1:5000",
   ]);
-  return allowedOrigins.has(origin);
+  if (!origin) return true;
+  if (allowedOrigins.has(origin)) return true;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\\d+)?$/i.test(origin)) {
+    return true;
+  }
+  return false;
 };
 
 const googleAuthCors = cors({
@@ -1037,13 +1042,13 @@ exports.googleAuthGetConfig = functions.https.onRequest((req, res) => {
   }
 
   if (req.method === "OPTIONS") {
-    if (!isAllowedOrigin) {
+    if (origin && !isAllowedOrigin) {
       return res.status(403).json({ error: "ORIGIN_NOT_ALLOWED" });
     }
     return res.status(204).send("");
   }
 
-  if (!isAllowedOrigin) {
+  if (origin && !isAllowedOrigin) {
     return res.status(403).json({ error: "ORIGIN_NOT_ALLOWED" });
   }
 
@@ -1850,7 +1855,6 @@ exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
   }
 });
 
-const db = admin.firestore();
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const GOOGLE_REVIEW_LINK =
   process.env.GOOGLE_REVIEW_LINK || "https://g.page/reviewresq";
