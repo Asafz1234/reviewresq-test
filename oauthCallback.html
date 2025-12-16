@@ -28,7 +28,10 @@
     const code = params.get("code");
     const state = params.get("state");
 
-    const functionsBaseUrl = window.__FUNCTIONS_BASE_URL || (window.RUNTIME_ENV && (window.RUNTIME_ENV.FUNCTIONS_BASE_URL || window.RUNTIME_ENV.GOOGLE_FUNCTIONS_BASE_URL)) ||
+    const functionsBaseUrl =
+      window.__FUNCTIONS_BASE_URL ||
+      (window.RUNTIME_ENV &&
+        (window.RUNTIME_ENV.FUNCTIONS_BASE_URL || window.RUNTIME_ENV.GOOGLE_FUNCTIONS_BASE_URL)) ||
       "https://us-central1-reviewresq-app.cloudfunctions.net";
 
     function showError(message) {
@@ -39,14 +42,21 @@
       if (retryBtn) retryBtn.style.display = "inline-flex";
     }
 
-    async function exchangeCode() {
+    function showSuccess(message) {
+      if (statusEl) {
+        statusEl.textContent = message;
+        statusEl.style.color = "var(--success, #0f7b3f)";
+      }
+    }
+
+    async function finalizeOAuth() {
       if (!code || !state) {
         showError("Missing authorization details. Please try connecting again.");
         return;
       }
       try {
         if (statusEl) {
-          statusEl.textContent = "Exchanging code with Google…";
+          statusEl.textContent = "Finishing secure connection…";
           statusEl.style.color = "";
         }
         const user = auth.currentUser;
@@ -55,7 +65,7 @@
           return;
         }
         const idToken = await user.getIdToken();
-        const response = await fetch(`${functionsBaseUrl}/exchangeGoogleAuthCode`, {
+        const response = await fetch(`${functionsBaseUrl}/googleAuthCallback`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -70,8 +80,11 @@
         if (!payload?.ok) {
           throw new Error(payload?.message || "Unable to finish Google OAuth.");
         }
-        const destination = payload?.returnTo || "/google-reviews.html";
-        window.location.href = `${destination}?connected=1`;
+        showSuccess("Google connected. Redirecting to your dashboard…");
+        const destination = payload?.returnTo || "/dashboard.html";
+        setTimeout(() => {
+          window.location.href = `${destination}?connected=1`;
+        }, 1200);
       } catch (err) {
         console.error("[google-oauth] callback error", err);
         showError(err?.message || "Something went wrong connecting to Google.");
@@ -79,10 +92,10 @@
     }
 
     retryBtn?.addEventListener("click", () => {
-      window.location.href = "/google-reviews.html";
+      window.location.href = "/dashboard.html";
     });
 
-    exchangeCode();
+    finalizeOAuth();
   </script>
 </body>
 </html>

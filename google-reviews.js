@@ -417,11 +417,7 @@ async function renderConnectCard() {
   renderGoogleConnect(connectContainer, {
     title: "Connect your Google Reviews",
     subtitle: "Securely connect businesses you own or manage on Google.",
-    helperText: "Start typing your business name as it appears on Google.",
-    defaultQuery: sessionState.profile?.businessName || "",
-    onConnect: persistGoogleSelection,
-    onManualConnect: persistManualGoogleLink,
-    planId: normalizePlan(sessionState.subscription?.planId || "starter"),
+    returnTo: "/dashboard.html",
   });
 }
 
