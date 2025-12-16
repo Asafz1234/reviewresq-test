@@ -1,7 +1,6 @@
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
-const cors = require("cors");
 const crypto = require("crypto");
 
 admin.initializeApp();
@@ -1035,6 +1034,8 @@ const isAllowedGoogleAuthOrigin = (origin = "") => {
   const allowedOrigins = new Set([
     "https://reviewresq.com",
     "https://www.reviewresq.com",
+    "http://localhost:3000",
+    "http://localhost:5000",
   ]);
   if (!origin) return true;
   if (allowedOrigins.has(origin)) return true;
@@ -1044,72 +1045,55 @@ const isAllowedGoogleAuthOrigin = (origin = "") => {
   return false;
 };
 
-const googleAuthCors = cors({
-  origin(origin, callback) {
-    callback(null, isAllowedGoogleAuthOrigin(origin));
-  },
-  methods: ["GET", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  optionsSuccessStatus: 204,
-});
-
-const applyGoogleAuthCors = (req, res, next) => {
+const applyGoogleAuthCors = (req, res) => {
   const origin = req.headers.origin || "";
-  if (origin && !isAllowedGoogleAuthOrigin(origin)) {
-    return res.status(403).json({ error: "CORS_NOT_ALLOWED" });
-  }
-
-  googleAuthCors(req, res, () => {
-    const allowOrigin = origin
-      ? origin
-      : "https://reviewresq.com";
-    if (allowOrigin) {
-      res.set("Access-Control-Allow-Origin", allowOrigin);
-    }
-    res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.set("Vary", "Origin");
-    next();
-  });
-};
-
-exports.googleAuthGetConfig = functions.https.onRequest((req, res) => {
-  const origin = req.headers.origin || "";
-  const isAllowedOrigin = isAllowedGoogleAuthOrigin(origin);
-
-  res.set("Access-Control-Allow-Methods", "GET,OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.set("Vary", "Origin");
-
+  const allowed = isAllowedGoogleAuthOrigin(origin);
   const allowOrigin = origin
-    ? (isAllowedOrigin ? origin : null)
+    ? allowed
+      ? origin
+      : null
     : "https://reviewresq.com";
+
   if (allowOrigin) {
     res.set("Access-Control-Allow-Origin", allowOrigin);
   }
+  res.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.set("Access-Control-Allow-Credentials", "true");
+  res.set("Vary", "Origin");
+
+  if (origin && !allowed) {
+    res.status(403).json({ ok: false, error: "ORIGIN_NOT_ALLOWED" });
+    return false;
+  }
+
+  return true;
+};
+
+exports.googleAuthGetConfig = functions.https.onRequest((req, res) => {
+  const corsOk = applyGoogleAuthCors(req, res);
 
   if (req.method === "OPTIONS") {
-    if (origin && !isAllowedOrigin) {
-      return res.status(403).json({ error: "ORIGIN_NOT_ALLOWED" });
-    }
     return res.status(204).send("");
   }
 
-  if (origin && !isAllowedOrigin) {
-    return res.status(403).json({ error: "ORIGIN_NOT_ALLOWED" });
+  if (!corsOk) {
+    return; // Response already handled inside applyGoogleAuthCors
   }
 
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || null;
-  const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || null;
-  const missing = getMissingGoogleEnv({ requireOAuth: true });
-  const configured = missing.length === 0;
+  const { clientId, redirectUri, scopes } = resolveGoogleOAuthServerConfig();
+  if (!clientId || !redirectUri) {
+    return res.status(200).json({
+      ok: false,
+      error: "MISSING_GOOGLE_OAUTH_CONFIG",
+    });
+  }
 
   return res.status(200).json({
     ok: true,
-    configured,
-    missing,
     clientId,
     redirectUri,
+    scopes,
   });
 });
 

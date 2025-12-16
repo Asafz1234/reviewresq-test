@@ -134,6 +134,19 @@ async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false
         });
         const data = (await response.json()) || {};
         console.log("[google-oauth] config response", data);
+        if (data?.ok === false) {
+          cachedOAuthConfig.enabled = false;
+          cachedOAuthConfig.configured = false;
+          cachedOAuthConfig.missing = Array.isArray(data?.missing)
+            ? data.missing
+            : [];
+          const unavailableMessage =
+            data?.error === "MISSING_GOOGLE_OAUTH_CONFIG"
+              ? "Google OAuth not configured"
+              : data?.message || "Google OAuth is unavailable.";
+          markOAuthUnavailable(cachedOAuthConfig.missing, unavailableMessage);
+          return cachedOAuthConfig;
+        }
         if (data?.clientId) {
           cachedOAuthConfig.clientId = data.clientId;
         }
