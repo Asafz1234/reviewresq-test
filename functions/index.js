@@ -1119,13 +1119,9 @@ const googleAuthGetConfigHandler = (req, res) => {
   });
 };
 
-exports.googleAuthGetConfig = onRequest(
-  {
-    region: "us-central1",
-    secrets: [GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET],
-  },
-  googleAuthGetConfigHandler,
-);
+exports.googleAuthGetConfig = functions
+  .region("us-central1")
+  .https.onRequest((req, res) => googleAuthGetConfigHandler(req, res));
 
 // Gen2 endpoint for OAuth config (keeps Gen1 endpoint unchanged)
 exports.googleAuthGetConfigV2 = onRequest(
@@ -1211,13 +1207,9 @@ const googleAuthCreateStateHandler = async (req, res) => {
   }
 };
 
-exports.googleAuthCreateState = onRequest(
-  {
-    region: "us-central1",
-    secrets: [GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET],
-  },
-  googleAuthCreateStateHandler,
-);
+exports.googleAuthCreateState = functions
+  .region("us-central1")
+  .https.onRequest((req, res) => googleAuthCreateStateHandler(req, res));
 
 // Gen2 endpoint for creating OAuth state (keeps Gen1 endpoint unchanged)
 exports.googleAuthCreateStateV2 = onRequest(
@@ -1373,13 +1365,9 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
   }
 };
 
-exports.exchangeGoogleAuthCode = onRequest(
-  {
-    region: "us-central1",
-    secrets: [GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET],
-  },
-  exchangeGoogleAuthCodeHandler,
-);
+exports.exchangeGoogleAuthCode = functions
+  .region("us-central1")
+  .https.onRequest((req, res) => exchangeGoogleAuthCodeHandler(req, res));
 
 // Gen2 endpoint for exchanging OAuth code (keeps Gen1 endpoint unchanged)
 exports.exchangeGoogleAuthCodeV2 = onRequest(
