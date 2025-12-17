@@ -120,6 +120,8 @@ const upsertGoogleLocation = (existingLocations, newEntry) => {
   return merged;
 };
 
+const GOOGLE_OAUTH_CALLBACK_URL = "https://reviewresq.com/oauth/google/callback";
+
 const REQUIRED_ENV = {
   GOOGLE_OAUTH_CLIENT_ID:
     "Set GOOGLE_OAUTH_CLIENT_ID as a Cloud Functions environment variable (e.g. `firebase functions:secrets:set GOOGLE_OAUTH_CLIENT_ID`).",
@@ -127,8 +129,6 @@ const REQUIRED_ENV = {
     "Set GOOGLE_OAUTH_CLIENT_SECRET as a Cloud Functions secret (`firebase functions:secrets:set GOOGLE_OAUTH_CLIENT_SECRET`).",
   GOOGLE_PLACES_API_KEY:
     "Set GOOGLE_PLACES_API_KEY as a Cloud Functions secret (`firebase functions:secrets:set GOOGLE_PLACES_API_KEY`).",
-  GOOGLE_OAUTH_REDIRECT_URI:
-    "Set GOOGLE_OAUTH_REDIRECT_URI to the production callback URL ending with /oauthCallback.",
 };
 
 const getMissingGoogleEnv = ({ requireOAuth = false, requirePlaces = false } = {}) => {
@@ -141,16 +141,8 @@ const getMissingGoogleEnv = ({ requireOAuth = false, requirePlaces = false } = {
       "GOOGLE_OAUTH_CLIENT_SECRET",
     );
 
-    const redirectUri = getStringOrEnv(
-      GOOGLE_OAUTH_REDIRECT_URI,
-      "GOOGLE_OAUTH_REDIRECT_URI",
-    );
-
     if (!clientId) missing.push("GOOGLE_OAUTH_CLIENT_ID");
     if (!clientSecret) missing.push("GOOGLE_OAUTH_CLIENT_SECRET");
-    if (!redirectUri) {
-      missing.push("GOOGLE_OAUTH_REDIRECT_URI");
-    }
   }
 
   if (requirePlaces && !process.env.GOOGLE_PLACES_API_KEY) {
@@ -191,9 +183,20 @@ const resolveEnvConfig = (() => {
         GOOGLE_OAUTH_CLIENT_SECRET,
         "GOOGLE_OAUTH_CLIENT_SECRET",
       ) || "";
-    const googleRedirectUri =
-      getStringOrEnv(GOOGLE_OAUTH_REDIRECT_URI, "GOOGLE_OAUTH_REDIRECT_URI") ||
-      "";
+    const configuredRedirectUri = getStringOrEnv(
+      GOOGLE_OAUTH_REDIRECT_URI,
+      "GOOGLE_OAUTH_REDIRECT_URI",
+    );
+    if (
+      configuredRedirectUri &&
+      configuredRedirectUri !== GOOGLE_OAUTH_CALLBACK_URL
+    ) {
+      console.warn(
+        "[google-oauth] Ignoring configured redirect URI in favor of",
+        GOOGLE_OAUTH_CALLBACK_URL,
+      );
+    }
+    const googleRedirectUri = GOOGLE_OAUTH_CALLBACK_URL;
     const placesApiKey = process.env.GOOGLE_PLACES_API_KEY || "";
 
     const scopes =

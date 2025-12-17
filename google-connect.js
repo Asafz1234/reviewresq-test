@@ -11,9 +11,10 @@ const OAUTH_CLIENT_ID =
   runtimeEnv.GOOGLE_OAUTH_CLIENT_ID ||
   runtimeEnv.GOOGLE_CLIENT_ID ||
   null;
+const OAUTH_CALLBACK_URL = "https://reviewresq.com/oauth/google/callback";
 const baseOAuthConfig = {
   clientId: OAUTH_CLIENT_ID || "",
-  redirectUri: runtimeEnv.GOOGLE_OAUTH_REDIRECT_URI || "",
+  redirectUri: OAUTH_CALLBACK_URL,
   scopes: GOOGLE_OAUTH_SCOPE,
 };
 const placesProxyUrl =
@@ -128,7 +129,9 @@ async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false
   if (!oauthConfigPromise) {
     oauthConfigPromise = (async () => {
       try {
-        const response = await fetch(googleAuthConfigUrl || defaultGoogleAuthConfigUrl, {
+        const configEndpoint = googleAuthConfigUrl || defaultGoogleAuthConfigUrl;
+        console.debug("[google-oauth][debug] fetching config from", configEndpoint);
+        const response = await fetch(configEndpoint, {
           method: "GET",
           headers: { Accept: "application/json" },
         });
@@ -150,13 +153,12 @@ async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false
         if (data?.clientId) {
           cachedOAuthConfig.clientId = data.clientId;
         }
-        if (data?.redirectUri) {
-          cachedOAuthConfig.redirectUri = data.redirectUri;
-        }
+        cachedOAuthConfig.redirectUri = OAUTH_CALLBACK_URL;
         cachedOAuthConfig.configured = Boolean(
           data?.configured ?? (cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri)
         );
-        cachedOAuthConfig.missing = Array.isArray(data?.missing) ? data.missing : [];
+        const missing = Array.isArray(data?.missing) ? data.missing : [];
+        cachedOAuthConfig.missing = missing.filter((field) => field !== "redirectUri");
       } catch (err) {
         console.error("[google-oauth] failed to fetch config", err);
         cachedOAuthConfig.configured = false;
@@ -184,18 +186,18 @@ async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false
 
   const resolved = await oauthConfigPromise;
   if (logAvailability) {
-      const hasConfig = Boolean(
-        resolved?.clientId && resolved?.redirectUri && (resolved?.enabled ?? true)
-      );
-      if (hasConfig) {
-        restoreOAuthAvailable();
-      } else {
-        markOAuthUnavailable(resolved?.missing);
-      }
-      logOAuthAvailability(hasConfig);
+    const hasConfig = Boolean(
+      resolved?.clientId && resolved?.redirectUri && (resolved?.enabled ?? true),
+    );
+    if (hasConfig) {
+      restoreOAuthAvailable();
+    } else {
+      markOAuthUnavailable(resolved?.missing);
     }
-    return resolved;
+    logOAuthAvailability(hasConfig);
   }
+  return resolved;
+}
 
 export { functionsBaseUrl };
 
@@ -239,7 +241,18 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
       btn.innerHTML = '<span class="spinner"></span> Redirecting…';
     }
 
+    const oauthConfig = await ensureOAuthConfig({ logAvailability: true });
+    const configScopes =
+      oauthConfig?.scopes || oauthConfig?.scope || GOOGLE_OAUTH_SCOPE;
+    if (!oauthConfig?.clientId || !oauthConfig?.redirectUri) {
+      throw new Error(missingConfigMessage(oauthConfig?.missing));
+    }
+
     const idToken = await getIdTokenOrThrow();
+    console.debug(
+      "[google-oauth][debug] creating state via",
+      `${functionsBaseUrl}/googleAuthCreateStateV2`,
+    );
     const response = await fetch(`${functionsBaseUrl}/googleAuthCreateStateV2`, {
       method: "POST",
       headers: {
@@ -254,13 +267,29 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
     }
 
     const payload = await response.json();
-    if (!payload?.authUrl) {
+    if (!payload?.state) {
       const message = payload?.message || "Google OAuth is unavailable.";
       throw new Error(message);
     }
 
+    const redirectUri = OAUTH_CALLBACK_URL;
+    const scopesFromServer = payload?.scopes || configScopes;
+    const scopeString = Array.isArray(scopesFromServer)
+      ? scopesFromServer.join(" ")
+      : scopesFromServer;
+    const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    authUrl.searchParams.set("client_id", oauthConfig.clientId);
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("state", payload.state);
+    authUrl.searchParams.set("scope", scopeString || GOOGLE_OAUTH_SCOPE);
+    authUrl.searchParams.set("access_type", "offline");
+    authUrl.searchParams.set("prompt", "consent");
+    authUrl.searchParams.set("include_granted_scopes", "true");
+
     console.log("[google-oauth] redirecting to consent screen");
-    window.location.href = payload.authUrl;
+    console.debug("[google-oauth][debug] using OAuth URL", authUrl.toString());
+    window.location.href = authUrl.toString();
   } catch (err) {
     console.error("[google-oauth] start failed", err);
     if (statusEl) {
