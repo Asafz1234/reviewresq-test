@@ -11,9 +11,10 @@ const OAUTH_CLIENT_ID =
   runtimeEnv.GOOGLE_OAUTH_CLIENT_ID ||
   runtimeEnv.GOOGLE_CLIENT_ID ||
   null;
+const OAUTH_CALLBACK_URL = "https://reviewresq.com/oauth/google/callback";
 const baseOAuthConfig = {
   clientId: OAUTH_CLIENT_ID || "",
-  redirectUri: runtimeEnv.GOOGLE_OAUTH_REDIRECT_URI || "",
+  redirectUri: OAUTH_CALLBACK_URL,
   scopes: GOOGLE_OAUTH_SCOPE,
 };
 const placesProxyUrl =
@@ -152,13 +153,12 @@ async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false
         if (data?.clientId) {
           cachedOAuthConfig.clientId = data.clientId;
         }
-        if (data?.redirectUri) {
-          cachedOAuthConfig.redirectUri = data.redirectUri;
-        }
+        cachedOAuthConfig.redirectUri = OAUTH_CALLBACK_URL;
         cachedOAuthConfig.configured = Boolean(
           data?.configured ?? (cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri)
         );
-        cachedOAuthConfig.missing = Array.isArray(data?.missing) ? data.missing : [];
+        const missing = Array.isArray(data?.missing) ? data.missing : [];
+        cachedOAuthConfig.missing = missing.filter((field) => field !== "redirectUri");
       } catch (err) {
         console.error("[google-oauth] failed to fetch config", err);
         cachedOAuthConfig.configured = false;
@@ -272,7 +272,7 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
       throw new Error(message);
     }
 
-    const redirectUri = payload?.redirectUri || oauthConfig.redirectUri;
+    const redirectUri = OAUTH_CALLBACK_URL;
     const scopesFromServer = payload?.scopes || configScopes;
     const scopeString = Array.isArray(scopesFromServer)
       ? scopesFromServer.join(" ")

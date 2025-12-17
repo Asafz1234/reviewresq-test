@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="icon" href="/logo.png" />
   <script src="/runtime-env.js"></script>
-  <link rel="stylesheet" href="dashboard.css" />
+  <link rel="stylesheet" href="/dashboard.css" />
 </head>
 <body>
   <div class="app-shell" style="padding:24px; max-width:620px; margin:0 auto;">
@@ -20,7 +20,7 @@
     </div>
   </div>
   <script type="module">
-    import { auth } from "./firebase-config.js";
+    import { auth } from "/firebase-config.js";
 
     const statusEl = document.getElementById("oauthStatus");
     const retryBtn = document.getElementById("retryBtn");
@@ -28,8 +28,10 @@
     const code = params.get("code");
     const state = params.get("state");
 
-    const functionsBaseUrl = window.__FUNCTIONS_BASE_URL || (window.RUNTIME_ENV && (window.RUNTIME_ENV.FUNCTIONS_BASE_URL || window.RUNTIME_ENV.GOOGLE_FUNCTIONS_BASE_URL)) ||
-      "https://us-central1-reviewresq-app.cloudfunctions.net";
+    const defaultExchangeEndpoint = "/oauth/google/callback/exchange";
+    const exchangeEndpoint =
+      (window.RUNTIME_ENV && window.RUNTIME_ENV.GOOGLE_OAUTH_EXCHANGE_URL) ||
+      defaultExchangeEndpoint;
 
     function showError(message) {
       if (statusEl) {
@@ -55,11 +57,8 @@
           return;
         }
         const idToken = await user.getIdToken();
-        console.debug(
-          "[google-oauth][debug] exchanging code via",
-          `${functionsBaseUrl}/exchangeGoogleAuthCodeV2`,
-        );
-        const response = await fetch(`${functionsBaseUrl}/exchangeGoogleAuthCodeV2`, {
+        console.debug("[google-oauth][debug] exchanging code via", exchangeEndpoint);
+        const response = await fetch(exchangeEndpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
