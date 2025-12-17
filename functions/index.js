@@ -1,6 +1,6 @@
 const functions = require("firebase-functions/v1");
 const { onRequest } = require("firebase-functions/v2/https");
-const { defineSecret } = require("firebase-functions/params");
+const { defineSecret, defineString } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
 const crypto = require("crypto");
@@ -20,6 +20,13 @@ const TEST_MODE = [
 
 const GOOGLE_OAUTH_CLIENT_ID = defineSecret("GOOGLE_OAUTH_CLIENT_ID");
 const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret("GOOGLE_OAUTH_CLIENT_SECRET");
+const GOOGLE_OAUTH_REDIRECT_URI = defineString("GOOGLE_OAUTH_REDIRECT_URI");
+const GOOGLE_OAUTH_SCOPES = defineString(
+  "GOOGLE_OAUTH_SCOPES",
+  {
+    default: "https://www.googleapis.com/auth/business.manage",
+  },
+);
 
 const getSecretValue = (secret) => {
   try {
@@ -31,6 +38,13 @@ const getSecretValue = (secret) => {
 
 const getSecretOrEnv = (secret, envKey) =>
   getSecretValue(secret) || process.env[envKey] || "";
+
+const getStringOrEnv = (param, envKey, fallback = "") => {
+  const value = getSecretValue(param);
+  if (value) return value;
+  if (process.env[envKey]) return process.env[envKey];
+  return fallback;
+};
 
 const normalizePlan = (raw = "starter") => {
   const value = String(raw || "starter").toLowerCase();
@@ -127,9 +141,14 @@ const getMissingGoogleEnv = ({ requireOAuth = false, requirePlaces = false } = {
       "GOOGLE_OAUTH_CLIENT_SECRET",
     );
 
+    const redirectUri = getStringOrEnv(
+      GOOGLE_OAUTH_REDIRECT_URI,
+      "GOOGLE_OAUTH_REDIRECT_URI",
+    );
+
     if (!clientId) missing.push("GOOGLE_OAUTH_CLIENT_ID");
     if (!clientSecret) missing.push("GOOGLE_OAUTH_CLIENT_SECRET");
-    if (!process.env.GOOGLE_OAUTH_REDIRECT_URI) {
+    if (!redirectUri) {
       missing.push("GOOGLE_OAUTH_REDIRECT_URI");
     }
   }
@@ -168,13 +187,21 @@ const resolveEnvConfig = (() => {
     const googleClientId =
       getSecretOrEnv(GOOGLE_OAUTH_CLIENT_ID, "GOOGLE_OAUTH_CLIENT_ID") || "";
     const googleClientSecret =
-      getSecretOrEnv(GOOGLE_OAUTH_CLIENT_SECRET, "GOOGLE_OAUTH_CLIENT_SECRET") || "";
-    const googleRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || "";
+      getSecretOrEnv(
+        GOOGLE_OAUTH_CLIENT_SECRET,
+        "GOOGLE_OAUTH_CLIENT_SECRET",
+      ) || "";
+    const googleRedirectUri =
+      getStringOrEnv(GOOGLE_OAUTH_REDIRECT_URI, "GOOGLE_OAUTH_REDIRECT_URI") ||
+      "";
     const placesApiKey = process.env.GOOGLE_PLACES_API_KEY || "";
 
     const scopes =
-      process.env.GOOGLE_OAUTH_SCOPES ||
-      "https://www.googleapis.com/auth/business.manage";
+      getStringOrEnv(
+        GOOGLE_OAUTH_SCOPES,
+        "GOOGLE_OAUTH_SCOPES",
+        "https://www.googleapis.com/auth/business.manage",
+      ) || "https://www.googleapis.com/auth/business.manage";
 
     cached = {
       googleClientId,
@@ -1124,6 +1151,8 @@ exports.googleAuthGetConfig = functions
   .https.onRequest((req, res) => googleAuthGetConfigHandler(req, res));
 
 // Gen2 endpoint for OAuth config (keeps Gen1 endpoint unchanged)
+// Quick self-test:
+//   curl https://us-central1-reviewresq-app.cloudfunctions.net/googleAuthGetConfigV2
 exports.googleAuthGetConfigV2 = onRequest(
   {
     region: "us-central1",
