@@ -5,6 +5,7 @@ const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
 const GOOGLE_OAUTH_SCOPE =
   runtimeEnv.GOOGLE_OAUTH_SCOPES || "https://www.googleapis.com/auth/business.manage";
+const GOOGLE_OAUTH_CANONICAL_REDIRECT_URI = "https://reviewresq.com/oauth/google/callback";
 const OAUTH_CLIENT_ID =
   window.GOOGLE_OAUTH_CLIENT_ID ||
   (window.GOOGLE_OAUTH && window.GOOGLE_OAUTH.clientId) ||
@@ -13,7 +14,7 @@ const OAUTH_CLIENT_ID =
   null;
 const baseOAuthConfig = {
   clientId: OAUTH_CLIENT_ID || "",
-  redirectUri: runtimeEnv.GOOGLE_OAUTH_REDIRECT_URI || "",
+  redirectUri: GOOGLE_OAUTH_CANONICAL_REDIRECT_URI,
   scopes: GOOGLE_OAUTH_SCOPE,
 };
 const placesProxyUrl =
@@ -152,9 +153,7 @@ async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false
         if (data?.clientId) {
           cachedOAuthConfig.clientId = data.clientId;
         }
-        if (data?.redirectUri) {
-          cachedOAuthConfig.redirectUri = data.redirectUri;
-        }
+        cachedOAuthConfig.redirectUri = GOOGLE_OAUTH_CANONICAL_REDIRECT_URI;
         cachedOAuthConfig.configured = Boolean(
           data?.configured ?? (cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri)
         );
@@ -272,7 +271,7 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
       throw new Error(message);
     }
 
-    const redirectUri = payload?.redirectUri || oauthConfig.redirectUri;
+    const redirectUri = GOOGLE_OAUTH_CANONICAL_REDIRECT_URI;
     const scopesFromServer = payload?.scopes || configScopes;
     const scopeString = Array.isArray(scopesFromServer)
       ? scopesFromServer.join(" ")
@@ -287,8 +286,15 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
     authUrl.searchParams.set("prompt", "consent");
     authUrl.searchParams.set("include_granted_scopes", "true");
 
-    console.log("[google-oauth] redirecting to consent screen");
-    console.debug("[google-oauth][debug] using OAuth URL", authUrl.toString());
+    const redactedAuthUrl = new URL(authUrl);
+    if (redactedAuthUrl.searchParams.has("state")) {
+      redactedAuthUrl.searchParams.set("state", "[REDACTED]");
+    }
+    console.log("[google-oauth] redirecting to consent screen", {
+      redirectUri,
+      authUrl: redactedAuthUrl.toString(),
+    });
+    console.debug("[google-oauth][debug] using OAuth URL", redactedAuthUrl.toString());
     window.location.href = authUrl.toString();
   } catch (err) {
     console.error("[google-oauth] start failed", err);
