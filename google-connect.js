@@ -33,7 +33,7 @@ const functionsBaseUrl =
   runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL ||
   defaultFunctionsBase;
 const defaultGoogleAuthConfigUrl =
-  "https://us-central1-reviewresq-app.cloudfunctions.net/googleAuthGetConfig";
+  "https://us-central1-reviewresq-app.cloudfunctions.net/googleAuthGetConfigV2";
 const resolvedFunctionsBaseForAuth = (() => {
   const base = runtimeEnv.GOOGLE_AUTH_CONFIG_URL
     ? null
@@ -50,7 +50,7 @@ const resolvedFunctionsBaseForAuth = (() => {
 const googleAuthConfigUrl =
   runtimeEnv.GOOGLE_AUTH_CONFIG_URL ||
   (resolvedFunctionsBaseForAuth
-    ? `${resolvedFunctionsBaseForAuth}/googleAuthGetConfig`
+    ? `${resolvedFunctionsBaseForAuth}/googleAuthGetConfigV2`
     : null) ||
   defaultGoogleAuthConfigUrl;
 let cachedOAuthConfig = { ...baseOAuthConfig, configured: false, missing: [] };
@@ -240,7 +240,7 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
     }
 
     const idToken = await getIdTokenOrThrow();
-    const response = await fetch(`${functionsBaseUrl}/googleAuthCreateState`, {
+    const response = await fetch(`${functionsBaseUrl}/googleAuthCreateStateV2`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
