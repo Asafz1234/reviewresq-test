@@ -577,9 +577,9 @@ const connectGoogleBusinessByReviewLinkCallable = () =>
 const connectGoogleManualLinkCallable = () =>
   httpsCallable(functions, "connectGoogleManualLink");
 const exchangeGoogleAuthCodeCallable = () =>
-  httpsCallable(functions, "exchangeGoogleAuthCode");
+  httpsCallable(functions, "exchangeGoogleAuthCodeV2");
 const createGoogleOAuthStateCallable = () =>
-  httpsCallable(functions, "googleAuthCreateState");
+  httpsCallable(functions, "googleAuthCreateStateV2");
 
 export async function connectPlaceOnBackend(
   place,
