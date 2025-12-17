@@ -1,5 +1,3 @@
-// firebase-config.js – מודול מרכזי לכל האפליקציה
-
 import {
   initializeApp,
   setLogLevel,
@@ -39,7 +37,11 @@ import {
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
 
-import { getFunctions, httpsCallable } from "./firebase-app.js";
+// ✅ FIX: ייבוא נכון של Functions מה-SDK
+import {
+  getFunctions,
+  httpsCallable,
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-functions.js";
 
 // סינון לוגי heartbeats מיותרים בקונסול
 const originalConsoleLog = console.log;
@@ -74,6 +76,12 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
+
+// ✅ שלב 2: חשיפה ל-Console (כדי לבדוק currentUser)
+window._app = app;
+window._auth = auth;
+window._db = db;
+window._functions = functions;
 
 // ייצוא כל הפונקציות הדרושות לשאר הקבצים
 export {
@@ -121,8 +129,7 @@ export function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
-    reader.onerror = () =>
-      reject(new Error("Failed to read the image file"));
+    reader.onerror = () => reject(new Error("Failed to read the image file"));
     reader.readAsDataURL(file);
   });
 }

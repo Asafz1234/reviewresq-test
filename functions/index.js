@@ -1101,7 +1101,9 @@ const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const oauthStateCollection = () =>
   admin.firestore().collection("googleOAuthStates");
 
-exports.googleAuthCreateState = functions.https.onRequest(async (req, res) => {
+exports.googleAuthCreateState = functions
+  .runWith({ secrets: ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"] })
+  .https.onRequest(async (req, res) => {
   const corsOk = applyOAuthCors(req, res);
   if (req.method === "OPTIONS") {
     return res.status(204).send("");
@@ -1172,7 +1174,9 @@ exports.googleAuthCreateState = functions.https.onRequest(async (req, res) => {
   }
 });
 
-exports.exchangeGoogleAuthCode = functions.https.onRequest(async (req, res) => {
+exports.exchangeGoogleAuthCode = functions
+  .runWith({ secrets: ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"] })
+  .https.onRequest(async (req, res) => {
   const corsOk = applyOAuthCors(req, res);
   if (req.method === "OPTIONS") {
     return res.status(204).send("");
