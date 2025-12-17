@@ -55,6 +55,10 @@
           return;
         }
         const idToken = await user.getIdToken();
+        console.debug(
+          "[google-oauth][debug] exchanging code via",
+          `${functionsBaseUrl}/exchangeGoogleAuthCodeV2`,
+        );
         const response = await fetch(`${functionsBaseUrl}/exchangeGoogleAuthCodeV2`, {
           method: "POST",
           headers: {
