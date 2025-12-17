@@ -1114,9 +1114,9 @@ exports.googleAuthCreateState = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    const decoded = await verifyRequestAuth(req);
     const envCheck = ensureGoogleEnvForRuntime(null, {
       requireOAuth: true,
+      requireAuth: false,
       context: "googleAuthCreateState",
     });
     if (!envCheck.ok) {
@@ -1138,7 +1138,7 @@ exports.googleAuthCreateState = functions.https.onRequest(async (req, res) => {
     const now = Date.now();
     const returnTo = req.body?.returnTo || null;
     await oauthStateCollection().doc(state).set({
-      uid: decoded.uid,
+      uid: req.body?.uid || null,
       createdAt: now,
       expiresAt: now + OAUTH_STATE_TTL_MS,
       returnTo,
@@ -1165,9 +1165,10 @@ exports.googleAuthCreateState = functions.https.onRequest(async (req, res) => {
       authUrl: authUrl.toString(),
     });
   } catch (err) {
-    const status = err?.code === "UNAUTHENTICATED" ? 401 : 500;
-    console.error("[google-oauth] failed to create state", err);
-    return res.status(status).json({ ok: false, message: err?.message || "OAuth unavailable" });
+    console.error("[google-oauth] googleAuthCreateState failed", err);
+    return res
+      .status(500)
+      .json({ ok: false, message: err?.message || "OAuth unavailable" });
   }
 });
 
@@ -1184,7 +1185,6 @@ exports.exchangeGoogleAuthCode = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    const decoded = await verifyRequestAuth(req);
     const code = req.body?.code;
     const state = req.body?.state;
     if (!code || !state) {
@@ -1195,6 +1195,7 @@ exports.exchangeGoogleAuthCode = functions.https.onRequest(async (req, res) => {
 
     const envCheck = ensureGoogleEnvForRuntime(null, {
       requireOAuth: true,
+      requireAuth: false,
       context: "exchangeGoogleAuthCode",
     });
     if (!envCheck.ok) {
@@ -1227,7 +1228,7 @@ exports.exchangeGoogleAuthCode = functions.https.onRequest(async (req, res) => {
     }
     const stateData = stateSnap.data() || {};
     const expired = stateData.expiresAt && Date.now() > stateData.expiresAt;
-    if (expired || stateData.uid !== decoded.uid) {
+    if (expired) {
       await stateRef.delete().catch(() => {});
       return res.status(400).json({
         ok: false,
@@ -1271,7 +1272,6 @@ exports.exchangeGoogleAuthCode = functions.https.onRequest(async (req, res) => {
     }
 
     const { accounts, locations } = await fetchGoogleBusinessLocationsWithToken(accessToken);
-    const profileRef = db.collection("businessProfiles").doc(decoded.uid);
     const connection = {
       provider: "google",
       connectedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1291,28 +1291,29 @@ exports.exchangeGoogleAuthCode = functions.https.onRequest(async (req, res) => {
         }))
       : [];
 
-    await profileRef.set(
-      {
-        googleOAuth: connection,
-        googleAccounts: accounts || [],
-        googleLocations: cleanedLocations,
-        googleConnectionType: "oauth",
-      },
-      { merge: true }
-    );
+    const uid = stateData.uid || req.body?.uid || null;
+    if (uid) {
+      const profileRef = db.collection("businessProfiles").doc(uid);
+      await profileRef.set(
+        {
+          googleOAuth: connection,
+          googleAccounts: accounts || [],
+          googleLocations: cleanedLocations,
+          googleConnectionType: "oauth",
+        },
+        { merge: true }
+      );
+    }
 
     await stateRef.delete().catch(() => {});
 
     const returnTo = stateData.returnTo || "/google-reviews.html";
     return res.json({ ok: true, accounts, locations, returnTo });
   } catch (err) {
-    const status = err?.code === "UNAUTHENTICATED" ? 401 : 500;
-    console.error("[exchangeGoogleAuthCode] unexpected error", err);
-    return res.status(status).json({
-      ok: false,
-      reason: err?.code || "OAUTH_ERROR",
-      message: err?.message || "Failed to complete Google OAuth.",
-    });
+    console.error("[google-oauth] exchangeGoogleAuthCode failed", err);
+    return res
+      .status(500)
+      .json({ ok: false, message: err?.message || "OAuth unavailable" });
   }
 });
 
