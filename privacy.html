@@ -4,30 +4,161 @@
   <meta charset="UTF-8">
   <title>Privacy Policy • ReviewResQ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
   <link
     rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
   />
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-           margin: 0; padding: 0; background:#020617; }
-    .wrapper { max-width: 900px; margin: 40px auto; background:#fff; border-radius:12px;
-               padding:32px 26px; box-shadow:0 16px 40px rgba(15,23,42,0.35); }
-    h1 { font-size: 26px; margin-bottom: 6px; }
-    h2 { margin-top: 24px; font-size: 19px; }
-    p, li { font-size: 14px; line-height: 1.6; color:#4b5563; }
-    ul { padding-left: 20px; }
-    .muted { font-size: 13px; color:#9ca3af; margin-bottom: 16px; }
+    :root {
+      color-scheme: light dark;
+    }
+
+    body {
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #020617;
+      color: #0f172a;
+    }
+
+    .wrapper {
+      max-width: 960px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 36px 30px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 6px;
+      color: #0f172a;
+    }
+
+    h2 {
+      margin-top: 26px;
+      font-size: 20px;
+      color: #0f172a;
+    }
+
+    p,
+    li {
+      font-size: 15px;
+      line-height: 1.7;
+      color: #475569;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+
+    a {
+      color: #2563eb;
+      font-weight: 600;
+    }
+
+    .muted {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+
+    .callout {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+      margin: 16px 0;
+    }
+
+    .footer {
+      max-width: 960px;
+      margin: 20px auto 50px;
+      padding: 18px 0 0;
+      border-top: 1px solid #e2e8f0;
+      color: #475569;
+      font-size: 14px;
+    }
+
+    .footer__inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .footer__brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .footer__brand img {
+      height: 28px;
+    }
+
+    .footer__links {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .footer__links a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .footer__links a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
   <div class="wrapper">
     <h1>Privacy Policy</h1>
-    <p class="muted">Last updated: November 2025</p>
+    <p class="muted">Last updated: February 2026</p>
 
-    <p>This Privacy Policy explains how ReviewResQ ("we", "us", "our") collects, uses, and protects information when you use our website and Service.</p>
+    <p>
+      This Privacy Policy explains how ReviewResQ ("we", "us", "our") collects, uses, and protects information when you use our
+      website and Service. It also describes how we handle Google Business Profile data for OAuth connections.
+    </p>
 
-    <h2>1. Information we collect</h2>
+    <h2>Google Business Profile access (OAuth)</h2>
+    <div class="callout">
+      <p><strong>Scope requested:</strong> https://www.googleapis.com/auth/business.manage</p>
+      <p><strong>Why we request it:</strong> to let you connect your Google Business Profile so ReviewResQ can read review activity and help you manage replies inside the app.</p>
+    </div>
+    <p>When you connect Google, we only access the data needed to operate review workflows. This includes:</p>
+    <ul>
+      <li>Account identifiers and location IDs for the Google Business Profile locations you connect.</li>
+      <li>OAuth tokens and refresh tokens so you can stay signed in and post replies.</li>
+      <li>Review metadata (review content, author name as provided by Google, star rating, timestamps, and reply state).</li>
+      <li>Business profile details that are necessary to show your locations and reply context.</li>
+    </ul>
+    <p>Data from Google is stored securely in Google Cloud (Firebase/Firestore) with least-privilege access controls and encryption in transit and at rest. Only authorized team members who need to support or operate the Service can access it.</p>
+
+    <h2>How we use information</h2>
+    <p>We use the information we collect to:</p>
+    <ul>
+      <li>Provide, operate, and improve the Service (including fetching reviews, posting owner responses, and running AI reply workflows).</li>
+      <li>Generate analytics and reports for your account.</li>
+      <li>Send transactional emails and notifications.</li>
+      <li>Maintain security, prevent abuse, and troubleshoot issues.</li>
+    </ul>
+    <p>We do not sell personal information.</p>
+
+    <h2>Information we collect directly</h2>
     <ul>
       <li><strong>Account information:</strong> name, email address, business name, phone number, login details.</li>
       <li><strong>Customer feedback data:</strong> information submitted by your customers through the feedback links you send (such as name, rating, comments, and contact details).</li>
@@ -35,41 +166,39 @@
       <li><strong>Payment information:</strong> processed securely by Paddle, our Merchant of Record. We do not store full card details.</li>
     </ul>
 
-    <h2>2. How we use information</h2>
-    <p>We use information to:</p>
+    <h2>Data retention</h2>
+    <p>We keep your account, token, and review data while your account is active so we can operate the Service. If you cancel or request deletion, we remove or anonymize personal data that is no longer needed, except where law requires retention. Backup copies are purged on their normal rotation cycle.</p>
+
+    <h2>Revoking Google access</h2>
+    <p>You can revoke ReviewResQ's Google access at any time by:</p>
     <ul>
-      <li>Provide, operate, and improve the Service,</li>
-      <li>Generate analytics and reports for your account,</li>
-      <li>Send transactional emails and notifications,</li>
-      <li>Maintain security and prevent abuse.</li>
+      <li>Opening your Google Account → Security → Third-party access and removing ReviewResQ, and/or</li>
+      <li>Using the disconnect/remove Google button inside the app if available.</li>
     </ul>
-    <p>We do not sell your personal information.</p>
+    <p>Revoking access stops new data from syncing and prevents us from posting replies on your behalf.</p>
 
-    <h2>3. Data processed on your behalf</h2>
-    <p>When your customers submit feedback, we process that data on your behalf as a service provider. You are responsible for obtaining any required consent from your customers and for complying with applicable privacy laws.</p>
+    <h2>Requesting deletion</h2>
+    <p>You can request deletion of your ReviewResQ account or Google-derived data by emailing <a href="mailto:support@reviewresq.com">support@reviewresq.com</a>. We will delete OAuth tokens, account identifiers, connected locations, and stored review/reply metadata within a reasonable timeframe (typically within 30 days) unless retention is required by law or for security/audit purposes.</p>
 
-    <h2>4. Payments and Paddle</h2>
+    <h2>Payments and Paddle</h2>
     <p>All payments and subscriptions are handled by Paddle (Paddle.com). Paddle may collect additional information necessary to process payments and comply with financial regulations. Paddle’s privacy practices are governed by their own Privacy Policy.</p>
 
-    <h2>5. Cookies and tracking</h2>
+    <h2>Cookies and tracking</h2>
     <p>We may use cookies or similar technologies to remember your session, maintain security, and analyze usage. You can manage cookies through your browser settings.</p>
 
-    <h2>6. Data sharing</h2>
+    <h2>Data sharing</h2>
     <p>We may share information with:</p>
     <ul>
-      <li>Service providers that help us operate the platform (hosting, analytics, email, etc.),</li>
-      <li>Paddle, for payment processing,</li>
+      <li>Service providers that help us operate the platform (hosting, analytics, email, etc.).</li>
+      <li>Paddle, for payment processing.</li>
       <li>Authorities, when required by law or to protect our legal rights.</li>
     </ul>
     <p>We do not share your customers’ feedback data with other clients.</p>
 
-    <h2>7. Data retention</h2>
-    <p>We keep your data for as long as your account is active or as needed to provide the Service. You may request deletion of your account, in which case we will remove or anonymize data except where retention is required by law.</p>
+    <h2>Security</h2>
+    <p>We use reasonable technical and organizational measures, including encryption in transit and at rest, access controls, and least-privilege practices for our team. No system is completely secure, but we work to protect your information.</p>
 
-    <h2>8. Security</h2>
-    <p>We use reasonable technical and organizational measures to protect information. However, no system is completely secure and we cannot guarantee absolute security.</p>
-
-    <h2>9. Your rights</h2>
+    <h2>Your rights</h2>
     <p>You may contact us to:</p>
     <ul>
       <li>Access your personal data,</li>
@@ -77,19 +206,29 @@
       <li>Request deletion of your account.</li>
     </ul>
 
-    <h2>10. Children</h2>
+    <h2>Children</h2>
     <p>The Service is intended for use by businesses and adults. We do not knowingly collect data from children under 18.</p>
 
-    <h2>11. Changes to this Policy</h2>
+    <h2>Changes to this Policy</h2>
     <p>We may update this Privacy Policy from time to time. Material changes will be announced via the website or by email.</p>
 
-    <h2>Google API Data Usage</h2>
-    <p>When you connect your Google Business Profile, we request the <strong>business.manage</strong> scope from the Google Business Profile API to read and respond to your business reviews on your behalf.</p>
-    <p>You can revoke ReviewResQ's access at any time by disconnecting Google inside the app and removing the connection from your Google Account permissions (https://myaccount.google.com/permissions).</p>
-    <p>To request deletion of data obtained via Google APIs, email us at <a href="mailto:support@reviewresq.com">support@reviewresq.com</a>.</p>
-
-    <h2>12. Contact</h2>
+    <h2>Contact</h2>
     <p>If you have questions about this Policy, contact: <a href="mailto:support@reviewresq.com">support@reviewresq.com</a></p>
   </div>
+
+  <footer class="footer">
+    <div class="footer__inner">
+      <div class="footer__brand">
+        <img src="/logo.png" alt="ReviewResQ logo" />
+        <span>ReviewResQ</span>
+      </div>
+      <div class="footer__links">
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/auth.html">Login</a>
+      </div>
+    </div>
+  </footer>
 </body>
 </html>
