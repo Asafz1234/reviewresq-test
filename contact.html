@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contact ReviewResQ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E'
+  />
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #020617;
+      color: #0f172a;
+    }
+
+    .page-shell {
+      max-width: 900px;
+      margin: 40px auto;
+      background: #ffffff;
+      padding: 36px 30px;
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      color: #111827;
+    }
+
+    p {
+      margin: 0 0 16px;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #475569;
+    }
+
+    .contact-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px 18px;
+      background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    }
+
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: 10px;
+      background: #2563eb;
+      color: #ffffff;
+      text-decoration: none;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.25);
+    }
+
+    .cta-button:hover {
+      transform: translateY(-1px);
+      background: #1d4ed8;
+      box-shadow: 0 12px 34px rgba(37, 99, 235, 0.35);
+    }
+
+    .cta-button:focus-visible {
+      outline: 3px solid rgba(37, 99, 235, 0.35);
+      outline-offset: 3px;
+    }
+
+    .fallback {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .support-email a {
+      color: #2563eb;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .support-email a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <h1>Contact ReviewResQ</h1>
+    <p>We respond within one business day.</p>
+
+    <section class="contact-card" aria-label="Support contact options">
+      <p class="support-email">Reach us anytime at <a href="mailto:support@reviewresq.com">support@reviewresq.com</a>.</p>
+      <p>
+        Prefer to open your email app with everything prefilled? Use the button below and we'll set the subject line for you.
+      </p>
+      <a class="cta-button" href="mailto:support@reviewresq.com?subject=ReviewResQ%20Support%20Request">Email Support</a>
+      <p class="fallback">If the button doesn’t open your email app, email us directly: support@reviewresq.com</p>
+    </section>
+  </main>
+</body>
+</html>
