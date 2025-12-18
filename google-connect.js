@@ -5,7 +5,7 @@ const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
 const GOOGLE_OAUTH_SCOPE =
   runtimeEnv.GOOGLE_OAUTH_SCOPES || "https://www.googleapis.com/auth/business.manage";
-const GOOGLE_OAUTH_CANONICAL_REDIRECT_URI = "https://reviewresq.com/oauth/google/callback";
+const GOOGLE_OAUTH_CANONICAL_REDIRECT_URI = "https://reviewresq.com/oauthCallback.html";
 const OAUTH_CLIENT_ID =
   window.GOOGLE_OAUTH_CLIENT_ID ||
   (window.GOOGLE_OAUTH && window.GOOGLE_OAUTH.clientId) ||
@@ -271,7 +271,7 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
       throw new Error(message);
     }
 
-    const redirectUri = GOOGLE_OAUTH_CANONICAL_REDIRECT_URI;
+    const redirectUri = oauthConfig.redirectUri;
     const scopesFromServer = payload?.scopes || configScopes;
     const scopeString = Array.isArray(scopesFromServer)
       ? scopesFromServer.join(" ")
