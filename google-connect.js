@@ -5,7 +5,9 @@ const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
 const GOOGLE_OAUTH_SCOPE =
   runtimeEnv.GOOGLE_OAUTH_SCOPES || "https://www.googleapis.com/auth/business.manage";
-const GOOGLE_OAUTH_CANONICAL_REDIRECT_URI = "https://reviewresq.com/oauthCallback.html";
+// GitHub Pages requires a real file for callbacks because deep routes 404 unless a file exists.
+const GOOGLE_OAUTH_CANONICAL_REDIRECT_URI =
+  "https://reviewresq.com/oauth-google-callback.html";
 const OAUTH_CLIENT_ID =
   window.GOOGLE_OAUTH_CLIENT_ID ||
   (window.GOOGLE_OAUTH && window.GOOGLE_OAUTH.clientId) ||
