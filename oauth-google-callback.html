@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ReviewResQ – Google OAuth Callback</title>
+  </head>
+  <body>
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search || "");
+        const code = params.get("code") || "";
+        const state = params.get("state") || "";
+        const error = params.get("error");
+
+        if (error) {
+          console.error("[google-oauth] error from Google redirect", error);
+        }
+
+        const destination = `/google-reviews.html?oauth=google&code=${encodeURIComponent(
+          code,
+        )}&state=${encodeURIComponent(state)}`;
+
+        window.location.replace(destination);
+      })();
+    </script>
+  </body>
+</html>
