@@ -19,6 +19,16 @@ service cloud.firestore {
       allow get, list: if true;
     }
 
+    match /businesses/{businessId} {
+      allow get, list: if request.auth != null && request.auth.uid == businessId;
+
+      match /settings/{settingId} {
+        allow get, list: if request.auth != null && request.auth.uid == businessId;
+        // Review funnel settings must be updated via Cloud Functions to enforce plan rules
+        allow create, update, delete: if false;
+      }
+    }
+
     // Public feedback from the customer portal
     match /feedback/{document} {
       allow create: if

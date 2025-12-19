@@ -857,3 +857,116 @@ textarea.input {
   border-radius: 8px;
   border: 1px solid #e5e7eb;
 }
+
+/* Review funnel plan-aware UI */
+.plan-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #eef2ff, #f5f7ff);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  gap: 16px;
+}
+
+.plan-callout .card-title {
+  margin: 4px 0 0;
+}
+
+.plan-callout-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.locked-overlay {
+  border: 1px dashed #e5e7eb;
+  background: rgba(247, 248, 253, 0.8);
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.locked-overlay[data-mode="ai"] {
+  border-style: solid;
+  background: #f1f5f9;
+}
+
+.locked-label {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cluster {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.cluster-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.rating-config {
+  display: flex;
+  gap: 12px;
+}
+
+.chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.chip-primary {
+  background: #2563eb1a;
+  color: #1d4ed8;
+}
+
+[data-advanced-body].is-preview .input,
+[data-advanced-body].is-preview textarea,
+[data-advanced-body].is-preview input[type="color"] {
+  background: #f9fafb;
+  cursor: not-allowed;
+}
+
+.badge-ai {
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+}
+
+.ai-managed-note {
+  margin-top: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #f8fafc;
+}

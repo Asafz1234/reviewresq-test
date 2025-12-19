@@ -40,6 +40,12 @@ export const PLAN_CAPABILITIES = {
     settings_basic: true,
     settings_logo_upload: false,
     settings_branding_advanced: false,
+    // Review funnel
+    reviewFunnel: true,
+    reviewFunnelCustomization: false,
+    reviewFunnelRatingRules: false,
+    reviewFunnelBrandingLogo: false,
+    reviewFunnelAIManaged: false,
   },
   growth: {
     overview_ai_insights: true,
@@ -66,6 +72,11 @@ export const PLAN_CAPABILITIES = {
     settings_basic: true,
     settings_logo_upload: true,
     settings_branding_advanced: false,
+    reviewFunnel: true,
+    reviewFunnelCustomization: true,
+    reviewFunnelRatingRules: true,
+    reviewFunnelBrandingLogo: true,
+    reviewFunnelAIManaged: false,
   },
   pro_ai: {
     overview_ai_insights: true,
@@ -92,6 +103,11 @@ export const PLAN_CAPABILITIES = {
     settings_basic: true,
     settings_logo_upload: true,
     settings_branding_advanced: true,
+    reviewFunnel: true,
+    reviewFunnelCustomization: false,
+    reviewFunnelRatingRules: false,
+    reviewFunnelBrandingLogo: true,
+    reviewFunnelAIManaged: true,
   },
 };
 
@@ -100,6 +116,22 @@ export function normalizePlan(planId = "starter") {
   if (lowered === "pro_ai_suite" || lowered === "pro" || lowered === "advanced") return "pro_ai";
   if (lowered === "growth") return "growth";
   return "starter";
+}
+
+export function getPlanCapabilities(planId = "starter") {
+  const plan = normalizePlan(planId);
+  const isGrowth = plan === "growth";
+  const isPro = plan === "pro_ai";
+
+  const features = {
+    reviewFunnel: true,
+    reviewFunnelCustomization: isGrowth ? true : isPro ? "ai" : false,
+    reviewFunnelRatingRules: isGrowth ? true : isPro ? "ai" : false,
+    reviewFunnelBrandingLogo: isPro || isGrowth,
+    reviewFunnelAIManaged: isPro,
+  };
+
+  return { plan, features };
 }
 
 export function hasFeature(planOrSession, feature) {
@@ -145,5 +177,13 @@ export function upgradeTargetForFeature(feature) {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { PLAN_CAPABILITIES, PLAN_LABELS, PLAN_ORDER, normalizePlan, hasFeature, upgradeTargetForFeature };
+  module.exports = {
+    PLAN_CAPABILITIES,
+    PLAN_LABELS,
+    PLAN_ORDER,
+    normalizePlan,
+    hasFeature,
+    upgradeTargetForFeature,
+    getPlanCapabilities,
+  };
 }
