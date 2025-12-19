@@ -203,6 +203,7 @@ async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false
 export { functionsBaseUrl };
 
 let oauthClickBound = false;
+let oauthReturnHandled = false;
 
 function resolveOAuthButton() {
   return document.getElementById("connectWithGoogleBtn");
@@ -1545,38 +1546,61 @@ ensureOAuthConfig({ logAvailability: true })
   }
 }
 
-async function handleGoogleOAuthReturn() {
+async function handleGoogleOAuthReturnOnLoad() {
+  if (oauthReturnHandled) return;
+
   const query = new URLSearchParams(window.location.search || "");
   const oauthProvider = query.get("oauth");
   const code = query.get("code");
   const state = query.get("state");
 
   if (oauthProvider !== "google" || !code || !state) return;
+  oauthReturnHandled = true;
 
-  console.log("[google-oauth] detected return params");
+  console.log("[google-oauth] return detected");
 
-  const btn = document.getElementById("connectWithGoogleBtn");
+  const btn = resolveOAuthButton();
   const statusEl = document.querySelector("[data-google-oauth-status]");
+  const resultsEl = document.querySelector("[data-google-oauth-results]");
   const originalText = btn ? btn.textContent : "";
 
+  if (resultsEl) resultsEl.innerHTML = "";
   if (btn) {
     btn.disabled = true;
-    btn.textContent = "Finishing connection…";
+    btn.textContent = "Finishing Google connection…";
   }
   if (statusEl) {
-    statusEl.textContent = "Finishing connection…";
+    statusEl.textContent = "Finishing Google connection…";
     statusEl.style.color = "";
   }
 
   const cleanUpUrl = () => {
     try {
       const url = new URL(window.location.href);
-      url.searchParams.delete("code");
-      url.searchParams.delete("state");
-      url.searchParams.delete("oauth");
-      window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+      ["code", "state", "oauth"].forEach((param) => url.searchParams.delete(param));
+      const searchString = url.searchParams.toString();
+      const updatedUrl = `${url.pathname}${searchString ? `?${searchString}` : ""}${
+        url.hash
+      }`;
+      window.history.replaceState({}, "", updatedUrl);
     } catch (err) {
       console.error("[google-oauth] handle return failed", err);
+    }
+  };
+
+  const showStatus = (message = "", color = "") => {
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.style.color = color || "";
+  };
+
+  const showNoLocationsMessage = () => {
+    const message =
+      "This Google account has no Google Business Profile locations (or you don’t have access). Please sign in with an account that is an Owner/Manager of a Business Profile, or use manual connection.";
+    showStatus(message, "var(--warning, #b26b00)");
+    if (resultsEl) {
+      resultsEl.textContent = message;
+      resultsEl.setAttribute("role", "status");
     }
   };
 
@@ -1587,28 +1611,29 @@ async function handleGoogleOAuthReturn() {
       state,
       redirectUri: GOOGLE_OAUTH_CANONICAL_REDIRECT_URI,
     });
-    console.log("[google-oauth] exchange response", response?.data || response);
     const data = response?.data || {};
+    console.log("[google-oauth] exchange result", data?.ok, data?.reason);
 
     if (!data?.ok) {
       const message = data?.message || "Unable to finish Google connection.";
-      if (statusEl) {
-        statusEl.textContent = message;
-        statusEl.style.color = "var(--danger, #b00020)";
-      }
+      showStatus(message, "var(--danger, #b00020)");
       showToast(message, true);
       return;
     }
 
+    const hasLocations = Array.isArray(data?.locations) && data.locations.length > 0;
+    if (!hasLocations) {
+      showNoLocationsMessage();
+      return;
+    }
+
     await refreshProfile();
-    showToast("Google connected successfully.");
+    showStatus("Google connected.");
+    showToast("Google connected.");
   } catch (err) {
     console.error("[google-oauth] handle return failed", err);
     const message = err?.message || "Unable to finish Google connection.";
-    if (statusEl) {
-      statusEl.textContent = message;
-      statusEl.style.color = "var(--danger, #b00020)";
-    }
+    showStatus(message, "var(--danger, #b00020)");
     showToast(message, true);
   } finally {
     if (btn) {
@@ -1625,4 +1650,4 @@ export async function refetchProfileAfterConnect() {
 
 export { startGoogleOAuth };
 
-handleGoogleOAuthReturn();
+handleGoogleOAuthReturnOnLoad();
