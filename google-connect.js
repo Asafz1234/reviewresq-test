@@ -1526,15 +1526,15 @@ export function renderGoogleConnect(container, options = {}) {
       }
     });
 
-  ensureOAuthConfig({ logAvailability: true })
-    .then((config) => {
-      if (!config?.configured) {
-        showOAuthStatus(config);
-      }
-    })
-    .catch((err) => {
-      console.error("[google-oauth] initial config lookup failed", err);
-    });
+ensureOAuthConfig({ logAvailability: true })
+  .then((config) => {
+    if (!config?.configured) {
+      showOAuthStatus(config);
+    }
+  })
+  .catch((err) => {
+    console.error("[google-oauth] initial config lookup failed", err);
+  });
   if (nameInput) {
     nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -1545,8 +1545,84 @@ export function renderGoogleConnect(container, options = {}) {
   }
 }
 
+async function handleGoogleOAuthReturn() {
+  const query = new URLSearchParams(window.location.search || "");
+  const oauthProvider = query.get("oauth");
+  const code = query.get("code");
+  const state = query.get("state");
+
+  if (oauthProvider !== "google" || !code || !state) return;
+
+  console.log("[google-oauth] detected return params");
+
+  const btn = document.getElementById("connectWithGoogleBtn");
+  const statusEl = document.querySelector("[data-google-oauth-status]");
+  const originalText = btn ? btn.textContent : "";
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Finishing connection…";
+  }
+  if (statusEl) {
+    statusEl.textContent = "Finishing connection…";
+    statusEl.style.color = "";
+  }
+
+  const cleanUpUrl = () => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("code");
+      url.searchParams.delete("state");
+      url.searchParams.delete("oauth");
+      window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+    } catch (err) {
+      console.error("[google-oauth] handle return failed", err);
+    }
+  };
+
+  try {
+    const call = exchangeGoogleAuthCodeCallable();
+    const response = await call({
+      code,
+      state,
+      redirectUri: GOOGLE_OAUTH_CANONICAL_REDIRECT_URI,
+    });
+    console.log("[google-oauth] exchange response", response?.data || response);
+    const data = response?.data || {};
+
+    if (!data?.ok) {
+      const message = data?.message || "Unable to finish Google connection.";
+      if (statusEl) {
+        statusEl.textContent = message;
+        statusEl.style.color = "var(--danger, #b00020)";
+      }
+      showToast(message, true);
+      return;
+    }
+
+    await refreshProfile();
+    showToast("Google connected successfully.");
+  } catch (err) {
+    console.error("[google-oauth] handle return failed", err);
+    const message = err?.message || "Unable to finish Google connection.";
+    if (statusEl) {
+      statusEl.textContent = message;
+      statusEl.style.color = "var(--danger, #b00020)";
+    }
+    showToast(message, true);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText || "Connect with Google";
+    }
+    cleanUpUrl();
+  }
+}
+
 export async function refetchProfileAfterConnect() {
   return refreshProfile();
 }
 
 export { startGoogleOAuth };
+
+handleGoogleOAuthReturn();
