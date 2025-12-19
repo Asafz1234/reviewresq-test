@@ -4,6 +4,7 @@ const { defineSecret, defineString } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
 const crypto = require("crypto");
+const { getPlanCapabilities: sharedPlanCapabilities, normalizePlan: sharedNormalizePlan } = require("../plan-capabilities");
 
 admin.initializeApp();
 
@@ -47,10 +48,7 @@ const getStringOrEnv = (param, envKey, fallback = "") => {
 };
 
 const normalizePlan = (raw = "starter") => {
-  const value = String(raw || "starter").toLowerCase();
-  if (value === "growth") return "growth";
-  if (value === "pro_ai" || value === "pro" || value === "pro_ai_suite") return "pro_ai";
-  return "starter";
+  return sharedNormalizePlan ? sharedNormalizePlan(raw) : "starter";
 };
 
 const planLocationLimit = (planId = "starter") => {
@@ -69,6 +67,25 @@ const planUpgradeMessage = (planId = "starter") => {
     return "Upgrade to Pro AI Suite to connect up to 15 locations.";
   }
   return "You’ve reached the maximum of 15 locations. Contact support if you need more.";
+};
+
+const derivePlanCapabilities = (planId = "starter") => {
+  if (sharedPlanCapabilities) {
+    return sharedPlanCapabilities(planId);
+  }
+  const normalized = normalizePlan(planId);
+  const isGrowth = normalized === "growth";
+  const isPro = normalized === "pro_ai";
+  return {
+    plan: normalized,
+    features: {
+      reviewFunnel: true,
+      reviewFunnelCustomization: isGrowth ? true : isPro ? "ai" : false,
+      reviewFunnelRatingRules: isGrowth ? true : isPro ? "ai" : false,
+      reviewFunnelBrandingLogo: isPro || isGrowth,
+      reviewFunnelAIManaged: isPro,
+    },
+  };
 };
 
 const resolveUserPlanId = async (uid, existingProfile = null) => {
@@ -118,6 +135,151 @@ const upsertGoogleLocation = (existingLocations, newEntry) => {
     merged.push(newEntry);
   }
   return merged;
+};
+
+const DEFAULT_REVIEW_FUNNEL_SETTINGS = {
+  mode: "manual",
+  happy: {
+    headline: "Thanks for your visit!",
+    prompt: "Share a quick note about your experience so others know what to expect.",
+    ctaLabel: "Leave us a Google review",
+    googleReviewUrl: "",
+  },
+  unhappy: {
+    headline: "We're here to make it right",
+    message: "Tell us what happened and how we can improve. We'll respond quickly.",
+    followupEmail: "",
+  },
+  routing: {
+    enabled: true,
+    type: "rating",
+    thresholds: { googleMin: 4 },
+  },
+  branding: {
+    logoUrl: "",
+    primaryColor: "#2563eb",
+  },
+  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+};
+
+const loadBusinessAccount = async (businessId) => {
+  const businessRef = db.collection("businesses").doc(businessId);
+  const [businessSnap, profileSnap] = await Promise.all([
+    businessRef.get(),
+    db.collection("businessProfiles").doc(businessId).get().catch(() => null),
+  ]);
+
+  const businessData = businessSnap.exists ? businessSnap.data() : {};
+  const profileData = profileSnap?.exists ? profileSnap.data() : {};
+
+  const planId = await resolveUserPlanId(businessId, {
+    ...profileData,
+    ...businessData,
+    planId: businessData.plan || profileData.plan || businessData.planId,
+  });
+
+  const capabilities = derivePlanCapabilities(planId);
+  const mergedFeatures = { ...businessData.features, ...capabilities.features };
+
+  await businessRef.set(
+    {
+      plan: planId,
+      features: mergedFeatures,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return {
+    ref: businessRef,
+    data: { ...profileData, ...businessData, plan: planId, features: mergedFeatures },
+    capabilities: { ...capabilities, features: mergedFeatures },
+  };
+};
+
+const mergeDeep = (target = {}, source = {}) => {
+  const output = { ...target };
+  Object.entries(source || {}).forEach(([key, value]) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      output[key] = mergeDeep(target[key] || {}, value);
+    } else if (value !== undefined) {
+      output[key] = value;
+    }
+  });
+  return output;
+};
+
+const sanitizeReviewFunnelPatch = (patch = {}) => {
+  const cleaned = {};
+
+  if (patch.mode === "ai" || patch.mode === "manual") {
+    cleaned.mode = patch.mode;
+  }
+
+  if (patch.happy && typeof patch.happy === "object") {
+    const happy = {};
+    if (typeof patch.happy.headline === "string") happy.headline = patch.happy.headline;
+    if (typeof patch.happy.prompt === "string") happy.prompt = patch.happy.prompt;
+    if (typeof patch.happy.ctaLabel === "string") happy.ctaLabel = patch.happy.ctaLabel;
+    if (typeof patch.happy.googleReviewUrl === "string")
+      happy.googleReviewUrl = patch.happy.googleReviewUrl;
+    if (Object.keys(happy).length) cleaned.happy = happy;
+  }
+
+  if (patch.unhappy && typeof patch.unhappy === "object") {
+    const unhappy = {};
+    if (typeof patch.unhappy.headline === "string") unhappy.headline = patch.unhappy.headline;
+    if (typeof patch.unhappy.message === "string") unhappy.message = patch.unhappy.message;
+    if (typeof patch.unhappy.followupEmail === "string")
+      unhappy.followupEmail = patch.unhappy.followupEmail;
+    if (Object.keys(unhappy).length) cleaned.unhappy = unhappy;
+  }
+
+  if (patch.routing && typeof patch.routing === "object") {
+    const routing = {};
+    if (typeof patch.routing.enabled === "boolean") routing.enabled = patch.routing.enabled;
+    if (typeof patch.routing.type === "string") routing.type = patch.routing.type;
+
+    if (patch.routing.thresholds && typeof patch.routing.thresholds === "object") {
+      const googleMin = Number(patch.routing.thresholds.googleMin);
+      if (Number.isFinite(googleMin) && googleMin >= 1 && googleMin <= 5) {
+        routing.thresholds = { googleMin };
+      }
+    }
+
+    if (Object.keys(routing).length) cleaned.routing = routing;
+  }
+
+  if (patch.branding && typeof patch.branding === "object") {
+    const branding = {};
+    if (typeof patch.branding.logoUrl === "string") branding.logoUrl = patch.branding.logoUrl;
+    if (typeof patch.branding.primaryColor === "string") branding.primaryColor = patch.branding.primaryColor;
+    if (Object.keys(branding).length) cleaned.branding = branding;
+  }
+
+  return cleaned;
+};
+
+const pickAllowedPatch = (patch = {}, allowedPaths = [], prefix = []) => {
+  const selected = {};
+  Object.entries(patch || {}).forEach(([key, value]) => {
+    const path = [...prefix, key].join(".");
+    const allowed = allowedPaths.includes(path);
+    const leadsToAllowedChild = allowedPaths.some((p) => p.startsWith(`${path}.`));
+
+    if (allowed) {
+      selected[key] = value;
+      return;
+    }
+
+    if (value && typeof value === "object" && !Array.isArray(value) && leadsToAllowedChild) {
+      const child = pickAllowedPatch(value, allowedPaths, [...prefix, key]);
+      if (Object.keys(child).length) {
+        selected[key] = child;
+      }
+    }
+  });
+  return selected;
 };
 
 const REQUIRED_ENV = {
@@ -1840,6 +2002,74 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
     };
   }
 );
+
+exports.updateReviewFunnelSettings = functions.https.onCall(async (data, context) => {
+  if (!context.auth || !context.auth.uid) {
+    throw new functions.https.HttpsError("unauthenticated", "Sign in to update review funnel settings.");
+  }
+
+  const businessId = data?.businessId || context.auth.uid;
+
+  if (businessId !== context.auth.uid) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "You can only update review funnel settings for your own business.",
+    );
+  }
+
+  const rawPatch = data?.patch || {};
+  const { ref: businessRef, capabilities, data: businessData } = await loadBusinessAccount(businessId);
+  const { features, plan } = capabilities;
+  const allowManualOverride = Boolean(businessData?.features?.reviewFunnelAllowManualOverride);
+
+  const sanitizedPatch = sanitizeReviewFunnelPatch(rawPatch);
+
+  if (features.reviewFunnelAIManaged && !allowManualOverride) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Review funnel is managed by AI on this plan.",
+    );
+  }
+
+  let allowedPatch = sanitizedPatch;
+
+  if (plan === "starter") {
+    const starterPaths = ["happy.headline", "happy.ctaLabel", "unhappy.followupEmail"];
+    allowedPatch = pickAllowedPatch(sanitizedPatch, starterPaths);
+    if (!Object.keys(allowedPatch || {}).length) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "Starter includes limited review funnel edits. Upgrade for more control.",
+      );
+    }
+  }
+
+  if (!Object.keys(allowedPatch || {}).length) {
+    throw new functions.https.HttpsError("failed-precondition", "No changes supplied.");
+  }
+
+  const settingsRef = businessRef.collection("settings").doc("reviewFunnel");
+  const settingsSnap = await settingsRef.get();
+  const currentSettings = settingsSnap.exists ? settingsSnap.data() : DEFAULT_REVIEW_FUNNEL_SETTINGS;
+
+  const mergedSettings = mergeDeep(currentSettings, allowedPatch);
+  mergedSettings.mode =
+    features.reviewFunnelAIManaged && !allowManualOverride
+      ? "ai"
+      : sanitizedPatch.mode === "ai"
+        ? "ai"
+        : "manual";
+  mergedSettings.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+
+  await settingsRef.set(mergedSettings, { merge: true });
+
+  return {
+    ok: true,
+    plan,
+    mode: mergedSettings.mode,
+    appliedPaths: Object.keys(allowedPatch || {}),
+  };
+});
 
 exports.connectGoogleManualLink = functions.https.onCall(async (data, context) => {
   if (!context.auth || !context.auth.uid) {

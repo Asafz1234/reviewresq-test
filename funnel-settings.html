@@ -33,7 +33,8 @@
       <header class="topbar">
         <div class="topbar-title">Review funnel</div>
         <div class="topbar-right">
-          <span class="badge">Starter</span>
+          <span class="badge" data-plan-badge>—</span>
+          <span class="badge badge-ai hidden" data-ai-badge>Managed by ReviewResQ AI</span>
           <a class="btn btn-outline" href="billing.html">Account &amp; billing</a>
           <button class="btn btn-link" type="button" onclick="window.location.href='auth.html'">Log out</button>
         </div>
@@ -45,7 +46,18 @@
           <p class="page-subtitle">Control how customers are routed to Google or private feedback.</p>
         </header>
 
-        <section class="card">
+        <div class="plan-callout" data-plan-callout>
+          <div>
+            <p class="card-subtitle" data-plan-callout-title>Review Funnel (Starter)</p>
+            <p class="card-title" data-plan-callout-body>Collect feedback and send happy customers to Google automatically.</p>
+          </div>
+          <div class="plan-callout-actions">
+            <button class="btn btn-primary" type="button" data-plan-upgrade>Unlock Growth features</button>
+            <a class="btn btn-link" href="billing.html">See all plans</a>
+          </div>
+        </div>
+
+        <section class="card" data-card="happy">
           <div class="card-header">
             <div>
               <p class="card-title">Happy path</p>
@@ -56,10 +68,12 @@
             <label>
               <span class="card-title">Headline</span>
               <input class="input" type="text" value="Thanks for your visit!" data-happy-headline />
+              <p class="input-hint">Optional. Shown when a customer leaves a high rating.</p>
             </label>
             <label>
               <span class="card-title">Call to action</span>
               <input class="input" type="text" value="Leave us a Google review" data-happy-cta />
+              <p class="input-hint">Encourage happy customers to share publicly.</p>
             </label>
           </div>
           <div class="form-grid">
@@ -67,64 +81,148 @@
               <span class="card-title">Review prompt</span>
               <textarea class="input" rows="3" data-happy-prompt>Share a quick note about your experience so others know what to expect.</textarea>
             </label>
-          </div>
-          <div class="button-row">
-            <button class="btn btn-primary" type="button">Save changes</button>
+            <label>
+              <span class="card-title">Google review link</span>
+              <input class="input" type="url" placeholder="https://search.google.com/local/review?..." data-google-url />
+              <p class="input-hint">We’ll send happy customers here.</p>
+            </label>
           </div>
         </section>
 
-        <section class="card">
+        <section class="card" data-advanced-card>
           <div class="card-header">
             <div>
-              <p class="card-title">Unhappy path</p>
-              <p class="card-subtitle">Capture private feedback when a customer is not satisfied.</p>
+              <p class="card-title">Routing, follow-ups & branding</p>
+              <p class="card-subtitle">Available in Growth. Preview what’s included.</p>
             </div>
+            <div class="locked-label" data-advanced-lock-label>Available in Growth</div>
           </div>
-          <div class="form-grid">
-            <label>
-              <span class="card-title">Private feedback headline</span>
-              <input class="input" type="text" value="We're here to make it right" data-unhappy-headline />
-            </label>
-            <label>
-              <span class="card-title">Follow-up owner</span>
-              <input class="input" type="text" value="support@reviewresq.com" data-followup-owner />
-            </label>
+
+          <div class="locked-overlay hidden" data-advanced-overlay>
+            <div>
+              <p class="card-title">Available in Growth</p>
+              <p class="card-subtitle">Customize messages, set rating rules, and add branding.</p>
+            </div>
+            <button class="btn btn-primary" type="button" data-upgrade-cluster>See Growth plan</button>
           </div>
-          <div class="form-grid">
-            <label>
-              <span class="card-title">Message customers see</span>
-              <textarea class="input" rows="3" data-unhappy-message>Tell us what happened and how we can improve. We'll respond quickly.</textarea>
-            </label>
-          </div>
-          <div class="button-row">
-            <button class="btn btn-primary" type="button">Save changes</button>
+
+          <div class="stack" data-advanced-body>
+            <div class="cluster" data-rating-cluster>
+              <div class="cluster-header">
+                <div>
+                  <p class="card-title">Rating rules</p>
+                  <p class="card-subtitle">Route 4–5 star customers to Google automatically.</p>
+                </div>
+                <div class="chip" data-rating-chip>Available in Growth</div>
+              </div>
+              <div class="rating-config" data-rating-config>
+                <label>
+                  <span class="card-title">Minimum rating for Google</span>
+                  <input class="input" type="number" min="1" max="5" step="1" value="4" data-rating-threshold />
+                </label>
+              </div>
+              <p class="input-hint">Lower ratings are routed to private feedback.</p>
+            </div>
+
+            <div class="cluster">
+              <div class="cluster-header">
+                <div>
+                  <p class="card-title">Unhappy path</p>
+                  <p class="card-subtitle">Capture private feedback when a customer is not satisfied.</p>
+                </div>
+              </div>
+              <div class="form-grid">
+                <label>
+                  <span class="card-title">Private feedback headline</span>
+                  <input class="input" type="text" value="We're here to make it right" data-unhappy-headline />
+                </label>
+                <label>
+                  <span class="card-title">Follow-up owner</span>
+                  <input class="input" type="email" placeholder="you@business.com" data-followup-owner />
+                </label>
+              </div>
+              <div class="form-grid">
+                <label>
+                  <span class="card-title">Message customers see</span>
+                  <textarea class="input" rows="3" data-unhappy-message>Tell us what happened and how we can improve. We'll respond quickly.</textarea>
+                </label>
+              </div>
+            </div>
+
+            <div class="cluster">
+              <div class="cluster-header">
+                <div>
+                  <p class="card-title">Branding</p>
+                  <p class="card-subtitle">Add your logo to keep the funnel on-brand.</p>
+                </div>
+              </div>
+              <div class="form-grid">
+                <label>
+                  <span class="card-title">Logo</span>
+                  <input class="input" type="file" data-brand-logo />
+                  <p class="input-hint">PNG or SVG recommended.</p>
+                </label>
+                <label>
+                  <span class="card-title">Primary color</span>
+                  <input class="input" type="color" value="#2563eb" data-brand-primary />
+                </label>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <p class="card-title">Branding</p>
-              <p class="card-subtitle">Keep your review funnel on brand.</p>
-            </div>
+        <div class="button-row" data-save-row>
+          <button class="btn btn-primary" type="button" data-save>Save changes</button>
+          <p class="input-hint" data-save-hint></p>
+        </div>
+
+        <div class="ai-managed-note hidden" data-ai-note>
+          <div>
+            <p class="card-title">Managed by ReviewResQ AI</p>
+            <p class="card-subtitle">AI is handling routing and follow-ups. Review activity logs to see what’s happening.</p>
           </div>
-          <div class="form-grid">
-            <label>
-              <span class="card-title">Logo</span>
-              <input class="input" type="file" data-brand-logo />
-            </label>
-            <label>
-              <span class="card-title">Primary color</span>
-              <input class="input" type="color" value="#2563eb" data-brand-primary />
-            </label>
-          </div>
-          <div class="button-row">
-            <button class="btn btn-primary" type="button">Save branding</button>
-          </div>
-        </section>
+          <a class="btn btn-outline" href="#" aria-disabled="true">View AI activity</a>
+        </div>
       </div>
     </div>
   </div>
+
+  <div class="rr-upgrade-modal hidden" id="funnel-upgrade-modal">
+    <div class="modal-content">
+      <div class="modal-chrome"></div>
+      <button class="close-btn" type="button" aria-label="Close upgrade dialog">×</button>
+      <div class="modal-header">
+        <div class="modal-badge">Growth plan</div>
+        <h2 class="modal-title">Unlock Advanced Review Funnel</h2>
+        <p class="modal-subtitle">
+          Customize messages, set rating rules, and add branding in Growth.
+        </p>
+      </div>
+      <div class="plan-options">
+        <div class="plan-card highlight">
+          <h3>Growth Plan</h3>
+          <p class="price">Everything in Starter +</p>
+          <ul>
+            <li>Manual rating rules</li>
+            <li>Custom unhappy-path messaging</li>
+            <li>Logo & branding controls</li>
+          </ul>
+          <button class="select-plan primary" data-plan-cta="growth">See Growth Plan</button>
+        </div>
+        <div class="plan-card">
+          <h3>Not now</h3>
+          <p class="price">Keep using Starter</p>
+          <ul>
+            <li>Happy-path headline & CTA</li>
+            <li>Preview advanced controls</li>
+            <li>Upgrade anytime</li>
+          </ul>
+          <button class="select-plan" data-plan-cta="dismiss">Not now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="funnel-settings.js"></script>
   <script src="dashboard-nav.js"></script>
 </body>
