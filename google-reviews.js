@@ -34,6 +34,7 @@ const ratingRows = document.querySelectorAll("[data-rating-row]");
 const reviewList = document.querySelector("[data-google-review-list]");
 const avatar = document.querySelector("[data-google-avatar]");
 const connectContainer = document.querySelector("[data-google-connect-slot]");
+const noProfileNoticeContainer = document.querySelector("[data-google-no-profile-notice]");
 const connectedContainer = document.querySelector("[data-google-connected]");
 const changeProfileBtn = document.querySelector("[data-change-google]");
 const planBadge = document.querySelector("[data-plan-badge]");
@@ -312,6 +313,60 @@ function toggleViews(isConnected) {
   }
 }
 
+async function renderNoProfileNotice(locations = [], { manualConnected = false } = {}) {
+  if (!noProfileNoticeContainer) return;
+  const {
+    getNoBusinessProfileNoticeState,
+    dismissNoBusinessProfileNotice,
+    clearNoBusinessProfileNotice,
+  } = await getGoogleConnectModule();
+
+  const noticeState = getNoBusinessProfileNoticeState?.();
+  const hasConnectedProfile = manualConnected || (Array.isArray(locations) && locations.length > 0);
+
+  if (hasConnectedProfile) {
+    clearNoBusinessProfileNotice?.();
+  }
+
+  if (!noticeState || noticeState.dismissed || hasConnectedProfile) {
+    noProfileNoticeContainer.innerHTML = "";
+    noProfileNoticeContainer.style.display = "none";
+    return;
+  }
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "notice";
+  wrapper.setAttribute("role", "status");
+  wrapper.innerHTML = `
+    <div>
+      <p class="strong">Connected to Google — no Business Profile found</p>
+      <p class="card-subtitle">
+        Your Google account is connected to ReviewResq, but we couldn’t find a Google Business Profile (Google Maps listing) associated with this account.
+      </p>
+      <p class="card-subtitle">
+        To see ratings and reviews here, please connect a Google account that owns/manages a Business Profile, or create/claim your business on Google Maps.
+      </p>
+      <div class="button-row">
+        <a class="btn btn-link" href="https://www.google.com/business/" target="_blank" rel="noopener">Create or claim a Business Profile</a>
+      </div>
+    </div>
+    <button class="btn btn-link" type="button" aria-label="Dismiss notice">×</button>
+  `;
+
+  const dismissBtn = wrapper.querySelector("button");
+  if (dismissBtn) {
+    dismissBtn.addEventListener("click", () => {
+      dismissNoBusinessProfileNotice?.();
+      noProfileNoticeContainer.innerHTML = "";
+      noProfileNoticeContainer.style.display = "none";
+    });
+  }
+
+  noProfileNoticeContainer.innerHTML = "";
+  noProfileNoticeContainer.appendChild(wrapper);
+  noProfileNoticeContainer.style.display = "block";
+}
+
 function renderUpsell(planId = "starter") {
   if (!upsellContainer) return;
   upsellContainer.innerHTML = "";
@@ -453,6 +508,7 @@ async function loadGoogleData() {
       selected?.verificationMethod === "phone"
   );
   const isConnected = Boolean(profileView?.googlePlaceId || manualConnected);
+  await renderNoProfileNotice(locations, { manualConnected });
   toggleViews(isConnected);
   if (!isConnected) {
     await renderConnectCard();
