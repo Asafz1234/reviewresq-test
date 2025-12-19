@@ -229,6 +229,7 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
   const statusEl = document.querySelector("[data-google-oauth-status]");
   const resultsEl = document.querySelector("[data-google-oauth-results]");
   const originalText = btn ? btn.textContent : "";
+  let didRedirect = false;
 
   if (resultsEl) resultsEl.innerHTML = "";
   if (statusEl) {
@@ -297,7 +298,9 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
       authUrl: redactedAuthUrl.toString(),
     });
     console.debug("[google-oauth][debug] using OAuth URL", redactedAuthUrl.toString());
+    didRedirect = true;
     window.location.href = authUrl.toString();
+    return;
   } catch (err) {
     console.error("[google-oauth] start failed", err);
     if (statusEl) {
@@ -305,7 +308,7 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
       statusEl.style.color = "var(--danger, #b00020)";
     }
   } finally {
-    if (btn) {
+    if (!didRedirect && btn) {
       btn.disabled = false;
       btn.textContent = originalText || "Connect with Google";
     }
@@ -354,108 +357,6 @@ function planUpgradeMessage(planId = "starter", attempted = 1) {
     return "You’ve reached the maximum of 15 locations. Contact support if you need more.";
   }
   return "";
-}
-
-async function loadGoogleOAuthClient() {
-  if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-    return;
-  }
-
-  await new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-    if (existing) {
-      existing.addEventListener("load", resolve, { once: true });
-      existing.addEventListener("error", () => reject(new Error("Failed to load Google OAuth")), {
-        once: true,
-      });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google OAuth"));
-    document.head.appendChild(script);
-  });
-}
-
-function encodeBase64Url(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  bytes.forEach((b) => {
-    binary += String.fromCharCode(b);
-  });
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-async function createPkcePair() {
-  const randomBytes = new Uint8Array(32);
-  (window.crypto || crypto).getRandomValues(randomBytes);
-  const verifier = encodeBase64Url(randomBytes);
-
-  try {
-    const digest = await (window.crypto || crypto).subtle.digest("SHA-256", new TextEncoder().encode(verifier));
-    const challenge = encodeBase64Url(digest);
-    return { verifier, challenge };
-  } catch (err) {
-    // Fallback to plain verifier if hashing is unavailable.
-    return { verifier, challenge: verifier };
-  }
-}
-
-async function createOAuthStateToken() {
-  const callable = createGoogleOAuthStateCallable();
-  const response = await callable();
-  const data = response?.data || {};
-  if (!data.ok || !data.state) {
-    const error = new Error("Google OAuth unavailable.");
-    error.code = data?.reason || "OAUTH_UNAVAILABLE";
-    throw error;
-  }
-  return data.state;
-}
-
-async function requestGoogleAuthorizationCode() {
-  const config = await ensureOAuthConfig({ logAvailability: true });
-  if (!config?.clientId || !config?.redirectUri) {
-    console.warn("[google-oauth] Missing clientId/redirectUri (no stack spam)");
-    const error = new Error("Google OAuth unavailable.");
-    error.code = "OAUTH_UNAVAILABLE";
-    throw error;
-  }
-
-  await loadGoogleOAuthClient();
-  const { verifier, challenge } = await createPkcePair();
-  const state = await createOAuthStateToken();
-  const scopeString = (config.scopes || GOOGLE_OAUTH_SCOPE)
-    .split(/\s+/)
-    .filter(Boolean)
-    .join(" ");
-
-  return new Promise((resolve, reject) => {
-    try {
-      const client = window.google.accounts.oauth2.initCodeClient({
-        client_id: config.clientId,
-        scope: scopeString,
-        ux_mode: "popup",
-        redirect_uri: config.redirectUri,
-        state,
-        code_challenge: challenge,
-        code_challenge_method: "S256",
-        callback: (response) => {
-          if (!response || response.error || !response.code) {
-            reject(new Error("Unable to authorize with Google."));
-            return;
-          }
-          resolve({ code: response.code, codeVerifier: verifier, state });
-        },
-      });
-      client.requestCode();
-    } catch (err) {
-      reject(err);
-    }
-  });
 }
 
 function gatherAccountData() {
