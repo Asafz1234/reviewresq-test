@@ -206,8 +206,72 @@ let oauthClickBound = false;
 let oauthReturnHandled = false;
 let oauthHandlingInProgress = false;
 
+const NO_PROFILE_NOTICE_KEY = "rrq_google_no_profile_notice";
+const NO_PROFILE_NOTICE_DISMISS_KEY = "rrq_google_no_profile_notice_dismissed";
+
 const OAUTH_PENDING_KEY = "google_oauth_pending";
 const OAUTH_HANDLED_KEY = "google_oauth_handled";
+
+function readJson(key) {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : null;
+  } catch (err) {
+    console.warn("[google-connect] unable to read", key, err);
+    return null;
+  }
+}
+
+function writeJson(key, value) {
+  try {
+    if (value === null || typeof value === "undefined") {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+  } catch (err) {
+    console.warn("[google-connect] unable to write", key, err);
+  }
+}
+
+function flagNoBusinessProfileNotice({ state, counts = {} } = {}) {
+  const record = { state: state || "", ts: Date.now(), counts };
+  writeJson(NO_PROFILE_NOTICE_KEY, record);
+  try {
+    localStorage.removeItem(NO_PROFILE_NOTICE_DISMISS_KEY);
+  } catch (err) {
+    console.warn("[google-connect] unable to reset dismiss state", err);
+  }
+  console.debug("[google-oauth][debug] Connected: no business profiles found for this account", counts);
+  return record;
+}
+
+function clearNoBusinessProfileNotice() {
+  writeJson(NO_PROFILE_NOTICE_KEY, null);
+}
+
+function getNoBusinessProfileNoticeState() {
+  const record = readJson(NO_PROFILE_NOTICE_KEY);
+  if (!record) return null;
+  let dismissed = false;
+  try {
+    const dismissedState = localStorage.getItem(NO_PROFILE_NOTICE_DISMISS_KEY);
+    dismissed = Boolean(dismissedState && dismissedState === record.state);
+  } catch (err) {
+    dismissed = false;
+  }
+  return { ...record, dismissed };
+}
+
+function dismissNoBusinessProfileNotice(stateOverride = null) {
+  try {
+    const record = getNoBusinessProfileNoticeState();
+    const value = stateOverride || record?.state || "dismissed";
+    localStorage.setItem(NO_PROFILE_NOTICE_DISMISS_KEY, value);
+  } catch (err) {
+    console.warn("[google-connect] unable to persist notice dismissal", err);
+  }
+}
 
 function waitForAuthReady() {
   return new Promise((resolve) => {
@@ -1576,6 +1640,33 @@ ensureOAuthConfig({ logAvailability: true })
   }
 }
 
+function evaluateNoBusinessProfile(data = {}) {
+  const locations = Array.isArray(data.locations) ? data.locations : [];
+  const accounts = Array.isArray(data.accounts)
+    ? data.accounts
+    : Array.isArray(data.googleAccounts)
+      ? data.googleAccounts
+      : [];
+  const statusString = (data.status || data.reason || "").toString().toLowerCase();
+  const availabilityString = (data.availability || data.profileStatus || "")
+    .toString()
+    .toLowerCase();
+  const explicitUnavailable = [statusString, availabilityString].some((value) =>
+    value.includes("unavailable") || value.includes("no_profile") || value.includes("no_content"),
+  );
+  const flaggedMissing =
+    data.hasProfiles === false ||
+    data.hasLocations === false ||
+    data.noProfiles === true ||
+    data.profilesAvailable === false;
+
+  const noLocations = locations.length === 0;
+  const noAccounts = accounts.length === 0 && ("accounts" in data || "googleAccounts" in data);
+  const counts = { locations: locations.length, accounts: accounts.length };
+  const noProfileAvailable = noLocations || noAccounts || explicitUnavailable || flaggedMissing;
+  return { noProfileAvailable, counts };
+}
+
 async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
   if (oauthReturnHandled || sessionStorage.getItem(OAUTH_HANDLED_KEY) === "1") {
     return;
@@ -1676,11 +1767,13 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
     sessionStorage.setItem(OAUTH_HANDLED_KEY, "1");
     sessionStorage.removeItem(OAUTH_PENDING_KEY);
 
+    const { noProfileAvailable, counts } = evaluateNoBusinessProfile(data || {});
     const hasLocations = Array.isArray(data?.locations) && data.locations.length > 0;
     await refreshProfile();
-    if (!hasLocations) {
+    if (noProfileAvailable) {
+      flagNoBusinessProfileNotice({ state, counts });
       const message =
-        "Connected, but no Google Business Profile was found for this Google account.";
+        "Connected to Google, but no Business Profile was found for this account.";
       showStatus(message, "var(--warning, #b26b00)");
       if (resultsEl) {
         resultsEl.textContent = message;
@@ -1690,6 +1783,9 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
       return;
     }
 
+    if (hasLocations) {
+      clearNoBusinessProfileNotice();
+    }
     showStatus("Google connected.");
     showToast("Google connected.");
   } catch (err) {
@@ -1719,7 +1815,14 @@ export async function refetchProfileAfterConnect() {
   return refreshProfile();
 }
 
-export { startGoogleOAuth };
+
+export {
+  startGoogleOAuth,
+  flagNoBusinessProfileNotice,
+  getNoBusinessProfileNoticeState,
+  dismissNoBusinessProfileNotice,
+  clearNoBusinessProfileNotice,
+};
 
 auth.onAuthStateChanged(async (user) => {
   if (!user) return;
