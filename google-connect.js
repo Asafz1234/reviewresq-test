@@ -204,6 +204,36 @@ export { functionsBaseUrl };
 
 let oauthClickBound = false;
 let oauthReturnHandled = false;
+let oauthHandlingInProgress = false;
+
+const OAUTH_PENDING_KEY = "google_oauth_pending";
+const OAUTH_HANDLED_KEY = "google_oauth_handled";
+
+function waitForAuthReady() {
+  return new Promise((resolve) => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      resolve(currentUser);
+      return;
+    }
+
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      unsubscribe();
+      resolve(user || null);
+    });
+  });
+}
+
+function parseOAuthReturn() {
+  const query = new URLSearchParams(window.location.search || "");
+  const oauthProvider = query.get("oauth");
+  const code = query.get("code");
+  const state = query.get("state");
+
+  if (oauthProvider !== "google" || !code || !state) return null;
+
+  return { code, state };
+}
 
 function resolveOAuthButton() {
   return document.getElementById("connectWithGoogleBtn");
@@ -1546,16 +1576,18 @@ ensureOAuthConfig({ logAvailability: true })
   }
 }
 
-async function handleGoogleOAuthReturnOnLoad() {
-  if (oauthReturnHandled) return;
+async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
+  if (oauthReturnHandled || sessionStorage.getItem(OAUTH_HANDLED_KEY) === "1") {
+    return;
+  }
 
-  const query = new URLSearchParams(window.location.search || "");
-  const oauthProvider = query.get("oauth");
-  const code = query.get("code");
-  const state = query.get("state");
+  const parsed = pendingParams || parseOAuthReturn();
+  if (!parsed) return;
 
-  if (oauthProvider !== "google" || !code || !state) return;
-  oauthReturnHandled = true;
+  const { code, state } = parsed;
+
+  if (oauthHandlingInProgress) return;
+  oauthHandlingInProgress = true;
 
   console.log("[google-oauth] return detected");
 
@@ -1564,82 +1596,121 @@ async function handleGoogleOAuthReturnOnLoad() {
   const resultsEl = document.querySelector("[data-google-oauth-results]");
   const originalText = btn ? btn.textContent : "";
 
-  if (resultsEl) resultsEl.innerHTML = "";
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "Finishing Google connection…";
-  }
-  if (statusEl) {
-    statusEl.textContent = "Finishing Google connection…";
-    statusEl.style.color = "";
-  }
-
-  const cleanUpUrl = () => {
-    try {
-      const url = new URL(window.location.href);
-      ["code", "state", "oauth"].forEach((param) => url.searchParams.delete(param));
-      const searchString = url.searchParams.toString();
-      const updatedUrl = `${url.pathname}${searchString ? `?${searchString}` : ""}${
-        url.hash
-      }`;
-      window.history.replaceState({}, "", updatedUrl);
-    } catch (err) {
-      console.error("[google-oauth] handle return failed", err);
-    }
-  };
-
   const showStatus = (message = "", color = "") => {
     if (!statusEl) return;
     statusEl.textContent = message;
     statusEl.style.color = color || "";
   };
 
-  const showNoLocationsMessage = () => {
-    const message =
-      "This Google account has no Google Business Profile locations (or you don’t have access). Please sign in with an account that is an Owner/Manager of a Business Profile, or use manual connection.";
-    showStatus(message, "var(--warning, #b26b00)");
-    if (resultsEl) {
-      resultsEl.textContent = message;
-      resultsEl.setAttribute("role", "status");
+  const cleanUpUrl = () => {
+    try {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (err) {
+      console.error("[google-oauth] handle return failed", err);
     }
   };
 
+  if (resultsEl) resultsEl.innerHTML = "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Finishing Google connection…";
+  }
+  showStatus("Finishing Google connection…", "");
+
+  const redirectUri = `${window.location.origin}${window.location.pathname}`;
+
   try {
+    const user = await waitForAuthReady();
+    if (!user) {
+      sessionStorage.setItem(
+        OAUTH_PENDING_KEY,
+        JSON.stringify({ code, state, ts: Date.now() })
+      );
+      showStatus("Please sign in to finish connecting Google.", "var(--warning, #b26b00)");
+      showToast("Please sign in to finish connecting Google.");
+      cleanUpUrl();
+      return;
+    }
+
+    oauthReturnHandled = true;
+    const payload = { code, authCode: code, state, redirectUri };
     const call = exchangeGoogleAuthCodeCallable();
-    const response = await call({
-      code,
-      state,
-      redirectUri: GOOGLE_OAUTH_CANONICAL_REDIRECT_URI,
-    });
-    const data = response?.data || {};
+    let data = {};
+    try {
+      const response = await call({
+        ...payload,
+        redirectUri,
+        canonicalRedirectUri: GOOGLE_OAUTH_CANONICAL_REDIRECT_URI,
+      });
+      data = response?.data || {};
+    } catch (err) {
+      console.error("[google-oauth] handle return failed", err);
+      console.error("OAuth return payload:", {
+        hasUser: !!user,
+        uid: user?.uid,
+        hasCode: !!code,
+        hasState: !!state,
+        redirectUri,
+      });
+      throw err;
+    }
+
     console.log("[google-oauth] exchange result", data?.ok, data?.reason);
 
     if (!data?.ok) {
+      console.error("[google-oauth] exchange failed", data);
+      console.error("OAuth return payload:", {
+        hasUser: !!user,
+        uid: user?.uid,
+        hasCode: !!code,
+        hasState: !!state,
+        redirectUri,
+      });
+      sessionStorage.removeItem(OAUTH_PENDING_KEY);
       const message = data?.message || "Unable to finish Google connection.";
       showStatus(message, "var(--danger, #b00020)");
       showToast(message, true);
       return;
     }
 
+    sessionStorage.setItem(OAUTH_HANDLED_KEY, "1");
+    sessionStorage.removeItem(OAUTH_PENDING_KEY);
+
     const hasLocations = Array.isArray(data?.locations) && data.locations.length > 0;
+    await refreshProfile();
     if (!hasLocations) {
-      showNoLocationsMessage();
+      const message =
+        "Connected, but no Google Business Profile was found for this Google account.";
+      showStatus(message, "var(--warning, #b26b00)");
+      if (resultsEl) {
+        resultsEl.textContent = message;
+        resultsEl.setAttribute("role", "status");
+      }
+      showToast(message);
       return;
     }
 
-    await refreshProfile();
     showStatus("Google connected.");
     showToast("Google connected.");
   } catch (err) {
-    console.error("[google-oauth] handle return failed", err);
     const message = err?.message || "Unable to finish Google connection.";
     showStatus(message, "var(--danger, #b00020)");
     showToast(message, true);
+    console.error("[google-oauth] handle return failed", err);
+    console.error("OAuth return payload:", {
+      hasUser: !!auth.currentUser,
+      uid: auth.currentUser?.uid,
+      hasCode: !!code,
+      hasState: !!state,
+      redirectUri,
+    });
+    sessionStorage.removeItem(OAUTH_PENDING_KEY);
   } finally {
     if (btn) {
       btn.disabled = false;
       btn.textContent = originalText || "Connect with Google";
     }
+    oauthHandlingInProgress = false;
     cleanUpUrl();
   }
 }
@@ -1649,5 +1720,27 @@ export async function refetchProfileAfterConnect() {
 }
 
 export { startGoogleOAuth };
+
+auth.onAuthStateChanged(async (user) => {
+  if (!user) return;
+  if (sessionStorage.getItem(OAUTH_HANDLED_KEY) === "1") return;
+
+  const pendingRaw = sessionStorage.getItem(OAUTH_PENDING_KEY);
+  if (!pendingRaw) return;
+
+  try {
+    const pending = JSON.parse(pendingRaw);
+    if (pending?.code && pending?.state) {
+      await handleGoogleOAuthReturnOnLoad({
+        code: pending.code,
+        state: pending.state,
+      });
+    }
+  } catch (err) {
+    console.error("[google-oauth] failed to resume pending OAuth", err);
+  } finally {
+    sessionStorage.removeItem(OAUTH_PENDING_KEY);
+  }
+});
 
 handleGoogleOAuthReturnOnLoad();
