@@ -6,7 +6,10 @@
   <title>ReviewResQ – Review Funnel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
@@ -17,15 +20,33 @@
         <div class="brand-name">ReviewResQ</div>
       </div>
       <nav class="global-nav" aria-label="Dashboard navigation">
-        <a class="nav-tab" data-route="dashboard" href="dashboard.html"><span class="nav-icon">🏠</span><span>Overview</span></a>
-        <a class="nav-tab" data-route="inbox" href="feedback.html"><span class="nav-icon">💬</span><span>Customer Feedback</span></a>
-        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html"><span class="nav-icon">★</span><span>Google Reviews</span></a>
-        <a class="nav-tab" data-route="funnel" href="funnel-settings.html"><span class="nav-icon">↗</span><span>Review Funnel</span></a>
-        <a class="nav-tab" data-route="links" href="links.html"><span class="nav-icon">🔗</span><span>Review Links</span></a>
-        <a class="nav-tab" data-route="alerts" href="alerts.html"><span class="nav-icon">🔔</span><span>Alerts &amp; Notifications</span></a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html"><span class="nav-icon">🤖</span><span>AI Phone Agent</span></a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html#pro-suite"><span class="nav-icon">⚡</span><span>Pro AI Suite</span></a>
-        <a class="nav-tab" data-route="account" href="billing.html"><span class="nav-icon">💳</span><span>Account &amp; Billing</span></a>
+        <a class="nav-tab" data-route="dashboard" href="dashboard.html"
+          ><span class="nav-icon">🏠</span><span>Overview</span></a
+        >
+        <a class="nav-tab" data-route="inbox" href="feedback.html"
+          ><span class="nav-icon">💬</span><span>Customer Feedback</span></a
+        >
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html"
+          ><span class="nav-icon">★</span><span>Google Reviews</span></a
+        >
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html"
+          ><span class="nav-icon">↗</span><span>Review Funnel</span></a
+        >
+        <a class="nav-tab" data-route="links" href="links.html"
+          ><span class="nav-icon">🔗</span><span>Review Links</span></a
+        >
+        <a class="nav-tab" data-route="alerts" href="alerts.html"
+          ><span class="nav-icon">🔔</span><span>Alerts &amp; Notifications</span></a
+        >
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html"
+          ><span class="nav-icon">🤖</span><span>AI Phone Agent</span></a
+        >
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html#pro-suite"
+          ><span class="nav-icon">⚡</span><span>Pro AI Suite</span></a
+        >
+        <a class="nav-tab" data-route="account" href="billing.html"
+          ><span class="nav-icon">💳</span><span>Account &amp; Billing</span></a
+        >
       </nav>
     </aside>
 
@@ -42,14 +63,23 @@
 
       <div class="page-shell">
         <header class="page-header">
-          <p class="page-title">Review Funnel</p>
-          <p class="page-subtitle">Control how customers are routed to Google or private feedback.</p>
+          <div class="page-header-titles">
+            <p class="page-title">Review Funnel</p>
+            <p class="page-subtitle">Control how customers are routed to Google or private feedback.</p>
+            <a class="ai-activity-link hidden" href="#" data-ai-activity>View AI activity</a>
+          </div>
+          <div class="page-actions" data-save-container>
+            <button class="btn btn-primary" type="button" data-save>Save changes</button>
+            <p class="input-hint" data-save-hint></p>
+          </div>
         </header>
 
         <div class="plan-callout" data-plan-callout>
           <div>
-            <p class="card-subtitle" data-plan-callout-title>Review Funnel (Starter)</p>
-            <p class="card-title" data-plan-callout-body>Collect feedback and send happy customers to Google automatically.</p>
+            <p class="card-title" data-plan-callout-title>Review Funnel (Starter)</p>
+            <p class="card-subtitle" data-plan-callout-body>
+              Starter lets you edit Headline &amp; CTA. Upgrade for routing, branding, and follow-ups.
+            </p>
           </div>
           <div class="plan-callout-actions">
             <button class="btn btn-primary" type="button" data-plan-upgrade>Unlock Growth features</button>
@@ -68,7 +98,7 @@
             <label>
               <span class="card-title">Headline</span>
               <input class="input" type="text" value="Thanks for your visit!" data-happy-headline />
-              <p class="input-hint">Optional. Shown when a customer leaves a high rating.</p>
+              <p class="input-hint">Shown when a customer leaves a high rating.</p>
             </label>
             <label>
               <span class="card-title">Call to action</span>
@@ -76,104 +106,102 @@
               <p class="input-hint">Encourage happy customers to share publicly.</p>
             </label>
           </div>
-          <div class="form-grid">
+          <div class="form-grid" data-happy-advanced>
             <label>
               <span class="card-title">Review prompt</span>
               <textarea class="input" rows="3" data-happy-prompt>Share a quick note about your experience so others know what to expect.</textarea>
             </label>
+          </div>
+          <div class="form-grid" data-google-block>
             <label>
               <span class="card-title">Google review link</span>
-              <input class="input" type="url" placeholder="https://search.google.com/local/review?..." data-google-url />
+              <input
+                class="input"
+                type="url"
+                placeholder="https://search.google.com/local/review?..."
+                data-google-url
+              />
               <p class="input-hint">We’ll send happy customers here.</p>
             </label>
           </div>
         </section>
 
-        <section class="card" data-advanced-card>
+        <section class="card" data-section-advanced>
           <div class="card-header">
             <div>
-              <p class="card-title">Routing, follow-ups & branding</p>
-              <p class="card-subtitle">Available in Growth. Preview what’s included.</p>
+              <p class="card-title">Routing rules</p>
+              <p class="card-subtitle">Automatically send 4–5 star customers to Google.</p>
             </div>
-            <div class="locked-label" data-advanced-lock-label>Available in Growth</div>
+            <span class="chip" data-rating-chip>Enabled</span>
           </div>
-
-          <div class="locked-overlay hidden" data-advanced-overlay>
-            <div>
-              <p class="card-title">Available in Growth</p>
-              <p class="card-subtitle">Customize messages, set rating rules, and add branding.</p>
-            </div>
-            <button class="btn btn-primary" type="button" data-upgrade-cluster>See Growth plan</button>
-          </div>
-
-          <div class="stack" data-advanced-body>
-            <div class="cluster" data-rating-cluster>
-              <div class="cluster-header">
-                <div>
-                  <p class="card-title">Rating rules</p>
-                  <p class="card-subtitle">Route 4–5 star customers to Google automatically.</p>
-                </div>
-                <div class="chip" data-rating-chip>Available in Growth</div>
-              </div>
-              <div class="rating-config" data-rating-config>
-                <label>
-                  <span class="card-title">Minimum rating for Google</span>
-                  <input class="input" type="number" min="1" max="5" step="1" value="4" data-rating-threshold />
-                </label>
-              </div>
+          <div class="form-grid">
+            <label>
+              <span class="card-title">Minimum rating for Google</span>
+              <input class="input" type="number" min="1" max="5" step="1" value="4" data-rating-threshold />
               <p class="input-hint">Lower ratings are routed to private feedback.</p>
-            </div>
-
-            <div class="cluster">
-              <div class="cluster-header">
-                <div>
-                  <p class="card-title">Unhappy path</p>
-                  <p class="card-subtitle">Capture private feedback when a customer is not satisfied.</p>
-                </div>
-              </div>
-              <div class="form-grid">
-                <label>
-                  <span class="card-title">Private feedback headline</span>
-                  <input class="input" type="text" value="We're here to make it right" data-unhappy-headline />
-                </label>
-                <label>
-                  <span class="card-title">Follow-up owner</span>
-                  <input class="input" type="email" placeholder="you@business.com" data-followup-owner />
-                </label>
-              </div>
-              <div class="form-grid">
-                <label>
-                  <span class="card-title">Message customers see</span>
-                  <textarea class="input" rows="3" data-unhappy-message>Tell us what happened and how we can improve. We'll respond quickly.</textarea>
-                </label>
-              </div>
-            </div>
-
-            <div class="cluster">
-              <div class="cluster-header">
-                <div>
-                  <p class="card-title">Branding</p>
-                  <p class="card-subtitle">Add your logo to keep the funnel on-brand.</p>
-                </div>
-              </div>
-              <div class="form-grid">
-                <label>
-                  <span class="card-title">Logo</span>
-                  <input class="input" type="file" data-brand-logo />
-                  <p class="input-hint">PNG or SVG recommended.</p>
-                </label>
-                <label>
-                  <span class="card-title">Primary color</span>
-                  <input class="input" type="color" value="#2563eb" data-brand-primary />
-                </label>
-              </div>
-            </div>
+            </label>
           </div>
         </section>
 
-        <div class="button-row" data-save-row>
-          <button class="btn btn-primary" type="button" data-save>Save changes</button>
-          <p class="input-hint" data-save-hint></p>
+        <section class="card" data-section-advanced>
+          <div class="card-header">
+            <div>
+              <p class="card-title">Unhappy path</p>
+              <p class="card-subtitle">Capture private feedback and follow up quickly.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span class="card-title">Private feedback headline</span>
+              <input class="input" type="text" value="We're here to make it right" data-unhappy-headline />
+            </label>
+            <label>
+              <span class="card-title">Follow-up owner</span>
+              <input class="input" type="email" placeholder="you@business.com" data-followup-owner />
+            </label>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span class="card-title">Message customers see</span>
+              <textarea class="input" rows="3" data-unhappy-message>Tell us what happened and how we can improve. We'll respond quickly.</textarea>
+            </label>
+          </div>
+        </section>
+
+        <section class="card" data-section-advanced>
+          <div class="card-header">
+            <div>
+              <p class="card-title">Branding</p>
+              <p class="card-subtitle">Keep the review funnel on-brand with your logo and colors.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span class="card-title">Logo</span>
+              <input class="input" type="file" data-brand-logo />
+              <p class="input-hint">PNG or SVG recommended.</p>
+            </label>
+            <label>
+              <span class="card-title">Primary color</span>
+              <input class="input" type="color" value="#2563eb" data-brand-primary />
+            </label>
+          </div>
+        </section>
+
+        <div class="card unlock-card" data-upgrade-card>
+          <div>
+            <p class="card-title">Unlock Advanced Review Funnel</p>
+            <p class="card-subtitle">Upgrade to Growth to control routing, branding, and unhappy-path messaging.</p>
+            <ul class="list">
+              <li>Manual rating rules (4–5 → Google)</li>
+              <li>Custom unhappy-path messaging</li>
+              <li>Logo &amp; branding controls</li>
+            </ul>
+          </div>
+          <div class="unlock-actions">
+            <button class="btn btn-primary" type="button" data-upgrade-open>See Growth plan</button>
+            <a class="btn btn-link" href="billing.html">See all plans</a>
+          </div>
         </div>
 
         <div class="ai-managed-note hidden" data-ai-note>
@@ -187,38 +215,21 @@
     </div>
   </div>
 
-  <div class="rr-upgrade-modal hidden" id="funnel-upgrade-modal">
-    <div class="modal-content">
-      <div class="modal-chrome"></div>
-      <button class="close-btn" type="button" aria-label="Close upgrade dialog">×</button>
+  <div class="modal-overlay hidden" data-upgrade-modal>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
       <div class="modal-header">
-        <div class="modal-badge">Growth plan</div>
-        <h2 class="modal-title">Unlock Advanced Review Funnel</h2>
-        <p class="modal-subtitle">
-          Customize messages, set rating rules, and add branding in Growth.
-        </p>
+        <p class="modal-kicker">Growth plan</p>
+        <h2 class="modal-title" id="upgrade-title">Unlock Advanced Review Funnel</h2>
+        <p class="modal-subtitle">Customize messages, set rating rules, and add branding.</p>
       </div>
-      <div class="plan-options">
-        <div class="plan-card highlight">
-          <h3>Growth Plan</h3>
-          <p class="price">Everything in Starter +</p>
-          <ul>
-            <li>Manual rating rules</li>
-            <li>Custom unhappy-path messaging</li>
-            <li>Logo & branding controls</li>
-          </ul>
-          <button class="select-plan primary" data-plan-cta="growth">See Growth Plan</button>
-        </div>
-        <div class="plan-card">
-          <h3>Not now</h3>
-          <p class="price">Keep using Starter</p>
-          <ul>
-            <li>Happy-path headline & CTA</li>
-            <li>Preview advanced controls</li>
-            <li>Upgrade anytime</li>
-          </ul>
-          <button class="select-plan" data-plan-cta="dismiss">Not now</button>
-        </div>
+      <ul class="modal-list">
+        <li>Manual rating rules (4–5 → Google)</li>
+        <li>Custom unhappy-path messaging</li>
+        <li>Logo &amp; branding controls</li>
+      </ul>
+      <div class="modal-actions">
+        <button class="btn btn-primary" type="button" data-modal-upgrade>See Growth plan</button>
+        <button class="btn btn-outline" type="button" data-modal-dismiss>Not now</button>
       </div>
     </div>
   </div>

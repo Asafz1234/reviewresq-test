@@ -131,7 +131,44 @@ export function getPlanCapabilities(planId = "starter") {
     reviewFunnelAIManaged: isPro,
   };
 
-  return { plan, features };
+  const reviewFunnel = {
+    mode: isPro ? "ai" : isGrowth ? "full" : "starter",
+    readOnly: isPro,
+    allowSave: !isPro,
+    showAdvancedSections: isGrowth || isPro,
+    showHappyDetails: isGrowth || isPro,
+    allowedPatchPaths: isPro
+      ? []
+      : isGrowth
+        ? [
+            "happy.headline",
+            "happy.ctaLabel",
+            "happy.prompt",
+            "happy.googleReviewUrl",
+            "routing.enabled",
+            "routing.type",
+            "routing.thresholds.googleMin",
+            "unhappy.headline",
+            "unhappy.message",
+            "unhappy.followupEmail",
+            "branding.logoUrl",
+            "branding.primaryColor",
+          ]
+        : ["happy.headline", "happy.ctaLabel"],
+    editableFields: {
+      happyHeadline: !isPro,
+      happyCta: !isPro,
+      happyPrompt: isGrowth && !isPro,
+      googleReviewUrl: isGrowth && !isPro,
+      routing: isGrowth && !isPro,
+      unhappyHeadline: isGrowth && !isPro,
+      unhappyMessage: isGrowth && !isPro,
+      followupEmail: isGrowth && !isPro,
+      branding: isGrowth && !isPro,
+    },
+  };
+
+  return { plan, features, reviewFunnel };
 }
 
 export function hasFeature(planOrSession, feature) {

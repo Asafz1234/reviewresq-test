@@ -51,16 +51,20 @@ const ui = {
   unhappyMessage: document.querySelector("[data-unhappy-message]"),
   primaryColor: document.querySelector("[data-brand-primary]"),
   logo: document.querySelector("[data-brand-logo]"),
-  advancedOverlay: document.querySelector("[data-advanced-overlay]"),
-  advancedBody: document.querySelector("[data-advanced-body]"),
-  advancedLockLabel: document.querySelector("[data-advanced-lock-label]"),
   ratingThreshold: document.querySelector("[data-rating-threshold]"),
   ratingChip: document.querySelector("[data-rating-chip]"),
-  upgradeCluster: document.querySelector("[data-upgrade-cluster]"),
+  happyAdvanced: document.querySelector("[data-happy-advanced]"),
+  advancedSections: Array.from(document.querySelectorAll("[data-section-advanced]")),
+  upgradeCard: document.querySelector("[data-upgrade-card]"),
   saveButton: document.querySelector("[data-save]"),
-  saveRow: document.querySelector("[data-save-row]"),
+  saveContainer: document.querySelector("[data-save-container]"),
   saveHint: document.querySelector("[data-save-hint]"),
   aiNote: document.querySelector("[data-ai-note]"),
+  aiActivity: document.querySelector("[data-ai-activity]"),
+  upgradeModal: document.querySelector("[data-upgrade-modal]"),
+  upgradeModalUpgrade: document.querySelector("[data-modal-upgrade]"),
+  upgradeModalDismiss: document.querySelector("[data-modal-dismiss]"),
+  upgradeOpeners: Array.from(document.querySelectorAll("[data-upgrade-open], [data-plan-upgrade]")),
 };
 
 let businessId = null;
@@ -109,106 +113,85 @@ function applySettings(settings = {}) {
 }
 
 function showUpgradeModal() {
-  const modal = document.getElementById("funnel-upgrade-modal");
-  if (!modal) return;
-  modal.classList.remove("hidden");
+  if (!ui.upgradeModal) return;
+  ui.upgradeModal.classList.remove("hidden");
   document.body.classList.add("modal-open");
 }
 
 function hideUpgradeModal() {
-  const modal = document.getElementById("funnel-upgrade-modal");
-  if (!modal) return;
-  modal.classList.add("hidden");
+  if (!ui.upgradeModal) return;
+  ui.upgradeModal.classList.add("hidden");
   document.body.classList.remove("modal-open");
 }
 
 function bindUpgradeModal() {
-  const modal = document.getElementById("funnel-upgrade-modal");
-  if (!modal || modal.dataset.bound === "true") return;
-  modal.dataset.bound = "true";
+  if (!ui.upgradeModal || ui.upgradeModal.dataset.bound === "true") return;
+  ui.upgradeModal.dataset.bound = "true";
 
-  modal.querySelector(".close-btn")?.addEventListener("click", hideUpgradeModal);
-  modal.addEventListener("click", (event) => {
-    if (event.target === modal) hideUpgradeModal();
+  ui.upgradeModal.addEventListener("click", (event) => {
+    if (event.target === ui.upgradeModal) hideUpgradeModal();
   });
-  const dismissBtn = modal.querySelector('[data-plan-cta="dismiss"]');
-  dismissBtn?.addEventListener("click", hideUpgradeModal);
-  const upgradeBtn = modal.querySelector('[data-plan-cta="growth"]');
-  upgradeBtn?.addEventListener("click", () => {
+
+  ui.upgradeModalDismiss?.addEventListener("click", hideUpgradeModal);
+  ui.upgradeModalUpgrade?.addEventListener("click", () => {
     window.location.href = "/billing.html?plan=growth";
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hideUpgradeModal();
   });
 }
 
 function renderPlanState(planId, capabilities) {
   currentPlan = planId;
   currentCapabilities = capabilities;
-  const { features } = capabilities;
-  const isStarter = planId === "starter";
-  const isGrowth = planId === "growth";
-  const isAi = Boolean(features.reviewFunnelAIManaged);
+  const features = capabilities.features || {};
+  const funnel = capabilities.reviewFunnel || {};
+  const editable = funnel.editableFields || {};
+  const isStarter = funnel.mode === "starter";
+  const isGrowth = funnel.mode === "full";
+  const isAi = Boolean(funnel.readOnly || features.reviewFunnelAIManaged);
 
   if (ui.planBadge) ui.planBadge.textContent = PLAN_LABELS[planId] || planId;
   setHidden(ui.aiBadge, !isAi);
+  setHidden(ui.aiNote, !isAi);
+  setHidden(ui.aiActivity, !isAi);
 
   if (ui.callout) {
     setHidden(ui.callout, !isStarter);
     if (isStarter) {
       ui.calloutTitle.textContent = "Review Funnel (Starter)";
       ui.calloutBody.textContent =
-        "Collect feedback and send happy customers to Google automatically.";
+        "Starter lets you edit Headline & CTA. Upgrade for routing, branding, and follow-ups.";
     }
   }
 
-  if (ui.advancedOverlay) {
-    if (isStarter) {
-      ui.advancedOverlay.querySelector(".card-title").textContent = "Available in Growth";
-      ui.advancedOverlay.querySelector(".card-subtitle").textContent =
-        "Customize messages, set rating rules, and add branding.";
-      ui.advancedOverlay.classList.remove("hidden");
-      ui.advancedOverlay.dataset.mode = "locked";
-    } else if (isAi) {
-      ui.advancedOverlay.querySelector(".card-title").textContent = "Managed by ReviewResq AI";
-      ui.advancedOverlay.querySelector(".card-subtitle").textContent =
-        "AI is handling routing and follow-ups automatically.";
-      ui.advancedOverlay.classList.remove("hidden");
-      ui.advancedOverlay.dataset.mode = "ai";
-    } else {
-      ui.advancedOverlay.classList.add("hidden");
-      ui.advancedOverlay.dataset.mode = "unlocked";
-    }
+  if (ui.happyAdvanced) {
+    setHidden(ui.happyAdvanced, !funnel.showHappyDetails);
   }
 
-  if (ui.advancedBody) {
-    ui.advancedBody.classList.toggle("is-preview", isStarter || isAi);
-  }
+  ui.advancedSections.forEach((section) => {
+    setHidden(section, !funnel.showAdvancedSections);
+  });
 
-  if (ui.advancedLockLabel) {
-    ui.advancedLockLabel.textContent = isStarter ? "Available in Growth" : isAi ? "Managed by AI" : "";
-    setHidden(ui.advancedLockLabel, !(isStarter || isAi));
-  }
+  setHidden(ui.upgradeCard, !isStarter);
+  setHidden(ui.saveContainer, !funnel.allowSave);
 
   if (ui.ratingChip) {
-    ui.ratingChip.textContent = isGrowth ? "Enabled" : isAi ? "AI-optimized" : "Available in Growth";
+    ui.ratingChip.textContent = isGrowth ? "Enabled" : isAi ? "AI managed" : "Locked";
     ui.ratingChip.classList.toggle("chip-primary", isGrowth);
   }
 
-  const starterEditable = !isAi && !isGrowth;
-  const fullEditable = isGrowth && !isAi;
-
-  setEditable(ui.happyHeadline, !isAi);
-  setEditable(ui.happyCta, !isAi);
-  setEditable(ui.happyPrompt, fullEditable);
-  setEditable(ui.googleUrl, fullEditable);
-
-  setEditable(ui.unhappyHeadline, fullEditable && !isAi && !isStarter);
-  setEditable(ui.unhappyMessage, fullEditable && !isAi && !isStarter);
-  setEditable(ui.followupOwner, fullEditable || starterEditable);
-  setEditable(ui.ratingThreshold, fullEditable);
-  setEditable(ui.logo, fullEditable && Boolean(features.reviewFunnelBrandingLogo));
-  setEditable(ui.primaryColor, fullEditable && Boolean(features.reviewFunnelBrandingLogo));
-
-  setHidden(ui.saveRow, isAi);
-  setHidden(ui.aiNote, !isAi);
+  setEditable(ui.happyHeadline, editable.happyHeadline);
+  setEditable(ui.happyCta, editable.happyCta);
+  setEditable(ui.happyPrompt, editable.happyPrompt);
+  setEditable(ui.googleUrl, editable.googleReviewUrl);
+  setEditable(ui.ratingThreshold, editable.routing);
+  setEditable(ui.unhappyHeadline, editable.unhappyHeadline);
+  setEditable(ui.unhappyMessage, editable.unhappyMessage);
+  setEditable(ui.followupOwner, editable.followupEmail);
+  setEditable(ui.logo, editable.branding);
+  setEditable(ui.primaryColor, editable.branding);
 
   if (ui.saveHint) {
     if (isStarter) {
@@ -250,40 +233,48 @@ async function loadSettings(uid) {
   return snap.data();
 }
 
+function setPatchValue(target, path, value) {
+  if (value === undefined) return;
+  const parts = path.split(".");
+  const last = parts.pop();
+  let ref = target;
+  parts.forEach((part) => {
+    if (!ref[part]) ref[part] = {};
+    ref = ref[part];
+  });
+  ref[last] = value;
+}
+
 function collectPatch() {
-  const features = currentCapabilities.features;
-  const isAi = Boolean(features.reviewFunnelAIManaged);
-  const isGrowth = currentPlan === "growth";
-  const isStarter = currentPlan === "starter";
+  const funnel = currentCapabilities.reviewFunnel || {};
+  const allowed = new Set(funnel.allowedPatchPaths || []);
+  if (!allowed.size) return {};
 
-  if (isAi) return {};
+  const patch = {};
+  const allow = (path) => allowed.has(path);
 
-  const patch = { happy: {}, unhappy: {}, routing: {}, branding: {} };
+  if (allow("happy.headline")) setPatchValue(patch, "happy.headline", ui.happyHeadline?.value?.trim() || "");
+  if (allow("happy.ctaLabel")) setPatchValue(patch, "happy.ctaLabel", ui.happyCta?.value?.trim() || "");
+  if (allow("happy.prompt")) setPatchValue(patch, "happy.prompt", ui.happyPrompt?.value?.trim() || "");
+  if (allow("happy.googleReviewUrl"))
+    setPatchValue(patch, "happy.googleReviewUrl", ui.googleUrl?.value?.trim() || "");
 
-  if (ui.happyHeadline) patch.happy.headline = ui.happyHeadline.value.trim();
-  if (ui.happyCta) patch.happy.ctaLabel = ui.happyCta.value.trim();
-
-  if (isGrowth) {
-    patch.happy.prompt = ui.happyPrompt?.value?.trim() || "";
-    patch.happy.googleReviewUrl = ui.googleUrl?.value?.trim() || "";
-    patch.unhappy.headline = ui.unhappyHeadline?.value?.trim() || "";
-    patch.unhappy.message = ui.unhappyMessage?.value?.trim() || "";
-    patch.routing = {
-      enabled: true,
-      type: "rating",
-      thresholds: { googleMin: Number(ui.ratingThreshold?.value || 4) },
-    };
-    patch.branding.logoUrl = activeSettings.branding.logoUrl || "";
-    patch.branding.primaryColor = ui.primaryColor?.value || "#2563eb";
+  if (allow("routing.thresholds.googleMin")) {
+    setPatchValue(patch, "routing.enabled", true);
+    setPatchValue(patch, "routing.type", "rating");
+    setPatchValue(patch, "routing.thresholds.googleMin", Number(ui.ratingThreshold?.value || 4));
   }
 
-  patch.unhappy.followupEmail = ui.followupOwner?.value?.trim() || "";
+  if (allow("unhappy.headline")) setPatchValue(patch, "unhappy.headline", ui.unhappyHeadline?.value?.trim() || "");
+  if (allow("unhappy.message")) setPatchValue(patch, "unhappy.message", ui.unhappyMessage?.value?.trim() || "");
+  if (allow("unhappy.followupEmail"))
+    setPatchValue(patch, "unhappy.followupEmail", ui.followupOwner?.value?.trim() || "");
 
-  if (isStarter) {
-    return {
-      happy: { headline: patch.happy.headline, ctaLabel: patch.happy.ctaLabel },
-      unhappy: { followupEmail: patch.unhappy.followupEmail },
-    };
+  if (allow("branding.primaryColor"))
+    setPatchValue(patch, "branding.primaryColor", ui.primaryColor?.value || "#2563eb");
+
+  if (allow("branding.logoUrl") && activeSettings.branding.logoUrl) {
+    setPatchValue(patch, "branding.logoUrl", activeSettings.branding.logoUrl);
   }
 
   return patch;
@@ -300,23 +291,25 @@ async function saveSettings() {
   if (!businessId || !ui.saveButton) return;
   ui.saveButton.disabled = true;
   ui.saveButton.textContent = "Saving...";
-  ui.saveHint.textContent = "";
+  if (ui.saveHint) ui.saveHint.textContent = "";
 
   try {
     const patch = collectPatch();
     const logoUrl = await maybeUploadLogo();
-    if (logoUrl) {
-      patch.branding = { ...(patch.branding || {}), logoUrl };
+    if (logoUrl && (currentCapabilities.reviewFunnel?.allowedPatchPaths || []).includes("branding.logoUrl")) {
+      setPatchValue(patch, "branding.logoUrl", logoUrl);
       activeSettings.branding.logoUrl = logoUrl;
     }
 
     const update = httpsCallable(functions, "updateReviewFunnelSettings");
     await update({ businessId, patch });
-    ui.saveHint.textContent = "Saved. Your review funnel is up to date.";
+    if (ui.saveHint) ui.saveHint.textContent = "Saved. Your review funnel is up to date.";
   } catch (err) {
     console.error("[funnel] save failed", err);
-    ui.saveHint.textContent =
-      err?.message || "We couldn't save your changes right now. Please try again.";
+    if (ui.saveHint) {
+      ui.saveHint.textContent =
+        err?.message || "We couldn't save your changes right now. Please try again.";
+    }
   } finally {
     ui.saveButton.disabled = false;
     ui.saveButton.textContent = "Save changes";
@@ -325,11 +318,7 @@ async function saveSettings() {
 
 function bindEvents() {
   ui.saveButton?.addEventListener("click", saveSettings);
-  ui.calloutCta?.addEventListener("click", showUpgradeModal);
-  ui.upgradeCluster?.addEventListener("click", showUpgradeModal);
-  ui.advancedOverlay?.addEventListener("click", () => {
-    if (ui.advancedOverlay?.dataset.mode === "locked") showUpgradeModal();
-  });
+  ui.upgradeOpeners.forEach((btn) => btn.addEventListener("click", showUpgradeModal));
   bindUpgradeModal();
 }
 
@@ -338,7 +327,12 @@ async function init(user) {
   const planInfo = await loadBusinessPlan(user.uid);
   const settings = await loadSettings(user.uid);
   applySettings(settings);
-  renderPlanState(planInfo.plan, { plan: planInfo.plan, features: planInfo.features });
+  const planCapabilities = getPlanCapabilities(planInfo.plan);
+  renderPlanState(planInfo.plan, {
+    plan: planInfo.plan,
+    features: planInfo.features || planCapabilities.features,
+    reviewFunnel: planCapabilities.reviewFunnel,
+  });
 }
 
 onSession(async ({ user }) => {
