@@ -33,6 +33,23 @@ service cloud.firestore {
         // Review funnel settings must be updated via Cloud Functions to enforce plan rules
         allow create, update, delete: if false;
       }
+
+      // Canonical feedback path for portal submissions
+      match /feedback/{feedbackId} {
+        allow create: if
+          // allow anonymous (no auth required)
+          true &&
+          // enforce correct business linkage and field expectations
+          request.resource.data.businessId is string &&
+          request.resource.data.businessId == businessId &&
+          request.resource.data.rating is int &&
+          request.resource.data.rating >= 1 &&
+          request.resource.data.rating <= 5 &&
+          request.resource.data.type == "private" &&
+          request.resource.data.source == "portal";
+
+        allow read, update, delete: if false;
+      }
     }
 
     // Public feedback from the customer portal

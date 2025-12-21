@@ -1,11 +1,6 @@
-import {
-  collection,
-  db,
-  getDocs,
-  query,
-  where,
-} from "./firebase-config.js";
+import { collection, db, getDocs, query, where } from "./firebase-config.js";
 import { listenForUser } from "./session-data.js";
+import { fetchFeedbackForBusiness } from "./feedback-store.js";
 
 export function onSession(callback) {
   return listenForUser(callback);
@@ -50,19 +45,13 @@ async function collect(queryBuilder) {
 
 export async function fetchAllReviews(businessId) {
   if (!businessId) return [];
-  const feedback = await collect(() =>
-    getDocs(query(collection(db, "feedback"), where("businessId", "==", businessId)))
-  );
-  const nestedFeedback = await collect(() =>
-    getDocs(collection(db, "businessProfiles", businessId, "feedback"))
-  );
+  const feedback = await fetchFeedbackForBusiness(businessId, { includeLegacy: true, logDebug: true });
   const googleReviews = await collect(() =>
     getDocs(query(collection(db, "googleReviews"), where("businessId", "==", businessId)))
   );
 
   return [
     ...feedback.map((item) => ({ ...item, source: item.source || "feedback" })),
-    ...nestedFeedback.map((item) => ({ ...item, source: item.source || "feedback" })),
     ...googleReviews.map((item) => ({ ...item, source: "google" })),
   ];
 }
@@ -135,7 +124,9 @@ export function describeReview(review = {}) {
   const name = review.customerName || review.reviewerName || review.name || "Anonymous";
   const rating = extractRating(review);
   const message = review.message || review.text || review.reviewText || "";
-  const createdAt = normalizeTimestamp(review.createdAt || review.timestamp || review.date);
+  const createdAt = normalizeTimestamp(
+    review.createdAt || review.timestamp || review.date || review.createdAtMs
+  );
   return { ...review, displayName: name, rating, message, createdAt };
 }
 
