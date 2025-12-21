@@ -2003,32 +2003,35 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
   }
 );
 
-exports.updateReviewFunnelSettings = functions.https.onCall(async (data, context) => {
-  if (!context.auth || !context.auth.uid) {
-    throw new functions.https.HttpsError("unauthenticated", "Sign in to update review funnel settings.");
+const applyReviewFunnelPatch = async ({ businessId, authUid, rawPatch }) => {
+  if (!authUid) {
+    const error = new functions.https.HttpsError(
+      "unauthenticated",
+      "Sign in to update review funnel settings.",
+    );
+    throw error;
   }
 
-  const businessId = data?.businessId || context.auth.uid;
-
-  if (businessId !== context.auth.uid) {
-    throw new functions.https.HttpsError(
+  if (businessId !== authUid) {
+    const error = new functions.https.HttpsError(
       "permission-denied",
       "You can only update review funnel settings for your own business.",
     );
+    throw error;
   }
 
-  const rawPatch = data?.patch || {};
   const { ref: businessRef, capabilities, data: businessData } = await loadBusinessAccount(businessId);
   const { features, plan } = capabilities;
   const allowManualOverride = Boolean(businessData?.features?.reviewFunnelAllowManualOverride);
 
-  const sanitizedPatch = sanitizeReviewFunnelPatch(rawPatch);
+  const sanitizedPatch = sanitizeReviewFunnelPatch(rawPatch || {});
 
   if (features.reviewFunnelAIManaged && !allowManualOverride) {
-    throw new functions.https.HttpsError(
+    const error = new functions.https.HttpsError(
       "permission-denied",
       "Review funnel is managed by AI on this plan.",
     );
+    throw error;
   }
 
   let allowedPatch = sanitizedPatch;
@@ -2042,15 +2045,17 @@ exports.updateReviewFunnelSettings = functions.https.onCall(async (data, context
     ];
     allowedPatch = pickAllowedPatch(sanitizedPatch, starterPaths);
     if (!Object.keys(allowedPatch || {}).length) {
-      throw new functions.https.HttpsError(
+      const error = new functions.https.HttpsError(
         "permission-denied",
         "Starter includes limited review funnel edits. Upgrade for more control.",
       );
+      throw error;
     }
   }
 
   if (!Object.keys(allowedPatch || {}).length) {
-    throw new functions.https.HttpsError("failed-precondition", "No changes supplied.");
+    const error = new functions.https.HttpsError("failed-precondition", "No changes supplied.");
+    throw error;
   }
 
   const settingsRef = businessRef.collection("settings").doc("reviewFunnel");
@@ -2074,6 +2079,77 @@ exports.updateReviewFunnelSettings = functions.https.onCall(async (data, context
     mode: mergedSettings.mode,
     appliedPaths: Object.keys(allowedPatch || {}),
   };
+};
+
+exports.updateReviewFunnelSettings = functions.https.onCall(async (data, context) => {
+  return applyReviewFunnelPatch({
+    businessId: data?.businessId || context.auth?.uid,
+    authUid: context.auth?.uid || null,
+    rawPatch: data?.patch || {},
+  });
+});
+
+exports.updateReviewFunnelSettingsHttp = functions.https.onRequest(async (req, res) => {
+  const origin = req.headers.origin || "";
+  const allowedOrigins = [
+    "https://reviewresq.com",
+    "https://www.reviewresq.com",
+    "http://localhost:5000",
+  ];
+
+  if (allowedOrigins.includes(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+  } else {
+    res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
+  }
+
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.set("Vary", "Origin");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "method_not_allowed" });
+  }
+
+  let authUid = null;
+  try {
+    const tokenHeader = req.headers.authorization || "";
+    const token = tokenHeader.startsWith("Bearer ") ? tokenHeader.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: "unauthenticated" });
+    }
+    const decoded = await admin.auth().verifyIdToken(token);
+    authUid = decoded.uid;
+  } catch (err) {
+    console.error("[reviewFunnel] auth failed", err);
+    return res.status(401).json({ error: "unauthenticated" });
+  }
+
+  try {
+    const result = await applyReviewFunnelPatch({
+      businessId: req.body?.businessId || authUid,
+      authUid,
+      rawPatch: req.body?.patch || {},
+    });
+    return res.status(200).json({ ...result, message: "Saved successfully" });
+  } catch (err) {
+    const code = err?.code || "unknown";
+    const message = err?.message || "Unable to update review funnel";
+    const status =
+      code === "permission-denied"
+        ? 403
+        : code === "failed-precondition"
+          ? 412
+          : code === "unauthenticated"
+            ? 401
+            : 400;
+    console.error("[reviewFunnel] update failed", err);
+    return res.status(status).json({ error: code, message });
+  }
 });
 
 exports.connectGoogleManualLink = functions.https.onCall(async (data, context) => {
