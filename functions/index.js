@@ -2095,24 +2095,22 @@ exports.updateReviewFunnelSettingsHttp = functions.https.onRequest(async (req, r
     "https://reviewresq.com",
     "https://www.reviewresq.com",
     "http://localhost:5000",
+    "http://localhost:3000",
   ];
 
   if (allowedOrigins.includes(origin)) {
     res.set("Access-Control-Allow-Origin", origin);
   } else {
-    res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
+    res.set("Access-Control-Allow-Origin", allowedOrigins[0]);
   }
 
-  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.set("Access-Control-Max-Age", "3600");
   res.set("Vary", "Origin");
 
   if (req.method === "OPTIONS") {
     return res.status(204).send("");
-  }
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "method_not_allowed" });
   }
 
   let authUid = null;
@@ -2127,6 +2125,24 @@ exports.updateReviewFunnelSettingsHttp = functions.https.onRequest(async (req, r
   } catch (err) {
     console.error("[reviewFunnel] auth failed", err);
     return res.status(401).json({ error: "unauthenticated" });
+  }
+
+  if (req.method === "GET") {
+    try {
+      const businessId = req.query?.businessId || authUid;
+      const settingsRef = db.collection("businesses").doc(String(businessId)).collection("settings").doc("reviewFunnel");
+      const settingsSnap = await settingsRef.get();
+      const settings = settingsSnap.exists ? settingsSnap.data() : DEFAULT_REVIEW_FUNNEL_SETTINGS;
+      const mergedSettings = mergeDeep(DEFAULT_REVIEW_FUNNEL_SETTINGS, settings || {});
+      return res.status(200).json({ ok: true, settings: mergedSettings });
+    } catch (err) {
+      console.error("[reviewFunnel] load failed", err);
+      return res.status(500).json({ error: "load_failed", message: "Unable to load review funnel settings" });
+    }
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "method_not_allowed" });
   }
 
   try {
