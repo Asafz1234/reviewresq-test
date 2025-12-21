@@ -2081,97 +2081,150 @@ const applyReviewFunnelPatch = async ({ businessId, authUid, rawPatch }) => {
   };
 };
 
-exports.updateReviewFunnelSettings = functions.https.onCall(async (data, context) => {
-  return applyReviewFunnelPatch({
-    businessId: data?.businessId || context.auth?.uid,
-    authUid: context.auth?.uid || null,
-    rawPatch: data?.patch || {},
-  });
-});
+const updateReviewFunnelSettingsCallable = functions.https.onCall(
+  async (data, context) => {
+    return applyReviewFunnelPatch({
+      businessId: data?.businessId || context.auth?.uid,
+      authUid: context.auth?.uid || null,
+      rawPatch: data?.patch || {},
+    });
+  }
+);
 
-exports.updateReviewFunnelSettingsHttp = functions.https.onRequest(async (req, res) => {
-  const origin = req.headers.origin || "";
+exports.updateReviewFunnelSettingsCallable = updateReviewFunnelSettingsCallable;
+
+const REVIEW_FUNNEL_SETTINGS_BASE = {
+  mode: "manual",
+  happy: {
+    headline: "Thanks for your visit!",
+    prompt: "Share a quick note about your experience so others know what to expect.",
+    ctaLabel: "Leave us a Google review",
+    googleReviewUrl: "",
+  },
+  unhappy: {
+    headline: "We're here to make it right",
+    message: "Tell us what happened and how we can improve. We'll respond quickly.",
+    followupEmail: "",
+  },
+  routing: {
+    enabled: true,
+    type: "rating",
+    thresholds: { googleMin: 4 },
+  },
+  branding: {
+    logoUrl: "",
+    primaryColor: "#2563eb",
+  },
+  updatedAt: null,
+};
+
+const resolveAllowedOrigin = (origin = "") => {
   const allowedOrigins = [
     "https://reviewresq.com",
     "https://www.reviewresq.com",
-    "http://localhost:5000",
-    "http://localhost:3000",
   ];
 
-  const allowOrigin = allowedOrigins.includes(origin)
-    ? origin
-    : "https://reviewresq.com";
+  if (allowedOrigins.includes(origin)) return origin;
+  if (origin && origin.startsWith("http://localhost:")) return origin;
+  return "https://reviewresq.com";
+};
 
-  res.set("Access-Control-Allow-Origin", allowOrigin);
-  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.set("Access-Control-Max-Age", "3600");
-  res.set("Vary", "Origin");
+exports.updateReviewFunnelSettings = functions
+  .region("us-central1")
+  .https.onRequest(async (req, res) => {
+    const origin = resolveAllowedOrigin(req.headers.origin || "");
 
-  if (req.method === "OPTIONS") {
-    return res
-      .status(204)
-      .set("Access-Control-Allow-Origin", allowOrigin)
-      .set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-      .set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-      .set("Vary", "Origin")
-      .send("");
-  }
+    res.set("Access-Control-Allow-Origin", origin);
+    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.set("Vary", "Origin");
 
-  let authUid = null;
-  try {
-    const tokenHeader = req.headers.authorization || "";
-    const token = tokenHeader.startsWith("Bearer ") ? tokenHeader.slice(7) : null;
-    if (!token) {
+    if (req.method === "OPTIONS") {
+      return res.status(204).send("");
+    }
+
+    if (req.method !== "GET" && req.method !== "POST") {
+      return res.status(405).json({ error: "method_not_allowed" });
+    }
+
+    let authUid = null;
+    try {
+      const tokenHeader = req.headers.authorization || "";
+      const token = tokenHeader.startsWith("Bearer ")
+        ? tokenHeader.slice(7)
+        : null;
+
+      if (!token) {
+        return res.status(401).json({ error: "unauthenticated" });
+      }
+
+      const decoded = await admin.auth().verifyIdToken(token);
+      authUid = decoded.uid;
+    } catch (err) {
+      console.error("[reviewFunnel] auth failed", err);
       return res.status(401).json({ error: "unauthenticated" });
     }
-    const decoded = await admin.auth().verifyIdToken(token);
-    authUid = decoded.uid;
-  } catch (err) {
-    console.error("[reviewFunnel] auth failed", err);
-    return res.status(401).json({ error: "unauthenticated" });
-  }
 
-  if (req.method === "GET") {
-    try {
-      const businessId = req.query?.businessId || authUid;
-      const settingsRef = db.collection("businesses").doc(String(businessId)).collection("settings").doc("reviewFunnel");
-      const settingsSnap = await settingsRef.get();
-      const settings = settingsSnap.exists ? settingsSnap.data() : DEFAULT_REVIEW_FUNNEL_SETTINGS;
-      const mergedSettings = mergeDeep(DEFAULT_REVIEW_FUNNEL_SETTINGS, settings || {});
-      return res.status(200).json({ ok: true, settings: mergedSettings });
-    } catch (err) {
-      console.error("[reviewFunnel] load failed", err);
-      return res.status(500).json({ error: "load_failed", message: "Unable to load review funnel settings" });
+    const businessId =
+      req.method === "GET"
+        ? req.query?.businessId || authUid
+        : req.body?.businessId || authUid;
+
+    if (!businessId || businessId !== authUid) {
+      return res.status(403).json({ error: "permission_denied" });
     }
-  }
 
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "method_not_allowed" });
-  }
+    const settingsRef = db
+      .collection("businessProfiles")
+      .doc(String(businessId))
+      .collection("reviewFunnel")
+      .doc("settings");
 
-  try {
-    const result = await applyReviewFunnelPatch({
-      businessId: req.body?.businessId || authUid,
-      authUid,
-      rawPatch: req.body?.patch || {},
-    });
-    return res.status(200).json({ ...result, message: "Saved successfully" });
-  } catch (err) {
-    const code = err?.code || "unknown";
-    const message = err?.message || "Unable to update review funnel";
-    const status =
-      code === "permission-denied"
-        ? 403
-        : code === "failed-precondition"
-          ? 412
-          : code === "unauthenticated"
-            ? 401
-            : 400;
-    console.error("[reviewFunnel] update failed", err);
-    return res.status(status).json({ error: code, message });
-  }
-});
+    if (req.method === "GET") {
+      try {
+        const settingsSnap = await settingsRef.get();
+        const settings = settingsSnap.exists ? settingsSnap.data() : {};
+        const mergedSettings = mergeDeep(REVIEW_FUNNEL_SETTINGS_BASE, settings || {});
+        return res.status(200).json({ ok: true, settings: mergedSettings });
+      } catch (err) {
+        console.error("[reviewFunnel] load failed", err);
+        return res
+          .status(500)
+          .json({ error: "load_failed", message: "Unable to load review funnel settings" });
+      }
+    }
+
+    try {
+      const rawSettings =
+        req.body?.settings || req.body?.patch || (req.body || {});
+      const sanitized = sanitizeReviewFunnelPatch(rawSettings || {});
+
+      if (!Object.keys(sanitized).length) {
+        return res.status(400).json({ error: "invalid_settings" });
+      }
+
+      const settingsSnap = await settingsRef.get();
+      const existingSettings = settingsSnap.exists ? settingsSnap.data() : {};
+      const mergedSettings = mergeDeep(existingSettings || {}, sanitized);
+      const payload = {
+        ...mergedSettings,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await settingsRef.set(payload, { merge: true });
+
+      const savedSnap = await settingsRef.get();
+      const savedSettings = mergeDeep(
+        REVIEW_FUNNEL_SETTINGS_BASE,
+        savedSnap.exists ? savedSnap.data() : {},
+      );
+
+      return res.status(200).json({ ok: true, settings: savedSettings });
+    } catch (err) {
+      console.error("[reviewFunnel] update failed", err);
+      return res.status(500).json({ error: "update_failed" });
+    }
+  });
 
 exports.connectGoogleManualLink = functions.https.onCall(async (data, context) => {
   if (!context.auth || !context.auth.uid) {
