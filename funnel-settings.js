@@ -72,6 +72,8 @@ const ui = {
   upgradeOpeners: Array.from(document.querySelectorAll("[data-upgrade-open], [data-plan-upgrade]")),
 };
 
+const toastId = "feedback-toast";
+
 let businessId = null;
 let currentPlan = "starter";
 let currentCapabilities = getPlanCapabilities(currentPlan);
@@ -97,6 +99,23 @@ function setSaveHint(message = "", state = "idle") {
   ui.saveHint.textContent = message;
   ui.saveHint.classList.toggle("save-hint--success", state === "success");
   ui.saveHint.classList.toggle("save-hint--error", state === "error");
+}
+
+function showToast(message, isError = false) {
+  let toast = document.getElementById(toastId);
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = toastId;
+    toast.className = "toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    document.body.appendChild(toast);
+  }
+
+  toast.textContent = message;
+  toast.classList.toggle("toast-error", isError);
+  toast.classList.add("visible");
+  setTimeout(() => toast.classList.remove("visible"), 2400);
 }
 
 function applySettings(settings = {}) {
@@ -257,10 +276,31 @@ async function loadBusinessPlan(uid) {
 }
 
 async function loadSettings(uid) {
-  const ref = doc(db, "businesses", uid, "settings", "reviewFunnel");
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return DEFAULT_SETTINGS;
-  return snap.data();
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) {
+    throw new Error("You need to be signed in to load your funnel.");
+  }
+
+  const url = new URL(
+    "https://us-central1-reviewresq-app.cloudfunctions.net/updateReviewFunnelSettingsHttp",
+  );
+  url.searchParams.set("businessId", uid);
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const message = body?.message || "We couldn't load your funnel right now. Please try again.";
+    throw new Error(message);
+  }
+
+  const body = await response.json().catch(() => ({}));
+  return body?.settings || DEFAULT_SETTINGS;
 }
 
 function setPatchValue(target, path, value) {
@@ -360,9 +400,12 @@ async function saveSettings() {
     const refreshed = await loadSettings(businessId);
     applySettings(refreshed);
     setSaveHint("Saved successfully", "success");
+    showToast("Saved successfully");
   } catch (err) {
     console.error("[funnel] save failed", err);
-    setSaveHint(err?.message || "We couldn't save your changes right now. Please try again.", "error");
+    const message = err?.message || "We couldn't save your changes right now. Please try again.";
+    setSaveHint(message, "error");
+    showToast(message, true);
   } finally {
     ui.saveButton.disabled = false;
     ui.saveButton.textContent = "Save changes";
@@ -391,5 +434,12 @@ async function init(user) {
 onSession(async ({ user }) => {
   if (!user) return;
   bindEvents();
-  await init(user);
+  try {
+    await init(user);
+  } catch (err) {
+    console.error("[funnel] init failed", err);
+    const message = err?.message || "We couldn't load your funnel right now. Please try again.";
+    setSaveHint(message, "error");
+    showToast(message, true);
+  }
 });
