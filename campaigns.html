@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Campaigns</title>
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="dashboard-modern.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="topbar-center">Campaigns</div>
+      <div class="topbar-right">
+        <a
+          id="planBadge"
+          class="plan-chip plan-chip--pro"
+          href="account.html"
+          title="View and manage your subscription."
+          >Growth+</a
+        >
+        <div class="profile">RQ</div>
+      </div>
+    </header>
+
+    <nav class="global-nav" aria-label="Dashboard sections">
+      <div class="nav-tabs">
+        <a class="nav-tab" data-route="overview" href="dashboard.html#overview">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
+        <a class="nav-tab" data-route="customers" href="customers.html">Customers</a>
+        <a class="nav-tab" data-route="campaigns" href="campaigns.html">Campaigns</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
+        <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
+        <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
+        <a class="nav-tab" data-route="settings" href="settings.html">Alerts &amp; Settings</a>
+        <a class="nav-tab" data-route="account" href="account.html">Account &amp; billing</a>
+      </div>
+    </nav>
+
+    <main class="page-container">
+      <header class="section">
+        <h1 class="page-title">Campaigns (Growth+)</h1>
+        <p class="page-subtitle">
+          Launch bulk outreach with audience filters, templates, schedules, and follow-up rules.
+        </p>
+      </header>
+
+      <section class="section">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="section-title">New campaign</h3>
+              <p class="card-sub">Define audience, channel, template, and schedule.</p>
+            </div>
+            <span class="badge badge-muted" id="campaignStatus">Draft</span>
+          </div>
+          <form id="campaignForm" class="form-grid">
+            <label>
+              <span class="card-title">Audience filters</span>
+              <div class="chip-row">
+                <select class="select" id="audienceStatus">
+                  <option value="any">Any status</option>
+                  <option value="none">No request</option>
+                  <option value="requested">Requested</option>
+                  <option value="reviewed">Reviewed</option>
+                  <option value="negative">Negative</option>
+                </select>
+                <select class="select" id="audienceSource">
+                  <option value="any">Any source</option>
+                  <option value="manual">Manual</option>
+                  <option value="csv">CSV</option>
+                  <option value="sheet">Sheet</option>
+                  <option value="funnel">Funnel</option>
+                  <option value="webhook">Webhook</option>
+                </select>
+              </div>
+              <p class="caption">Filters combine to select who receives the send.</p>
+            </label>
+
+            <label>
+              <span class="card-title">Channel</span>
+              <select class="select" id="channelSelect">
+                <option value="sms">SMS</option>
+                <option value="email">Email</option>
+              </select>
+            </label>
+
+            <label>
+              <span class="card-title">Template</span>
+              <textarea class="textarea" id="templateBody" rows="4" placeholder="Hi {{name}}, ..."></textarea>
+              <p class="caption">Supports {{name}} and {{business}} variables.</p>
+            </label>
+
+            <label>
+              <span class="card-title">Schedule</span>
+              <input class="input" type="datetime-local" id="scheduleInput" />
+              <p class="caption">Leave empty to send immediately.</p>
+            </label>
+
+            <label>
+              <span class="card-title">Follow-up rules</span>
+              <textarea
+                class="textarea"
+                id="followUpRules"
+                rows="3"
+                placeholder="e.g. Wait 3 days, if no reply send reminder"
+              ></textarea>
+            </label>
+
+            <div class="button-row" style="justify-content: flex-end;">
+              <button type="button" class="btn btn-secondary" id="previewCampaign">Preview audience</button>
+              <button type="submit" class="btn btn-primary">Save campaign</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="section-title">Bulk send</h3>
+              <p class="card-sub">Select customers, preview message, and deliver in rate-limited batches.</p>
+            </div>
+            <div class="chip-row">
+              <label class="chip chip-muted">Rate limit</label>
+              <input class="input" style="width: 160px" id="rateLimit" type="number" min="1" value="10" />
+              <button class="btn btn-secondary" id="loadCustomers">Load audience</button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table-lite">
+              <thead>
+                <tr>
+                  <th style="width: 36px"><input type="checkbox" id="selectAllCustomers" /></th>
+                  <th>Name</th>
+                  <th>Contact</th>
+                  <th>Status</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody id="audienceTableBody">
+                <tr><td colspan="5" class="caption">Load customers to start.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="preview-box">
+            <div class="preview-header">
+              <div>
+                <p class="card-title">Message preview</p>
+                <p class="caption" id="previewCount">0 recipients selected</p>
+              </div>
+              <button class="btn btn-primary" id="sendBulkBtn">Send batch</button>
+            </div>
+            <pre id="messagePreview" class="code-block">Use the template above to see a preview.</pre>
+            <div id="sendResults" class="caption"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="section-title">Scheduled &amp; recent campaigns</h3>
+              <p class="card-sub">Track schedules, channels, and follow-up rules.</p>
+            </div>
+            <button class="btn btn-secondary" id="refreshCampaigns">Refresh</button>
+          </div>
+          <table class="table-lite" aria-label="Campaign history">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Channel</th>
+                <th>Audience</th>
+                <th>Schedule</th>
+                <th>Follow-ups</th>
+              </tr>
+            </thead>
+            <tbody id="campaignsTableBody">
+              <tr><td colspan="5" class="caption">No campaigns yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="topbar-menu.js"></script>
+  <script src="dashboard-nav.js"></script>
+  <script type="module" src="campaigns.js"></script>
+</body>
+</html>
