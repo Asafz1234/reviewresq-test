@@ -639,6 +639,30 @@ const extractCidFromUrl = (url = "") => {
   return match && match[1] ? decodeURIComponent(match[1]) : null;
 };
 
+const buildGoogleReviewUrl = (placeId) => {
+  if (!placeId) return "";
+  return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(placeId)}`;
+};
+
+const extractPlaceIdFromUrl = (raw = "") => {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    const direct =
+      url.searchParams.get("placeid") || url.searchParams.get("place_id") || url.searchParams.get("pid");
+    if (direct) return direct;
+
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    const placeIndex = pathParts.findIndex((part) => part.toLowerCase() === "place");
+    if (placeIndex >= 0 && pathParts[placeIndex + 1]) {
+      return decodeURIComponent(pathParts[placeIndex + 1]);
+    }
+  } catch (err) {
+    return null;
+  }
+  return null;
+};
+
 const isValidGoogleBusinessUrl = (raw = "") => {
   if (!raw) return false;
   const trimmed = String(raw || "").trim();
@@ -652,10 +676,31 @@ const isValidGoogleBusinessUrl = (raw = "") => {
   const protocol = url.protocol.toLowerCase();
   if (protocol !== "http:" && protocol !== "https:") return false;
 
-  const GOOGLE_MANUAL_LINK_REGEX =
-    /^https?:\/\/(?:www\.)?(?:maps\.app\.goo\.gl|google\.com\/maps|google\.com\/search|www\.google\.com\/maps|www\.google\.com\/search|search\.google\.com\/local\/writereview)\b/i;
+  const baseHost = url.host.toLowerCase().startsWith("www.")
+    ? url.host.toLowerCase().slice(4)
+    : url.host.toLowerCase();
+  const allowedHosts = [
+    "google.com",
+    "maps.app.goo.gl",
+    "goo.gl",
+    "goo.gl/maps",
+    "g.page",
+    "search.google.com",
+  ];
+  const hostAllowed = allowedHosts.some(
+    (host) => baseHost === host || baseHost.endsWith(`.${host}`)
+  );
+  if (!hostAllowed) return false;
 
-  return GOOGLE_MANUAL_LINK_REGEX.test(url.href);
+  const path = (url.pathname || "").toLowerCase();
+  const hasMapsPath =
+    path.includes("/maps") || path.includes("/search") || path.includes("/local/") || path.includes("/url");
+
+  if (!hasMapsPath && baseHost !== "g.page" && baseHost !== "goo.gl" && baseHost !== "goo.gl/maps") {
+    return false;
+  }
+
+  return true;
 };
 
 const resolvePlacesApiKey = () => {
@@ -2383,11 +2428,13 @@ exports.connectGoogleManualLink = functions.https.onCall(async (data, context) =
   const manualLink = (data?.manualLink || data?.link || data?.url || "").trim();
   let normalizedLink = null;
   let normalizedHost = null;
+  let placeIdFromLink = null;
 
   try {
     const parsed = new URL(manualLink);
     normalizedLink = parsed.href;
     normalizedHost = parsed.host;
+    placeIdFromLink = extractPlaceIdFromUrl(normalizedLink);
   } catch (err) {
     normalizedLink = null;
   }
@@ -2420,6 +2467,8 @@ exports.connectGoogleManualLink = functions.https.onCall(async (data, context) =
       businessId: uid,
       ownerUid: uid,
       googleManualLink: normalizedLink,
+      googleReviewUrl: placeIdFromLink ? buildGoogleReviewUrl(placeIdFromLink) : profileData.googleReviewUrl || "",
+      googlePlaceId: placeIdFromLink || profileData.googlePlaceId || null,
       googleManualConnection: true,
       googleConnectionType: "manual",
       connectionMethod: "manual",
@@ -2441,6 +2490,21 @@ exports.connectGoogleManualLink = functions.https.onCall(async (data, context) =
     { merge: true }
   );
 
+  const businessRef = db.collection("businesses").doc(uid);
+  await businessRef.set(
+    {
+      businessId: uid,
+      ownerUid: uid,
+      googleManualLink: normalizedLink,
+      googleReviewUrl: placeIdFromLink
+        ? buildGoogleReviewUrl(placeIdFromLink)
+        : profileData.googleReviewUrl || normalizedLink,
+      ...(placeIdFromLink ? { googlePlaceId: placeIdFromLink } : {}),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
   return {
     ok: true,
     reason: "MANUAL_CONNECTED",
@@ -2448,6 +2512,7 @@ exports.connectGoogleManualLink = functions.https.onCall(async (data, context) =
     googleManualLink: normalizedLink,
     googleConnectionType: "manual",
     normalizedHost,
+    googleReviewUrl: placeIdFromLink ? buildGoogleReviewUrl(placeIdFromLink) : null,
   };
 });
 

@@ -1,5 +1,9 @@
 import { getCachedProfile, getCachedSubscription, refreshProfile } from "./session-data.js";
-import { auth, functions, httpsCallable } from "./firebase-config.js";
+import { auth, db, doc, functions, httpsCallable, setDoc } from "./firebase-config.js";
+import {
+  buildReviewUrlFromPlaceId,
+  normalizeGoogleBusinessInputUrl,
+} from "./google-link-utils.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
@@ -765,35 +769,24 @@ export function connectReviewLinkWithConfirmation(reviewUrl) {
   return runWithPhoneMismatchConfirmation(executor, { message: confirmMessage });
 }
 
-const GOOGLE_MANUAL_LINK_REGEX =
-  /^https?:\/\/(?:www\.)?(?:maps\.app\.goo\.gl|google\.com\/maps|google\.com\/search|www\.google\.com\/maps|www\.google\.com\/search|search\.google\.com\/local\/writereview)\b/i;
+const normalizeGoogleManualLink = (raw = "") => normalizeGoogleBusinessInputUrl(raw);
 
-const normalizeGoogleManualLink = (raw = "") => {
-  const trimmed = (raw || "").trim();
-  if (!trimmed) return { ok: false };
-
-  let url;
+async function persistGoogleReviewLink(googleReviewUrl, placeId = null) {
+  const user = auth?.currentUser;
+  if (!user || !googleReviewUrl) return;
   try {
-    url = new URL(trimmed);
+    await setDoc(
+      doc(db, "businesses", user.uid),
+      {
+        googleReviewUrl,
+        ...(placeId ? { googlePlaceId: placeId } : {}),
+      },
+      { merge: true }
+    );
   } catch (err) {
-    return { ok: false };
+    console.warn("[google-connect] unable to persist googleReviewUrl", err);
   }
-
-  const protocol = url.protocol.toLowerCase();
-  if (protocol !== "http:" && protocol !== "https:") {
-    return { ok: false };
-  }
-
-  if (!GOOGLE_MANUAL_LINK_REGEX.test(url.href)) {
-    return { ok: false };
-  }
-
-  return {
-    ok: true,
-    normalizedUrl: url.href,
-    normalizedHost: url.host,
-  };
-};
+}
 
 async function connectManualLink(manualLink, businessName = "") {
   const call = connectGoogleManualLinkCallable();
@@ -941,8 +934,7 @@ async function searchPlaces(name, state, phone) {
 }
 
 export function buildGoogleReviewLink(placeId) {
-  if (!placeId) return "";
-  return `https://search.google.com/local/review?placeid=${encodeURIComponent(placeId)}`;
+  return buildReviewUrlFromPlaceId(placeId);
 }
 
 export function renderGoogleConnect(container, options = {}) {
@@ -1212,13 +1204,21 @@ export function renderGoogleConnect(container, options = {}) {
     try {
       const response = await connectManualLink(parsedLink.normalizedUrl, businessName);
       if (response?.ok) {
-        setStatus("Connected manually.");
+        const connectedReviewUrl = parsedLink.reviewUrl || null;
+        if (connectedReviewUrl) {
+          await persistGoogleReviewLink(connectedReviewUrl, parsedLink.placeId || null);
+          setStatus("Connected manually.");
+        } else {
+          setStatus("Saved profile link, review link will be generated after place lookup.");
+        }
         if (typeof onSuccess === "function") {
           await onSuccess({
             ...response,
             manualLink: parsedLink.normalizedUrl,
             manualGoogleUrl: parsedLink.normalizedUrl,
             normalizedHost: parsedLink.normalizedHost,
+            googleReviewUrl: connectedReviewUrl,
+            googlePlaceId: parsedLink.placeId || null,
             businessName,
           });
         }
@@ -1226,8 +1226,8 @@ export function renderGoogleConnect(container, options = {}) {
       } else {
         const message = response?.message || "Unable to save that link right now.";
         setStatus(message, true);
-          showToast(message, true);
-        }
+        showToast(message, true);
+      }
       } catch (err) {
         console.error("[google-connect] manual connect failed", err);
         const message = err?.message || "Unable to save that link right now.";
