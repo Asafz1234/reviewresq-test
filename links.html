@@ -50,7 +50,7 @@
           <p class="card-title">Google review link</p>
           <div class="input-row">
             <input class="input" type="text" data-google-link value="—" readonly />
-            <button class="btn btn-outline" type="button">Copy link</button>
+            <button class="btn btn-outline" type="button" data-copy="googleReview">Copy link</button>
           </div>
         </section>
 
@@ -59,7 +59,7 @@
           <div class="input-row">
             <input class="input" type="text" data-funnel-link value="—" readonly />
             <div class="button-row">
-              <button class="btn btn-outline" type="button">Copy link</button>
+              <button class="btn btn-outline" type="button" data-copy="portal">Copy link</button>
               <button class="btn btn-primary" type="button">Download QR code</button>
             </div>
           </div>
@@ -67,6 +67,7 @@
       </div>
     </div>
   </div>
+  <div class="toast" id="copyToast" role="status" aria-live="polite" aria-atomic="true"></div>
   <script type="module" src="links.js"></script>
   <script src="dashboard-nav.js"></script>
 </body>

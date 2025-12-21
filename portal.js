@@ -11,7 +11,9 @@ import {
   getDocs,
   query,
   where,
+  setDoc,
 } from "./firebase-config.js";
+import { resolveCanonicalReviewUrl } from "./google-link-utils.js";
 
 // ----- DOM ELEMENTS -----
 const portalEl = document.getElementById("portal");
@@ -69,6 +71,7 @@ let businessName = "Your business";
 let businessTagline = "Private Feedback Portal";
 let portalSettings = null;
 let businessLogoUrl = null;
+let googleReviewUrl = "";
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
 );
@@ -170,22 +173,42 @@ async function loadBusinessProfile() {
   }
 
   try {
-    const ref = doc(db, "businessProfiles", businessId);
-    const snap = await getDoc(ref);
-
+    let ref = doc(db, "businesses", businessId);
+    let snap = await getDoc(ref);
     let data = snap.exists() ? snap.data() : null;
 
     if (!data && shareKeyParam) {
       const shareKeyQuery = query(
-        collection(db, "businessProfiles"),
+        collection(db, "businesses"),
         where("shareKey", "==", shareKeyParam)
       );
       const shareKeySnap = await getDocs(shareKeyQuery);
-
       if (!shareKeySnap.empty) {
         const matchedDoc = shareKeySnap.docs[0];
         data = matchedDoc.data();
         businessId = matchedDoc.id;
+        ref = doc(db, "businesses", businessId);
+      }
+    }
+
+    if (!data) {
+      const legacyRef = doc(db, "businessProfiles", businessId);
+      const legacySnap = await getDoc(legacyRef);
+      if (legacySnap.exists()) {
+        data = legacySnap.data();
+        ref = legacyRef;
+      } else if (shareKeyParam) {
+        const legacyShareKeyQuery = query(
+          collection(db, "businessProfiles"),
+          where("shareKey", "==", shareKeyParam)
+        );
+        const legacyShareKeySnap = await getDocs(legacyShareKeyQuery);
+        if (!legacyShareKeySnap.empty) {
+          const matchedDoc = legacyShareKeySnap.docs[0];
+          data = matchedDoc.data();
+          businessId = matchedDoc.id;
+          ref = doc(db, "businessProfiles", businessId);
+        }
       }
     }
 
@@ -208,6 +231,27 @@ async function loadBusinessProfile() {
     businessLogoUrl =
       data.businessLogoUrl || data.logoUrl || data.logoDataUrl || null;
     renderBusinessIdentity();
+
+    googleReviewUrl = resolveCanonicalReviewUrl(data);
+    if (highCtaButton) {
+      highCtaButton.disabled = !googleReviewUrl;
+      highCtaButton.classList.toggle("disabled", !googleReviewUrl);
+    }
+
+    if (googleReviewUrl && ref && ref.id) {
+      try {
+        const primaryRef = ref.path.startsWith("businessProfiles")
+          ? doc(db, "businesses", ref.id)
+          : ref;
+        await setDoc(
+          primaryRef,
+          { googleReviewUrl },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn("[portal] unable to persist googleReviewUrl", err);
+      }
+    }
 
     document.title = `${businessName} • Feedback Portal`;
 
@@ -271,16 +315,7 @@ ratingButtons.forEach((btn) => {
 if (highCtaButton) {
   highCtaButton.addEventListener("click", async () => {
     try {
-      const settingsRef = doc(db, "portalSettings", businessId);
-      const settingsSnap = await getDoc(settingsRef);
-
-      if (!settingsSnap.exists()) {
-        alert("Google Review link not set yet.");
-        return;
-      }
-
-      const data = settingsSnap.data();
-      const googleUrl = data.googleReviewUrl;
+      const googleUrl = googleReviewUrl;
 
       if (!googleUrl || googleUrl.trim() === "") {
         alert("This business has not set a Google Review link yet.");
