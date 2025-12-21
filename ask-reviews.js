@@ -4,6 +4,7 @@ import {
   query,
   where,
   onSnapshot,
+  orderBy,
   functions,
   httpsCallable,
 } from "./firebase-config.js";
@@ -33,14 +34,24 @@ const bulkDownloadBtn = document.getElementById("downloadCsvBtn");
 const bulkResults = document.getElementById("bulkResults");
 const bulkResultsBody = document.getElementById("bulkResultsBody");
 
+const outboundTableBody = document.getElementById("outboundTableBody");
+const outboundEmptyRow = document.getElementById("outboundEmptyRow");
+const requestRange = document.getElementById("requestRange");
+const customStartWrapper = document.getElementById("customStartWrapper");
+const customEndWrapper = document.getElementById("customEndWrapper");
+const customStartInput = document.getElementById("requestStart");
+const customEndInput = document.getElementById("requestEnd");
+
 const toastEl = document.getElementById("askToast");
 
 let businessId = null;
 let plan = "starter";
 let customers = [];
 let unsubscribe = null;
+let outboundUnsub = null;
 let bulkLinks = [];
 let emailSuccessTimer = null;
+let outboundRequests = [];
 
 function showToast(message, isError = false) {
   if (!toastEl) return alert(message);
@@ -151,7 +162,7 @@ function updateChannelUi() {
   }
 }
 
-function resetStatusBanners() {
+function hideEmailBanners() {
   if (emailSuccessTimer) {
     clearTimeout(emailSuccessTimer);
     emailSuccessTimer = null;
@@ -160,10 +171,104 @@ function resetStatusBanners() {
   setErrorBanner("");
 }
 
+function resetStatusBanners() {
+  hideEmailBanners();
+}
+
 function setErrorBanner(message = "") {
   if (!emailErrorBanner) return;
   emailErrorBanner.textContent = message || "";
   emailErrorBanner.hidden = !message;
+}
+
+function formatDateLabel(timestampMs) {
+  if (!timestampMs) return "—";
+  const date = new Date(timestampMs);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function formatStatus(status) {
+  const normalized = (status || "draft").toString();
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function renderOutboundTable() {
+  if (!outboundTableBody) return;
+  const range = requestRange?.value || "thisMonth";
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  let startMs = range === "thisMonth" ? startOfMonth : null;
+  let endMs = null;
+
+  if (range === "custom") {
+    customStartWrapper.hidden = false;
+    customEndWrapper.hidden = false;
+    startMs = customStartInput?.value ? new Date(customStartInput.value).getTime() : null;
+    endMs = customEndInput?.value ? new Date(customEndInput.value).getTime() + 24 * 60 * 60 * 1000 : null;
+  } else {
+    customStartWrapper.hidden = true;
+    customEndWrapper.hidden = true;
+  }
+
+  const filtered = outboundRequests.filter((item) => {
+    if (!startMs && !endMs) return true;
+    const createdMs = item.createdAtMs || item.updatedAtMs || 0;
+    if (startMs && createdMs < startMs) return false;
+    if (endMs && createdMs > endMs) return false;
+    return true;
+  });
+
+  outboundTableBody.innerHTML = "";
+  if (!filtered.length) {
+    outboundEmptyRow?.removeAttribute("hidden");
+    outboundTableBody.appendChild(outboundEmptyRow);
+    return;
+  }
+
+  outboundEmptyRow?.setAttribute("hidden", "true");
+  filtered.forEach((entry) => {
+    const row = document.createElement("tr");
+    const customerCell = document.createElement("td");
+    const channelCell = document.createElement("td");
+    const sentCell = document.createElement("td");
+    const openedCell = document.createElement("td");
+    const clickedCell = document.createElement("td");
+    const statusCell = document.createElement("td");
+    const dateCell = document.createElement("td");
+
+    customerCell.textContent = entry.customerName || entry.customerEmail || "Unknown";
+    channelCell.textContent = entry.channel || "link";
+    sentCell.textContent = entry.sentAtMs ? formatDateLabel(entry.sentAtMs) : "—";
+    openedCell.textContent = entry.openedAtMs ? "✅" : "—";
+    clickedCell.textContent = entry.clickedAtMs ? "✅" : "—";
+    statusCell.textContent = formatStatus(entry.status);
+    dateCell.textContent = formatDateLabel(entry.createdAtMs || entry.updatedAtMs);
+
+    row.appendChild(customerCell);
+    row.appendChild(channelCell);
+    row.appendChild(sentCell);
+    row.appendChild(openedCell);
+    row.appendChild(clickedCell);
+    row.appendChild(statusCell);
+    row.appendChild(dateCell);
+    outboundTableBody.appendChild(row);
+  });
+}
+
+function startOutboundFeed(uid) {
+  if (!uid || !outboundTableBody) return;
+  const outboundRef = collection(db, "businesses", uid, "outboundRequests");
+  const q = query(outboundRef, orderBy("createdAtMs", "desc"));
+  if (typeof outboundUnsub === "function") outboundUnsub();
+  outboundUnsub = onSnapshot(q, (snapshot) => {
+    outboundRequests = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    renderOutboundTable();
+  });
+}
+
+function handleRangeChange() {
+  renderOutboundTable();
 }
 
 async function handleSingleSubmit(event) {
@@ -398,18 +503,30 @@ function attachEvents() {
   downloadSingleQrBtn?.addEventListener("click", handleSingleQr);
   bulkForm?.addEventListener("submit", handleBulkSubmit);
   bulkDownloadBtn?.addEventListener("click", downloadCsv);
+  requestRange?.addEventListener("change", handleRangeChange);
+  customStartInput?.addEventListener("change", renderOutboundTable);
+  customEndInput?.addEventListener("change", renderOutboundTable);
   resetStatusBanners();
   updateChannelUi();
 }
 
-listenForUser(({ user, subscription }) => {
-  if (!user) return;
-  businessId = user.uid;
-  setPlan(subscription?.planId || subscription?.planTier);
-  attachEvents();
-  startCustomerFeed(user.uid);
+function initApp() {
+  listenForUser(({ user, subscription }) => {
+    if (!user) return;
+    businessId = user.uid;
+    setPlan(subscription?.planId || subscription?.planTier);
+    attachEvents();
+    startCustomerFeed(user.uid);
+    startOutboundFeed(user.uid);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  hideEmailBanners();
+  initApp();
 });
 
 window.addEventListener("beforeunload", () => {
   if (typeof unsubscribe === "function") unsubscribe();
+  if (typeof outboundUnsub === "function") outboundUnsub();
 });

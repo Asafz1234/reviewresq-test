@@ -82,7 +82,7 @@
             <div class="button-row">
               <button class="btn btn-primary" type="submit" id="generateSingleBtn">Generate &amp; Copy Link</button>
             </div>
-            <div class="pill pill-success" id="emailSuccess" hidden>Email sent</div>
+            <div class="pill pill-success" id="emailSuccess" hidden style="display: none">Email sent</div>
             <div class="pill pill-error" id="emailError" hidden></div>
             <div class="card muted-card" id="singleResult" hidden>
               <p class="card-title">Portal link</p>
@@ -129,6 +129,53 @@
               </div>
             </div>
           </form>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <p class="card-title">Request activity</p>
+              <p class="card-subtitle">Track sent review requests and engagement.</p>
+            </div>
+            <div class="input-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); max-width: 540px">
+              <label class="label">
+                <span>Date range</span>
+                <select class="input" id="requestRange">
+                  <option value="thisMonth">This month</option>
+                  <option value="all">All time</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+              <label class="label" id="customStartWrapper" hidden>
+                <span>Start</span>
+                <input class="input" type="date" id="requestStart" />
+              </label>
+              <label class="label" id="customEndWrapper" hidden>
+                <span>End</span>
+                <input class="input" type="date" id="requestEnd" />
+              </label>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Channel</th>
+                  <th>Sent</th>
+                  <th>Opened</th>
+                  <th>Clicked</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="outboundTableBody">
+                <tr id="outboundEmptyRow">
+                  <td colspan="7" style="text-align: center; color: #6b7280; padding: 16px">No requests yet</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </div>

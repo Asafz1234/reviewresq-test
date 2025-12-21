@@ -277,6 +277,7 @@ const createInviteToken = async ({
   const inviteToken = crypto.randomBytes(12).toString("hex");
   const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + INVITE_TOKEN_TTL_MS);
   const createdAtMs = Date.now();
+  const resolvedChannel = normalizeChannel(channel);
 
   const ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
   const invitePayload = {
@@ -285,7 +286,7 @@ const createInviteToken = async ({
     customerName: normalizedName || null,
     phone: normalizedPhone || null,
     email: normalizedEmail || null,
-    channel,
+    channel: resolvedChannel,
     source,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     expiresAt,
@@ -299,25 +300,33 @@ const createInviteToken = async ({
   )}&t=${encodeURIComponent(inviteToken)}`;
 
   try {
-    const outboundRef = db.collection("businesses").doc(businessId).collection("outboundRequests");
-    await outboundRef.add({
-      createdAtMs,
-      inviteToken,
-      customerId: customerId || null,
+    const outboundDefaults = buildOutboundDefaults({
+      businessId,
+      requestId: inviteToken,
+      channel: resolvedChannel,
       customerName: normalizedName || null,
-      phone: normalizedPhone || null,
-      email: normalizedEmail || null,
-      channel,
-      source,
-      status: "created",
-      requestLink: portalUrl,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      customerEmail: normalizedEmail || null,
+      customerPhone: normalizedPhone || null,
+      reviewLink: portalUrl,
+      status: "draft",
+      provider: resolvedChannel === "email" ? "sendgrid" : null,
+    });
+    await updateOutboundRequest({
+      businessId,
+      requestId: inviteToken,
+      defaults: outboundDefaults,
+      updates: {
+        createdAtMs,
+        inviteToken,
+        source,
+        channel: resolvedChannel,
+      },
     });
   } catch (err) {
     console.warn("[invite] failed to write outbound request", err);
   }
 
-  return { inviteToken, portalUrl, expiresAt: expiresAt.toMillis(), customerId: customerId || null };
+  return { inviteToken, requestId: inviteToken, portalUrl, expiresAt: expiresAt.toMillis(), customerId: customerId || null };
 };
 
 const fetchCustomerProfile = async (businessId, customerId) => {
@@ -506,6 +515,11 @@ const normalizePhone = (phone = "") => {
 
 const normalizeEmail = (email = "") => email.toString().trim().toLowerCase();
 
+const normalizeChannel = (channel = "link") => {
+  if (channel === "email" || channel === "sms" || channel === "link") return channel;
+  return "link";
+};
+
 const SENDGRID_SENDER = process.env.SENDGRID_SENDER || "support@reviewresq.com";
 const EMAIL_RATE_LIMIT_WINDOW_MS = 2 * 60 * 1000;
 const EMAIL_RATE_LIMIT_MAX = 30;
@@ -519,6 +533,73 @@ const chunkArray = (items = [], size = 10) => {
   }
   return chunks;
 };
+
+const OUTBOUND_STATUS_PRIORITY = {
+  draft: 0,
+  sending: 1,
+  sent: 2,
+  delivered: 3,
+  opened: 4,
+  clicked: 5,
+  failed: 99,
+};
+
+const resolveStatusProgression = (current = "draft", next = "draft") => {
+  if (next === "failed") return "failed";
+  const currentPriority = OUTBOUND_STATUS_PRIORITY[current] ?? -1;
+  const nextPriority = OUTBOUND_STATUS_PRIORITY[next] ?? -1;
+  return nextPriority > currentPriority ? next : current;
+};
+
+const buildOutboundDefaults = ({
+  businessId,
+  requestId,
+  channel,
+  customerName,
+  customerEmail,
+  customerPhone,
+  reviewLink,
+  status = "draft",
+  provider = null,
+}) => {
+  const createdAtMs = Date.now();
+  return {
+    requestId,
+    businessId,
+    channel,
+    customerName: customerName || null,
+    customerEmail: customerEmail || null,
+    customerPhone: customerPhone || null,
+    reviewLink: reviewLink || null,
+    status,
+    provider,
+    providerMessageId: null,
+    createdAtMs,
+    updatedAtMs: createdAtMs,
+    sentAtMs: null,
+    deliveredAtMs: null,
+    openedAtMs: null,
+    clickedAtMs: null,
+    error: null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+};
+
+async function updateOutboundRequest({ businessId, requestId, updates = {}, defaults = {} }) {
+  if (!businessId || !requestId) return null;
+  const ref = db.collection("businesses").doc(String(businessId)).collection("outboundRequests").doc(String(requestId));
+  const now = Date.now();
+  const payload = {
+    businessId,
+    requestId: String(requestId),
+    updatedAtMs: updates.updatedAtMs || now,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    ...defaults,
+    ...updates,
+  };
+  return ref.set(payload, { merge: true });
+}
 
 const buildCustomerDocId = (businessId, identifier) => {
   const base = `${businessId || "unknown"}|${identifier || crypto.randomUUID()}`;
@@ -3166,6 +3247,7 @@ async function sendReviewRequestEmailCore({
   portalUrl,
   customerPhone = null,
   source = "manual",
+  requestId: explicitRequestId = null,
 }) {
   if (!businessId) {
     throw new functions.https.HttpsError("invalid-argument", "businessId is required");
@@ -3185,9 +3267,11 @@ async function sendReviewRequestEmailCore({
   }
 
   const resolvedInviteToken = inviteToken || extractInviteTokenFromUrl(portalUrl);
+  const requestId = explicitRequestId || resolvedInviteToken;
   const inviteRecord = await resolveInviteRecord(businessId, resolvedInviteToken);
   const inviteData = inviteRecord?.data || {};
   const portal = resolvePortalUrl({ businessId, inviteToken: resolvedInviteToken, portalUrl });
+  const customerLabel = customerName || inviteData.customerName || null;
 
   await enforceEmailRateLimit(businessId);
 
@@ -3195,7 +3279,7 @@ async function sendReviewRequestEmailCore({
 
   const identity = (await fetchBusinessIdentity(businessId)) || {};
   const businessName = identity.businessName || "our business";
-  const safeCustomerName = customerName || inviteData.customerName || "there";
+  const safeCustomerName = customerLabel || "there";
 
   const subject = `Quick feedback request from ${businessName}`;
   const text =
@@ -3230,41 +3314,92 @@ async function sendReviewRequestEmailCore({
     </div>
   `;
 
+  const outboundDefaults = buildOutboundDefaults({
+    businessId,
+    requestId,
+    channel: "email",
+    customerName: customerLabel,
+    customerEmail: email,
+    customerPhone: customerPhone || inviteData.phone || null,
+    reviewLink: portal,
+    status: "sending",
+    provider: "sendgrid",
+  });
+
+  await updateOutboundRequest({
+    businessId,
+    requestId,
+    defaults: outboundDefaults,
+    updates: {
+      status: "sending",
+      customerName: customerLabel,
+      customerEmail: email,
+      customerPhone: customerPhone || inviteData.phone || null,
+      reviewLink: portal,
+      provider: "sendgrid",
+      inviteToken: resolvedInviteToken,
+      source,
+      error: null,
+    },
+  });
+
   const msg = {
     to: email,
     from: SENDGRID_SENDER,
     subject,
     text,
     html,
+    customArgs: {
+      businessId,
+      requestId,
+      inviteToken: resolvedInviteToken,
+    },
+    trackingSettings: {
+      clickTracking: { enable: true, enableText: true },
+      openTracking: { enable: true },
+    },
   };
 
   console.log("[email] sending review request", { to: email, businessId });
-  await sgMail.send(msg);
 
+  let providerMessageId = null;
   try {
-    const outboundRef = db.collection("businesses").doc(businessId).collection("outboundRequests");
-    const existing = await outboundRef.where("inviteToken", "==", resolvedInviteToken).limit(1).get();
-    existing.forEach((docSnap) => {
-      docSnap.ref.set(
-        {
-          status: "sent",
-          error: null,
-          channel: "email",
-          requestLink: portal,
-          createdAtMs: docSnap.data()?.createdAtMs || Date.now(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true },
-      );
+    const [response] = await sgMail.send(msg);
+    const rawMessageId =
+      response?.headers?.["x-message-id"] || response?.headers?.["X-Message-Id"] || null;
+    const headerMap = Object.fromEntries(
+      Object.entries(response?.headers || {}).map(([key, value]) => [key.toLowerCase(), value]),
+    );
+    providerMessageId = rawMessageId || headerMap["x-message-id"] || headerMap["x-message-id"] || null;
+
+    await updateOutboundRequest({
+      businessId,
+      requestId,
+      defaults: outboundDefaults,
+      updates: {
+        status: "sent",
+        providerMessageId: providerMessageId || null,
+        sentAtMs: Date.now(),
+        error: null,
+      },
     });
   } catch (err) {
-    console.warn("[email] failed to update outbound log", err);
+    await updateOutboundRequest({
+      businessId,
+      requestId,
+      defaults: outboundDefaults,
+      updates: {
+        status: "failed",
+        error: { message: err?.message || "Send failed" },
+      },
+    });
+    throw err;
   }
 
   try {
     await upsertCustomerRecord({
       businessId,
-      name: customerName || inviteData.customerName || null,
+      name: customerLabel || null,
       phone: customerPhone || inviteData.phone || null,
       email,
       source: normalizeCustomerSource(source || "manual"),
@@ -3279,7 +3414,7 @@ async function sendReviewRequestEmailCore({
     console.error("[customers] failed to record manual invite", err);
   }
 
-  return { success: true, portalUrl: portal };
+  return { success: true, portalUrl: portal, requestId };
 }
 
 exports.sendReviewRequestEmail = functions.https.onCall(async (data, context) => {
@@ -3340,6 +3475,109 @@ exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) 
     }
     return res.status(500).json({ error: "Failed to send email" });
   }
+});
+
+const SENDGRID_WEBHOOK_SECRET = process.env.SENDGRID_WEBHOOK_SECRET || "";
+
+async function applySendGridEvent(event = {}) {
+  const customArgs = event.custom_args || event.customArgs || {};
+  const businessId = customArgs.businessId || customArgs.business_id;
+  const requestId = customArgs.requestId || customArgs.request_id || customArgs.inviteToken;
+  if (!businessId || !requestId) return;
+
+  const ref = db
+    .collection("businesses")
+    .doc(String(businessId))
+    .collection("outboundRequests")
+    .doc(String(requestId));
+
+  const eventMs = event.timestamp ? Number(event.timestamp) * 1000 : Date.now();
+  const providerMessageId =
+    (event.sg_message_id && event.sg_message_id.split(".")[0]) || event.sg_message_id || null;
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const existing = snap.exists ? snap.data() : {};
+    const currentStatus = existing.status || "draft";
+
+    const updates = {
+      businessId: String(businessId),
+      requestId: String(requestId),
+      channel: existing.channel || "email",
+      provider: existing.provider || "sendgrid",
+      providerMessageId: existing.providerMessageId || providerMessageId || null,
+      updatedAtMs: eventMs,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (!existing.createdAtMs) updates.createdAtMs = eventMs;
+    if (!existing.createdAt) updates.createdAt = admin.firestore.FieldValue.serverTimestamp();
+
+    let nextStatus = currentStatus;
+    switch (event.event) {
+      case "processed":
+        nextStatus = resolveStatusProgression(currentStatus, "sent");
+        updates.sentAtMs = existing.sentAtMs || eventMs;
+        break;
+      case "delivered":
+        nextStatus = resolveStatusProgression(currentStatus, "delivered");
+        updates.sentAtMs = existing.sentAtMs || eventMs;
+        updates.deliveredAtMs = existing.deliveredAtMs || eventMs;
+        break;
+      case "open":
+        nextStatus = resolveStatusProgression(currentStatus, "opened");
+        updates.openedAtMs = existing.openedAtMs || eventMs;
+        break;
+      case "click":
+        nextStatus = resolveStatusProgression(currentStatus, "clicked");
+        updates.clickedAtMs = existing.clickedAtMs || eventMs;
+        if (!existing.openedAtMs) updates.openedAtMs = eventMs;
+        break;
+      case "bounce":
+      case "dropped":
+      case "spamreport":
+        nextStatus = "failed";
+        updates.error = {
+          type: event.event,
+          reason: event.reason || event.response || event.type || null,
+        };
+        break;
+      default:
+        return;
+    }
+
+    updates.status = nextStatus;
+    tx.set(ref, updates, { merge: true });
+  });
+}
+
+exports.sendgridEvents = functions.https.onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Api-Key");
+  res.set("Vary", "Origin");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "method_not_allowed" });
+  }
+
+  if (SENDGRID_WEBHOOK_SECRET) {
+    const provided =
+      req.headers["x-api-key"] ||
+      req.headers["x-sendgrid-signature"] ||
+      (req.headers.authorization || "").replace("Bearer ", "");
+    if (provided !== SENDGRID_WEBHOOK_SECRET) {
+      return res.status(401).json({ ok: false, error: "unauthorized" });
+    }
+  }
+
+  const events = Array.isArray(req.body) ? req.body : [];
+  await Promise.all(events.map((evt) => applySendGridEvent(evt)));
+  return res.json({ ok: true, received: events.length });
 });
 
 exports.createCampaign = functions.https.onCall(async (data = {}, context) => {
