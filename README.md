@@ -20,3 +20,32 @@ firebase deploy --only functions
 ```
 
 For local emulation, create a `.env` file in the project root with the same variable names so that `process.env` resolves them during development.
+
+## Customer sources and Firestore schema
+
+ReviewResQ now centralizes every inbound customer record under a unified `customerSources` flow so that requests, follow-ups, and automations share the same Firestore documents.
+
+Supported inputs:
+
+- Manual entry via the dashboard
+- CSV upload for batch imports
+- Google Sheets sync (read-only)
+- Webhook ingestion for Zapier/Make-style connectors
+- Funnel captures from the public feedback portal
+
+Each ingested customer is upserted into `customers/{customerId}` with the following fields:
+
+```
+customers/{customerId} {
+  businessId
+  name
+  phone
+  email
+  source: "manual" | "csv" | "sheet" | "funnel" | "webhook"
+  createdAt
+  lastInteractionAt
+  reviewStatus: "none" | "requested" | "reviewed" | "negative"
+}
+```
+
+`createdAt` is set on first write; `lastInteractionAt` updates each time a new source delivers the customer.
