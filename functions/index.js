@@ -201,6 +201,122 @@ const resolveGoogleReviewLink = (data = {}) => {
   return typeof linkCandidate === "string" ? linkCandidate.trim() : "";
 };
 
+const INVITE_TOKEN_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+const normalizeTimestampMs = (raw) => {
+  if (!raw) return null;
+  if (typeof raw.toMillis === "function") return raw.toMillis();
+  if (typeof raw === "number") return raw;
+  const parsed = Date.parse(raw);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const fetchBusinessIdentity = async (businessId) => {
+  if (!businessId) return null;
+  const candidates = [
+    db.collection("businesses").doc(businessId),
+    db.collection("businessProfiles").doc(businessId),
+    db.collection("publicBusinesses").doc(businessId),
+  ];
+
+  for (const ref of candidates) {
+    const snap = await ref.get();
+    if (snap.exists) {
+      const data = snap.data() || {};
+      const businessName = resolveBusinessName(data);
+      const logoUrl = resolveBusinessLogo(data);
+      const googleReviewLink = resolveGoogleReviewLink(data) || data.googleReviewUrl || "";
+      return { businessName, logoUrl, googleReviewLink };
+    }
+  }
+
+  return null;
+};
+
+const resolveInviteRecord = async (businessId, inviteToken) => {
+  if (!businessId || !inviteToken) {
+    throw new Error("businessId and invite token are required");
+  }
+
+  const ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw new Error("Invite token not found");
+  }
+
+  const data = snap.data() || {};
+  const expiresAtMs = normalizeTimestampMs(data.expiresAt);
+  if (expiresAtMs && expiresAtMs < Date.now()) {
+    throw new Error("Invite token expired");
+  }
+
+  return { ref, data };
+};
+
+const fetchCustomerProfile = async (businessId, customerId) => {
+  if (!businessId || !customerId) return null;
+
+  const primaryRef = db.collection("customers").doc(customerId);
+  const primarySnap = await primaryRef.get();
+  if (primarySnap.exists && primarySnap.data()?.businessId === businessId) {
+    return { ref: primaryRef, data: primarySnap.data() };
+  }
+
+  const nestedRef = db
+    .collection("businesses")
+    .doc(businessId)
+    .collection("customers")
+    .doc(customerId);
+  const nestedSnap = await nestedRef.get();
+  if (nestedSnap.exists) {
+    return { ref: nestedRef, data: nestedSnap.data() };
+  }
+
+  return null;
+};
+
+const writeFeedbackDocuments = async (businessId, payload) => {
+  if (!businessId) {
+    throw new Error("businessId is required for feedback persistence");
+  }
+
+  const canonicalRef = db.collection("businesses").doc(businessId).collection("feedback");
+  const primaryWrite = canonicalRef.add(payload);
+  const legacyWrites = [
+    db.collection("feedback").add(payload),
+    db.collection("businessProfiles").doc(businessId).collection("feedback").add(payload),
+  ];
+
+  const [primaryResult, ...legacyResults] = await Promise.allSettled([primaryWrite, ...legacyWrites]);
+
+  legacyResults.forEach((outcome, index) => {
+    if (outcome.status === "rejected") {
+      console.warn(`[portal-feedback] legacy write ${index} failed`, outcome.reason);
+    }
+  });
+
+  if (primaryResult.status === "rejected") {
+    throw primaryResult.reason;
+  }
+
+  return primaryResult.value;
+};
+
+const applyCors = (req, res, methods = "GET, POST, OPTIONS") => {
+  const origin = req.headers.origin || "*";
+  res.set("Access-Control-Allow-Origin", origin);
+  res.set("Access-Control-Allow-Methods", methods);
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Vary", "Origin");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return true;
+  }
+
+  return false;
+};
+
 const sanitizePublicBusinessPayload = ({ businessId, data = {}, existing = {} }) => {
   const businessName = resolveBusinessName(data) || resolveBusinessName(existing) || "";
   const googleReviewLink =
@@ -2665,6 +2781,50 @@ exports.createCustomerManual = functions.https.onCall(async (data, context) => {
   return { ok: true, customerId };
 });
 
+exports.createInviteToken = functions.https.onCall(async (data = {}, context) => {
+  const caller = context.auth?.uid;
+  const businessId = data.businessId || caller;
+  const customerId = data.customerId;
+  const channelRaw = typeof data.channel === "string" ? data.channel.toLowerCase() : "manual";
+  const allowedChannels = new Set(["sms", "email", "whatsapp", "manual"]);
+  const channel = allowedChannels.has(channelRaw) ? channelRaw : "manual";
+
+  if (!caller || !businessId || caller !== businessId) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Only business owners can create invite tokens.",
+    );
+  }
+
+  if (!customerId) {
+    throw new functions.https.HttpsError("invalid-argument", "customerId is required");
+  }
+
+  const inviteToken = crypto.randomBytes(12).toString("hex");
+  const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + INVITE_TOKEN_TTL_MS);
+
+  const ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
+  await ref.set({
+    businessId,
+    customerId,
+    channel,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    expiresAt,
+    used: false,
+  });
+
+  const portalUrl = `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(
+    businessId,
+  )}&t=${encodeURIComponent(inviteToken)}`;
+
+  return {
+    inviteToken,
+    portalUrl,
+    expiresAt: expiresAt.toMillis(),
+    customerId,
+  };
+});
+
 exports.importCustomersCsv = functions.https.onCall(async (data, context) => {
   if (!context.auth?.uid) {
     throw new functions.https.HttpsError(
@@ -3858,6 +4018,141 @@ exports.recordReviewLinkClick = onRequest(async (req, res) => {
   } catch (err) {
     console.error("[customers] failed to record review click", err);
     return res.status(500).json({ error: "Failed to record review click" });
+  }
+});
+
+exports.resolveInviteToken = onRequest(async (req, res) => {
+  if (applyCors(req, res, "GET, POST, OPTIONS")) return;
+
+  const payload = req.method === "GET" ? req.query : req.body || {};
+  const businessId = (payload.businessId || payload.bid || "").toString().trim();
+  const inviteToken = (payload.t || payload.inviteToken || "").toString().trim();
+
+  if (!businessId || !inviteToken) {
+    return res.status(400).json({ error: "businessId and invite token are required" });
+  }
+
+  try {
+    const { data } = await resolveInviteRecord(businessId, inviteToken);
+    const identity = await fetchBusinessIdentity(businessId);
+
+    if (!identity || !identity.businessName || !identity.googleReviewLink) {
+      return res.status(400).json({ error: "Business is missing required branding information" });
+    }
+
+    return res.status(200).json({
+      businessId,
+      customerId: data.customerId,
+      businessName: identity.businessName,
+      logoUrl: identity.logoUrl || null,
+      googleReviewLink: identity.googleReviewLink || "",
+    });
+  } catch (err) {
+    console.error("[portal] failed to resolve invite token", err);
+    return res.status(400).json({ error: err.message || "Unable to resolve invite token" });
+  }
+});
+
+exports.submitPortalFeedback = onRequest(async (req, res) => {
+  if (applyCors(req, res, "POST, OPTIONS")) return;
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const payload =
+    req.body && typeof req.body === "object"
+      ? req.body
+      : (() => {
+          try {
+            return JSON.parse(req.body || "{}") || {};
+          } catch (err) {
+            return {};
+          }
+        })();
+
+  const businessId = (payload.businessId || payload.bid || "").toString().trim();
+  const rating = Number(payload.rating || 0);
+  const message = (payload.message || payload.feedback || "").toString().trim();
+  const inviteToken = (payload.t || payload.inviteToken || "").toString().trim();
+  const providedEmail = normalizeEmail(payload.email || payload.customerEmail || "");
+  const providedName = (payload.customerName || payload.name || "").toString().trim();
+
+  if (!businessId) {
+    return res.status(400).json({ error: "businessId is required" });
+  }
+
+  if (!rating) {
+    return res.status(400).json({ error: "rating is required" });
+  }
+
+  if (rating <= 2 && !message) {
+    return res.status(400).json({ error: "message is required for low ratings" });
+  }
+
+  let customerProfile = null;
+  let customerId = payload.customerId || null;
+  let inviteRef = null;
+
+  try {
+    if (inviteToken) {
+      const resolved = await resolveInviteRecord(businessId, inviteToken);
+      customerId = resolved.data.customerId || customerId;
+      inviteRef = resolved.ref;
+    }
+
+    if (customerId) {
+      customerProfile = await fetchCustomerProfile(businessId, customerId);
+    }
+  } catch (err) {
+    console.error("[portal] invite validation failed", err);
+    return res.status(400).json({ error: err.message || "Invalid invite token" });
+  }
+
+  const customerData = customerProfile?.data || {};
+  const createdAtMs = Date.now();
+  const feedbackPayload = {
+    businessId,
+    customerId: customerId || null,
+    customerName: customerData.name || providedName || "Anonymous",
+    phone: customerData.phone || null,
+    customerPhone: customerData.phone || null,
+    email: providedEmail || null,
+    customerEmail: providedEmail || null,
+    rating,
+    message,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAtMs,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    source: "portal",
+    status: "new",
+    env: payload.env || "portal",
+  };
+
+  try {
+    const docRef = await writeFeedbackDocuments(businessId, feedbackPayload);
+
+    if (customerProfile?.ref) {
+      await customerProfile.ref.set(
+        {
+          lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+          reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
+        },
+        { merge: true },
+      );
+    }
+
+    if (inviteRef) {
+      await inviteRef.set(
+        { used: true, usedAt: admin.firestore.FieldValue.serverTimestamp() },
+        { merge: true },
+      );
+    }
+
+    return res.status(200).json({ ok: true, feedbackId: docRef.id, customerId: customerId || null });
+  } catch (err) {
+    console.error("[portal] failed to submit feedback", err);
+    return res.status(500).json({ error: "Failed to submit feedback" });
   }
 });
 

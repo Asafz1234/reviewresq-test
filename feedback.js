@@ -61,13 +61,28 @@ function displayStatus(status = "open") {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
+function formatDateTimeWithTime(dateValue) {
+  if (!dateValue) return "—";
+  const parsed = normalizeCreatedDate({ createdAt: dateValue });
+  if (!parsed) return "—";
+  return parsed.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function buildCopyText(feedback) {
+  const created = normalizeCreatedDate(feedback);
   const lines = [
     `Customer: ${feedback.displayName || "Anonymous"}`,
-    `Contact: ${feedback.email || feedback.phone || "—"}`,
+    `Phone: ${feedback.phone || "—"}`,
+    `Email: ${feedback.email || "—"}`,
     `Rating: ${feedback.rating ? `${feedback.rating} / 5 (${sentimentLabel(feedback.rating)})` : sentimentLabel(feedback.rating || 0)}`,
     `Message: ${feedback.message || "—"}`,
-    `Date: ${feedback.createdAt ? formatDate(feedback.createdAt) : "—"}`,
+    `Date: ${formatDateTimeWithTime(created)}`,
   ];
   return lines.join("\n");
 }
@@ -258,9 +273,13 @@ function renderFeedback(rows = []) {
     feedbackCache.set(enriched.id, enriched);
     const tr = document.createElement("tr");
     const date = enriched.createdAt ? formatDate(enriched.createdAt) : "—";
+    const contactParts = [];
+    if (enriched.phone) contactParts.push(enriched.phone);
+    if (enriched.email) contactParts.push(enriched.email);
+    const contactDisplay = contactParts.length ? contactParts.join(" · ") : "—";
     tr.innerHTML = `
       <td>${enriched.displayName}</td>
-      <td>${enriched.email || enriched.phone || "—"}</td>
+      <td>${contactDisplay}</td>
       <td><span class="${badgeClass(enriched.rating || 0)}">${sentimentLabel(enriched.rating || 0)}</span></td>
       <td>${enriched.message || "—"}</td>
       <td>${date}</td>
@@ -280,6 +299,7 @@ function renderFeedback(rows = []) {
 }
 
 function normalizeCreatedDate(feedback) {
+  if (feedback instanceof Date) return feedback;
   if (!feedback) return null;
   if (feedback.createdAt instanceof Date) return feedback.createdAt;
   if (typeof feedback.createdAt === "number") return new Date(feedback.createdAt);

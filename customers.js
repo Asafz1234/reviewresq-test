@@ -8,6 +8,8 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
+  functions,
+  httpsCallable,
 } from "./firebase-config.js";
 import { listenForUser, formatDate, initialsFromName } from "./session-data.js";
 import { applyPlanBadge } from "./topbar-menu.js";
@@ -33,6 +35,90 @@ let unsubscribe = null;
 let currentStatusFilter = "all";
 let currentSourceFilter = "all";
 let showArchived = false;
+const inviteToastId = "customers-toast";
+
+function showToast(message, isError = false) {
+  let toast = document.getElementById(inviteToastId);
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = inviteToastId;
+    toast.className = "toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    document.body.appendChild(toast);
+  }
+
+  toast.textContent = message;
+  toast.classList.toggle("toast-error", Boolean(isError));
+  toast.classList.add("visible");
+  clearTimeout(showToast.hideTimer);
+  showToast.hideTimer = setTimeout(() => toast.classList.remove("visible"), 2400);
+}
+
+async function copyText(text) {
+  if (!text) throw new Error("Nothing to copy");
+  if (navigator?.clipboard?.writeText && window.isSecureContext !== false) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
+async function generateQrBlob(url) {
+  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(url)}`;
+  const response = await fetch(qrApiUrl);
+  if (!response.ok) {
+    throw new Error("QR service unavailable");
+  }
+  return response.blob();
+}
+
+async function downloadQrCode(url) {
+  const blob = await generateQrBlob(url);
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = "reviewresq-portal-qr.png";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+async function requestInviteLink(customerId) {
+  if (!businessId || !customerId) {
+    throw new Error("Missing business or customer information");
+  }
+
+  const callable = httpsCallable(functions, "createInviteToken");
+  const result = await callable({ businessId, customerId, channel: "manual" });
+  const portalUrl = result?.data?.portalUrl;
+  if (!portalUrl) {
+    throw new Error("Unable to generate portal link");
+  }
+  return portalUrl;
+}
+
+async function copyInviteLink(customer) {
+  const link = await requestInviteLink(customer.id);
+  await copyText(link);
+  showToast("Portal link copied");
+}
+
+async function downloadInviteQr(customer) {
+  const link = await requestInviteLink(customer.id);
+  await downloadQrCode(link);
+  showToast("QR code downloaded");
+}
 
 function formatTimeline(timeline = []) {
   return timeline
@@ -182,6 +268,8 @@ function renderTimeline(customer) {
       <div class="card-title">Timeline</div>
       <div class="timeline">${timelineHtml}</div>
       <div class="detail-actions">
+        <button class="btn" data-action="copy-link" data-id="${customer.id}">Copy portal link</button>
+        <button class="btn btn-outline" data-action="download-qr" data-id="${customer.id}">Download QR</button>
         <button class="btn btn-secondary" data-action="archive" data-id="${customer.id}">
           ${customer.archived ? "Unarchive" : "Archive"}
         </button>
@@ -311,12 +399,34 @@ async function archiveCustomers(ids = [], archived = true) {
 
 function attachDetailActions() {
   detailContainer.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-action='archive']");
+    const button = event.target.closest("[data-action]");
     if (!button) return;
+
+    const action = button.dataset.action;
     const id = button.dataset.id;
     const customer = customers.find((c) => c.id === id);
     if (!customer) return;
-    await archiveCustomers([id], !customer.archived);
+    const defaultLabel = button.textContent;
+
+    try {
+      button.disabled = true;
+      if (action === "archive") {
+        await archiveCustomers([id], !customer.archived);
+      } else if (action === "copy-link") {
+        await copyInviteLink(customer);
+      } else if (action === "download-qr") {
+        button.textContent = "Preparing QR…";
+        await downloadInviteQr(customer);
+      }
+    } catch (err) {
+      console.error("[customers] action failed", err);
+      showToast("We couldn’t complete that action. Please try again.", true);
+    } finally {
+      if (action === "download-qr") {
+        button.textContent = defaultLabel;
+      }
+      button.disabled = false;
+    }
   });
 }
 
