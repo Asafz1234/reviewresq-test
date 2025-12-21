@@ -78,6 +78,35 @@
       opacity: 0.9;
     }
 
+    .portal.is-loading .portal-inner {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .portal.has-error .portal-inner {
+      opacity: 0.25;
+      pointer-events: none;
+    }
+
+    .portal-status {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 18px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.98));
+      color: #0f172a;
+      font-weight: 600;
+      z-index: 3;
+      letter-spacing: -0.01em;
+    }
+
+    .portal-status[hidden] {
+      display: none;
+    }
+
     .portal-inner {
       position: relative;
       z-index: 1;
@@ -557,6 +586,9 @@
 <body>
   <main class="portal-shell">
     <section class="portal" id="portal">
+      <div class="portal-status" id="portalStatus" role="status" aria-live="polite">
+        Loading your feedback portal…
+      </div>
       <div class="portal-inner">
         <div
           class="owner-toolbar"

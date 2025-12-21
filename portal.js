@@ -48,11 +48,12 @@ const highCtaButton = document.getElementById("highCtaButton");
 const highCtaLabel = document.getElementById("highCtaLabel");
 const thankyouTitleText = document.getElementById("thankyouTitleText");
 const thankyouBodyText = document.getElementById("thankyouBodyText");
+const portalStatus = document.getElementById("portalStatus");
 
 const urlParams = new URLSearchParams(window.location.search);
 const businessIdFromParams =
-  urlParams.get("bid") ||
   urlParams.get("businessId") ||
+  urlParams.get("bid") ||
   urlParams.get("id") ||
   urlParams.get("portalId") ||
   urlParams.get("shareKey");
@@ -67,7 +68,7 @@ const ownerPreviewParam =
 // ----- STATE -----
 let currentRating = 0;
 let businessId = null;
-let businessName = "Your business";
+let businessName = "Your Business";
 let businessTagline = "Private Feedback Portal";
 let portalSettings = null;
 let businessLogoUrl = null;
@@ -81,10 +82,19 @@ function getBusinessIdFromUrl() {
   const id = businessIdFromParams;
 
   if (!id) {
-    console.error("[portal] Missing business identifier in URL", window.location.href);
+    console.warn("[portal] Missing business identifier in URL", window.location.href);
   }
 
   return id;
+}
+
+function setPortalStatus(status, message = "") {
+  if (!portalEl || !portalStatus) return;
+
+  portalStatus.textContent = message;
+  portalStatus.hidden = status === "ready";
+  portalEl.classList.toggle("is-loading", status === "loading");
+  portalEl.classList.toggle("has-error", status === "error");
 }
 
 function initialsFromName(name = "") {
@@ -107,6 +117,10 @@ function renderBusinessIdentity() {
     bizLogoImgWrapper.style.display = "none";
     bizLogoInitials.textContent = initialsFromName(businessName);
     bizLogoInitials.style.display = "flex";
+
+    console.warn("[portal] Missing business logo, showing initials avatar", {
+      businessId,
+    });
   }
 }
 
@@ -163,11 +177,16 @@ function showThankYouState() {
 
 // ----- LOAD BUSINESS PROFILE -----
 async function loadBusinessProfile() {
+  setPortalStatus("loading", "Loading your feedback portal…");
   businessId = getBusinessIdFromUrl();
 
   if (!businessId) {
     alert(
       "This feedback link is missing a business id. Please open the review link from the email again."
+    );
+    setPortalStatus(
+      "error",
+      "We could not load this feedback portal (missing business id). Please try the link again."
     );
     return;
   }
@@ -213,11 +232,24 @@ async function loadBusinessProfile() {
     }
 
     if (!data) {
-      console.warn("No business profile found for", businessId);
+      console.warn("[portal] No business profile found for", businessId);
+      setPortalStatus(
+        "error",
+        "We couldn’t find this business. Please ask the business owner for a new link."
+      );
       return;
     }
 
-    businessName = data.name || data.businessName || "Your business";
+    const resolvedBusinessName =
+      data.businessName || data.displayName || data.name || "";
+
+    if (!resolvedBusinessName) {
+      console.warn("[portal] Business name missing in document", {
+        businessId,
+      });
+    }
+
+    businessName = resolvedBusinessName || "Your Business";
     businessTagline = data.tagline || data.businessTagline || "Private Feedback Portal";
 
     if (bizNameDisplay) {
@@ -229,7 +261,7 @@ async function loadBusinessProfile() {
     }
 
     businessLogoUrl =
-      data.businessLogoUrl || data.logoUrl || data.logoDataUrl || null;
+      data.logoUrl || data.businessLogoUrl || data.logoDataUrl || data.logoURL || null;
     renderBusinessIdentity();
 
     googleReviewUrl = resolveCanonicalReviewUrl(data);
@@ -257,8 +289,25 @@ async function loadBusinessProfile() {
 
     await loadPortalSettings();
 
+    setPortalStatus("ready");
+
   } catch (err) {
-    console.error("Failed to load business profile:", err);
+    const permissionDenied = err?.code === "permission-denied";
+    if (permissionDenied) {
+      console.warn("[portal] Permission denied while loading business profile", {
+        businessId,
+        error: err,
+      });
+    } else {
+      console.error("Failed to load business profile:", err);
+    }
+
+    setPortalStatus(
+      "error",
+      permissionDenied
+        ? "We don’t have permission to load this business. Please ask the owner to resend your link."
+        : "Something went wrong loading this portal. Please try again."
+    );
   }
 }
 

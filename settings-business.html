@@ -71,34 +71,41 @@
 
       if (snap.exists()) {
         const data = snap.data();
-        bizName.value = data.name || "";
+        bizName.value = data.businessName || data.displayName || data.name || "";
         bizEmail.value = data.email || "";
         bizPhone.value = data.phone || "";
         bizAddress.value = data.address || "";
-        googleLink.value = data.googleLink || "";
-        primaryColor.value = data.branding?.primary || "#2563eb";
+        googleLink.value = data.googleReviewUrl || data.googleLink || "";
+        primaryColor.value = data.branding?.primary || data.brandColor || "#2563eb";
         secondaryColor.value = data.branding?.secondary || "#facc15";
       }
 
       businessForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        let logoURL = null;
+        let logoUrl = null;
         if (logoUpload.files.length > 0) {
-          logoURL = await uploadLogoAndGetURL(logoUpload.files[0], user.uid);
+          logoUrl = await uploadLogoAndGetURL(logoUpload.files[0], user.uid);
         }
 
         const payload = {
+          businessName: bizName.value,
+          displayName: bizName.value,
           name: bizName.value,
           email: bizEmail.value,
           phone: bizPhone.value,
           address: bizAddress.value,
           googleLink: googleLink.value,
+          googleReviewUrl: googleLink.value,
           branding: {
             primary: primaryColor.value,
             secondary: secondaryColor.value
           },
-          ...(logoURL && { logoURL })
+          ...(logoUrl && {
+            logoUrl,
+            logoURL: logoUrl,
+            businessLogoUrl: logoUrl
+          })
         };
 
         await setDoc(ref, payload, { merge: true });
