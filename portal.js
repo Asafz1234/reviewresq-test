@@ -83,8 +83,6 @@ let portalSettings = null;
 let businessLogoUrl = null;
 let googleReviewUrl = "";
 let businessSnapshot = null;
-const AUTO_REDIRECT_MS = 1000;
-let autoRedirectTimer = null;
 let didRedirect = false;
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
@@ -141,10 +139,7 @@ function setGoogleLinkError(isVisible, message) {
 }
 
 function clearRedirectTimer() {
-  if (autoRedirectTimer) {
-    clearTimeout(autoRedirectTimer);
-    autoRedirectTimer = null;
-  }
+  // auto-redirect behavior has been removed; this is a no-op retained for safety
 }
 
 function resetRedirectFlow() {
@@ -278,11 +273,6 @@ function startFiveStarRedirectFlow() {
   }
 
   setGoogleLinkError(false);
-  clearRedirectTimer();
-
-  autoRedirectTimer = window.setTimeout(() => {
-    redirectToGoogleReview(5);
-  }, AUTO_REDIRECT_MS);
 }
 
 function resetRating() {
