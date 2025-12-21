@@ -2034,7 +2034,12 @@ exports.updateReviewFunnelSettings = functions.https.onCall(async (data, context
   let allowedPatch = sanitizedPatch;
 
   if (plan === "starter") {
-    const starterPaths = ["happy.headline", "happy.ctaLabel", "unhappy.followupEmail"];
+    const starterPaths = [
+      "happy.headline",
+      "happy.ctaLabel",
+      "happy.prompt",
+      "happy.googleReviewUrl",
+    ];
     allowedPatch = pickAllowedPatch(sanitizedPatch, starterPaths);
     if (!Object.keys(allowedPatch || {}).length) {
       throw new functions.https.HttpsError(

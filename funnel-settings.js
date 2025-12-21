@@ -36,15 +36,17 @@ const DEFAULT_SETTINGS = {
 };
 
 const ui = {
-  planBadge: document.querySelector("[data-plan-badge]"),
+  planBadges: Array.from(document.querySelectorAll("[data-plan-badge]")),
   aiBadge: document.querySelector("[data-ai-badge]"),
-  callout: document.querySelector("[data-plan-callout]"),
-  calloutTitle: document.querySelector("[data-plan-callout-title]"),
-  calloutBody: document.querySelector("[data-plan-callout-body]"),
-  calloutCta: document.querySelector("[data-plan-upgrade]"),
+  pageTitle: document.querySelector("[data-page-title]"),
+  pageSubtitle: document.querySelector("[data-page-subtitle]"),
+  starterOverview: document.querySelector("[data-starter-overview]"),
+  starterLocked: document.querySelector("[data-starter-locked]"),
+  advancedWrapper: document.querySelector("[data-advanced-wrapper]"),
   happyHeadline: document.querySelector("[data-happy-headline]"),
   happyCta: document.querySelector("[data-happy-cta]"),
   happyPrompt: document.querySelector("[data-happy-prompt]"),
+  happySubtitle: document.querySelector("[data-happy-subtitle]"),
   googleUrl: document.querySelector("[data-google-url]"),
   unhappyHeadline: document.querySelector("[data-unhappy-headline]"),
   followupOwner: document.querySelector("[data-followup-owner]"),
@@ -85,6 +87,13 @@ function setEditable(input, editable) {
   } else {
     input.setAttribute("aria-disabled", "true");
   }
+}
+
+function setSaveHint(message = "", state = "idle") {
+  if (!ui.saveHint) return;
+  ui.saveHint.textContent = message;
+  ui.saveHint.classList.toggle("save-hint--success", state === "success");
+  ui.saveHint.classList.toggle("save-hint--error", state === "error");
 }
 
 function applySettings(settings = {}) {
@@ -152,19 +161,34 @@ function renderPlanState(planId, capabilities) {
   const isGrowth = funnel.mode === "full";
   const isAi = Boolean(funnel.readOnly || features.reviewFunnelAIManaged);
 
-  if (ui.planBadge) ui.planBadge.textContent = PLAN_LABELS[planId] || planId;
+  ui.planBadges.forEach((badge) => {
+    badge.textContent = PLAN_LABELS[planId] || planId;
+  });
   setHidden(ui.aiBadge, !isAi);
   setHidden(ui.aiNote, !isAi);
   setHidden(ui.aiActivity, !isAi);
 
-  if (ui.callout) {
-    setHidden(ui.callout, !isStarter);
-    if (isStarter) {
-      ui.calloutTitle.textContent = "Review Funnel (Starter)";
-      ui.calloutBody.textContent =
-        "Starter lets you edit Headline & CTA. Upgrade for routing, branding, and follow-ups.";
-    }
+  if (ui.pageTitle) {
+    ui.pageTitle.textContent = isStarter
+      ? "Review Funnel – Starter (Happy Customers Only)"
+      : "Review Funnel";
   }
+
+  if (ui.pageSubtitle) {
+    ui.pageSubtitle.textContent = isStarter
+      ? "This funnel sends satisfied customers directly to your Google review page. Upgrade to handle unhappy customers privately."
+      : "Control how customers are routed to Google or private feedback.";
+  }
+
+  if (ui.happySubtitle) {
+    ui.happySubtitle.textContent = isStarter
+      ? "Only this section is editable on Starter."
+      : "Edit what happy customers see before leaving a public review.";
+  }
+
+  setHidden(ui.starterOverview, !isStarter);
+  setHidden(ui.starterLocked, !isStarter);
+  setHidden(ui.advancedWrapper, isStarter);
 
   if (ui.happyAdvanced) {
     setHidden(ui.happyAdvanced, !funnel.showHappyDetails);
@@ -193,14 +217,12 @@ function renderPlanState(planId, capabilities) {
   setEditable(ui.logo, editable.branding);
   setEditable(ui.primaryColor, editable.branding);
 
-  if (ui.saveHint) {
-    if (isStarter) {
-      ui.saveHint.textContent = "Starter lets you edit the headline and CTA. Upgrade for more control.";
-    } else if (isAi) {
-      ui.saveHint.textContent = "Managed by AI.";
-    } else {
-      ui.saveHint.textContent = "";
-    }
+  if (isStarter) {
+    setSaveHint("Only the Happy Path is configurable on Starter.");
+  } else if (isAi) {
+    setSaveHint("Managed by AI.");
+  } else {
+    setSaveHint("");
   }
 }
 
@@ -291,10 +313,13 @@ async function saveSettings() {
   if (!businessId || !ui.saveButton) return;
   ui.saveButton.disabled = true;
   ui.saveButton.textContent = "Saving...";
-  if (ui.saveHint) ui.saveHint.textContent = "";
+  setSaveHint("");
 
   try {
     const patch = collectPatch();
+    if (!Object.keys(patch || {}).length) {
+      throw new Error("No changes to save for your current plan.");
+    }
     const logoUrl = await maybeUploadLogo();
     if (logoUrl && (currentCapabilities.reviewFunnel?.allowedPatchPaths || []).includes("branding.logoUrl")) {
       setPatchValue(patch, "branding.logoUrl", logoUrl);
@@ -303,13 +328,12 @@ async function saveSettings() {
 
     const update = httpsCallable(functions, "updateReviewFunnelSettings");
     await update({ businessId, patch });
-    if (ui.saveHint) ui.saveHint.textContent = "Saved. Your review funnel is up to date.";
+    const refreshed = await loadSettings(businessId);
+    applySettings(refreshed);
+    setSaveHint("Saved. Your review funnel is up to date.", "success");
   } catch (err) {
     console.error("[funnel] save failed", err);
-    if (ui.saveHint) {
-      ui.saveHint.textContent =
-        err?.message || "We couldn't save your changes right now. Please try again.";
-    }
+    setSaveHint(err?.message || "We couldn't save your changes right now. Please try again.", "error");
   } finally {
     ui.saveButton.disabled = false;
     ui.saveButton.textContent = "Save changes";

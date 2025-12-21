@@ -186,6 +186,24 @@ button {
   margin-bottom: 14px;
 }
 
+.card--info {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+}
+
+.card--muted {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: var(--text-muted);
+}
+
+.card-header--stacked {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .hidden {
   display: none !important;
 }
@@ -390,6 +408,39 @@ button {
   gap: 14px;
 }
 
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.info-block {
+  background: #fff;
+  border: 1px dashed #c7d2fe;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.list-muted li {
+  color: var(--text-muted);
+}
+
+.locked-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.locked-item {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--border-soft);
+  background: #fff;
+  color: var(--text-main);
+}
+
 label span.card-title {
   display: inline-block;
   margin-bottom: 6px;
@@ -397,6 +448,14 @@ label span.card-title {
 
 .input-hint {
   margin-top: 6px;
+}
+
+.save-hint--success {
+  color: var(--success);
+}
+
+.save-hint--error {
+  color: var(--danger);
 }
 
 .ai-activity-link {
