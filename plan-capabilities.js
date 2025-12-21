@@ -154,10 +154,10 @@ export function getPlanCapabilities(planId = "starter") {
             "branding.logoUrl",
             "branding.primaryColor",
           ]
-        : ["happy.headline", "happy.ctaLabel", "happy.prompt", "happy.googleReviewUrl"],
+        : ["happy.prompt", "happy.googleReviewUrl"],
     editableFields: {
-      happyHeadline: !isPro,
-      happyCta: !isPro,
+      happyHeadline: isGrowth && !isPro,
+      happyCta: isGrowth && !isPro,
       happyPrompt: !isPro,
       googleReviewUrl: !isPro,
       routing: isGrowth && !isPro,

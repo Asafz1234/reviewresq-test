@@ -91,7 +91,8 @@
             <div class="info-block">
               <p class="card-title">What Starter includes</p>
               <ul class="list">
-                <li>Happy Path headline, prompt, and call-to-action</li>
+                <li>Happy Path thank-you message</li>
+                <li>Fixed button that sends 4–5 star customers to Google</li>
                 <li>Direct link to your Google review page</li>
               </ul>
             </div>
@@ -115,21 +116,31 @@
             </div>
           </div>
           <div class="form-grid">
-            <label>
+            <label data-happy-headline-row>
               <span class="card-title">Headline</span>
               <input class="input" type="text" value="Thanks for your visit!" data-happy-headline />
               <p class="input-hint">Shown when a customer leaves a high rating.</p>
             </label>
+            <div class="card card--muted" data-happy-flow-explainer>
+              <p class="card-title">How the Starter funnel works</p>
+              <p class="card-subtitle">
+                Customers rate their experience first. Ratings 4–5 see your thank-you message and a fixed button to continue to
+                Google. Ratings 1–3 are collected privately (locked in Starter).
+              </p>
+            </div>
+          </div>
+          <div class="form-grid" data-happy-message-row>
             <label>
-              <span class="card-title">Call to action</span>
-              <input class="input" type="text" value="Leave us a Google review" data-happy-cta />
-              <p class="input-hint">Encourage happy customers to share publicly.</p>
+              <span class="card-title">Message shown to satisfied customers</span>
+              <textarea class="input" rows="3" data-happy-prompt>Share a quick note about your experience so others know what to expect.</textarea>
+              <p class="input-hint">Displayed with the fixed “Continue to Google Review” button. This message is the only editable text on Starter.</p>
             </label>
           </div>
-          <div class="form-grid" data-happy-advanced>
+          <div class="form-grid" data-happy-cta-row>
             <label>
-              <span class="card-title">Review prompt</span>
-              <textarea class="input" rows="3" data-happy-prompt>Share a quick note about your experience so others know what to expect.</textarea>
+              <span class="card-title">Call to action</span>
+              <input class="input" type="text" value="Continue to Google Review" data-happy-cta />
+              <p class="input-hint">Encourage happy customers to share publicly.</p>
             </label>
           </div>
           <div class="form-grid" data-google-block>
@@ -141,7 +152,7 @@
                 placeholder="https://search.google.com/local/review?..."
                 data-google-url
               />
-              <p class="input-hint">We’ll send happy customers here.</p>
+              <p class="input-hint">Fixed button will redirect happy customers here.</p>
             </label>
           </div>
         </section>
