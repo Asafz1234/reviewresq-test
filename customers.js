@@ -126,6 +126,8 @@ function renderTimeline(customer) {
             email_sent: "Email sent",
             review_left: "Review link clicked",
             feedback_received: "Feedback captured",
+            campaign_message: "Campaign touch",
+            automation_step: "Automation step",
           };
           const metaPieces = [];
           if (item.metadata?.reason) metaPieces.push(item.metadata.reason);

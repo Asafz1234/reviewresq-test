@@ -140,6 +140,8 @@ const upsertGoogleLocation = (existingLocations, newEntry) => {
   return merged;
 };
 
+const sleep = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const DEFAULT_REVIEW_FUNNEL_SETTINGS = {
   mode: "manual",
   happy: {
@@ -219,6 +221,8 @@ const CUSTOMER_TIMELINE_TYPES = [
   "email_sent",
   "review_left",
   "feedback_received",
+  "campaign_message",
+  "automation_step",
 ];
 
 const normalizeCustomerSource = (source = "manual") =>
@@ -2883,6 +2887,137 @@ exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
     console.error("SendGrid error", err);
     return res.status(500).json({ error: "Failed to send email" });
   }
+});
+
+exports.createCampaign = functions.https.onCall(async (data = {}, context) => {
+  const caller = context.auth?.uid;
+  const businessId = data.businessId || caller;
+  if (!businessId) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "businessId is required",
+    );
+  }
+
+  const payload = {
+    businessId,
+    audienceRules: data.audienceRules || {},
+    channel: data.channel === "email" ? "email" : "sms",
+    templateId: data.templateId || null,
+    templateBody: data.templateBody || data.template || "",
+    schedule: data.schedule || null,
+    followUpRules: data.followUpRules || "",
+    status: data.status || "draft",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  const ref = await db.collection("campaigns").add(payload);
+  return { id: ref.id };
+});
+
+exports.bulkSendMessages = functions.https.onCall(async (data = {}, context) => {
+  const caller = context.auth?.uid;
+  const businessId = data.businessId || caller;
+  if (!businessId) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "businessId is required",
+    );
+  }
+
+  const channel = data.channel === "email" ? "email" : "sms";
+  const template = data.template || "";
+  const recipients = Array.isArray(data.recipients) ? data.recipients : [];
+  const rate = Math.min(Math.max(Number(data.rateLimit) || 10, 1), 50);
+  const delayMs = Math.ceil(1000 / rate);
+  const campaignId = data.campaignId || null;
+
+  let sent = 0;
+  let failed = 0;
+  const apiKey = process.env.SENDGRID_API_KEY;
+
+  if (channel === "email" && apiKey) {
+    sgMail.setApiKey(apiKey);
+  }
+
+  for (const recipient of recipients) {
+    await sleep(delayMs);
+    try {
+      if (channel === "email") {
+        if (!apiKey) throw new Error("Email channel not configured");
+        if (!recipient.email) throw new Error("Missing email address");
+        await sgMail.send({
+          to: recipient.email,
+          from: "support@reviewresq.com",
+          subject: "Update from your service team",
+          text: template || "Hi there — quick update from our team.",
+        });
+      } else {
+        if (!recipient.phone) throw new Error("Missing phone number for SMS");
+        console.log("[bulk] SMS send placeholder", {
+          to: normalizePhone(recipient.phone),
+          template,
+        });
+      }
+
+      await upsertCustomerRecord({
+        businessId,
+        name: recipient.name,
+        phone: normalizePhone(recipient.phone),
+        email: normalizeEmail(recipient.email),
+        source: recipient.source || "manual",
+        reviewStatus: recipient.reviewStatus || "requested",
+        timelineEntry: {
+          type: channel === "email" ? "email_sent" : "sms_sent",
+          metadata: { campaignId, reason: "bulk_send" },
+        },
+      });
+
+      sent += 1;
+    } catch (err) {
+      console.error("[bulk] failed recipient", recipient, err);
+      failed += 1;
+    }
+  }
+
+  return { sent, failed };
+});
+
+exports.saveAutomationFlow = functions.https.onCall(async (data = {}, context) => {
+  const caller = context.auth?.uid;
+  const businessId = data.businessId || caller;
+  if (!businessId) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "businessId is required",
+    );
+  }
+
+  const steps = Array.isArray(data.steps) ? data.steps : [];
+  const allowedStepTypes = new Set([
+    "send_message",
+    "wait",
+    "condition",
+    "branch",
+  ]);
+  const sanitizedSteps = steps
+    .filter((step) => allowedStepTypes.has(step.type))
+    .map((step) => ({ type: step.type, details: step.details || "" }));
+
+  const payload = {
+    businessId,
+    name: data.name || "Untitled flow",
+    trigger: data.trigger === "manual" ? "manual" : "service_completed",
+    steps: sanitizedSteps,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  const flowRef = data.id
+    ? db.collection("automationFlows").doc(data.id)
+    : db.collection("automationFlows").doc();
+  const ref = flowRef;
+  await ref.set(payload, { merge: true });
+  return { id: ref.id };
 });
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";

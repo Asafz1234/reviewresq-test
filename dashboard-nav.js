@@ -12,6 +12,7 @@
     if (hash && hash.toLowerCase().includes('google-reviews')) return 'google-reviews';
     if (hash && hash.toLowerCase().includes('leads')) return 'leads';
     if (hash && hash.toLowerCase().includes('customers')) return 'customers';
+    if (hash && hash.toLowerCase().includes('campaigns')) return 'campaigns';
     if (hash && hash.toLowerCase().includes('account')) return 'account';
     if (hash && hash.toLowerCase().includes('alerts')) return 'alerts';
     if (hash && hash.toLowerCase().includes('links')) return 'links';
@@ -29,6 +30,7 @@
     if (pathname.includes('google-reviews')) return 'google-reviews';
     if (pathname.includes('leads')) return 'leads';
     if (pathname.includes('customers')) return 'customers';
+    if (pathname.includes('campaigns')) return 'campaigns';
     if (pathname.includes('ai-agent')) return 'ai-agent';
     if (pathname.includes('settings')) return 'settings';
     if (pathname.includes('account') || pathname.includes('billing')) return 'account';

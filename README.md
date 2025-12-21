@@ -50,7 +50,7 @@ customers/{customerId} {
   archived?: boolean (soft-delete flag)
   timeline?: [
     {
-      type: "sms_sent" | "email_sent" | "review_left" | "feedback_received"
+      type: "sms_sent" | "email_sent" | "review_left" | "feedback_received" | "campaign_message" | "automation_step"
       timestamp
       metadata
     }
@@ -59,3 +59,35 @@ customers/{customerId} {
 ```
 
 `createdAt` is set on first write; `lastInteractionAt` updates each time a new source delivers the customer. `archived` is used in place of deletions. Timeline entries capture every touchpoint (messages sent, feedback captured, review clicks) so the dashboard can render a per-customer history.
+
+## Campaigns and flows
+
+Campaigns target customers by status/source, select a channel (SMS/Email), choose a template, schedule, and follow-up rules.
+
+```
+campaigns/{id} {
+  businessId
+  audienceRules
+  channel
+  templateId
+  templateBody
+  schedule
+  followUpRules
+  status
+  createdAt
+}
+```
+
+Automation flows (Pro AI) allow triggered, multi-step journeys with messaging, waits, and branching:
+
+```
+automationFlows/{id} {
+  businessId
+  name
+  trigger: "service_completed" | "manual"
+  steps: [{ type: "send_message" | "wait" | "condition" | "branch", details }]
+  updatedAt
+}
+```
+
+Bulk send (Growth) uses campaign templates to batch-deliver SMS/Email in rate-limited chunks with per-recipient error logging and timeline entries for customer history.

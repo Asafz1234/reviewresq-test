@@ -1640,6 +1640,61 @@ a {
   flex-wrap: wrap;
 }
 
+.preview-box {
+  background: var(--slate-25);
+  border: 1px solid var(--slate-100);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.code-block {
+  background: var(--slate-50);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.flow-builder {
+  background: var(--slate-25);
+  border: 1px solid var(--slate-100);
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.flow-step-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.flow-steps {
+  display: grid;
+  gap: 10px;
+}
+
+.flow-step {
+  background: #fff;
+  border: 1px solid var(--slate-100);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .hero-actions {
   display: grid;
   gap: 10px;
