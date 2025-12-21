@@ -287,6 +287,34 @@ if (highCtaButton) {
         return;
       }
 
+      const currentBusinessId = businessId || getBusinessIdFromUrl();
+      if (currentBusinessId) {
+        const payload = {
+          businessId: currentBusinessId,
+          rating: currentRating || null,
+          customerName: (customerNameInput?.value || "").trim(),
+          customerEmail: (customerEmailInput?.value || "").trim(),
+        };
+
+        try {
+          const trackUrl =
+            "https://us-central1-reviewresq-app.cloudfunctions.net/recordReviewLinkClick";
+          const body = JSON.stringify(payload);
+
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(trackUrl, new Blob([body], { type: "application/json" }));
+          } else {
+            await fetch(trackUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body,
+            });
+          }
+        } catch (err) {
+          console.warn("[portal] Failed to record review click", err);
+        }
+      }
+
       // Open Google Review page
       window.location.href = googleUrl;
     } catch (err) {

@@ -42,6 +42,7 @@
         <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
         <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
         <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
+        <a class="nav-tab" data-route="customers" href="customers.html">Customers</a>
         <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
         <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
         <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
@@ -142,11 +143,18 @@
         <h3 class="section-title" id="importModalTitle">Import CSV</h3>
         <button class="btn btn-secondary" data-modal-close id="closeImportModal">Close</button>
       </div>
-      <p class="card-sub">Columns supported: name, phone, email, source, notes.</p>
+      <p class="card-sub">Columns supported: name, phone, email.</p>
       <input class="input" id="importFile" type="file" accept=".csv" />
-      <p class="caption">We map each row to your leads list for this business.</p>
+      <p class="caption">We validate duplicates by phone/email before importing.</p>
+      <div class="card muted-card" id="importPreviewCard" style="display:none;">
+        <div class="card-title">Preview</div>
+        <p class="caption" id="importPreviewSummary"></p>
+        <div id="importPreviewRows" class="table"></div>
+        <div class="alert" id="importDuplicateAlert" style="display:none;"></div>
+      </div>
       <div class="button-row modal-actions">
-        <button class="btn btn-primary" id="importFileBtn">Upload CSV</button>
+        <button class="btn btn-secondary" id="resetImportBtn">Reset file</button>
+        <button class="btn btn-primary" id="confirmImportBtn" disabled>Import customers</button>
       </div>
     </div>
   </div>
@@ -295,6 +303,13 @@
     const messageDraftInput = document.getElementById('messageDraft');
     const regenerateButton = document.getElementById('regenerateDraft');
     const sendButton = document.getElementById('sendDraft');
+    const importPreviewCard = document.getElementById('importPreviewCard');
+    const importPreviewSummary = document.getElementById('importPreviewSummary');
+    const importPreviewRows = document.getElementById('importPreviewRows');
+    const importDuplicateAlert = document.getElementById('importDuplicateAlert');
+    const confirmImportBtn = document.getElementById('confirmImportBtn');
+    const resetImportBtn = document.getElementById('resetImportBtn');
+    let importPreview = null;
 
     function formatRelative(date) {
       if (!date) return 'No contact yet';
@@ -302,6 +317,144 @@
       if (diff < 1) return 'Today';
       if (diff < 2) return '1 day ago';
       return `${Math.floor(diff)}d ago`;
+    }
+
+    function normalizePhoneLocal(value = '') {
+      const digits = value.toString().replace(/\D+/g, '');
+      if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
+      return digits;
+    }
+
+    function normalizeEmailLocal(value = '') {
+      return value.toString().trim().toLowerCase();
+    }
+
+    function parseCsv(text) {
+      if (!text) return [];
+      const lines = text.trim().split(/\r?\n/).filter(Boolean);
+      if (!lines.length) return [];
+
+      let header = lines.shift().split(',').map((h) => h.trim().toLowerCase());
+      let nameIdx = header.indexOf('name');
+      let phoneIdx = header.indexOf('phone');
+      let emailIdx = header.indexOf('email');
+
+      if (nameIdx === -1 && phoneIdx === -1 && emailIdx === -1) {
+        // No recognizable header; treat the first line as data with a default order.
+        lines.unshift(header.join(','));
+        nameIdx = 0;
+        phoneIdx = 1;
+        emailIdx = 2;
+      }
+
+      return lines.map((line) => {
+        const cells = line.split(',');
+        return {
+          name: nameIdx >= 0 ? (cells[nameIdx] || '').trim() : '',
+          phone: phoneIdx >= 0 ? (cells[phoneIdx] || '').trim() : '',
+          email: emailIdx >= 0 ? (cells[emailIdx] || '').trim() : '',
+        };
+      });
+    }
+
+    function buildCsvPreview(rows = []) {
+      const seenKeys = new Set();
+      leads.forEach((lead) => {
+        const phoneKey = lead.phone ? normalizePhoneLocal(lead.phone) : '';
+        const emailKey = lead.email ? normalizeEmailLocal(lead.email) : '';
+        if (phoneKey) seenKeys.add(`phone:${phoneKey}`);
+        if (emailKey) seenKeys.add(`email:${emailKey}`);
+      });
+
+      const importable = [];
+      const duplicates = [];
+      let skippedEmpty = 0;
+
+      rows.slice(0, 1000).forEach((row) => {
+        const name = (row.name || '').trim();
+        const phoneKey = normalizePhoneLocal(row.phone || '');
+        const emailKey = normalizeEmailLocal(row.email || '');
+
+        if (!name && !phoneKey && !emailKey) {
+          skippedEmpty += 1;
+          return;
+        }
+
+        const keys = [
+          phoneKey ? `phone:${phoneKey}` : null,
+          emailKey ? `email:${emailKey}` : null,
+        ].filter(Boolean);
+
+        const duplicateKey = keys.find((key) => seenKeys.has(key));
+        if (duplicateKey) {
+          duplicates.push({ name, phone: row.phone || '', email: row.email || '' });
+          return;
+        }
+
+        keys.forEach((key) => seenKeys.add(key));
+        importable.push({
+          name: name || 'Untitled lead',
+          phone: row.phone || '',
+          email: row.email || '',
+        });
+      });
+
+      return {
+        totalRows: rows.length,
+        importable,
+        duplicates,
+        skippedEmpty,
+      };
+    }
+
+    function renderImportPreview(preview) {
+      importPreview = preview;
+      importPreviewCard.style.display = 'block';
+      confirmImportBtn.disabled = !preview.importable.length;
+      importPreviewSummary.textContent = `Ready to import ${preview.importable.length} contact${
+        preview.importable.length === 1 ? '' : 's'
+      } (skipped ${preview.skippedEmpty} blanks, ${preview.duplicates.length} duplicates).`;
+
+      const sampleRows = preview.importable.slice(0, 6);
+      importPreviewRows.innerHTML = sampleRows.length
+        ? `
+            <div class="table-row table-head">
+              <div class="table-cell">Name</div>
+              <div class="table-cell">Phone</div>
+              <div class="table-cell">Email</div>
+            </div>
+            ${sampleRows
+              .map(
+                (row) => `
+                  <div class="table-row">
+                    <div class="table-cell">${row.name}</div>
+                    <div class="table-cell">${row.phone || '—'}</div>
+                    <div class="table-cell">${row.email || '—'}</div>
+                  </div>
+                `,
+              )
+              .join('')}
+          `
+        : '<p class="caption">No rows to import yet.</p>';
+
+      if (preview.duplicates.length) {
+        importDuplicateAlert.style.display = 'block';
+        importDuplicateAlert.textContent = `${preview.duplicates.length} row${
+          preview.duplicates.length === 1 ? '' : 's'
+        } skipped for duplicate phone/email.`;
+      } else {
+        importDuplicateAlert.style.display = 'none';
+      }
+    }
+
+    function resetImportPreview() {
+      importPreview = null;
+      document.getElementById('importFile').value = '';
+      importPreviewCard.style.display = 'none';
+      importPreviewSummary.textContent = '';
+      importPreviewRows.innerHTML = '';
+      importDuplicateAlert.style.display = 'none';
+      confirmImportBtn.disabled = true;
     }
 
     function renderLeadList() {
@@ -445,11 +598,12 @@
     }
 
     function openImportModal() {
+      resetImportPreview();
       importModalController?.open();
     }
 
     function closeImportModal() {
-      document.getElementById('importFile').value = '';
+      resetImportPreview();
       importModalController?.close();
     }
 
@@ -557,8 +711,51 @@
     function handleCsvImport() {
       const file = document.getElementById('importFile').files[0];
       if (!file) return showToast('Upload a CSV file to import');
-      showToast('CSV import queued. We will map your leads.');
+
+      file
+        .text()
+        .then((text) => parseCsv(text))
+        .then((rows) => {
+          const preview = buildCsvPreview(rows);
+          renderImportPreview(preview);
+          if (!preview.importable.length) {
+            showToast('No new rows to import — all duplicates or empty.');
+          }
+        })
+        .catch(() => showToast('Unable to read that CSV file'));
+    }
+
+    function confirmCsvImport() {
+      if (!importPreview || !importPreview.importable.length) {
+        return showToast('Upload a CSV and review the preview first');
+      }
+
+      importPreview.importable.forEach((row) => {
+        const lead = {
+          leadId: `lead-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
+          name: row.name,
+          phone: row.phone,
+          email: row.email,
+          source: 'csv',
+          serviceType: 'Imported',
+          notes: '',
+          status: 'new',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          lastContactAt: null,
+          nextContactAt: null,
+          automationState: 'none',
+          sequenceId: null,
+          messages: [],
+        };
+        leads.unshift(lead);
+      });
+
+      renderLeadList();
       closeImportModal();
+      showToast(`Imported ${importPreview.importable.length} customer${
+        importPreview.importable.length === 1 ? '' : 's'
+      } from CSV`);
     }
 
     function saveLead() {
@@ -596,7 +793,9 @@
 
     document.getElementById('importCsvBtn').addEventListener('click', openImportModal);
     document.getElementById('closeImportModal').addEventListener('click', closeImportModal);
-    document.getElementById('importFileBtn').addEventListener('click', handleCsvImport);
+    document.getElementById('importFile').addEventListener('change', handleCsvImport);
+    confirmImportBtn.addEventListener('click', confirmCsvImport);
+    resetImportBtn.addEventListener('click', resetImportPreview);
 
     document.getElementById('closeMessageModal').addEventListener('click', closeMessageModal);
 

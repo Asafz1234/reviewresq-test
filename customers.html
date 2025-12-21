@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReviewResQ – Customers</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="dashboard-modern.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-mark">RR</div>
+        <div class="brand-name">ReviewResQ</div>
+      </div>
+      <div class="topbar-center">Customers</div>
+      <div class="topbar-right">
+        <a id="planBadge" class="plan-chip plan-chip--pro" href="account.html" title="View and manage your subscription.">Pro AI Suite</a>
+        <div class="profile">RQ</div>
+      </div>
+    </header>
+
+    <nav class="global-nav" aria-label="Dashboard sections">
+      <div class="nav-tabs">
+        <a class="nav-tab" data-route="overview" href="dashboard.html#overview">Overview</a>
+        <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
+        <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
+        <a class="nav-tab" data-route="customers" href="customers.html">Customers</a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
+        <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
+        <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
+        <a class="nav-tab" data-route="settings" href="settings.html">Alerts &amp; Settings</a>
+        <a class="nav-tab" data-route="account" href="account.html">Account &amp; billing</a>
+      </div>
+    </nav>
+
+    <main class="page-container" id="customers">
+      <header class="section">
+        <div class="section-header">
+          <div>
+            <h1 class="page-title">Customers</h1>
+            <p class="page-subtitle">Unified view of every customer touchpoint, source, and timeline.</p>
+          </div>
+          <div class="button-row">
+            <button class="btn btn-secondary" id="archiveSelectedBtn" disabled>Archive selected</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="card customers-shell">
+          <div class="customers-list">
+            <div class="customers-toolbar">
+              <div class="filter-chips" id="statusFilters" aria-label="Filter by review status">
+                <button class="chip chip-filter active" data-status="all">All statuses</button>
+                <button class="chip chip-filter" data-status="none">None</button>
+                <button class="chip chip-filter" data-status="requested">Requested</button>
+                <button class="chip chip-filter" data-status="reviewed">Reviewed</button>
+                <button class="chip chip-filter" data-status="negative">Negative</button>
+              </div>
+              <div class="filter-chips" id="sourceFilters" aria-label="Filter by source">
+                <button class="chip chip-filter active" data-source="all">All sources</button>
+                <button class="chip chip-filter" data-source="manual">Manual</button>
+                <button class="chip chip-filter" data-source="csv">CSV</button>
+                <button class="chip chip-filter" data-source="sheet">Sheets</button>
+                <button class="chip chip-filter" data-source="funnel">Funnel</button>
+                <button class="chip chip-filter" data-source="webhook">Webhook</button>
+              </div>
+              <div class="search-row">
+                <input class="input" id="customerSearch" type="search" placeholder="Search by name, phone, or email" aria-label="Search customers" />
+                <label class="archive-toggle">
+                  <input type="checkbox" id="archivedToggle" />
+                  <span>Show archived</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="table-card">
+              <div class="table-actions">
+                <label class="select-all">
+                  <input type="checkbox" id="selectAll" />
+                  <span>Select all</span>
+                </label>
+                <span class="caption" id="customerCount">0 customers</span>
+              </div>
+              <table class="table-lite customers-table" aria-label="Customers table">
+                <thead>
+                  <tr>
+                    <th style="width:44px;"></th>
+                    <th>Customer</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Last interaction</th>
+                  </tr>
+                </thead>
+                <tbody id="customersTableBody"></tbody>
+              </table>
+              <div class="table-empty" id="customersEmptyState">No customers yet.</div>
+            </div>
+          </div>
+
+          <div class="customer-detail" id="customerDetail">
+            <div class="card muted-card" id="emptyCustomerState">
+              <h3 class="section-title">Select a customer</h3>
+              <p class="card-sub">Pick a customer to see their contact info, status, and timeline.</p>
+            </div>
+            <div id="customerDetailContent" style="display:none;"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="topbar-menu.js"></script>
+  <script src="dashboard-nav.js"></script>
+  <script type="module" src="customers.js"></script>
+</body>
+</html>
