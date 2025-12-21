@@ -212,6 +212,133 @@ const mergeDeep = (target = {}, source = {}) => {
   return output;
 };
 
+const CUSTOMER_SOURCE_TYPES = ["manual", "csv", "sheet", "funnel", "webhook"];
+const CUSTOMER_REVIEW_STATUSES = ["none", "requested", "reviewed", "negative"];
+
+const normalizeCustomerSource = (source = "manual") =>
+  CUSTOMER_SOURCE_TYPES.includes(source) ? source : "manual";
+
+const normalizeReviewStatus = (status = "none") =>
+  CUSTOMER_REVIEW_STATUSES.includes(status) ? status : "none";
+
+const normalizePhone = (phone = "") => {
+  if (!phone) return "";
+  const digits = phone.toString().trim().replace(/\D+/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return digits.slice(1);
+  }
+  return digits;
+};
+
+const normalizeEmail = (email = "") => email.toString().trim().toLowerCase();
+
+const chunkArray = (items = [], size = 10) => {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+};
+
+const buildCustomerDocId = (businessId, identifier) => {
+  const base = `${businessId || "unknown"}|${identifier || crypto.randomUUID()}`;
+  return crypto.createHash("sha256").update(base).digest("hex").slice(0, 20);
+};
+
+async function upsertCustomerRecord({
+  businessId,
+  name,
+  phone,
+  email,
+  source = "manual",
+  reviewStatus = "none",
+  lastInteractionAt = null,
+}) {
+  if (!businessId) {
+    throw new Error("businessId is required to create a customer record");
+  }
+
+  const identifier = email || phone || name || Date.now().toString();
+  const customerId = buildCustomerDocId(businessId, identifier);
+  const ref = db.collection("customers").doc(customerId);
+  const snap = await ref.get();
+
+  const payload = {
+    businessId,
+    name: name || null,
+    phone: phone || null,
+    email: email || null,
+    source: normalizeCustomerSource(source),
+    reviewStatus: normalizeReviewStatus(reviewStatus),
+    lastInteractionAt:
+      lastInteractionAt || admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (!snap.exists || !snap.data()?.createdAt) {
+    payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+  }
+
+  await ref.set(payload, { merge: true });
+  return customerId;
+}
+
+async function findExistingCustomerContacts({
+  businessId,
+  phones = [],
+  emails = [],
+}) {
+  const normalizedPhones = Array.from(new Set(phones.filter(Boolean)));
+  const normalizedEmails = Array.from(new Set(emails.filter(Boolean)));
+  const matches = { phones: new Set(), emails: new Set() };
+
+  const queryField = async (field, values, targetSet, normalizer) => {
+    const chunks = chunkArray(values, 10);
+    for (const batch of chunks) {
+      const snap = await db.collection("customers").where(field, "in", batch).get();
+      snap.forEach((doc) => {
+        const data = doc.data() || {};
+        if (data.businessId === businessId && data[field]) {
+          targetSet.add(normalizer(data[field]));
+        }
+      });
+    }
+  };
+
+  await Promise.all([
+    queryField("phone", normalizedPhones, matches.phones, normalizePhone),
+    queryField("email", normalizedEmails, matches.emails, normalizeEmail),
+  ]);
+
+  return matches;
+}
+
+const deriveReviewStatusFromFeedback = (feedbackData = {}) => {
+  const rating = Number(feedbackData.rating || 0);
+  if (rating >= 4) return "reviewed";
+  if (rating && rating <= 3) return "negative";
+  return "none";
+};
+
+async function recordCustomerFromFeedbackCapture({ businessId, feedback }) {
+  if (!businessId) return null;
+
+  try {
+    return await upsertCustomerRecord({
+      businessId,
+      name: feedback.customerName || null,
+      phone: feedback.customerPhone || feedback.phone || null,
+      email: feedback.customerEmail || feedback.email || null,
+      source: "funnel",
+      reviewStatus: deriveReviewStatusFromFeedback(feedback),
+      lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("[customers] failed to record funnel capture", err);
+    return null;
+  }
+}
+
 const sanitizeReviewFunnelPatch = (patch = {}) => {
   const cleaned = {};
 
@@ -2290,6 +2417,258 @@ exports.connectGoogleManualLink = functions.https.onCall(async (data, context) =
   };
 });
 
+exports.createCustomerManual = functions.https.onCall(async (data, context) => {
+  if (!context.auth?.uid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication required to add customers manually.",
+    );
+  }
+
+  const businessId = data?.businessId || context.auth.uid;
+  const name = (data?.name || "").toString().trim();
+  const phone = (data?.phone || "").toString().trim();
+  const email = (data?.email || "").toString().trim();
+  const reviewStatus = normalizeReviewStatus(data?.reviewStatus || "none");
+
+  if (!name && !phone && !email) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Provide at least one of name, phone, or email to create a customer.",
+    );
+  }
+
+  const customerId = await upsertCustomerRecord({
+    businessId,
+    name: name || null,
+    phone: phone || null,
+    email: email || null,
+    source: "manual",
+    reviewStatus,
+  });
+
+  return { ok: true, customerId };
+});
+
+exports.importCustomersCsv = functions.https.onCall(async (data, context) => {
+  if (!context.auth?.uid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication required to import customers from CSV.",
+    );
+  }
+
+  const businessId = data?.businessId || context.auth.uid;
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
+  const previewOnly = !!data?.preview;
+
+  if (!rows.length) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "rows must be a non-empty array of customer records",
+    );
+  }
+
+  const maxRows = Math.min(rows.length, 1000);
+  const seenKeys = new Set();
+  const duplicatesInUpload = [];
+  let skippedEmpty = 0;
+  const parsedRows = [];
+
+  for (const row of rows.slice(0, maxRows)) {
+    const name = (row?.name || row?.Name || "").toString().trim();
+    const phone = (row?.phone || row?.Phone || "").toString().trim();
+    const email = (row?.email || row?.Email || "").toString().trim();
+
+    const phoneKey = normalizePhone(phone);
+    const emailKey = normalizeEmail(email);
+
+    if (!name && !phoneKey && !emailKey) {
+      skippedEmpty += 1;
+      continue;
+    }
+
+    const keys = [
+      phoneKey ? `phone:${phoneKey}` : null,
+      emailKey ? `email:${emailKey}` : null,
+    ].filter(Boolean);
+
+    const duplicateKey = keys.find((key) => seenKeys.has(key));
+    if (duplicateKey) {
+      duplicatesInUpload.push({ name, phone, email, reason: "duplicate_in_upload" });
+      continue;
+    }
+
+    keys.forEach((key) => seenKeys.add(key));
+    parsedRows.push({ name: name || null, phone: phone || null, email: email || null, phoneKey, emailKey });
+  }
+
+  const existingMatches = await findExistingCustomerContacts({
+    businessId,
+    phones: parsedRows.map((row) => row.phoneKey).filter(Boolean),
+    emails: parsedRows.map((row) => row.emailKey).filter(Boolean),
+  });
+
+  const readyRows = [];
+  const existingDuplicates = [];
+
+  for (const row of parsedRows) {
+    const alreadyExists =
+      (row.phoneKey && existingMatches.phones.has(row.phoneKey)) ||
+      (row.emailKey && existingMatches.emails.has(row.emailKey));
+
+    if (alreadyExists) {
+      existingDuplicates.push({
+        name: row.name,
+        phone: row.phone,
+        email: row.email,
+        reason: "already_exists",
+      });
+      continue;
+    }
+
+    readyRows.push(row);
+  }
+
+  const preview = {
+    totalRows: rows.length,
+    acceptedColumns: ["name", "phone", "email"],
+    importable: readyRows.length,
+    duplicatesInUpload: duplicatesInUpload.length,
+    duplicatesExisting: existingDuplicates.length,
+    skippedEmpty,
+    sample: readyRows.slice(0, 20).map(({ name, phone, email }) => ({ name, phone, email })),
+    blocked: [...duplicatesInUpload, ...existingDuplicates].slice(0, 20),
+  };
+
+  if (previewOnly) {
+    return { ok: true, preview };
+  }
+
+  const reviewStatus = normalizeReviewStatus(data?.reviewStatus || "none");
+  const savedIds = [];
+
+  for (const row of readyRows) {
+    const customerId = await upsertCustomerRecord({
+      businessId,
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      source: "csv",
+      reviewStatus,
+    });
+
+    savedIds.push(customerId);
+  }
+
+  return { ok: true, imported: savedIds.length, customerIds: savedIds, preview };
+});
+
+exports.syncCustomersFromSheet = functions.https.onCall(async (data, context) => {
+  if (!context.auth?.uid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication required to sync customers from Google Sheets.",
+    );
+  }
+
+  const businessId = data?.businessId || context.auth.uid;
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
+
+  if (!rows.length) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "rows must be a non-empty array when syncing from sheets",
+    );
+  }
+
+  const savedIds = [];
+
+  for (const row of rows) {
+    const name = (row?.name || row?.Name || "").toString().trim();
+    const phone = (row?.phone || row?.Phone || "").toString().trim();
+    const email = (row?.email || row?.Email || "").toString().trim();
+    const reviewStatus = normalizeReviewStatus(
+      row?.reviewStatus || row?.status || data?.reviewStatus || "none",
+    );
+
+    let lastInteractionAt = null;
+    if (row?.lastInteractionAt) {
+      const parsed = new Date(row.lastInteractionAt);
+      if (!Number.isNaN(parsed.getTime())) {
+        lastInteractionAt = parsed;
+      }
+    }
+
+    if (!name && !phone && !email) continue;
+
+    const customerId = await upsertCustomerRecord({
+      businessId,
+      name: name || null,
+      phone: phone || null,
+      email: email || null,
+      source: "sheet",
+      reviewStatus,
+      lastInteractionAt,
+    });
+
+    savedIds.push(customerId);
+  }
+
+  return { ok: true, synced: savedIds.length, customerIds: savedIds };
+});
+
+exports.ingestCustomerWebhook = functions.https.onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, X-API-Key");
+  res.set("Vary", "Origin");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "method_not_allowed" });
+  }
+
+  const expectedToken = process.env.CUSTOMER_WEBHOOK_TOKEN;
+  const providedToken =
+    req.headers["x-api-key"] || req.query?.token || req.headers.authorization;
+
+  if (expectedToken && providedToken !== expectedToken) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+
+  const { businessId, name, phone, email, reviewStatus, lastInteractionAt } =
+    req.body || {};
+
+  if (!businessId) {
+    return res.status(400).json({ error: "missing_business_id" });
+  }
+
+  try {
+    const parsedLastInteraction = lastInteractionAt
+      ? new Date(lastInteractionAt)
+      : null;
+
+    const customerId = await upsertCustomerRecord({
+      businessId,
+      name: name || null,
+      phone: phone || null,
+      email: email || null,
+      source: "webhook",
+      reviewStatus: normalizeReviewStatus(reviewStatus || "none"),
+      lastInteractionAt: parsedLastInteraction,
+    });
+
+    return res.status(200).json({ ok: true, customerId });
+  } catch (err) {
+    console.error("[customers] webhook ingestion failed", err);
+    return res.status(500).json({ error: "ingest_failed" });
+  }
+});
+
 exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
   console.log("sendReviewRequestEmail invoked", req.method);
 
@@ -2449,6 +2828,22 @@ exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
           lastInviteChannel: "email",
         },
       });
+    }
+
+    if (businessId) {
+      try {
+        await upsertCustomerRecord({
+          businessId,
+          name: customerName || null,
+          phone: req.body?.customerPhone || null,
+          email,
+          source: normalizeCustomerSource(req.body?.source || "manual"),
+          reviewStatus: "requested",
+          lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (err) {
+        console.error("[customers] failed to record manual invite", err);
+      }
     }
 
     return res.status(200).json({ success: true });
@@ -2841,6 +3236,11 @@ exports.onPortalFeedback = functions.firestore
       await feedbackRef.set(baseMerge, { merge: true });
     }
 
+    await recordCustomerFromFeedbackCapture({
+      businessId,
+      feedback: { ...data, sentimentScore },
+    });
+
     const isPositive = rating >= 4 || sentimentScore > 0;
     const isNegativeOrNeutral = rating <= 3 || sentimentScore <= 0;
 
@@ -2935,11 +3335,80 @@ exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
     aiMessage,
   });
 
+  try {
+    await upsertCustomerRecord({
+      businessId: conversation.businessId,
+      name: conversation.customerName || null,
+      phone: normalizePhone(conversation.customerPhone),
+      email: normalizeEmail(conversation.customerEmail),
+      source: "funnel",
+      reviewStatus: deriveReviewStatusFromFeedback({ rating: conversation.rating }),
+      lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("[customers] failed to upsert from AI reply", err);
+  }
+
   return res.status(200).json({
     aiMessage,
     category: aiResponse.category,
     sentiment: aiResponse.sentiment,
   });
+});
+
+exports.recordReviewLinkClick = onRequest(async (req, res) => {
+  const origin = req.headers.origin || "*";
+  res.set("Access-Control-Allow-Origin", origin);
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Vary", "Origin");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const payload =
+    req.body && typeof req.body === "object"
+      ? req.body
+      : (() => {
+          try {
+            return JSON.parse(req.body || "{}") || {};
+          } catch (err) {
+            return {};
+          }
+        })();
+
+  const businessId = (payload.businessId || "").toString().trim();
+  const rating = Number(payload.rating || 0);
+  const customerName = (payload.customerName || "").toString().trim();
+  const customerEmail = normalizeEmail(payload.customerEmail || "");
+  const customerPhone = normalizePhone(payload.customerPhone || "");
+
+  if (!businessId) {
+    return res.status(400).json({ error: "businessId is required" });
+  }
+
+  try {
+    const reviewStatus = rating >= 4 ? "requested" : "none";
+    await upsertCustomerRecord({
+      businessId,
+      name: customerName || null,
+      phone: customerPhone || null,
+      email: customerEmail || null,
+      source: "funnel",
+      reviewStatus,
+      lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("[customers] failed to record review click", err);
+    return res.status(500).json({ error: "Failed to record review click" });
+  }
 });
 
 exports.onAiConversationResolved = functions.firestore
