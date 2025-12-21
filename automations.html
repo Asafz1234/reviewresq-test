@@ -42,6 +42,8 @@
         <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
         <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
         <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
+        <a class="nav-tab" data-route="customers" href="customers.html">Customers</a>
+        <a class="nav-tab" data-route="campaigns" href="campaigns.html">Campaigns</a>
         <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
         <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
         <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
@@ -89,85 +91,70 @@
 
       <section class="section">
         <div class="card">
-          <h3 class="section-title">Review invite template</h3>
-          <p class="card-sub">Customize the message customers receive.</p>
-          <div class="form-grid">
+          <h3 class="section-title">Flow builder (Pro AI)</h3>
+          <p class="card-sub">Create multi-step journeys with triggers, waits, conditions, and branching.</p>
+          <form id="flowForm" class="form-grid">
             <label>
-              <span class="card-title">Message</span>
-              <textarea class="textarea" rows="4">Hi {{first_name}}, thanks for choosing us. Would you share your experience?</textarea>
+              <span class="card-title">Flow name</span>
+              <input class="input" id="flowName" placeholder="Post-service review follow-up" />
             </label>
-            <div class="button-row">
-              <button class="btn btn-secondary">Preview</button>
-              <button class="btn btn-primary">Save template</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="card">
-          <h3 class="section-title">Reminders</h3>
-          <p class="card-sub">Keep follow-ups automatic without extra work.</p>
-          <div class="switch-row">
-            <div>
-              <p class="card-title">1st reminder</p>
-              <p class="caption">Send after 3 days if no review</p>
-            </div>
-            <span class="badge">On</span>
-          </div>
-          <div class="switch-row">
-            <div>
-              <p class="card-title">2nd reminder</p>
-              <p class="caption">Send after 7 days if still no review</p>
-            </div>
-            <span class="badge">Off</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="card">
-          <h3 class="section-title">Lead Follow-up sequences</h3>
-          <p class="card-sub">Pick the default AI sequence and guardrails for messaging new leads.</p>
-          <div class="form-grid">
             <label>
-              <span class="card-title">Default sequence</span>
-              <select class="select">
-                <option>New lead – 3 touch follow-up</option>
-                <option>Service quote reminders</option>
-                <option>Custom sequence</option>
+              <span class="card-title">Trigger</span>
+              <select class="select" id="triggerSelect">
+                <option value="service_completed">Service completed</option>
+                <option value="manual">Manual trigger</option>
               </select>
             </label>
-            <label>
-              <span class="card-title">Quiet hours</span>
-              <input class="input" type="text" placeholder="21:00 – 08:00" />
-            </label>
-            <label>
-              <span class="card-title">Max messages per lead</span>
-              <input class="input" type="number" value="3" />
-            </label>
-          </div>
-          <div class="sequence-list" style="margin-top:12px;">
-            <div class="guidance-item">
-              <p class="guidance-title">New lead – 3 touch follow-up</p>
-              <p class="guidance-desc">SMS at 1h, 24h, and 72h with AI-crafted first contact, reminder, and last chance.</p>
-              <button class="btn btn-secondary">View steps</button>
+            <div class="flow-builder">
+              <div class="flow-step-inputs">
+                <label>
+                  <span class="card-title">Step type</span>
+                  <select class="select" id="stepType">
+                    <option value="send_message">Send message</option>
+                    <option value="wait">Wait X days</option>
+                    <option value="condition">Condition (reviewed? rating?)</option>
+                    <option value="branch">Branch logic</option>
+                  </select>
+                </label>
+                <label>
+                  <span class="card-title">Details</span>
+                  <input class="input" id="stepDetail" placeholder="e.g. Wait 3 days, then SMS ask for review" />
+                </label>
+                <button class="btn btn-secondary" type="button" id="addStep">Add step</button>
+              </div>
+              <div id="flowSteps" class="flow-steps"></div>
             </div>
-            <div class="guidance-item">
-              <p class="guidance-title">Quote reminder</p>
-              <p class="guidance-desc">Email nudges after quotes are sent to keep momentum.</p>
-              <button class="btn btn-secondary">View steps</button>
+            <div class="button-row" style="justify-content: flex-end;">
+              <span class="badge badge-muted" id="flowStatus">Draft</span>
+              <button class="btn btn-primary" type="submit">Save flow</button>
             </div>
-          </div>
-          <div class="button-row" style="justify-content: flex-end; margin-top: 12px;">
-            <button class="btn btn-secondary">Cancel</button>
-            <button class="btn btn-primary">Save lead follow-ups</button>
-          </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card">
+          <h3 class="section-title">Flows</h3>
+          <p class="card-sub">See the automation logic active for your locations.</p>
+          <table class="table-lite">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Trigger</th>
+                <th>Steps</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody id="flowsTableBody">
+              <tr><td colspan="4" class="caption">No flows configured.</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </main>
   </div>
   <script type="module" src="topbar-menu.js"></script>
   <script src="dashboard-nav.js"></script>
+  <script type="module" src="automations.js"></script>
 </body>
 </html>

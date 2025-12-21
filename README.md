@@ -20,3 +20,90 @@ firebase deploy --only functions
 ```
 
 For local emulation, create a `.env` file in the project root with the same variable names so that `process.env` resolves them during development.
+
+## Customer sources and Firestore schema
+
+ReviewResQ now centralizes every inbound customer record under a unified `customerSources` flow so that requests, follow-ups, and automations share the same Firestore documents.
+
+Supported inputs:
+
+- Manual entry via the dashboard
+- CSV upload for batch imports
+  - Google Sheets sync (read-only)
+  - Webhook ingestion for Zapier/Make-style connectors
+  - Funnel captures from the public feedback portal
+
+CSV uploads accept three columns (`name`, `phone`, and `email`) and run a preview step before writing to Firestore. Rows are deduplicated by phone/email (including existing customers) and tagged with `source=csv` when imported.
+
+Each ingested customer is upserted into `customers/{customerId}` with the following fields:
+
+```
+customers/{customerId} {
+  businessId
+  name
+  phone
+  email
+  source: "manual" | "csv" | "sheet" | "funnel" | "webhook"
+  createdAt
+  lastInteractionAt
+  reviewStatus: "none" | "requested" | "reviewed" | "negative"
+  archived?: boolean (soft-delete flag)
+  timeline?: [
+    {
+      type: "sms_sent" | "email_sent" | "review_left" | "feedback_received" | "campaign_message" | "automation_step"
+      timestamp
+      metadata
+    }
+  ]
+}
+```
+
+`createdAt` is set on first write; `lastInteractionAt` updates each time a new source delivers the customer. `archived` is used in place of deletions. Timeline entries capture every touchpoint (messages sent, feedback captured, review clicks) so the dashboard can render a per-customer history.
+
+## Campaigns and flows
+
+Campaigns target customers by status/source, select a channel (SMS/Email), choose a template, schedule, and follow-up rules.
+
+```
+campaigns/{id} {
+  businessId
+  audienceRules
+  channel
+  templateId
+  templateBody
+  schedule
+  followUpRules
+  status
+  createdAt
+}
+```
+
+Automation flows (Pro AI) allow triggered, multi-step journeys with messaging, waits, and branching:
+
+```
+automationFlows/{id} {
+  businessId
+  name
+  trigger: "service_completed" | "manual"
+  steps: [{ type: "send_message" | "wait" | "condition" | "branch", details }]
+  updatedAt
+}
+```
+
+Bulk send (Growth) uses campaign templates to batch-deliver SMS/Email in rate-limited chunks with per-recipient error logging and timeline entries for customer history.
+
+## Lead lifecycle tracking
+
+Leads progress through a fixed lifecycle so outreach, conversions, and review asks stay visible:
+
+- `created` → initial capture
+- `contacted` → outreach sent or call placed
+- `converted` → booked/closed won
+- `review_requested` → review invite sent
+- `review_completed` → review received/confirmed
+
+Status changes should be logged to the lead timeline alongside AI/user messages so the dashboard reflects every step.
+
+## AI Agent outcomes
+
+The Pro AI agent can answer inbound messages, draft and send review requests, summarize entire conversations, and only alert the owner when escalation is truly needed. Each AI touch should update customer timelines and, when appropriate, advance leads to `contacted`, `review_requested`, or `review_completed` states.
