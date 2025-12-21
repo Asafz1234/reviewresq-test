@@ -1,7 +1,6 @@
 import { onSession } from "./dashboard-data.js";
 import {
   db,
-  auth,
   doc,
   getDoc,
   setDoc,
@@ -78,6 +77,7 @@ let businessId = null;
 let currentPlan = "starter";
 let currentCapabilities = getPlanCapabilities(currentPlan);
 let activeSettings = { ...DEFAULT_SETTINGS };
+let currentUser = null;
 const REVIEW_FUNNEL_ENDPOINT =
   "https://us-central1-reviewresq-app.cloudfunctions.net/updateReviewFunnelSettings";
 
@@ -277,8 +277,8 @@ async function loadBusinessPlan(uid) {
   return { plan, features: mergedFeatures };
 }
 
-async function loadSettings(uid) {
-  const token = await auth.currentUser?.getIdToken();
+async function loadSettings(uid, user = currentUser) {
+  const token = await user?.getIdToken();
   if (!token) {
     throw new Error("You need to be signed in to load your funnel.");
   }
@@ -375,7 +375,7 @@ async function saveSettings() {
       activeSettings.branding.logoUrl = logoUrl;
     }
 
-    const token = await auth.currentUser?.getIdToken();
+    const token = await currentUser?.getIdToken();
     if (!token) {
       throw new Error("You need to be signed in to save your funnel.");
     }
@@ -418,9 +418,10 @@ function bindEvents() {
 }
 
 async function init(user) {
+  currentUser = user;
   businessId = user.uid;
   const planInfo = await loadBusinessPlan(user.uid);
-  const settings = await loadSettings(user.uid);
+  const settings = await loadSettings(user.uid, user);
   applySettings(settings);
   const planCapabilities = getPlanCapabilities(planInfo.plan);
   renderPlanState(planInfo.plan, {
@@ -432,6 +433,7 @@ async function init(user) {
 
 onSession(async ({ user }) => {
   if (!user) return;
+  currentUser = user;
   bindEvents();
   try {
     await init(user);

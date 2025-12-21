@@ -4,7 +4,10 @@ const { defineSecret, defineString } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
 const crypto = require("crypto");
-const { getPlanCapabilities: sharedPlanCapabilities, normalizePlan: sharedNormalizePlan } = require("../plan-capabilities");
+const {
+  getPlanCapabilities: sharedPlanCapabilities,
+  normalizePlan: sharedNormalizePlan,
+} = require("./plan-capabilities.cjs");
 
 admin.initializeApp();
 
@@ -2106,13 +2109,33 @@ const REVIEW_FUNNEL_SETTINGS_BASE = {
   updatedAt: null,
 };
 
+const REVIEW_FUNNEL_ALLOWED_ORIGINS = new Set([
+  "https://reviewresq.com",
+  "https://www.reviewresq.com",
+]);
+
+const isDevOrigin = (origin = "") => /^http:\/\/localhost(:\d+)?$/i.test(origin);
+
+const applyReviewFunnelCors = (req, res) => {
+  const origin = req.headers.origin || "";
+  const allowedOrigin =
+    REVIEW_FUNNEL_ALLOWED_ORIGINS.has(origin) || isDevOrigin(origin)
+      ? origin
+      : "https://reviewresq.com";
+
+  res.set("Access-Control-Allow-Origin", allowedOrigin);
+  res.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  res.set("Access-Control-Max-Age", "3600");
+  res.set("Vary", "Origin");
+
+  return allowedOrigin;
+};
+
 exports.updateReviewFunnelSettings = functions
   .region("us-central1")
   .https.onRequest(async (req, res) => {
-    res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
-    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.set("Vary", "Origin");
+    applyReviewFunnelCors(req, res);
 
     if (req.method === "OPTIONS") {
       return res.status(204).send("");
