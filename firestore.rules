@@ -19,6 +19,12 @@ service cloud.firestore {
       allow get, list: if true;
     }
 
+    // Public-facing business info used by the customer portal
+    match /publicBusinesses/{businessId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /businesses/{businessId} {
       allow get, list: if request.auth != null && request.auth.uid == businessId;
 

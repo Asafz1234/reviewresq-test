@@ -103,6 +103,14 @@ function setPortalStatus(status, message = "") {
   portalEl.classList.toggle("has-error", status === "error");
 }
 
+function handleMissingBusinessData(message) {
+  setRatingEnabled(false);
+  if (sendFeedbackBtn) {
+    sendFeedbackBtn.disabled = true;
+  }
+  setPortalStatus("error", message);
+}
+
 function renderBusinessIdentity() {
   const logoFromSettings = portalSettings?.businessLogoUrl;
   const effectiveLogo = logoFromSettings || businessLogoUrl;
@@ -114,9 +122,42 @@ function renderBusinessIdentity() {
     bizLogoInitials.style.display = "none";
   } else if (bizLogoInitials && bizLogoImgWrapper) {
     bizLogoImgWrapper.style.display = "none";
-    bizLogoInitials.textContent = "";
-    bizLogoInitials.style.display = "none";
+    const initials = (businessName || "")
+      .split(" ")
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+    bizLogoInitials.textContent = initials || businessName?.slice(0, 2)?.toUpperCase() || "";
+    bizLogoInitials.style.display = initials ? "flex" : "none";
   }
+}
+
+async function fetchPublicBusiness() {
+  const requestedBusinessId = getBusinessIdFromUrl();
+
+  if (requestedBusinessId) {
+    const publicRef = doc(db, "publicBusinesses", requestedBusinessId);
+    const publicSnap = await getDoc(publicRef);
+    if (publicSnap.exists()) {
+      return { ref: publicRef, snap: publicSnap };
+    }
+  }
+
+  if (shareKeyParam) {
+    const shareQuery = query(
+      collection(db, "publicBusinesses"),
+      where("shareKey", "==", shareKeyParam)
+    );
+    const shareSnap = await getDocs(shareQuery);
+    if (!shareSnap.empty) {
+      const matchedDoc = shareSnap.docs[0];
+      return { ref: matchedDoc.ref, snap: matchedDoc };
+    }
+  }
+
+  return null;
 }
 
 function showOwnerToolbarIfNeeded() {
@@ -151,6 +192,18 @@ function setPortalClasses() {
   });
 }
 
+function setRatingEnabled(isEnabled) {
+  ratingButtons.forEach((btn) => {
+    btn.disabled = !isEnabled;
+    btn.classList.toggle("disabled", !isEnabled);
+  });
+
+  if (highCtaButton) {
+    highCtaButton.disabled = !isEnabled || !googleReviewUrl;
+    highCtaButton.classList.toggle("disabled", !isEnabled || !googleReviewUrl);
+  }
+}
+
 function resetRating() {
   currentRating = 0;
   if (!portalEl) return;
@@ -170,12 +223,11 @@ function showThankYouState() {
   }
 }
 
-async function redirectToGoogleReview(selectedRating = null) {
+function redirectToGoogleReview(selectedRating = null) {
   const googleUrl = (googleReviewUrl || "").trim();
 
   if (!googleUrl) {
-    setPortalStatus(
-      "error",
+    handleMissingBusinessData(
       "This portal is missing its Google review link. Please ask the owner to configure it."
     );
     console.error("[portal] Attempted redirect without googleReviewLink", {
@@ -203,26 +255,27 @@ async function redirectToGoogleReview(selectedRating = null) {
       if (navigator.sendBeacon) {
         navigator.sendBeacon(trackUrl, new Blob([body], { type: "application/json" }));
       } else {
-        await fetch(trackUrl, {
+        fetch(trackUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body,
-        });
+          keepalive: true,
+        }).catch(() => {});
       }
     } catch (err) {
       console.warn("[portal] Failed to record review click", err);
     }
   }
 
-  window.location.href = googleUrl;
+  window.location.assign(googleUrl);
 }
 
 // ----- LOAD BUSINESS PROFILE -----
 async function loadBusinessProfile() {
   setPortalStatus("loading", "Loading your feedback portal…");
-  businessId = getBusinessIdFromUrl();
+  const requestedBusinessId = getBusinessIdFromUrl();
 
-  if (!businessId) {
+  if (!requestedBusinessId && !shareKeyParam) {
     alert(
       "This feedback link is missing a business id. Please open the review link from the email again."
     );
@@ -234,26 +287,40 @@ async function loadBusinessProfile() {
   }
 
   try {
-    let ref = doc(db, "businesses", businessId);
-    let snap = await getDoc(ref);
-    let data = snap.exists() ? snap.data() : null;
+    let ref = null;
+    let snap = null;
 
-    if (!data && shareKeyParam) {
+    const publicResult = await fetchPublicBusiness();
+    if (publicResult?.snap?.exists()) {
+      ({ ref, snap } = publicResult);
+      businessId = ref.id;
+    }
+
+    if (!snap && requestedBusinessId) {
+      const profileRef = doc(db, "businessProfiles", requestedBusinessId);
+      const profileSnap = await getDoc(profileRef);
+      if (profileSnap.exists()) {
+        ref = profileRef;
+        snap = profileSnap;
+        businessId = profileRef.id;
+      }
+    }
+
+    if (!snap && shareKeyParam) {
       const shareKeyQuery = query(
-        collection(db, "businesses"),
+        collection(db, "businessProfiles"),
         where("shareKey", "==", shareKeyParam)
       );
       const shareKeySnap = await getDocs(shareKeyQuery);
       if (!shareKeySnap.empty) {
         const matchedDoc = shareKeySnap.docs[0];
-        data = matchedDoc.data();
-        businessId = matchedDoc.id;
-        ref = doc(db, "businesses", businessId);
+        ref = matchedDoc.ref;
         snap = matchedDoc;
+        businessId = matchedDoc.id;
       }
     }
 
-    if (!data) {
+    if (!snap || !snap.exists()) {
       console.warn("[portal] No business profile found for", businessId);
       setPortalStatus(
         "error",
@@ -262,18 +329,19 @@ async function loadBusinessProfile() {
       return;
     }
 
+    const data = snap.data() || {};
     businessSnapshot = snap;
 
-    const resolvedBusinessName = (data.businessName || "").trim();
+    const resolvedBusinessName =
+      (data.businessName || data.displayName || data.name || "").trim();
 
     if (!resolvedBusinessName) {
       console.error("[portal] Business name missing", {
         businessId,
         snapshot: data,
       });
-      setPortalStatus(
-        "error",
-        "This portal is missing a business name. Please ask the owner to update their profile."
+      handleMissingBusinessData(
+        "This portal is missing required business info. Please ask the owner to update their profile."
       );
       return;
     }
@@ -290,46 +358,36 @@ async function loadBusinessProfile() {
     }
 
     const resolvedLogoUrl =
-      data.logoUrl || data.logoURL || data.businessLogoUrl || data.brandLogoUrl || null;
+      data.logoUrl ||
+      data.logoURL ||
+      data.businessLogoUrl ||
+      data.brandLogoUrl ||
+      data.logoDataUrl ||
+      null;
 
-    if (!resolvedLogoUrl) {
-      console.error("[portal] Business logo missing", {
-        businessId,
-        snapshot: data,
-      });
-      setPortalStatus(
-        "error",
-        "This portal is missing branding (logo). Please ask the owner to upload a logo."
-      );
-      return;
-    }
-
-    businessLogoUrl = resolvedLogoUrl;
+    businessLogoUrl = resolvedLogoUrl || null;
     renderBusinessIdentity();
 
     googleReviewUrl =
       data.googleReviewLink || data.googleReviewUrl || resolveCanonicalReviewUrl(data) || "";
     const hasGoogleLink = Boolean(googleReviewUrl);
 
-    ratingButtons.forEach((btn) => {
-      btn.disabled = !hasGoogleLink;
-      btn.classList.toggle("disabled", !hasGoogleLink);
-    });
+    setRatingEnabled(hasGoogleLink);
+
+    if (sendFeedbackBtn) {
+      sendFeedbackBtn.disabled = !hasGoogleLink;
+    }
 
     if (!hasGoogleLink) {
       console.error("[portal] googleReviewLink missing", {
         businessId,
         snapshot: data,
       });
-      setPortalStatus(
-        "error",
-        "This portal is missing its Google review link. Please ask the owner to configure it."
+      handleMissingBusinessData(
+        "This portal is missing required business info. Please ask the owner to update their profile."
       );
-    }
-
-    if (highCtaButton) {
-      highCtaButton.disabled = !googleReviewUrl;
-      highCtaButton.classList.toggle("disabled", !googleReviewUrl);
+    } else {
+      setPortalStatus("ready");
     }
 
     if (googleReviewUrl && ref && ref.id) {
@@ -347,11 +405,6 @@ async function loadBusinessProfile() {
     document.title = `${businessName} • Feedback Portal`;
 
     await loadPortalSettings();
-
-    if (hasGoogleLink) {
-      setPortalStatus("ready");
-    }
-
   } catch (err) {
     const permissionDenied = err?.code === "permission-denied";
     if (permissionDenied) {
@@ -414,7 +467,7 @@ function applyPortalSettings() {
 
 // ----- RATING HANDLERS -----
 ratingButtons.forEach((btn) => {
-  btn.addEventListener("click", async () => {
+  btn.addEventListener("click", () => {
     if (btn.disabled) return;
 
     const value = Number(btn.dataset.rating);
@@ -423,18 +476,14 @@ ratingButtons.forEach((btn) => {
     setPortalClasses();
 
     if (value === 5) {
-      await redirectToGoogleReview(value);
+      redirectToGoogleReview(value);
     }
   });
 });
 
 if (highCtaButton) {
-  highCtaButton.addEventListener("click", async () => {
-    try {
-      await redirectToGoogleReview(currentRating || null);
-    } catch (err) {
-      console.error("Failed to open Google review link:", err);
-    }
+  highCtaButton.addEventListener("click", () => {
+    redirectToGoogleReview(currentRating || null);
   });
 }
 

@@ -13,6 +13,15 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
+const PUBLIC_BUSINESS_ALLOWED_FIELDS = new Set([
+  "businessId",
+  "businessName",
+  "logoUrl",
+  "googleReviewLink",
+  "updatedAt",
+  "shareKey",
+]);
+
 
 const BUILD_ID = process.env.BUILD_ID || Date.now().toString();
 const TEST_MODE = [
@@ -168,6 +177,76 @@ const DEFAULT_REVIEW_FUNNEL_SETTINGS = {
   },
   updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 };
+
+const resolveBusinessName = (data = {}) =>
+  (data.businessName || data.displayName || data.name || "").toString().trim();
+
+const resolveBusinessLogo = (data = {}) =>
+  data.logoUrl ||
+  data.logoURL ||
+  data.businessLogoUrl ||
+  data.brandLogoUrl ||
+  data.logoDataUrl ||
+  null;
+
+const resolveGoogleReviewLink = (data = {}) => {
+  const linkCandidate =
+    data.googleReviewLink ||
+    data.googleReviewUrl ||
+    data.googleReview ||
+    data.googleLink ||
+    data.happy?.googleReviewUrl ||
+    "";
+
+  return typeof linkCandidate === "string" ? linkCandidate.trim() : "";
+};
+
+const sanitizePublicBusinessPayload = ({ businessId, data = {}, existing = {} }) => {
+  const businessName = resolveBusinessName(data) || resolveBusinessName(existing) || "";
+  const googleReviewLink =
+    resolveGoogleReviewLink(data) || resolveGoogleReviewLink(existing) || "";
+  const logoUrl = resolveBusinessLogo(data) || resolveBusinessLogo(existing) || null;
+  const shareKey = data.shareKey || existing.shareKey || null;
+
+  if (!businessName || !googleReviewLink) return null;
+
+  const payload = {
+    businessId: String(businessId),
+    businessName,
+    googleReviewLink,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (logoUrl) payload.logoUrl = logoUrl;
+  if (shareKey) payload.shareKey = shareKey;
+
+  return Object.fromEntries(
+    Object.entries(payload).filter(([key]) => PUBLIC_BUSINESS_ALLOWED_FIELDS.has(key)),
+  );
+};
+
+async function upsertPublicBusiness(businessId, data = {}) {
+  if (!businessId) return null;
+
+  const publicRef = db.collection("publicBusinesses").doc(String(businessId));
+  const existingSnap = await publicRef.get();
+  const existingData = existingSnap.exists ? existingSnap.data() : {};
+  const payload = sanitizePublicBusinessPayload({ businessId, data, existing: existingData });
+
+  if (!payload) {
+    console.warn("[publicBusiness] missing required fields for upsert", {
+      businessId,
+      hasName: Boolean(resolveBusinessName(data) || resolveBusinessName(existingData)),
+      hasGoogleLink: Boolean(
+        resolveGoogleReviewLink(data) || resolveGoogleReviewLink(existingData),
+      ),
+    });
+    return null;
+  }
+
+  await publicRef.set(payload, { merge: true });
+  return payload;
+}
 
 const loadBusinessAccount = async (businessId) => {
   const businessRef = db.collection("businesses").doc(businessId);
@@ -1988,6 +2067,17 @@ exports.connectGoogleBusiness = functions.https.onCall(async (data, context) => 
 
   await profileRef.set(payload, { merge: true });
 
+  try {
+    await upsertPublicBusiness(uid, {
+      ...payload,
+      businessName,
+      logoUrl: resolveBusinessLogo(profileData),
+      googleReviewLink: googleReviewUrl,
+    });
+  } catch (err) {
+    console.error("[publicBusiness] failed to sync after connect by candidate", err);
+  }
+
   return {
     ok: true,
     reason: "CONNECTED",
@@ -2186,6 +2276,17 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
     }
 
     await profileRef.set(payload, { merge: true });
+
+    try {
+      await upsertPublicBusiness(uid, {
+        ...payload,
+        businessName,
+        logoUrl: resolveBusinessLogo(profileData),
+        googleReviewLink: googleReviewUrl,
+      });
+    } catch (err) {
+      console.error("[publicBusiness] failed to sync after review link connect", err);
+    }
 
     return {
       ok: true,
@@ -2504,6 +2605,21 @@ exports.connectGoogleManualLink = functions.https.onCall(async (data, context) =
     },
     { merge: true }
   );
+
+  try {
+    await upsertPublicBusiness(uid, {
+      businessId: uid,
+      businessName:
+        data?.businessName || profileData?.businessName || profileData?.name || "",
+      logoUrl: resolveBusinessLogo(profileData),
+      googleReviewLink: placeIdFromLink
+        ? buildGoogleReviewUrl(placeIdFromLink)
+        : profileData.googleReviewUrl || normalizedLink,
+      shareKey: profileData?.shareKey,
+    });
+  } catch (err) {
+    console.error("[publicBusiness] failed to sync after manual connect", err);
+  }
 
   return {
     ok: true,
@@ -3811,4 +3927,32 @@ exports.onAiConversationResolved = functions.firestore
       },
       { merge: true }
     );
+  });
+
+exports.syncPublicBusinessFromBusinessDoc = functions.firestore
+  .document("businesses/{businessId}")
+  .onWrite(async (change, context) => {
+    if (!change.after.exists) return null;
+
+    try {
+      await upsertPublicBusiness(context.params.businessId, change.after.data() || {});
+    } catch (err) {
+      console.error("[publicBusiness] failed to sync from businesses", err);
+    }
+
+    return null;
+  });
+
+exports.syncPublicBusinessFromProfile = functions.firestore
+  .document("businessProfiles/{businessId}")
+  .onWrite(async (change, context) => {
+    if (!change.after.exists) return null;
+
+    try {
+      await upsertPublicBusiness(context.params.businessId, change.after.data() || {});
+    } catch (err) {
+      console.error("[publicBusiness] failed to sync from businessProfiles", err);
+    }
+
+    return null;
   });
