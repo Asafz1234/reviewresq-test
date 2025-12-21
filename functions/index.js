@@ -2081,18 +2081,6 @@ const applyReviewFunnelPatch = async ({ businessId, authUid, rawPatch }) => {
   };
 };
 
-const updateReviewFunnelSettingsCallable = functions.https.onCall(
-  async (data, context) => {
-    return applyReviewFunnelPatch({
-      businessId: data?.businessId || context.auth?.uid,
-      authUid: context.auth?.uid || null,
-      rawPatch: data?.patch || {},
-    });
-  }
-);
-
-exports.updateReviewFunnelSettingsCallable = updateReviewFunnelSettingsCallable;
-
 const REVIEW_FUNNEL_SETTINGS_BASE = {
   mode: "manual",
   happy: {
@@ -2118,23 +2106,10 @@ const REVIEW_FUNNEL_SETTINGS_BASE = {
   updatedAt: null,
 };
 
-const resolveAllowedOrigin = (origin = "") => {
-  const allowedOrigins = [
-    "https://reviewresq.com",
-    "https://www.reviewresq.com",
-  ];
-
-  if (allowedOrigins.includes(origin)) return origin;
-  if (origin && origin.startsWith("http://localhost:")) return origin;
-  return "https://reviewresq.com";
-};
-
 exports.updateReviewFunnelSettings = functions
   .region("us-central1")
   .https.onRequest(async (req, res) => {
-    const origin = resolveAllowedOrigin(req.headers.origin || "");
-
-    res.set("Access-Control-Allow-Origin", origin);
+    res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
     res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.set("Vary", "Origin");
