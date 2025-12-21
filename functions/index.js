@@ -2098,19 +2098,22 @@ exports.updateReviewFunnelSettingsHttp = functions.https.onRequest(async (req, r
     "http://localhost:3000",
   ];
 
-  if (allowedOrigins.includes(origin)) {
-    res.set("Access-Control-Allow-Origin", origin);
-  } else {
-    res.set("Access-Control-Allow-Origin", allowedOrigins[0]);
-  }
+  const allowOrigin = allowedOrigins.includes(origin)
+    ? origin
+    : "https://reviewresq.com";
 
+  res.set("Access-Control-Allow-Origin", allowOrigin);
   res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.set("Access-Control-Max-Age", "3600");
   res.set("Vary", "Origin");
 
   if (req.method === "OPTIONS") {
-    return res.status(204).send("");
+    return res
+      .status(204)
+      .set("Access-Control-Allow-Origin", allowOrigin)
+      .set("Vary", "Origin")
+      .send("");
   }
 
   let authUid = null;
