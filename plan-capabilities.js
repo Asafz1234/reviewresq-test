@@ -46,6 +46,8 @@ export const PLAN_CAPABILITIES = {
     reviewFunnelRatingRules: false,
     reviewFunnelBrandingLogo: false,
     reviewFunnelAIManaged: false,
+    campaigns_manual: false,
+    campaigns_automation: false,
   },
   growth: {
     overview_ai_insights: true,
@@ -77,6 +79,8 @@ export const PLAN_CAPABILITIES = {
     reviewFunnelRatingRules: true,
     reviewFunnelBrandingLogo: true,
     reviewFunnelAIManaged: false,
+    campaigns_manual: true,
+    campaigns_automation: false,
   },
   pro_ai: {
     overview_ai_insights: true,
@@ -108,6 +112,8 @@ export const PLAN_CAPABILITIES = {
     reviewFunnelRatingRules: false,
     reviewFunnelBrandingLogo: true,
     reviewFunnelAIManaged: true,
+    campaigns_manual: true,
+    campaigns_automation: true,
   },
 };
 
