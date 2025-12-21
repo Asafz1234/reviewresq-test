@@ -282,7 +282,7 @@ async function loadSettings(uid) {
   }
 
   const url = new URL(
-    "https://us-central1-reviewresq-app.cloudfunctions.net/updateReviewFunnelSettingsHttp",
+    "https://us-central1-reviewresq-app.cloudfunctions.net/updateReviewFunnelSettings",
   );
   url.searchParams.set("businessId", uid);
 
@@ -380,7 +380,7 @@ async function saveSettings() {
     }
 
     const response = await fetch(
-      "https://us-central1-reviewresq-app.cloudfunctions.net/updateReviewFunnelSettingsHttp",
+      "https://us-central1-reviewresq-app.cloudfunctions.net/updateReviewFunnelSettings",
       {
         method: "POST",
         headers: {
