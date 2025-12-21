@@ -253,6 +253,67 @@ const resolveInviteRecord = async (businessId, inviteToken) => {
   return { ref, data };
 };
 
+const createInviteToken = async ({
+  businessId,
+  customerId = null,
+  customerName = "",
+  phone = "",
+  email = "",
+  channel = "manual",
+  source = "manual",
+}) => {
+  if (!businessId) {
+    throw new Error("businessId is required to create an invite token");
+  }
+
+  const normalizedName = (customerName || "").toString().trim();
+  const normalizedPhone = (phone || "").toString().trim();
+  const normalizedEmail = (email || "").toString().trim();
+
+  if (!customerId && !normalizedName && !normalizedPhone && !normalizedEmail) {
+    throw new Error("Provide a customer id or contact details to create an invite.");
+  }
+
+  const inviteToken = crypto.randomBytes(12).toString("hex");
+  const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + INVITE_TOKEN_TTL_MS);
+
+  const ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
+  const invitePayload = {
+    businessId,
+    customerId: customerId || null,
+    customerName: normalizedName || null,
+    phone: normalizedPhone || null,
+    email: normalizedEmail || null,
+    channel,
+    source,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    expiresAt,
+    used: false,
+  };
+
+  await ref.set(invitePayload);
+
+  try {
+    const outboundRef = db.collection("businesses").doc(businessId).collection("outboundRequests");
+    await outboundRef.add({
+      inviteToken,
+      customerId: customerId || null,
+      customerName: normalizedName || null,
+      channel,
+      source,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.warn("[invite] failed to write outbound request", err);
+  }
+
+  const portalUrl = `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(
+    businessId,
+  )}&t=${encodeURIComponent(inviteToken)}`;
+
+  return { inviteToken, portalUrl, expiresAt: expiresAt.toMillis(), customerId: customerId || null };
+};
+
 const fetchCustomerProfile = async (businessId, customerId) => {
   if (!businessId || !customerId) return null;
 
@@ -2786,8 +2847,12 @@ exports.createInviteToken = functions.https.onCall(async (data = {}, context) =>
   const businessId = data.businessId || caller;
   const customerId = data.customerId;
   const channelRaw = typeof data.channel === "string" ? data.channel.toLowerCase() : "manual";
-  const allowedChannels = new Set(["sms", "email", "whatsapp", "manual"]);
+  const allowedChannels = new Set(["sms", "email", "whatsapp", "manual", "link"]);
   const channel = allowedChannels.has(channelRaw) ? channelRaw : "manual";
+  const customerName = data.customerName || data.name || "";
+  const phone = data.phone || "";
+  const email = data.email || "";
+  const source = data.source || "manual";
 
   if (!caller || !businessId || caller !== businessId) {
     throw new functions.https.HttpsError(
@@ -2796,33 +2861,27 @@ exports.createInviteToken = functions.https.onCall(async (data = {}, context) =>
     );
   }
 
-  if (!customerId) {
-    throw new functions.https.HttpsError("invalid-argument", "customerId is required");
+  if (!customerId && !customerName && !phone && !email) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Provide a customerId or customer contact details to create an invite token.",
+    );
   }
 
-  const inviteToken = crypto.randomBytes(12).toString("hex");
-  const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + INVITE_TOKEN_TTL_MS);
-
-  const ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
-  await ref.set({
-    businessId,
-    customerId,
-    channel,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    expiresAt,
-    used: false,
-  });
-
-  const portalUrl = `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(
-    businessId,
-  )}&t=${encodeURIComponent(inviteToken)}`;
-
-  return {
-    inviteToken,
-    portalUrl,
-    expiresAt: expiresAt.toMillis(),
-    customerId,
-  };
+  try {
+    return await createInviteToken({
+      businessId,
+      customerId,
+      customerName,
+      phone,
+      email,
+      channel,
+      source,
+    });
+  } catch (err) {
+    console.error("[functions.createInviteToken] failed", err);
+    throw new functions.https.HttpsError("internal", err?.message || "Unable to create invite token");
+  }
 });
 
 exports.importCustomersCsv = functions.https.onCall(async (data, context) => {
