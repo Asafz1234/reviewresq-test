@@ -43,6 +43,33 @@ if (!hasRequiredElements) {
   let currentLogoUrl = "";
   let profileCreatedAt = null;
 
+  async function ensureCanonicalBrandFields({ ref, data = {} }) {
+    if (!ref || !data) return;
+
+    const updates = {};
+
+    if (!data.businessName && (data.displayName || data.name)) {
+      updates.businessName = data.displayName || data.name || "";
+    }
+
+    if (!data.logoUrl) {
+      const legacyLogo =
+        data.brandLogoUrl ||
+        data.businessLogoUrl ||
+        data.logoDataUrl ||
+        data.logoURL ||
+        null;
+
+      if (legacyLogo) {
+        updates.logoUrl = legacyLogo;
+      }
+    }
+
+    if (Object.keys(updates).length) {
+      await setDoc(ref, updates, { merge: true });
+    }
+  }
+
   function buildNameAliases(name) {
     if (!name) return {};
     return {
@@ -68,6 +95,7 @@ if (!hasRequiredElements) {
         ? {
             logoUrl,
             logoURL: logoUrl,
+            brandLogoUrl: logoUrl,
             businessLogoUrl: logoUrl,
           }
         : {}),
@@ -165,6 +193,8 @@ if (!hasRequiredElements) {
       updatePreview();
       return;
     }
+
+    await ensureCanonicalBrandFields({ ref: businessRef, data });
 
     profileCreatedAt = data.createdAt || null;
 

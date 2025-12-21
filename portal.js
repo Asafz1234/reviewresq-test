@@ -240,8 +240,7 @@ async function loadBusinessProfile() {
       return;
     }
 
-    const resolvedBusinessName =
-      data.businessName || data.displayName || data.name || "";
+    const resolvedBusinessName = data.businessName || data.displayName || "";
 
     if (!resolvedBusinessName) {
       console.warn("[portal] Business name missing in document", {
@@ -260,8 +259,15 @@ async function loadBusinessProfile() {
       bizSubtitleDisplay.textContent = businessTagline;
     }
 
-    businessLogoUrl =
-      data.logoUrl || data.businessLogoUrl || data.logoDataUrl || data.logoURL || null;
+    const resolvedLogoUrl =
+      data.logoUrl ||
+      data.brandLogoUrl ||
+      data.businessLogoUrl ||
+      data.logoDataUrl ||
+      data.logoURL ||
+      null;
+
+    businessLogoUrl = resolvedLogoUrl;
     renderBusinessIdentity();
 
     googleReviewUrl = resolveCanonicalReviewUrl(data);
