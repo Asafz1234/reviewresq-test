@@ -43,6 +43,51 @@ if (!hasRequiredElements) {
   let currentLogoUrl = "";
   let profileCreatedAt = null;
 
+  function buildNameAliases(name) {
+    if (!name) return {};
+    return {
+      businessName: name,
+      displayName: name,
+      name,
+    };
+  }
+
+  async function persistBrandFields({ name, logoUrl, brandColor } = {}) {
+    if (!currentUser) return;
+
+    const timestamps = {
+      updatedAt: serverTimestamp(),
+      createdAt: profileCreatedAt || serverTimestamp(),
+    };
+
+    const businessPayload = {
+      ...timestamps,
+      portalPath: `/portal.html?businessId=${currentUser.uid}`,
+      ...(brandColor ? { brandColor } : {}),
+      ...(logoUrl !== undefined
+        ? {
+            logoUrl,
+            logoURL: logoUrl,
+            businessLogoUrl: logoUrl,
+          }
+        : {}),
+      ...buildNameAliases(name),
+    };
+
+    const profilePayload = {
+      ...timestamps,
+      portalPath: `/portal.html?bid=${currentUser.uid}`,
+      ...(brandColor ? { brandColor } : {}),
+      ...(logoUrl !== undefined ? { logoUrl, logoDataUrl: logoUrl } : {}),
+      ...(name ? { businessName: name } : {}),
+    };
+
+    await Promise.all([
+      setDoc(doc(db, "businesses", currentUser.uid), businessPayload, { merge: true }),
+      setDoc(doc(db, "businessProfiles", currentUser.uid), profilePayload, { merge: true }),
+    ]);
+  }
+
   // ===== LIVE PREVIEW FUNCTIONS =====
   function updatePreview() {
     const name = bizNameInput.value || "Your Business";
@@ -82,16 +127,7 @@ if (!hasRequiredElements) {
       const url = await uploadLogoAndGetURL(file, currentUser.uid);
 
       currentLogoUrl = url;
-      await setDoc(
-        doc(db, "businessProfiles", currentUser.uid),
-        {
-          logoUrl: url,
-          logoDataUrl: url,
-          updatedAt: serverTimestamp(),
-          createdAt: profileCreatedAt || serverTimestamp(),
-        },
-        { merge: true }
-      );
+      await persistBrandFields({ logoUrl: url });
       updatePreview();
     } catch (err) {
       console.error("Failed to upload logo:", err);
@@ -99,16 +135,7 @@ if (!hasRequiredElements) {
       try {
         const dataUrl = await fileToDataUrl(file);
         currentLogoUrl = dataUrl;
-        await setDoc(
-          doc(db, "businessProfiles", currentUser.uid),
-          {
-            logoUrl: "",
-            logoDataUrl: dataUrl,
-            updatedAt: serverTimestamp(),
-            createdAt: profileCreatedAt || serverTimestamp(),
-          },
-          { merge: true }
-        );
+        await persistBrandFields({ logoUrl: dataUrl });
         updatePreview();
         alert("Logo saved using a backup method.");
       } catch (fallbackError) {
@@ -120,29 +147,39 @@ if (!hasRequiredElements) {
 
   // ===== LOAD EXISTING DATA =====
   async function loadPortalSettings(uid) {
-    const ref = doc(db, "businessProfiles", uid);
-    const snap = await getDoc(ref);
+    const businessRef = doc(db, "businesses", uid);
+    const profileRef = doc(db, "businessProfiles", uid);
+    const [businessSnap, profileSnap] = await Promise.all([
+      getDoc(businessRef),
+      getDoc(profileRef),
+    ]);
 
-    if (!snap.exists()) {
+    const data = businessSnap.exists()
+      ? businessSnap.data()
+      : profileSnap.exists()
+        ? profileSnap.data()
+        : null;
+
+    if (!data) {
       console.log("No existing profile. Using defaults.");
       updatePreview();
       return;
     }
 
-    const data = snap.data();
     profileCreatedAt = data.createdAt || null;
 
     // Fill UI
-    bizNameInput.value = data.businessName || "";
+    bizNameInput.value = data.businessName || data.displayName || data.name || "";
 
     // Color
-    const color = data.brandColor || "#2563eb";
+    const color = data.brandColor || data.branding?.primary || "#2563eb";
     brandColorInput.value = color;
     brandColorHex.value = color;
 
     // Logo
-    if (data.logoUrl || data.logoDataUrl) {
-      currentLogoUrl = data.logoUrl || data.logoDataUrl;
+    if (data.logoUrl || data.logoDataUrl || data.logoURL || data.businessLogoUrl) {
+      currentLogoUrl =
+        data.logoUrl || data.logoDataUrl || data.logoURL || data.businessLogoUrl;
     }
 
     updatePreview();
@@ -160,20 +197,7 @@ if (!hasRequiredElements) {
       return;
     }
 
-    const ref = doc(db, "businessProfiles", currentUser.uid);
-
-    await setDoc(
-      ref,
-      {
-        businessName: name,
-        brandColor: color,
-        logoUrl: currentLogoUrl || "",
-        updatedAt: serverTimestamp(),
-        createdAt: profileCreatedAt || serverTimestamp(),
-        portalPath: `/portal.html?bid=${currentUser.uid}`,
-      },
-      { merge: true }
-    );
+    await persistBrandFields({ name, brandColor: color, logoUrl: currentLogoUrl || "" });
 
     alert("Portal updated successfully!");
   }
