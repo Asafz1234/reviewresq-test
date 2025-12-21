@@ -1,12 +1,11 @@
 import { onSession } from "./dashboard-data.js";
 import {
   db,
+  auth,
   doc,
   getDoc,
   setDoc,
   serverTimestamp,
-  httpsCallable,
-  functions,
   uploadLogoAndGetURL,
 } from "./firebase-config.js";
 import { PLAN_LABELS, normalizePlan, getPlanCapabilities } from "./plan-capabilities.js";
@@ -335,11 +334,32 @@ async function saveSettings() {
       activeSettings.branding.logoUrl = logoUrl;
     }
 
-    const update = httpsCallable(functions, "updateReviewFunnelSettings");
-    await update({ businessId, patch });
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) {
+      throw new Error("You need to be signed in to save your funnel.");
+    }
+
+    const response = await fetch(
+      "https://us-central1-reviewresq-app.cloudfunctions.net/updateReviewFunnelSettingsHttp",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ businessId, patch }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const message = errorBody?.message || "We couldn't save your changes right now. Please try again.";
+      throw new Error(message);
+    }
+
     const refreshed = await loadSettings(businessId);
     applySettings(refreshed);
-    setSaveHint("Saved. Your review funnel is up to date.", "success");
+    setSaveHint("Saved successfully", "success");
   } catch (err) {
     console.error("[funnel] save failed", err);
     setSaveHint(err?.message || "We couldn't save your changes right now. Please try again.", "error");
