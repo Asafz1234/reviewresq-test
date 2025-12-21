@@ -6,6 +6,7 @@
   <title>ReviewResQ – Ask for reviews</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="icon" type="image/png" href="logo.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="dashboard.css" />
 </head>
@@ -81,9 +82,8 @@
             <div class="button-row">
               <button class="btn btn-primary" type="submit" id="generateSingleBtn">Generate &amp; Copy Link</button>
             </div>
-            <div class="pill pill-success" id="emailSuccess" hidden>
-              Email sent
-            </div>
+            <div class="pill pill-success" id="emailSuccess" hidden>Email sent</div>
+            <div class="pill pill-error" id="emailError" hidden></div>
             <div class="card muted-card" id="singleResult" hidden>
               <p class="card-title">Portal link</p>
               <div class="input-row">
