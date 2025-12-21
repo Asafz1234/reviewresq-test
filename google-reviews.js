@@ -6,6 +6,13 @@ import {
   describeReview,
 } from "./dashboard-data.js";
 import { initialsFromName, formatDate } from "./session-data.js";
+import {
+  db,
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+} from "./firebase-config.js";
 import { normalizePlan } from "./plan-capabilities.js";
 
 const buildId = window.__REVIEWRESQ_BUILD_ID || "dev";
@@ -67,6 +74,7 @@ const toastId = "feedback-toast";
 let sessionState = { user: null, profile: null, subscription: null };
 let changeListenerAttached = false;
 let activeLocationId = null;
+let manualConnection = null;
 
 function resolveConnectBusinessName(place = {}) {
   const inputName = (place.__inputBusinessName || "").trim();
@@ -173,6 +181,176 @@ function showToast(message, isError = false) {
   toast.classList.toggle("toast-error", isError);
   toast.classList.add("visible");
   setTimeout(() => toast.classList.remove("visible"), 2400);
+}
+
+function renderConnectStatus({ manualConnected = false, googleConnected = false } = {}) {
+  const statusEl = document.getElementById("googleConnectStatus");
+  if (!statusEl) return;
+  if (manualConnected) {
+    statusEl.textContent = "Connected (Manual)";
+    return;
+  }
+  if (googleConnected) {
+    statusEl.textContent = "Connected (Google)";
+    return;
+  }
+  statusEl.textContent = "Not connected";
+}
+
+function getManualInputs() {
+  return {
+    name: document.querySelector("[data-google-name]") || document.querySelector("[data-google-query]") || null,
+    state: document.querySelector("[data-google-state]") || null,
+    phone: document.querySelector("[data-google-phone]") || null,
+  };
+}
+
+function applyManualValuesToForm(connection = manualConnection) {
+  if (!connection) return;
+  const inputs = getManualInputs();
+  if (inputs.name && !inputs.name.value) inputs.name.value = connection.businessName || "";
+  if (inputs.state && !inputs.state.value) inputs.state.value = connection.state || "";
+  if (inputs.phone && !inputs.phone.value) inputs.phone.value = connection.phone || "";
+}
+
+function buildManualPayload(manualResponse = {}) {
+  const inputs = getManualInputs();
+  const businessName =
+    manualResponse.businessName ||
+    manualResponse.name ||
+    (inputs.name?.value || "").trim() ||
+    sessionState.profile?.businessName ||
+    "";
+  const state = manualResponse.state || manualResponse.region || (inputs.state?.value || "").trim();
+  const phone =
+    manualResponse.phone ||
+    manualResponse.phoneNumber ||
+    manualResponse.formatted_phone_number ||
+    (inputs.phone?.value || "").trim();
+  const placeId =
+    manualResponse.placeId ||
+    manualResponse.place_id ||
+    manualResponse.googlePlaceId ||
+    manualResponse.locationId ||
+    "";
+  return {
+    businessName,
+    state,
+    phone,
+    placeId: placeId || "",
+  };
+}
+
+function validateManualPayload(payload = {}) {
+  const errors = [];
+  if (!payload.businessName) {
+    errors.push("Enter your business name.");
+  }
+  const hasLocationDetails = payload.placeId || (payload.state && payload.phone);
+  if (!hasLocationDetails) {
+    errors.push("Add your state and phone number or a Google place ID.");
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+function toggleManualButtons(disabled) {
+  const manualButtons = document.querySelectorAll(
+    "[data-manual-connect], [data-manual-launch], [data-google-search]"
+  );
+  manualButtons.forEach((btn) => {
+    btn.disabled = disabled;
+  });
+}
+
+function augmentProfileWithManual(baseProfile = {}, connection = manualConnection) {
+  if (!connection) return baseProfile;
+  const profile = baseProfile || {};
+  const googleProfile = {
+    ...(profile.googleProfile || {}),
+    connectionType: "manual",
+    manualConnected: true,
+    name: connection.businessName || profile.googleProfile?.name || profile.businessName,
+    businessName: connection.businessName || profile.businessName,
+    location: connection.state || profile.location || profile.city,
+    phone: connection.phone || profile.phone,
+    placeId: connection.placeId || profile.googlePlaceId,
+  };
+  return {
+    ...profile,
+    googleConnectionType: "manual",
+    googleManualConnection: true,
+    googleManualLink: true,
+    googleProfile,
+    googlePlaceId: connection.placeId || profile.googlePlaceId || null,
+  };
+}
+
+async function loadManualConnectionFromFirestore() {
+  if (!sessionState.user) return null;
+  try {
+    const ref = doc(db, "users", sessionState.user.uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      manualConnection = null;
+      renderConnectStatus({ manualConnected: false, googleConnected: false });
+      return null;
+    }
+    const data = snap.data() || {};
+    const selected = data.selectedBusiness || {};
+    if (selected.connectionType === "manual") {
+      manualConnection = {
+        businessName: selected.businessName || "",
+        state: selected.state || "",
+        phone: selected.phone || "",
+        placeId: selected.placeId || "",
+      };
+    } else {
+      manualConnection = null;
+    }
+    applyManualValuesToForm();
+    return manualConnection;
+  } catch (err) {
+    console.error("[google-reviews] failed to load manual connection", err);
+    return null;
+  }
+}
+
+async function saveManualConnection(manualResponse = {}) {
+  if (!sessionState.user) {
+    showToast("You need to be signed in to connect manually.", true);
+    return { ok: false };
+  }
+  const payload = buildManualPayload(manualResponse);
+  const validation = validateManualPayload(payload);
+  if (!validation.ok) {
+    showToast(validation.errors.join(" "), true);
+    return { ok: false };
+  }
+
+  toggleManualButtons(true);
+  try {
+    const ref = doc(db, "users", sessionState.user.uid);
+    const selectedBusiness = {
+      connectionType: "manual",
+      businessName: payload.businessName,
+      state: payload.state || "",
+      phone: payload.phone || "",
+      placeId: payload.placeId || null,
+      updatedAt: serverTimestamp(),
+    };
+    await setDoc(ref, { selectedBusiness }, { merge: true });
+    manualConnection = selectedBusiness;
+    applyManualValuesToForm();
+    renderConnectStatus({ manualConnected: true, googleConnected: false });
+    showToast("Manual connection saved successfully.");
+    return { ok: true, data: selectedBusiness };
+  } catch (err) {
+    console.error("[google-reviews] unable to save manual connection", err);
+    showToast("Unable to save manual connection. Please try again.", true);
+    return { ok: false, error: err };
+  } finally {
+    toggleManualButtons(false);
+  }
 }
 
 function renderProfile(profile, googleMetrics = {}) {
@@ -449,21 +627,19 @@ async function persistGoogleSelection(place) {
 }
 
 async function persistManualGoogleLink(manualResponse = {}) {
-  if (!sessionState.user) return;
-  try {
-    const { refetchProfileAfterConnect } = await getGoogleConnectModule();
-    sessionState.profile = await refetchProfileAfterConnect();
-    showToast(manualResponse?.message || "Google profile connected.");
+  const result = await saveManualConnection(manualResponse);
+  if (result?.ok) {
+    showToast("Manual connection saved successfully.");
+    sessionState.profile = augmentProfileWithManual(sessionState.profile);
     await loadGoogleData();
-    return { ok: true };
-  } catch (err) {
-    console.error("[google-reviews] failed to save manual Google link", err);
-    const message =
-      err?.message ||
-      "Unable to save your manual Google link right now. Please try again.";
-    err.message = message;
-    throw err;
+    return result;
   }
+  const error = new Error(
+    result?.error?.message ||
+      manualResponse?.message ||
+      "Unable to save manual connection. Please try again."
+  );
+  throw error;
 }
 
 async function renderConnectCard() {
@@ -478,11 +654,17 @@ async function renderConnectCard() {
     onManualConnect: persistManualGoogleLink,
     planId: normalizePlan(sessionState.subscription?.planId || "starter"),
   });
+  applyManualValuesToForm();
+  renderConnectStatus({
+    manualConnected: Boolean(manualConnection),
+    googleConnected: Boolean(sessionState.profile?.googlePlaceId),
+  });
 }
 
 async function loadGoogleData() {
   const plan = normalizePlan(sessionState.subscription?.planId || "starter");
-  const locations = deriveConnectedLocations(sessionState.profile || {});
+  const profileWithManual = augmentProfileWithManual(sessionState.profile);
+  const locations = deriveConnectedLocations(profileWithManual || {});
   if (!activeLocationId) {
     activeLocationId = resolveStoredLocationId();
   }
@@ -495,8 +677,8 @@ async function loadGoogleData() {
   }
   renderLocationSelector(locations, plan);
   const profileView = selected?.googleProfile
-    ? { ...sessionState.profile, googleProfile: selected.googleProfile, googlePlaceId: selected.placeId }
-    : sessionState.profile;
+    ? { ...profileWithManual, googleProfile: selected.googleProfile, googlePlaceId: selected.placeId }
+    : profileWithManual;
 
   const manualConnected = Boolean(
     profileView?.googleConnectionType === "manual" ||
@@ -507,7 +689,9 @@ async function loadGoogleData() {
       profileView?.googleManualLink ||
       selected?.verificationMethod === "phone"
   );
+  const googleConnected = Boolean(profileView?.googlePlaceId || locations.length);
   const isConnected = Boolean(profileView?.googlePlaceId || manualConnected);
+  renderConnectStatus({ manualConnected, googleConnected });
   await renderNoProfileNotice(locations, { manualConnected });
   toggleViews(isConnected);
   if (!isConnected) {
@@ -555,5 +739,6 @@ onSession(async ({ user, profile, subscription }) => {
       changeListenerAttached = true;
     }
   }
+  await loadManualConnectionFromFirestore();
   await loadGoogleData();
 });

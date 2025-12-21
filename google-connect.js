@@ -1465,7 +1465,14 @@ export function renderGoogleConnect(container, options = {}) {
     const afterManualConnect = async (response = {}) => {
       const handler = typeof onManualConnect === "function" ? onManualConnect : onConnect;
       if (typeof handler === "function") {
-        await handler({ ...response, __manual: true });
+        const result = await handler({ ...response, __manual: true });
+        if (result?.ok === false) {
+          const errorMessage =
+            result?.message ||
+            result?.error?.message ||
+            "Unable to save that manual connection right now.";
+          throw new Error(errorMessage);
+        }
       }
       messageEl.textContent = "Connected manually.";
       messageEl.style.color = "var(--success)";
