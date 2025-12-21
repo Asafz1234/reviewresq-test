@@ -5,14 +5,15 @@ import {
   db,
   doc,
   getDoc,
-  collection,
-  addDoc,
-  serverTimestamp,
   getDocs,
   query,
   where,
   setDoc,
 } from "./firebase-config.js";
+import {
+  buildFeedbackPayload,
+  submitFeedback,
+} from "./feedback-store.js";
 import { resolveCanonicalReviewUrl } from "./google-link-utils.js";
 
 // ----- DOM ELEMENTS -----
@@ -591,6 +592,10 @@ async function handleFeedbackSubmit(event) {
     alert(
       "We couldn’t send your feedback (missing business id in the link). Please open the review link from the email again."
     );
+    setPortalStatus(
+      "error",
+      "We couldn’t send your feedback because this link is missing the business id. Please try the original link again."
+    );
     return;
   }
 
@@ -618,25 +623,18 @@ async function handleFeedbackSubmit(event) {
       customerEmail,
     });
 
-    const feedbackCollection = collection(
-      db,
-      "businesses",
-      currentBusinessId,
-      "feedback"
-    );
-
-    await addDoc(feedbackCollection, {
-      businessId: currentBusinessId,
+    const payload = buildFeedbackPayload(currentBusinessId, {
       rating,
       message,
-      customerName: customerName || null,
-      customerEmail: customerEmail || null,
-      sentimentScore: Number((Number(rating || 0) - 3).toFixed(2)),
-      type: "private",
+      customerName,
+      customerEmail,
       source: "portal",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      status: "new",
+      writeVersion: "v2",
+      env: typeof window !== "undefined" ? window.location.hostname : "unknown",
     });
+
+    await submitFeedback(currentBusinessId, payload, { dualWriteLegacy: true });
 
     console.log("[portal] Feedback submitted successfully");
     showThankYouState();

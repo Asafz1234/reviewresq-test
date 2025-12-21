@@ -21,11 +21,14 @@ const upgradeHint = modalEl?.querySelector("[data-upgrade-hint]");
 const advancedArea = modalEl?.querySelector("[data-advanced-reply-area]");
 const planBadge = document.querySelector(".topbar-right .badge");
 const toastId = "feedback-toast";
+const dateFilter = document.querySelector(".filter-row select");
+const searchInput = document.querySelector('.filter-row input[type="search"]');
 
 const feedbackCache = new Map();
 let currentPlan = normalizePlan(currentPlanTier());
 let currentBusinessId = null;
 let activeFeedbackId = null;
+let allFeedback = [];
 
 function updatePlanUI() {
   if (upgradeHint) {
@@ -276,6 +279,54 @@ function renderFeedback(rows = []) {
   });
 }
 
+function normalizeCreatedDate(feedback) {
+  if (!feedback) return null;
+  if (feedback.createdAt instanceof Date) return feedback.createdAt;
+  if (typeof feedback.createdAt === "number") return new Date(feedback.createdAt);
+  if (feedback.createdAtMs) {
+    const asNumber = Number(feedback.createdAtMs);
+    if (!Number.isNaN(asNumber)) return new Date(asNumber);
+  }
+  const parsed = Date.parse(feedback.createdAt);
+  return Number.isNaN(parsed) ? null : new Date(parsed);
+}
+
+function applyFilters() {
+  let filtered = [...allFeedback];
+  const query = (searchInput?.value || "").trim().toLowerCase();
+  if (query) {
+    filtered = filtered.filter((item) => {
+      return (
+        (item.displayName || "").toLowerCase().includes(query) ||
+        (item.email || "").toLowerCase().includes(query) ||
+        (item.phone || "").toLowerCase().includes(query) ||
+        (item.message || "").toLowerCase().includes(query)
+      );
+    });
+  }
+
+  const selectedRange = dateFilter?.value || "This month";
+  if (selectedRange !== "All time") {
+    const today = new Date();
+    let startDate = null;
+    if (selectedRange === "This month") {
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    } else if (selectedRange === "Last 30 days") {
+      startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    if (startDate) {
+      filtered = filtered.filter((item) => {
+        const created = normalizeCreatedDate(item);
+        if (!created) return true;
+        return created >= startDate;
+      });
+    }
+  }
+
+  renderFeedback(filtered);
+}
+
 onSession(async ({ user, subscription, profile }) => {
   if (!user) return;
   currentBusinessId = profile?.id || user.uid;
@@ -286,7 +337,8 @@ onSession(async ({ user, subscription, profile }) => {
   }
   const reviews = await fetchAllReviews(currentBusinessId || user.uid);
   const feedbackOnly = reviews.filter((r) => r.source !== "google").map(describeReview);
-  renderFeedback(feedbackOnly);
+  allFeedback = feedbackOnly;
+  applyFilters();
 });
 
 if (toggleStatusButton) {
@@ -333,4 +385,12 @@ if (callLink) {
     event.preventDefault();
     window.location.href = href;
   });
+}
+
+if (dateFilter) {
+  dateFilter.addEventListener("change", applyFilters);
+}
+
+if (searchInput) {
+  searchInput.addEventListener("input", applyFilters);
 }
