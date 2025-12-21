@@ -21,8 +21,14 @@ function showToast(message, isError = false) {
 
 async function copyText(text) {
   if (!text) throw new Error("No text to copy");
-  if (navigator?.clipboard?.writeText && window.isSecureContext) {
-    return navigator.clipboard.writeText(text);
+  if (navigator?.clipboard?.writeText) {
+    try {
+      return await navigator.clipboard.writeText(text);
+    } catch (err) {
+      if (window?.isSecureContext !== false) {
+        throw err;
+      }
+    }
   }
 
   const textarea = document.createElement("textarea");
@@ -41,12 +47,14 @@ function bindCopyButtons() {
   document.querySelectorAll("[data-copy]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const type = btn.dataset.copy;
-      const value =
+      const targetInput =
         type === "googleReview"
-          ? googleInput?.value
+          ? document.querySelector("[data-google-link]")
           : type === "portal"
-            ? funnelInput?.value
-            : "";
+            ? document.querySelector("[data-funnel-link]")
+            : null;
+
+      const value = targetInput?.value;
 
       if (!value || value === "—") {
         showToast("No link available to copy", true);
@@ -56,6 +64,10 @@ function bindCopyButtons() {
       try {
         await copyText(value);
         showToast("Copied!");
+        btn.textContent = "Copied";
+        setTimeout(() => {
+          btn.textContent = "Copy link";
+        }, 1200);
       } catch (err) {
         console.error("[links] copy failed", err);
         showToast("Copy failed", true);
