@@ -269,6 +269,7 @@ function augmentProfileWithManual(baseProfile = {}, connection = manualConnectio
     ...(profile.googleProfile || {}),
     connectionType: "manual",
     manualConnected: true,
+    manualGoogleUrl: connection.manualGoogleUrl || profile.googleProfile?.manualGoogleUrl,
     name: connection.businessName || profile.googleProfile?.name || profile.businessName,
     businessName: connection.businessName || profile.businessName,
     location: connection.state || profile.location || profile.city,
@@ -279,7 +280,8 @@ function augmentProfileWithManual(baseProfile = {}, connection = manualConnectio
     ...profile,
     googleConnectionType: "manual",
     googleManualConnection: true,
-    googleManualLink: true,
+    googleManualLink: connection.manualGoogleUrl || profile.googleManualLink || true,
+    googleManualUrl: connection.manualGoogleUrl || profile.googleManualUrl,
     googleProfile,
     googlePlaceId: connection.placeId || profile.googlePlaceId || null,
   };
@@ -288,26 +290,42 @@ function augmentProfileWithManual(baseProfile = {}, connection = manualConnectio
 async function loadManualConnectionFromFirestore() {
   if (!sessionState.user) return null;
   try {
-    const ref = doc(db, "users", sessionState.user.uid);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      manualConnection = null;
-      renderConnectStatus({ manualConnected: false, googleConnected: false });
-      return null;
+    const profileRef = doc(db, "googleProfiles", sessionState.user.uid);
+    const profileSnap = await getDoc(profileRef);
+    const userRef = doc(db, "users", sessionState.user.uid);
+    const userSnap = await getDoc(userRef);
+
+    let connection = null;
+    if (profileSnap.exists()) {
+      const data = profileSnap.data() || {};
+      if (data.connectionType === "manual" || data.type === "manual") {
+        connection = {
+          businessName: data.manualBusinessName || data.businessName || "",
+          manualGoogleUrl: data.manualGoogleUrl || data.url || "",
+          normalizedHost: data.normalizedHost || "",
+          connectionType: "manual",
+          placeId: data.placeId || "",
+        };
+      }
     }
-    const data = snap.data() || {};
-    const selected = data.selectedBusiness || {};
-    if (selected.connectionType === "manual") {
-      manualConnection = {
-        businessName: selected.businessName || "",
-        state: selected.state || "",
-        phone: selected.phone || "",
-        placeId: selected.placeId || "",
-      };
-    } else {
-      manualConnection = null;
+
+    if (!connection && userSnap.exists()) {
+      const data = userSnap.data() || {};
+      const selected = data.selectedBusiness || {};
+      if (selected.connectionType === "manual") {
+        connection = {
+          businessName: selected.businessName || "",
+          state: selected.state || "",
+          phone: selected.phone || "",
+          placeId: selected.placeId || "",
+          connectionType: "manual",
+        };
+      }
     }
+
+    manualConnection = connection;
     applyManualValuesToForm();
+    renderConnectStatus({ manualConnected: Boolean(manualConnection), googleConnected: false });
     return manualConnection;
   } catch (err) {
     console.error("[google-reviews] failed to load manual connection", err);
@@ -320,30 +338,50 @@ async function saveManualConnection(manualResponse = {}) {
     showToast("You need to be signed in to connect manually.", true);
     return { ok: false };
   }
-  const payload = buildManualPayload(manualResponse);
-  const validation = validateManualPayload(payload);
-  if (!validation.ok) {
-    showToast(validation.errors.join(" "), true);
+
+  const businessName =
+    manualResponse.businessName ||
+    manualResponse.name ||
+    sessionState.profile?.businessName ||
+    "";
+  const manualGoogleUrl =
+    manualResponse.manualGoogleUrl ||
+    manualResponse.manualLink ||
+    manualResponse.googleManualLink ||
+    "";
+
+  if (!manualGoogleUrl) {
+    showToast("Please paste a valid Google Maps or Google Reviews link.", true);
+    return { ok: false };
+  }
+
+  if (!businessName) {
+    showToast("Enter your business name to continue.", true);
     return { ok: false };
   }
 
   toggleManualButtons(true);
   try {
-    const ref = doc(db, "users", sessionState.user.uid);
-    const selectedBusiness = {
+    const payload = {
       connectionType: "manual",
-      businessName: payload.businessName,
-      state: payload.state || "",
-      phone: payload.phone || "",
-      placeId: payload.placeId || null,
+      manualBusinessName: businessName,
+      manualGoogleUrl,
+      normalizedHost: manualResponse.normalizedHost || "",
       updatedAt: serverTimestamp(),
     };
-    await setDoc(ref, { selectedBusiness }, { merge: true });
-    manualConnection = selectedBusiness;
+    const ref = doc(db, "googleProfiles", sessionState.user.uid);
+    await setDoc(ref, payload, { merge: true });
+
+    manualConnection = {
+      businessName,
+      manualGoogleUrl,
+      normalizedHost: manualResponse.normalizedHost || "",
+      connectionType: "manual",
+    };
     applyManualValuesToForm();
     renderConnectStatus({ manualConnected: true, googleConnected: false });
     showToast("Manual connection saved successfully.");
-    return { ok: true, data: selectedBusiness };
+    return { ok: true, data: manualConnection };
   } catch (err) {
     console.error("[google-reviews] unable to save manual connection", err);
     showToast("Unable to save manual connection. Please try again.", true);

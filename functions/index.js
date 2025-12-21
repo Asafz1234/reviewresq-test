@@ -480,34 +480,21 @@ const extractCidFromUrl = (url = "") => {
 
 const isValidGoogleBusinessUrl = (raw = "") => {
   if (!raw) return false;
+  const trimmed = String(raw || "").trim();
+  let url;
   try {
-    const url = new URL(raw);
-    const host = url.hostname.toLowerCase();
-    const path = url.pathname.toLowerCase();
-    const search = url.search.toLowerCase();
-
-    const googleHost =
-      host.includes("google.com") ||
-      host.includes("googleusercontent.com") ||
-      host.includes("goo.gl") ||
-      host.includes("g.page") ||
-      host.includes("maps.app.goo.gl");
-
-    if (!googleHost) return false;
-
-    const hasPlaceId = url.searchParams.has("placeid") || /placeid=/.test(search);
-    const hasCid = url.searchParams.has("cid") || /cid=/.test(search);
-    const hasReviewKeyword =
-      path.includes("/local/review") ||
-      path.includes("/local/reviews") ||
-      path.includes("/maps") ||
-      path.includes("/place") ||
-      path.includes("/search");
-
-    return hasPlaceId || hasCid || hasReviewKeyword;
+    url = new URL(trimmed);
   } catch (err) {
     return false;
   }
+
+  const protocol = url.protocol.toLowerCase();
+  if (protocol !== "http:" && protocol !== "https:") return false;
+
+  const GOOGLE_MANUAL_LINK_REGEX =
+    /^https?:\/\/(?:www\.)?(?:maps\.app\.goo\.gl|google\.com\/maps|google\.com\/search|www\.google\.com\/maps|www\.google\.com\/search|search\.google\.com\/local\/writereview)\b/i;
+
+  return GOOGLE_MANUAL_LINK_REGEX.test(url.href);
 };
 
 const resolvePlacesApiKey = () => {
@@ -2233,8 +2220,18 @@ exports.connectGoogleManualLink = functions.https.onCall(async (data, context) =
   }
 
   const manualLink = (data?.manualLink || data?.link || data?.url || "").trim();
+  let normalizedLink = null;
+  let normalizedHost = null;
 
-  if (!manualLink || !isValidGoogleBusinessUrl(manualLink)) {
+  try {
+    const parsed = new URL(manualLink);
+    normalizedLink = parsed.href;
+    normalizedHost = parsed.host;
+  } catch (err) {
+    normalizedLink = null;
+  }
+
+  if (!manualLink || !normalizedLink || !isValidGoogleBusinessUrl(manualLink)) {
     throw new functions.https.HttpsError(
       "invalid-argument",
       "Please provide a valid Google Maps business or reviews link."
@@ -2261,10 +2258,23 @@ exports.connectGoogleManualLink = functions.https.onCall(async (data, context) =
     {
       businessId: uid,
       ownerUid: uid,
-      googleManualLink: manualLink,
+      googleManualLink: normalizedLink,
       googleManualConnection: true,
       googleConnectionType: "manual",
       connectionMethod: "manual",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  const googleProfileRef = db.collection("googleProfiles").doc(uid);
+  await googleProfileRef.set(
+    {
+      connectionType: "manual",
+      manualBusinessName:
+        data?.businessName || profileData?.businessName || profileData?.name || "",
+      manualGoogleUrl: normalizedLink,
+      normalizedHost,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true }
@@ -2274,8 +2284,9 @@ exports.connectGoogleManualLink = functions.https.onCall(async (data, context) =
     ok: true,
     reason: "MANUAL_CONNECTED",
     message: "Google profile connected manually.",
-    googleManualLink: manualLink,
+    googleManualLink: normalizedLink,
     googleConnectionType: "manual",
+    normalizedHost,
   };
 });
 
