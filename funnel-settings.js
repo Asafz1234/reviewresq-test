@@ -16,7 +16,7 @@ const DEFAULT_SETTINGS = {
   happy: {
     headline: "Thanks for your visit!",
     prompt: "Share a quick note about your experience so others know what to expect.",
-    ctaLabel: "Leave us a Google review",
+    ctaLabel: "Continue to Google Review",
     googleReviewUrl: "",
   },
   unhappy: {
@@ -44,7 +44,11 @@ const ui = {
   starterLocked: document.querySelector("[data-starter-locked]"),
   advancedWrapper: document.querySelector("[data-advanced-wrapper]"),
   happyHeadline: document.querySelector("[data-happy-headline]"),
+  happyHeadlineRow: document.querySelector("[data-happy-headline-row]"),
   happyCta: document.querySelector("[data-happy-cta]"),
+  happyCtaRow: document.querySelector("[data-happy-cta-row]"),
+  happyFlowExplainer: document.querySelector("[data-happy-flow-explainer]"),
+  happyMessageRow: document.querySelector("[data-happy-message-row]"),
   happyPrompt: document.querySelector("[data-happy-prompt]"),
   happySubtitle: document.querySelector("[data-happy-subtitle]"),
   googleUrl: document.querySelector("[data-google-url]"),
@@ -176,19 +180,24 @@ function renderPlanState(planId, capabilities) {
 
   if (ui.pageSubtitle) {
     ui.pageSubtitle.textContent = isStarter
-      ? "This funnel sends satisfied customers directly to your Google review page. Upgrade to handle unhappy customers privately."
+      ? "This funnel sends satisfied customers directly to your Google review page with a fixed Google review button. Upgrade to handle unhappy customers privately."
       : "Control how customers are routed to Google or private feedback.";
   }
 
   if (ui.happySubtitle) {
     ui.happySubtitle.textContent = isStarter
-      ? "Only this section is editable on Starter."
+      ? "Only the thank-you message and Google link are editable on Starter."
       : "Edit what happy customers see before leaving a public review.";
   }
 
   setHidden(ui.starterOverview, !isStarter);
   setHidden(ui.starterLocked, !isStarter);
   setHidden(ui.advancedWrapper, isStarter);
+
+  setHidden(ui.happyHeadlineRow, isStarter);
+  setHidden(ui.happyCtaRow, isStarter);
+  setHidden(ui.happyFlowExplainer, !isStarter);
+  setHidden(ui.happyMessageRow, false);
 
   if (ui.happyAdvanced) {
     setHidden(ui.happyAdvanced, !funnel.showHappyDetails);
