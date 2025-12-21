@@ -91,3 +91,19 @@ automationFlows/{id} {
 ```
 
 Bulk send (Growth) uses campaign templates to batch-deliver SMS/Email in rate-limited chunks with per-recipient error logging and timeline entries for customer history.
+
+## Lead lifecycle tracking
+
+Leads progress through a fixed lifecycle so outreach, conversions, and review asks stay visible:
+
+- `created` → initial capture
+- `contacted` → outreach sent or call placed
+- `converted` → booked/closed won
+- `review_requested` → review invite sent
+- `review_completed` → review received/confirmed
+
+Status changes should be logged to the lead timeline alongside AI/user messages so the dashboard reflects every step.
+
+## AI Agent outcomes
+
+The Pro AI agent can answer inbound messages, draft and send review requests, summarize entire conversations, and only alert the owner when escalation is truly needed. Each AI touch should update customer timelines and, when appropriate, advance leads to `contacted`, `review_requested`, or `review_completed` states.

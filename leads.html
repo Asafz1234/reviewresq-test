@@ -71,10 +71,11 @@
           <div class="leads-list" id="leadList">
             <div class="filter-chips" id="leadStatusFilters">
               <button class="chip chip-filter active" data-status="all">All</button>
-              <button class="chip chip-filter" data-status="new">New</button>
-              <button class="chip chip-filter" data-status="in_progress">In progress</button>
-              <button class="chip chip-filter" data-status="won">Won</button>
-              <button class="chip chip-filter" data-status="lost">Lost</button>
+              <button class="chip chip-filter" data-status="created">Lead created</button>
+              <button class="chip chip-filter" data-status="contacted">Contacted</button>
+              <button class="chip chip-filter" data-status="converted">Converted</button>
+              <button class="chip chip-filter" data-status="review_requested">Review requested</button>
+              <button class="chip chip-filter" data-status="review_completed">Review completed</button>
             </div>
             <div class="search-row">
               <input class="input" id="leadSearch" type="search" placeholder="Search by name, phone, or email" />
@@ -208,7 +209,7 @@
         source: 'website',
         serviceType: 'Handyman',
         notes: 'Needs drywall patch and paint by next week.',
-        status: 'new',
+        status: 'created',
         stage: 'Follow-up 1',
         createdAt: '2025-03-27T14:00:00Z',
         updatedAt: '2025-03-27T14:00:00Z',
@@ -235,7 +236,7 @@
         source: 'facebook',
         serviceType: 'Roofing',
         notes: 'Interested in roof inspection after storm.',
-        status: 'in_progress',
+        status: 'contacted',
         stage: 'Quoted',
         createdAt: '2025-03-25T10:00:00Z',
         updatedAt: '2025-03-27T09:00:00Z',
@@ -270,7 +271,7 @@
         source: 'phone',
         serviceType: 'Plumbing',
         notes: 'Recurring leak under kitchen sink.',
-        status: 'won',
+        status: 'converted',
         stage: 'Scheduled',
         createdAt: '2025-03-15T12:00:00Z',
         updatedAt: '2025-03-20T12:00:00Z',
@@ -290,6 +291,12 @@
         ],
       },
     ];
+
+    leads.forEach((lead) => {
+      if (!lead.messages.some((msg) => msg.channel === 'status')) {
+        appendStatusEvent(lead, lead.status, 'Lifecycle state captured');
+      }
+    });
 
     let selectedLeadId = null;
 
@@ -311,6 +318,31 @@
     const confirmImportBtn = document.getElementById('confirmImportBtn');
     const resetImportBtn = document.getElementById('resetImportBtn');
     let importPreview = null;
+
+    const statusLabels = {
+      created: 'Lead created',
+      contacted: 'Contacted',
+      converted: 'Converted',
+      review_requested: 'Review requested',
+      review_completed: 'Review completed',
+    };
+
+    function lifecycleLabel(value) {
+      return statusLabels[value] || value;
+    }
+
+    function appendStatusEvent(lead, status, reason = '') {
+      const now = new Date().toISOString();
+      lead.updatedAt = now;
+      lead.messages.push({
+        sender: 'system',
+        channel: 'status',
+        direction: 'outgoing',
+        text: `${lifecycleLabel(status)}${reason ? ` – ${reason}` : ''}`,
+        sentAt: now,
+        status: 'logged',
+      });
+    }
 
     function formatRelative(date) {
       if (!date) return 'No contact yet';
@@ -479,7 +511,7 @@
               <p class="card-title">${lead.name}</p>
               <div class="chip-row">
                 <span class="chip">${lead.source}</span>
-                <span class="chip">${lead.status.replace('_', ' ')}</span>
+                <span class="chip">${lifecycleLabel(lead.status)}</span>
               </div>
               <p class="caption">Last contact: ${formatRelative(lead.lastContactAt)}</p>
             </div>
@@ -519,10 +551,10 @@
         <div class="lead-header">
           <div>
             <p class="section-title">${lead.name}</p>
-            <div class="chip-row">
-              <span class="chip">${lead.status.replace('_', ' ')}</span>
-              <span class="chip">${lead.source}</span>
-              <span class="chip">${lead.serviceType}</span>
+              <div class="chip-row">
+              <span class="chip">${lifecycleLabel(lead.status)}</span>
+                <span class="chip">${lead.source}</span>
+                <span class="chip">${lead.serviceType}</span>
             </div>
             <p class="caption">Created ${new Date(lead.createdAt).toLocaleDateString('en-US')} · Last contact ${formatRelative(lead.lastContactAt)}</p>
           </div>
@@ -537,10 +569,11 @@
             <label>
               <span class="card-title">Status</span>
               <select class="select" id="statusSelect">
-                <option value="new" ${lead.status === 'new' ? 'selected' : ''}>New</option>
-                <option value="in_progress" ${lead.status === 'in_progress' ? 'selected' : ''}>In progress</option>
-                <option value="won" ${lead.status === 'won' ? 'selected' : ''}>Won</option>
-                <option value="lost" ${lead.status === 'lost' ? 'selected' : ''}>Lost</option>
+                <option value="created" ${lead.status === 'created' ? 'selected' : ''}>Lead created</option>
+                <option value="contacted" ${lead.status === 'contacted' ? 'selected' : ''}>Contacted</option>
+                <option value="converted" ${lead.status === 'converted' ? 'selected' : ''}>Converted</option>
+                <option value="review_requested" ${lead.status === 'review_requested' ? 'selected' : ''}>Review requested</option>
+                <option value="review_completed" ${lead.status === 'review_completed' ? 'selected' : ''}>Review completed</option>
               </select>
             </label>
             <label>
@@ -560,8 +593,11 @@
       `;
 
       document.getElementById('statusSelect').addEventListener('change', (e) => {
-        lead.status = e.target.value;
-        renderLeadList();
+        if (lead.status !== e.target.value) {
+          lead.status = e.target.value;
+          appendStatusEvent(lead, e.target.value, 'Status updated');
+          renderLeadList();
+        }
       });
 
       document.getElementById('stageInput').addEventListener('input', (e) => {
@@ -611,6 +647,10 @@
     function startSequence(lead) {
       lead.automationState = 'sequence_running';
       lead.nextContactAt = lead.nextContactAt || new Date().toISOString();
+      if (lead.status === 'created') {
+        lead.status = 'contacted';
+        appendStatusEvent(lead, 'contacted', 'AI follow-up started');
+      }
       lead.messages.push({
         sender: 'ai',
         channel: 'sms',
@@ -689,6 +729,10 @@
         status: 'sent',
       });
       lead.lastContactAt = new Date().toISOString();
+      if (lead.status === 'created') {
+        lead.status = 'contacted';
+        appendStatusEvent(lead, 'contacted', 'AI message sent');
+      }
       Promise.resolve()
         .then(() => {
           renderLeadDetail(lead);
@@ -740,7 +784,7 @@
           source: 'csv',
           serviceType: 'Imported',
           notes: '',
-          status: 'new',
+          status: 'created',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           lastContactAt: null,
@@ -749,6 +793,7 @@
           sequenceId: null,
           messages: [],
         };
+        appendStatusEvent(lead, 'created', 'Imported from CSV');
         leads.unshift(lead);
       });
 
@@ -767,8 +812,8 @@
         email: document.getElementById('leadEmail').value,
         source: document.getElementById('leadSource').value,
         serviceType: document.getElementById('leadService').value,
-        notes: document.getElementById('leadNotes').value,
-        status: 'new',
+          notes: document.getElementById('leadNotes').value,
+          status: 'created',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastContactAt: null,
@@ -777,6 +822,7 @@
         sequenceId: null,
         messages: [],
       };
+      appendStatusEvent(lead, 'created', 'Lead saved');
       leads.unshift(lead);
       closeLeadModal();
       renderLeadList();
