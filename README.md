@@ -47,7 +47,15 @@ customers/{customerId} {
   createdAt
   lastInteractionAt
   reviewStatus: "none" | "requested" | "reviewed" | "negative"
+  archived?: boolean (soft-delete flag)
+  timeline?: [
+    {
+      type: "sms_sent" | "email_sent" | "review_left" | "feedback_received"
+      timestamp
+      metadata
+    }
+  ]
 }
 ```
 
-`createdAt` is set on first write; `lastInteractionAt` updates each time a new source delivers the customer.
+`createdAt` is set on first write; `lastInteractionAt` updates each time a new source delivers the customer. `archived` is used in place of deletions. Timeline entries capture every touchpoint (messages sent, feedback captured, review clicks) so the dashboard can render a per-customer history.

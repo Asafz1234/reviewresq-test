@@ -214,6 +214,12 @@ const mergeDeep = (target = {}, source = {}) => {
 
 const CUSTOMER_SOURCE_TYPES = ["manual", "csv", "sheet", "funnel", "webhook"];
 const CUSTOMER_REVIEW_STATUSES = ["none", "requested", "reviewed", "negative"];
+const CUSTOMER_TIMELINE_TYPES = [
+  "sms_sent",
+  "email_sent",
+  "review_left",
+  "feedback_received",
+];
 
 const normalizeCustomerSource = (source = "manual") =>
   CUSTOMER_SOURCE_TYPES.includes(source) ? source : "manual";
@@ -253,6 +259,8 @@ async function upsertCustomerRecord({
   source = "manual",
   reviewStatus = "none",
   lastInteractionAt = null,
+  timelineEntry = null,
+  archived = null,
 }) {
   if (!businessId) {
     throw new Error("businessId is required to create a customer record");
@@ -274,6 +282,19 @@ async function upsertCustomerRecord({
       lastInteractionAt || admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+
+  if (typeof archived === "boolean") {
+    payload.archived = archived;
+  }
+
+  if (timelineEntry && CUSTOMER_TIMELINE_TYPES.includes(timelineEntry.type)) {
+    const entry = {
+      type: timelineEntry.type,
+      metadata: timelineEntry.metadata || {},
+      timestamp: admin.firestore.Timestamp.now(),
+    };
+    payload.timeline = admin.firestore.FieldValue.arrayUnion(entry);
+  }
 
   if (!snap.exists || !snap.data()?.createdAt) {
     payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
@@ -332,6 +353,13 @@ async function recordCustomerFromFeedbackCapture({ businessId, feedback }) {
       source: "funnel",
       reviewStatus: deriveReviewStatusFromFeedback(feedback),
       lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+      timelineEntry: {
+        type: "feedback_received",
+        metadata: {
+          rating: feedback.rating || null,
+          message: feedback.message || feedback.feedback || null,
+        },
+      },
     });
   } catch (err) {
     console.error("[customers] failed to record funnel capture", err);
@@ -2840,6 +2868,10 @@ exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
           source: normalizeCustomerSource(req.body?.source || "manual"),
           reviewStatus: "requested",
           lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+          timelineEntry: {
+            type: "email_sent",
+            metadata: { reason: "review_invite" },
+          },
         });
       } catch (err) {
         console.error("[customers] failed to record manual invite", err);
@@ -3130,6 +3162,29 @@ async function createConversationFromFeedback(feedbackData, feedbackId) {
     aiMessage,
   });
 
+  if (feedbackData.businessId) {
+    try {
+      await upsertCustomerRecord({
+        businessId: feedbackData.businessId,
+        name: customerName || null,
+        phone: normalizePhone(conversation.customerPhone),
+        email: normalizeEmail(conversation.customerEmail),
+        source: "funnel",
+        reviewStatus: deriveReviewStatusFromFeedback(feedbackData),
+        lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+        timelineEntry: {
+          type: conversation.customerEmail ? "email_sent" : "sms_sent",
+          metadata: {
+            reason: "ai_autoresponder",
+            conversationId: ref.id,
+          },
+        },
+      });
+    } catch (err) {
+      console.error("[customers] failed to log AI autoresponder timeline", err);
+    }
+  }
+
   return ref.id;
 }
 
@@ -3328,6 +3383,8 @@ exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
     { merge: true }
   );
 
+  const deliveryType = conversation.customerEmail ? "email_sent" : "sms_sent";
+
   await sendAiResponseToCustomer({
     email: conversation.customerEmail,
     phone: conversation.customerPhone,
@@ -3344,6 +3401,10 @@ exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
       source: "funnel",
       reviewStatus: deriveReviewStatusFromFeedback({ rating: conversation.rating }),
       lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+      timelineEntry: {
+        type: deliveryType,
+        metadata: { reason: "ai_reply", conversationId },
+      },
     });
   } catch (err) {
     console.error("[customers] failed to upsert from AI reply", err);
@@ -3394,7 +3455,7 @@ exports.recordReviewLinkClick = onRequest(async (req, res) => {
 
   try {
     const reviewStatus = rating >= 4 ? "requested" : "none";
-    await upsertCustomerRecord({
+    const customerId = await upsertCustomerRecord({
       businessId,
       name: customerName || null,
       phone: customerPhone || null,
@@ -3402,9 +3463,13 @@ exports.recordReviewLinkClick = onRequest(async (req, res) => {
       source: "funnel",
       reviewStatus,
       lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+      timelineEntry: {
+        type: "review_left",
+        metadata: { rating: rating || null, action: "review_link_click" },
+      },
     });
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, customerId });
   } catch (err) {
     console.error("[customers] failed to record review click", err);
     return res.status(500).json({ error: "Failed to record review click" });
@@ -3433,12 +3498,35 @@ exports.onAiConversationResolved = functions.firestore
       "Glad we could resolve this for you. If you’re now happy with the service, " +
       `you can leave a public Google review here: ${googleLink}`;
 
+    const resolutionDelivery = conversation.customerEmail ? "email_sent" : "sms_sent";
+
     await sendAiResponseToCustomer({
       email: conversation.customerEmail,
       phone: conversation.customerPhone,
       customerName: conversation.customerName,
       aiMessage: message,
     });
+
+    try {
+      await upsertCustomerRecord({
+        businessId,
+        name: conversation.customerName || null,
+        phone: normalizePhone(conversation.customerPhone),
+        email: normalizeEmail(conversation.customerEmail),
+        source: "funnel",
+        reviewStatus: "requested",
+        lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+        timelineEntry: {
+          type: resolutionDelivery,
+          metadata: {
+            reason: "ai_resolution_followup",
+            conversationId: context.params.conversationId,
+          },
+        },
+      });
+    } catch (err) {
+      console.error("[customers] failed to record resolved follow-up", err);
+    }
 
     await setAutomationState({
       businessId,
