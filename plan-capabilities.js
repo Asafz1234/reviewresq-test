@@ -136,7 +136,7 @@ export function getPlanCapabilities(planId = "starter") {
     readOnly: isPro,
     allowSave: !isPro,
     showAdvancedSections: isGrowth || isPro,
-    showHappyDetails: isGrowth || isPro,
+    showHappyDetails: true,
     allowedPatchPaths: isPro
       ? []
       : isGrowth
@@ -154,12 +154,12 @@ export function getPlanCapabilities(planId = "starter") {
             "branding.logoUrl",
             "branding.primaryColor",
           ]
-        : ["happy.headline", "happy.ctaLabel"],
+        : ["happy.headline", "happy.ctaLabel", "happy.prompt", "happy.googleReviewUrl"],
     editableFields: {
       happyHeadline: !isPro,
       happyCta: !isPro,
-      happyPrompt: isGrowth && !isPro,
-      googleReviewUrl: isGrowth && !isPro,
+      happyPrompt: !isPro,
+      googleReviewUrl: !isPro,
       routing: isGrowth && !isPro,
       unhappyHeadline: isGrowth && !isPro,
       unhappyMessage: isGrowth && !isPro,
