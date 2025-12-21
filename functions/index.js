@@ -221,6 +221,25 @@ const normalizeCustomerSource = (source = "manual") =>
 const normalizeReviewStatus = (status = "none") =>
   CUSTOMER_REVIEW_STATUSES.includes(status) ? status : "none";
 
+const normalizePhone = (phone = "") => {
+  if (!phone) return "";
+  const digits = phone.toString().trim().replace(/\D+/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return digits.slice(1);
+  }
+  return digits;
+};
+
+const normalizeEmail = (email = "") => email.toString().trim().toLowerCase();
+
+const chunkArray = (items = [], size = 10) => {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+};
+
 const buildCustomerDocId = (businessId, identifier) => {
   const base = `${businessId || "unknown"}|${identifier || crypto.randomUUID()}`;
   return crypto.createHash("sha256").update(base).digest("hex").slice(0, 20);
@@ -262,6 +281,36 @@ async function upsertCustomerRecord({
 
   await ref.set(payload, { merge: true });
   return customerId;
+}
+
+async function findExistingCustomerContacts({
+  businessId,
+  phones = [],
+  emails = [],
+}) {
+  const normalizedPhones = Array.from(new Set(phones.filter(Boolean)));
+  const normalizedEmails = Array.from(new Set(emails.filter(Boolean)));
+  const matches = { phones: new Set(), emails: new Set() };
+
+  const queryField = async (field, values, targetSet, normalizer) => {
+    const chunks = chunkArray(values, 10);
+    for (const batch of chunks) {
+      const snap = await db.collection("customers").where(field, "in", batch).get();
+      snap.forEach((doc) => {
+        const data = doc.data() || {};
+        if (data.businessId === businessId && data[field]) {
+          targetSet.add(normalizer(data[field]));
+        }
+      });
+    }
+  };
+
+  await Promise.all([
+    queryField("phone", normalizedPhones, matches.phones, normalizePhone),
+    queryField("email", normalizedEmails, matches.emails, normalizeEmail),
+  ]);
+
+  return matches;
 }
 
 const deriveReviewStatusFromFeedback = (feedbackData = {}) => {
@@ -2411,6 +2460,7 @@ exports.importCustomersCsv = functions.https.onCall(async (data, context) => {
 
   const businessId = data?.businessId || context.auth.uid;
   const rows = Array.isArray(data?.rows) ? data.rows : [];
+  const previewOnly = !!data?.preview;
 
   if (!rows.length) {
     throw new functions.https.HttpsError(
@@ -2420,23 +2470,90 @@ exports.importCustomersCsv = functions.https.onCall(async (data, context) => {
   }
 
   const maxRows = Math.min(rows.length, 1000);
-  const savedIds = [];
+  const seenKeys = new Set();
+  const duplicatesInUpload = [];
+  let skippedEmpty = 0;
+  const parsedRows = [];
 
   for (const row of rows.slice(0, maxRows)) {
     const name = (row?.name || row?.Name || "").toString().trim();
     const phone = (row?.phone || row?.Phone || "").toString().trim();
     const email = (row?.email || row?.Email || "").toString().trim();
-    const reviewStatus = normalizeReviewStatus(
-      row?.reviewStatus || row?.status || data?.reviewStatus || "none",
-    );
 
-    if (!name && !phone && !email) continue;
+    const phoneKey = normalizePhone(phone);
+    const emailKey = normalizeEmail(email);
 
+    if (!name && !phoneKey && !emailKey) {
+      skippedEmpty += 1;
+      continue;
+    }
+
+    const keys = [
+      phoneKey ? `phone:${phoneKey}` : null,
+      emailKey ? `email:${emailKey}` : null,
+    ].filter(Boolean);
+
+    const duplicateKey = keys.find((key) => seenKeys.has(key));
+    if (duplicateKey) {
+      duplicatesInUpload.push({ name, phone, email, reason: "duplicate_in_upload" });
+      continue;
+    }
+
+    keys.forEach((key) => seenKeys.add(key));
+    parsedRows.push({ name: name || null, phone: phone || null, email: email || null, phoneKey, emailKey });
+  }
+
+  const existingMatches = await findExistingCustomerContacts({
+    businessId,
+    phones: parsedRows.map((row) => row.phoneKey).filter(Boolean),
+    emails: parsedRows.map((row) => row.emailKey).filter(Boolean),
+  });
+
+  const readyRows = [];
+  const existingDuplicates = [];
+
+  for (const row of parsedRows) {
+    const alreadyExists =
+      (row.phoneKey && existingMatches.phones.has(row.phoneKey)) ||
+      (row.emailKey && existingMatches.emails.has(row.emailKey));
+
+    if (alreadyExists) {
+      existingDuplicates.push({
+        name: row.name,
+        phone: row.phone,
+        email: row.email,
+        reason: "already_exists",
+      });
+      continue;
+    }
+
+    readyRows.push(row);
+  }
+
+  const preview = {
+    totalRows: rows.length,
+    acceptedColumns: ["name", "phone", "email"],
+    importable: readyRows.length,
+    duplicatesInUpload: duplicatesInUpload.length,
+    duplicatesExisting: existingDuplicates.length,
+    skippedEmpty,
+    sample: readyRows.slice(0, 20).map(({ name, phone, email }) => ({ name, phone, email })),
+    blocked: [...duplicatesInUpload, ...existingDuplicates].slice(0, 20),
+  };
+
+  if (previewOnly) {
+    return { ok: true, preview };
+  }
+
+  const reviewStatus = normalizeReviewStatus(data?.reviewStatus || "none");
+  const savedIds = [];
+
+  for (const row of readyRows) {
     const customerId = await upsertCustomerRecord({
       businessId,
-      name: name || null,
-      phone: phone || null,
-      email: email || null,
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
       source: "csv",
       reviewStatus,
     });
@@ -2444,7 +2561,7 @@ exports.importCustomersCsv = functions.https.onCall(async (data, context) => {
     savedIds.push(customerId);
   }
 
-  return { ok: true, imported: savedIds.length, customerIds: savedIds };
+  return { ok: true, imported: savedIds.length, customerIds: savedIds, preview };
 });
 
 exports.syncCustomersFromSheet = functions.https.onCall(async (data, context) => {

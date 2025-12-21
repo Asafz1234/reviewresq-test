@@ -29,9 +29,11 @@ Supported inputs:
 
 - Manual entry via the dashboard
 - CSV upload for batch imports
-- Google Sheets sync (read-only)
-- Webhook ingestion for Zapier/Make-style connectors
-- Funnel captures from the public feedback portal
+  - Google Sheets sync (read-only)
+  - Webhook ingestion for Zapier/Make-style connectors
+  - Funnel captures from the public feedback portal
+
+CSV uploads accept three columns (`name`, `phone`, and `email`) and run a preview step before writing to Firestore. Rows are deduplicated by phone/email (including existing customers) and tagged with `source=csv` when imported.
 
 Each ingested customer is upserted into `customers/{customerId}` with the following fields:
 
