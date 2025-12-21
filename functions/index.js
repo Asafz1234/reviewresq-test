@@ -3335,11 +3335,80 @@ exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
     aiMessage,
   });
 
+  try {
+    await upsertCustomerRecord({
+      businessId: conversation.businessId,
+      name: conversation.customerName || null,
+      phone: normalizePhone(conversation.customerPhone),
+      email: normalizeEmail(conversation.customerEmail),
+      source: "funnel",
+      reviewStatus: deriveReviewStatusFromFeedback({ rating: conversation.rating }),
+      lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("[customers] failed to upsert from AI reply", err);
+  }
+
   return res.status(200).json({
     aiMessage,
     category: aiResponse.category,
     sentiment: aiResponse.sentiment,
   });
+});
+
+exports.recordReviewLinkClick = onRequest(async (req, res) => {
+  const origin = req.headers.origin || "*";
+  res.set("Access-Control-Allow-Origin", origin);
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Vary", "Origin");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const payload =
+    req.body && typeof req.body === "object"
+      ? req.body
+      : (() => {
+          try {
+            return JSON.parse(req.body || "{}") || {};
+          } catch (err) {
+            return {};
+          }
+        })();
+
+  const businessId = (payload.businessId || "").toString().trim();
+  const rating = Number(payload.rating || 0);
+  const customerName = (payload.customerName || "").toString().trim();
+  const customerEmail = normalizeEmail(payload.customerEmail || "");
+  const customerPhone = normalizePhone(payload.customerPhone || "");
+
+  if (!businessId) {
+    return res.status(400).json({ error: "businessId is required" });
+  }
+
+  try {
+    const reviewStatus = rating >= 4 ? "requested" : "none";
+    await upsertCustomerRecord({
+      businessId,
+      name: customerName || null,
+      phone: customerPhone || null,
+      email: customerEmail || null,
+      source: "funnel",
+      reviewStatus,
+      lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("[customers] failed to record review click", err);
+    return res.status(500).json({ error: "Failed to record review click" });
+  }
 });
 
 exports.onAiConversationResolved = functions.firestore
