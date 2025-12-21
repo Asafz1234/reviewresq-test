@@ -66,7 +66,7 @@
                 <input class="input" type="tel" id="singlePhone" name="phone" placeholder="(555) 123-4567" />
               </label>
               <label class="label">
-                <span>Email <span class="text-muted">(optional)</span></span>
+                <span>Email <span class="text-muted" id="singleEmailHint">(optional)</span></span>
                 <input class="input" type="email" id="singleEmail" name="email" placeholder="name@email.com" />
               </label>
               <label class="label">
@@ -74,12 +74,15 @@
                 <select class="input" id="channelSelect" name="channel">
                   <option value="link">Link</option>
                   <option value="sms" disabled>SMS (coming soon)</option>
-                  <option value="email" disabled>Email (coming soon)</option>
+                  <option value="email">Email</option>
                 </select>
               </label>
             </div>
             <div class="button-row">
               <button class="btn btn-primary" type="submit" id="generateSingleBtn">Generate &amp; Copy Link</button>
+            </div>
+            <div class="pill pill-success" id="emailSuccess" hidden>
+              Email sent
             </div>
             <div class="card muted-card" id="singleResult" hidden>
               <p class="card-title">Portal link</p>
