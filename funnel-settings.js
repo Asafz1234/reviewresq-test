@@ -78,6 +78,8 @@ let businessId = null;
 let currentPlan = "starter";
 let currentCapabilities = getPlanCapabilities(currentPlan);
 let activeSettings = { ...DEFAULT_SETTINGS };
+const REVIEW_FUNNEL_ENDPOINT =
+  "https://us-central1-reviewresq-app.cloudfunctions.net/updateReviewFunnelSettings";
 
 function setHidden(element, hidden = true) {
   if (!element) return;
@@ -281,9 +283,7 @@ async function loadSettings(uid) {
     throw new Error("You need to be signed in to load your funnel.");
   }
 
-  const url = new URL(
-    "https://us-central1-reviewresq-app.cloudfunctions.net/updateReviewFunnelSettingsHttp",
-  );
+  const url = new URL(REVIEW_FUNNEL_ENDPOINT);
   url.searchParams.set("businessId", uid);
 
   const response = await fetch(url.toString(), {
@@ -295,8 +295,9 @@ async function loadSettings(uid) {
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    const message = body?.message || "We couldn't load your funnel right now. Please try again.";
-    throw new Error(message);
+    const message = body?.message || response.statusText || "We couldn't load your funnel right now. Please try again.";
+    const prefix = response.status ? `(${response.status}) ` : "";
+    throw new Error(`${prefix}${message}`);
   }
 
   const body = await response.json().catch(() => ({}));
@@ -379,22 +380,20 @@ async function saveSettings() {
       throw new Error("You need to be signed in to save your funnel.");
     }
 
-    const response = await fetch(
-      "https://us-central1-reviewresq-app.cloudfunctions.net/updateReviewFunnelSettingsHttp",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ businessId, patch }),
+    const response = await fetch(REVIEW_FUNNEL_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-    );
+      body: JSON.stringify({ businessId, patch }),
+    });
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
-      const message = errorBody?.message || "We couldn't save your changes right now. Please try again.";
-      throw new Error(message);
+      const message = errorBody?.message || response.statusText || "We couldn't save your changes right now. Please try again.";
+      const prefix = response.status ? `(${response.status}) ` : "";
+      throw new Error(`${prefix}${message}`);
     }
 
     const refreshed = await loadSettings(businessId);
