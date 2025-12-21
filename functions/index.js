@@ -276,6 +276,7 @@ const createInviteToken = async ({
 
   const inviteToken = crypto.randomBytes(12).toString("hex");
   const expiresAt = admin.firestore.Timestamp.fromMillis(Date.now() + INVITE_TOKEN_TTL_MS);
+  const createdAtMs = Date.now();
 
   const ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
   const invitePayload = {
@@ -293,9 +294,14 @@ const createInviteToken = async ({
 
   await ref.set(invitePayload);
 
+  const portalUrl = `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(
+    businessId,
+  )}&t=${encodeURIComponent(inviteToken)}`;
+
   try {
     const outboundRef = db.collection("businesses").doc(businessId).collection("outboundRequests");
     await outboundRef.add({
+      createdAtMs,
       inviteToken,
       customerId: customerId || null,
       customerName: normalizedName || null,
@@ -303,15 +309,13 @@ const createInviteToken = async ({
       email: normalizedEmail || null,
       channel,
       source,
+      status: "created",
+      requestLink: portalUrl,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   } catch (err) {
     console.warn("[invite] failed to write outbound request", err);
   }
-
-  const portalUrl = `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(
-    businessId,
-  )}&t=${encodeURIComponent(inviteToken)}`;
 
   return { inviteToken, portalUrl, expiresAt: expiresAt.toMillis(), customerId: customerId || null };
 };
@@ -3236,6 +3240,26 @@ async function sendReviewRequestEmailCore({
 
   console.log("[email] sending review request", { to: email, businessId });
   await sgMail.send(msg);
+
+  try {
+    const outboundRef = db.collection("businesses").doc(businessId).collection("outboundRequests");
+    const existing = await outboundRef.where("inviteToken", "==", resolvedInviteToken).limit(1).get();
+    existing.forEach((docSnap) => {
+      docSnap.ref.set(
+        {
+          status: "sent",
+          error: null,
+          channel: "email",
+          requestLink: portal,
+          createdAtMs: docSnap.data()?.createdAtMs || Date.now(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    });
+  } catch (err) {
+    console.warn("[email] failed to update outbound log", err);
+  }
 
   try {
     await upsertCustomerRecord({

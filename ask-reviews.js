@@ -3,7 +3,6 @@ import {
   collection,
   query,
   where,
-  orderBy,
   onSnapshot,
   functions,
   httpsCallable,
@@ -23,6 +22,7 @@ const singleLinkOutput = document.getElementById("singleLinkOutput");
 const copySingleLinkBtn = document.getElementById("copySingleLink");
 const downloadSingleQrBtn = document.getElementById("downloadSingleQr");
 const emailSuccessBanner = document.getElementById("emailSuccess");
+const emailErrorBanner = document.getElementById("emailError");
 const planBadge = document.querySelector("[data-plan-label]");
 
 const bulkSection = document.getElementById("bulkSection");
@@ -40,6 +40,7 @@ let plan = "starter";
 let customers = [];
 let unsubscribe = null;
 let bulkLinks = [];
+let emailSuccessTimer = null;
 
 function showToast(message, isError = false) {
   if (!toastEl) return alert(message);
@@ -117,9 +118,15 @@ function renderCustomers(list) {
 
 function startCustomerFeed(uid) {
   if (!uid || !bulkCustomerList) return;
-  const q = query(collection(db, "customers"), where("businessId", "==", uid), orderBy("createdAt", "desc"));
+  const q = query(collection(db, "customers"), where("businessId", "==", uid));
   unsubscribe = onSnapshot(q, (snapshot) => {
-    customers = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    customers = snapshot.docs
+      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+      .sort((a, b) => {
+        const aTime = a?.createdAt?.toMillis?.() || 0;
+        const bTime = b?.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
     renderCustomers(customers);
   });
 }
@@ -139,7 +146,24 @@ function updateChannelUi() {
     singleEmailHint.textContent = emailRequired ? "(required for email)" : "(optional)";
   if (generateSingleBtn)
     generateSingleBtn.textContent = emailRequired ? "Send email request" : "Generate & Copy Link";
-  if (emailSuccessBanner && !emailRequired) emailSuccessBanner.hidden = true;
+  if (!emailRequired) {
+    resetStatusBanners();
+  }
+}
+
+function resetStatusBanners() {
+  if (emailSuccessTimer) {
+    clearTimeout(emailSuccessTimer);
+    emailSuccessTimer = null;
+  }
+  if (emailSuccessBanner) emailSuccessBanner.hidden = true;
+  setErrorBanner("");
+}
+
+function setErrorBanner(message = "") {
+  if (!emailErrorBanner) return;
+  emailErrorBanner.textContent = message || "";
+  emailErrorBanner.hidden = !message;
 }
 
 async function handleSingleSubmit(event) {
@@ -154,15 +178,17 @@ async function handleSingleSubmit(event) {
 
   if (!name) {
     showToast("Customer name is required", true);
+    setErrorBanner("Customer name is required");
     return;
   }
 
   if (isEmailChannel && !email) {
     showToast("Email is required for email requests", true);
+    setErrorBanner("Email is required for email requests");
     return;
   }
 
-  if (emailSuccessBanner) emailSuccessBanner.hidden = true;
+  resetStatusBanners();
 
   const defaultLabel = generateSingleBtn.textContent;
   generateSingleBtn.disabled = true;
@@ -191,7 +217,12 @@ async function handleSingleSubmit(event) {
         toEmail: email,
         customerName: name,
       });
-      if (emailSuccessBanner) emailSuccessBanner.hidden = false;
+      if (emailSuccessBanner) {
+        emailSuccessBanner.hidden = false;
+        emailSuccessTimer = setTimeout(() => {
+          emailSuccessBanner.hidden = true;
+        }, 5000);
+      }
       showToast("Email sent");
     } else {
       await copyText(portalUrl);
@@ -200,6 +231,11 @@ async function handleSingleSubmit(event) {
   } catch (err) {
     console.error("[ask-reviews] single generate failed", err);
     const configMissing = err?.message?.includes("email_sending_not_configured");
+    setErrorBanner(
+      configMissing
+        ? "Email sending isn’t configured. Please contact support."
+        : err?.message || (isEmailChannel ? "Unable to send email" : "Unable to generate link"),
+    );
     if (configMissing) {
       showToast("Email sending isn’t configured. Please contact support.", true);
     } else {
@@ -352,12 +388,17 @@ function attachEvents() {
   bulkCustomerList?.addEventListener("change", () => {
     bulkGenerateBtn.disabled = !bulkCustomerList.selectedOptions.length;
   });
+  [singleNameInput, singlePhoneInput, singleEmailInput, channelSelect].forEach((input) => {
+    input?.addEventListener("input", resetStatusBanners);
+    input?.addEventListener("change", resetStatusBanners);
+  });
   channelSelect?.addEventListener("change", updateChannelUi);
   singleForm?.addEventListener("submit", handleSingleSubmit);
   copySingleLinkBtn?.addEventListener("click", handleCopySingle);
   downloadSingleQrBtn?.addEventListener("click", handleSingleQr);
   bulkForm?.addEventListener("submit", handleBulkSubmit);
   bulkDownloadBtn?.addEventListener("click", downloadCsv);
+  resetStatusBanners();
   updateChannelUi();
 }
 
