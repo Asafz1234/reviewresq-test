@@ -2112,6 +2112,8 @@ exports.updateReviewFunnelSettingsHttp = functions.https.onRequest(async (req, r
     return res
       .status(204)
       .set("Access-Control-Allow-Origin", allowOrigin)
+      .set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+      .set("Access-Control-Allow-Headers", "Content-Type, Authorization")
       .set("Vary", "Origin")
       .send("");
   }
