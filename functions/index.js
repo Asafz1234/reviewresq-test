@@ -87,6 +87,8 @@ const derivePlanCapabilities = (planId = "starter") => {
       reviewFunnelRatingRules: isGrowth ? true : isPro ? "ai" : false,
       reviewFunnelBrandingLogo: isPro || isGrowth,
       reviewFunnelAIManaged: isPro,
+      campaigns_manual: isGrowth || isPro,
+      campaigns_automation: isPro,
     },
   };
 };
@@ -2902,7 +2904,9 @@ exports.createCampaign = functions.https.onCall(async (data = {}, context) => {
   const payload = {
     businessId,
     audienceRules: data.audienceRules || {},
-    channel: data.channel === "email" ? "email" : "sms",
+    channel: ["email", "sms", "whatsapp"].includes(data.channel)
+      ? data.channel
+      : "sms",
     templateId: data.templateId || null,
     templateBody: data.templateBody || data.template || "",
     schedule: data.schedule || null,
@@ -2915,7 +2919,64 @@ exports.createCampaign = functions.https.onCall(async (data = {}, context) => {
   return { id: ref.id };
 });
 
-exports.bulkSendMessages = functions.https.onCall(async (data = {}, context) => {
+const CHANNEL_METADATA = {
+  sms: { timelineType: "sms_sent" },
+  whatsapp: { timelineType: "whatsapp_sent" },
+  email: { timelineType: "email_sent" },
+};
+
+const PLAN_RATE_LIMIT = {
+  starter: 0,
+  growth: 15,
+  pro_ai: 30,
+};
+
+const renderTemplateMessage = (template = "", vars = {}) => {
+  const replacements = {
+    name: vars.name || "there",
+    business: vars.business || "our team",
+  };
+
+  return (template || "Hi {{name}}, thanks for choosing {{business}}.")
+    .replace(/{{\s*name\s*}}/gi, replacements.name)
+    .replace(/{{\s*business\s*}}/gi, replacements.business)
+    .trim();
+};
+
+const deriveRateLimit = (planId = "starter", requestedRate) => {
+  const normalized = normalizePlan(planId);
+  const base = PLAN_RATE_LIMIT[normalized] ?? 0;
+  if (base <= 0) return 0;
+  const requested = Number(requestedRate || base);
+  const bounded = Math.min(Math.max(requested, 1), base);
+  return bounded;
+};
+
+async function deliverMessage({ channel, recipient, message, businessName }) {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (channel === "email") {
+    if (!apiKey) throw new Error("Email channel not configured");
+    if (!recipient.email) throw new Error("Missing email address");
+    sgMail.setApiKey(apiKey);
+    await sgMail.send({
+      to: recipient.email,
+      from: "support@reviewresq.com",
+      subject: `A note from ${businessName || "our team"}`,
+      text: message,
+    });
+    return;
+  }
+
+  if (!recipient.phone) throw new Error(`Missing phone for ${channel}`);
+  const normalizedPhone = normalizePhone(recipient.phone);
+  const metaLabel = channel === "whatsapp" ? "WhatsApp" : "SMS";
+  console.log(`[campaign] ${metaLabel} send`, {
+    to: normalizedPhone,
+    message,
+  });
+}
+
+async function sendCampaignBatchHandler(data = {}, context) {
   const caller = context.auth?.uid;
   const businessId = data.businessId || caller;
   if (!businessId) {
@@ -2925,40 +2986,45 @@ exports.bulkSendMessages = functions.https.onCall(async (data = {}, context) => 
     );
   }
 
-  const channel = data.channel === "email" ? "email" : "sms";
-  const template = data.template || "";
+  const channel = ["email", "sms", "whatsapp"].includes(data.channel)
+    ? data.channel
+    : "sms";
   const recipients = Array.isArray(data.recipients) ? data.recipients : [];
-  const rate = Math.min(Math.max(Number(data.rateLimit) || 10, 1), 50);
-  const delayMs = Math.ceil(1000 / rate);
+  const template = data.template || data.templateBody || "";
   const campaignId = data.campaignId || null;
+
+  const { data: businessData } = await loadBusinessAccount(businessId);
+  const businessName = businessData.businessName || businessData.name || "your team";
+  const planId = businessData.plan || "starter";
+  const rateLimit = deriveRateLimit(planId, data.rateLimit);
+
+  if (rateLimit <= 0) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Upgrade to Growth to unlock campaign sends.",
+    );
+  }
+
+  const delayMs = Math.ceil(1000 / rateLimit);
+  const { timelineType } = CHANNEL_METADATA[channel] || CHANNEL_METADATA.sms;
 
   let sent = 0;
   let failed = 0;
-  const apiKey = process.env.SENDGRID_API_KEY;
-
-  if (channel === "email" && apiKey) {
-    sgMail.setApiKey(apiKey);
-  }
 
   for (const recipient of recipients) {
     await sleep(delayMs);
     try {
-      if (channel === "email") {
-        if (!apiKey) throw new Error("Email channel not configured");
-        if (!recipient.email) throw new Error("Missing email address");
-        await sgMail.send({
-          to: recipient.email,
-          from: "support@reviewresq.com",
-          subject: "Update from your service team",
-          text: template || "Hi there — quick update from our team.",
-        });
-      } else {
-        if (!recipient.phone) throw new Error("Missing phone number for SMS");
-        console.log("[bulk] SMS send placeholder", {
-          to: normalizePhone(recipient.phone),
-          template,
-        });
-      }
+      const message = renderTemplateMessage(template, {
+        name: recipient.name,
+        business: businessName,
+      });
+
+      await deliverMessage({
+        channel,
+        recipient,
+        message,
+        businessName,
+      });
 
       await upsertCustomerRecord({
         businessId,
@@ -2968,20 +3034,23 @@ exports.bulkSendMessages = functions.https.onCall(async (data = {}, context) => 
         source: recipient.source || "manual",
         reviewStatus: recipient.reviewStatus || "requested",
         timelineEntry: {
-          type: channel === "email" ? "email_sent" : "sms_sent",
-          metadata: { campaignId, reason: "bulk_send" },
+          type: timelineType,
+          metadata: { campaignId, reason: "campaign_batch", channel },
         },
       });
 
       sent += 1;
     } catch (err) {
-      console.error("[bulk] failed recipient", recipient, err);
+      console.error("[campaign] failed recipient", recipient, err);
       failed += 1;
     }
   }
 
-  return { sent, failed };
-});
+  return { sent, failed, channel, rateLimit, delayMs, campaignId };
+}
+
+exports.sendCampaignBatch = functions.https.onCall(sendCampaignBatchHandler);
+exports.bulkSendMessages = functions.https.onCall(sendCampaignBatchHandler);
 
 exports.saveAutomationFlow = functions.https.onCall(async (data = {}, context) => {
   const caller = context.auth?.uid;

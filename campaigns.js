@@ -9,7 +9,8 @@ import {
   httpsCallable,
   functions,
 } from "./firebase-config.js";
-import { listenForUser } from "./session-data.js";
+import { listenForUser, currentPlanTier, hasPlanFeature } from "./session-data.js";
+import { PLAN_LABELS } from "./plan-capabilities.js";
 
 const form = document.getElementById("campaignForm");
 const audienceStatus = document.getElementById("audienceStatus");
@@ -31,11 +32,52 @@ const messagePreview = document.getElementById("messagePreview");
 const previewCount = document.getElementById("previewCount");
 const sendBulkBtn = document.getElementById("sendBulkBtn");
 const sendResults = document.getElementById("sendResults");
+const planNotice = document.getElementById("campaignPlanNotice");
+const planBadge = document.getElementById("planBadge");
 
 let businessId = null;
 let customers = [];
 const selected = new Set();
 let campaignUnsubscribe = null;
+let allowManualCampaigns = false;
+
+function syncPlanState(plan = "starter") {
+  allowManualCampaigns = hasPlanFeature("campaigns_manual");
+  if (planBadge) {
+    planBadge.textContent = PLAN_LABELS[plan] || planBadge.textContent;
+  }
+
+  const controls = [
+    sendBulkBtn,
+    previewCampaignBtn,
+    form?.querySelector('button[type="submit"]'),
+    loadCustomersBtn,
+  ];
+
+  controls.forEach((control) => {
+    if (!control) return;
+    control.disabled = !allowManualCampaigns;
+    if (allowManualCampaigns) {
+      control.removeAttribute("aria-disabled");
+    } else {
+      control.setAttribute("aria-disabled", "true");
+    }
+  });
+
+  if (planNotice) {
+    if (!allowManualCampaigns) {
+      planNotice.textContent =
+        "Campaigns are available on Growth and Pro AI Suite. Upgrade to send messages.";
+      planNotice.style.display = "block";
+    } else if (plan === "pro_ai") {
+      planNotice.textContent = "Automated campaign triggers available on Pro AI Suite.";
+      planNotice.style.display = "block";
+    } else {
+      planNotice.textContent = "Manual campaign sending enabled.";
+      planNotice.style.display = "block";
+    }
+  }
+}
 
 function renderCampaigns(list = []) {
   if (!list.length) {
@@ -177,6 +219,10 @@ function handlePreviewAudience() {
 
 async function handleSaveCampaign(evt) {
   evt.preventDefault();
+  if (!allowManualCampaigns) {
+    campaignStatusBadge.textContent = "Upgrade to send";
+    return;
+  }
   if (!businessId) return;
 
   const campaignPayload = {
@@ -204,6 +250,10 @@ async function handleSaveCampaign(evt) {
 
 async function sendBulk() {
   if (!businessId || selected.size === 0) return;
+  if (!allowManualCampaigns) {
+    sendResults.textContent = "Upgrade to Growth to send campaigns.";
+    return;
+  }
   const recipients = customers
     .filter((c) => selected.has(c.id))
     .map((c) => ({
@@ -225,7 +275,7 @@ async function sendBulk() {
 
   sendResults.textContent = "Sending...";
   try {
-    const fn = httpsCallable(functions, "bulkSendMessages");
+    const fn = httpsCallable(functions, "sendCampaignBatch");
     const res = await fn(payload);
     sendResults.textContent = `Sent ${res.data?.sent || 0} of ${recipients.length}. Failed: ${
       res.data?.failed || 0
@@ -237,9 +287,11 @@ async function sendBulk() {
 }
 
 function init() {
-  listenForUser(async (user) => {
-    if (!user) return;
-    businessId = user.uid;
+  listenForUser(async (session) => {
+    if (!session) return;
+    businessId = session.user.uid;
+    const plan = currentPlanTier();
+    syncPlanState(plan);
     loadCampaigns();
   });
 
