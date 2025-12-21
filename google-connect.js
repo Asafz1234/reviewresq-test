@@ -765,36 +765,34 @@ export function connectReviewLinkWithConfirmation(reviewUrl) {
   return runWithPhoneMismatchConfirmation(executor, { message: confirmMessage });
 }
 
-const isValidGoogleManualLink = (raw = "") => {
-  if (!raw) return false;
+const GOOGLE_MANUAL_LINK_REGEX =
+  /^https?:\/\/(?:www\.)?(?:maps\.app\.goo\.gl|google\.com\/maps|google\.com\/search|www\.google\.com\/maps|www\.google\.com\/search|search\.google\.com\/local\/writereview)\b/i;
+
+const normalizeGoogleManualLink = (raw = "") => {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return { ok: false };
+
+  let url;
   try {
-    const url = new URL(raw);
-    const host = url.hostname.toLowerCase();
-    const path = url.pathname.toLowerCase();
-    const search = url.search.toLowerCase();
-
-    const googleHost =
-      host.includes("google.com") ||
-      host.includes("googleusercontent.com") ||
-      host.includes("goo.gl") ||
-      host.includes("g.page") ||
-      host.includes("maps.app.goo.gl");
-
-    if (!googleHost) return false;
-
-    const hasPlaceId = url.searchParams.has("placeid") || /placeid=/.test(search);
-    const hasCid = url.searchParams.has("cid") || /cid=/.test(search);
-    const hasReviewKeyword =
-      path.includes("/local/review") ||
-      path.includes("/local/reviews") ||
-      path.includes("/maps") ||
-      path.includes("/place") ||
-      path.includes("/search");
-
-    return hasPlaceId || hasCid || hasReviewKeyword;
+    url = new URL(trimmed);
   } catch (err) {
-    return false;
+    return { ok: false };
   }
+
+  const protocol = url.protocol.toLowerCase();
+  if (protocol !== "http:" && protocol !== "https:") {
+    return { ok: false };
+  }
+
+  if (!GOOGLE_MANUAL_LINK_REGEX.test(url.href)) {
+    return { ok: false };
+  }
+
+  return {
+    ok: true,
+    normalizedUrl: url.href,
+    normalizedHost: url.host,
+  };
 };
 
 async function connectManualLink(manualLink, businessName = "") {
@@ -1203,24 +1201,31 @@ export function renderGoogleConnect(container, options = {}) {
       return;
     }
 
-    if (!isValidGoogleManualLink(value)) {
-      setStatus("That doesn’t look like a Google business or reviews link.", true);
+    const parsedLink = normalizeGoogleManualLink(value);
+    if (!parsedLink.ok) {
+      setStatus("Please paste a valid Google Maps or Google Reviews link.", true);
       return;
     }
 
     connectBtn.disabled = true;
     setStatus("Saving your manual connection…");
     try {
-      const response = await connectManualLink(value, businessName);
-        if (response?.ok) {
-          setStatus("Connected manually.");
-          if (typeof onSuccess === "function") {
-            await onSuccess({ ...response, manualLink: value, businessName });
-          }
-          closeManualOverlay();
-        } else {
-          const message = response?.message || "Unable to save that link right now.";
-          setStatus(message, true);
+      const response = await connectManualLink(parsedLink.normalizedUrl, businessName);
+      if (response?.ok) {
+        setStatus("Connected manually.");
+        if (typeof onSuccess === "function") {
+          await onSuccess({
+            ...response,
+            manualLink: parsedLink.normalizedUrl,
+            manualGoogleUrl: parsedLink.normalizedUrl,
+            normalizedHost: parsedLink.normalizedHost,
+            businessName,
+          });
+        }
+        closeManualOverlay();
+      } else {
+        const message = response?.message || "Unable to save that link right now.";
+        setStatus(message, true);
           showToast(message, true);
         }
       } catch (err) {
