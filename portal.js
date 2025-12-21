@@ -51,6 +51,10 @@ const portalSubheadlineText = document.getElementById("portalSubheadlineText");
 const lowCtaLabel = document.getElementById("lowCtaLabel");
 const highCtaButton = document.getElementById("highCtaButton");
 const highCtaLabel = document.getElementById("highCtaLabel");
+const highDefaultCopy = document.getElementById("highDefaultCopy");
+const fiveStarCopy = document.getElementById("fiveStarCopy");
+const redirectHint = document.getElementById("redirectHint");
+const googleLinkErrorMessage = document.getElementById("googleLinkErrorMessage");
 const thankyouTitleText = document.getElementById("thankyouTitleText");
 const thankyouBodyText = document.getElementById("thankyouBodyText");
 const portalStatus = document.getElementById("portalStatus");
@@ -79,6 +83,9 @@ let portalSettings = null;
 let businessLogoUrl = null;
 let googleReviewUrl = "";
 let businessSnapshot = null;
+const AUTO_REDIRECT_MS = 1000;
+let autoRedirectTimer = null;
+let didRedirect = false;
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
 );
@@ -109,6 +116,50 @@ function handleMissingBusinessData(message) {
     sendFeedbackBtn.disabled = true;
   }
   setPortalStatus("error", message);
+}
+
+function safeRedirect(url) {
+  try {
+    if (window?.location?.assign) {
+      window.location.assign(url);
+      return;
+    }
+  } catch (err) {
+    console.warn("[portal] location.assign failed, falling back", err);
+  }
+
+  window.location.href = url;
+}
+
+function setGoogleLinkError(isVisible, message) {
+  if (!googleLinkErrorMessage) return;
+
+  googleLinkErrorMessage.textContent =
+    message ||
+    "Google review link is not configured. Please ask the owner to update their profile.";
+  googleLinkErrorMessage.hidden = !isVisible;
+}
+
+function clearRedirectTimer() {
+  if (autoRedirectTimer) {
+    clearTimeout(autoRedirectTimer);
+    autoRedirectTimer = null;
+  }
+}
+
+function resetRedirectFlow() {
+  clearRedirectTimer();
+  didRedirect = false;
+}
+
+function toggleFiveStarUi(isFiveStar) {
+  if (portalEl) {
+    portalEl.classList.toggle("five-star-flow", isFiveStar);
+  }
+
+  if (highDefaultCopy) highDefaultCopy.hidden = isFiveStar;
+  if (fiveStarCopy) fiveStarCopy.hidden = !isFiveStar;
+  if (redirectHint) redirectHint.hidden = !isFiveStar;
 }
 
 function renderBusinessIdentity() {
@@ -204,6 +255,36 @@ function setRatingEnabled(isEnabled) {
   }
 }
 
+function updateHighRatingUi() {
+  const isFiveStar = currentRating === 5;
+
+  toggleFiveStarUi(isFiveStar);
+
+  if (!isFiveStar) {
+    setGoogleLinkError(false);
+    clearRedirectTimer();
+  }
+}
+
+function startFiveStarRedirectFlow() {
+  const googleUrl = (googleReviewUrl || "").trim();
+
+  toggleFiveStarUi(true);
+
+  if (!googleUrl) {
+    if (redirectHint) redirectHint.hidden = true;
+    setGoogleLinkError(true);
+    return;
+  }
+
+  setGoogleLinkError(false);
+  clearRedirectTimer();
+
+  autoRedirectTimer = window.setTimeout(() => {
+    redirectToGoogleReview(5);
+  }, AUTO_REDIRECT_MS);
+}
+
 function resetRating() {
   currentRating = 0;
   if (!portalEl) return;
@@ -211,6 +292,10 @@ function resetRating() {
   if (currentRatingValue) currentRatingValue.textContent = "–";
 
   ratingButtons.forEach((btn) => btn.classList.remove("selected"));
+
+  resetRedirectFlow();
+  toggleFiveStarUi(false);
+  setGoogleLinkError(false);
 }
 
 function showThankYouState() {
@@ -227,8 +312,11 @@ function redirectToGoogleReview(selectedRating = null) {
   const googleUrl = (googleReviewUrl || "").trim();
 
   if (!googleUrl) {
+    const missingMessage =
+      "Google review link is not configured. Please ask the owner to update their profile.";
+    setGoogleLinkError(true, missingMessage);
     handleMissingBusinessData(
-      "This portal is missing its Google review link. Please ask the owner to configure it."
+      missingMessage
     );
     console.error("[portal] Attempted redirect without googleReviewLink", {
       businessId,
@@ -237,6 +325,10 @@ function redirectToGoogleReview(selectedRating = null) {
     });
     return;
   }
+
+  if (didRedirect) return;
+  didRedirect = true;
+  clearRedirectTimer();
 
   const currentBusinessId = businessId || getBusinessIdFromUrl();
   if (currentBusinessId) {
@@ -267,7 +359,7 @@ function redirectToGoogleReview(selectedRating = null) {
     }
   }
 
-  window.location.assign(googleUrl);
+  safeRedirect(googleUrl);
 }
 
 // ----- LOAD BUSINESS PROFILE -----
@@ -384,8 +476,9 @@ async function loadBusinessProfile() {
         snapshot: data,
       });
       handleMissingBusinessData(
-        "This portal is missing required business info. Please ask the owner to update their profile."
+        "Google review link is not configured. Please ask the owner to update their profile."
       );
+      setGoogleLinkError(true);
     } else {
       setPortalStatus("ready");
     }
@@ -472,17 +565,20 @@ ratingButtons.forEach((btn) => {
 
     const value = Number(btn.dataset.rating);
     if (!value) return;
+    resetRedirectFlow();
     currentRating = value;
     setPortalClasses();
+    updateHighRatingUi();
 
     if (value === 5) {
-      redirectToGoogleReview(value);
+      startFiveStarRedirectFlow();
     }
   });
 });
 
 if (highCtaButton) {
   highCtaButton.addEventListener("click", () => {
+    clearRedirectTimer();
     redirectToGoogleReview(currentRating || null);
   });
 }

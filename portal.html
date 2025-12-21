@@ -375,6 +375,44 @@
       border-left: 3px solid rgba(22, 163, 74, 0.8);
     }
 
+    .high-copy {
+      margin-bottom: 8px;
+    }
+
+    .high-copy h2 {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .high-five-star {
+      padding: 4px 0;
+    }
+
+    .panel-high .primary-button {
+      width: 100%;
+      margin: 6px 0 2px;
+      box-shadow: var(--shadow-pill);
+    }
+
+    .redirect-hint {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .inline-error {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    .portal.five-star-flow .panel-high {
+      border-left-color: rgba(37, 99, 235, 0.9);
+    }
+
     .feedback-textarea {
       width: 100%;
       min-height: 74px;
@@ -701,14 +739,24 @@
 
         <!-- HIGH RATING PANEL (4–5) -->
         <section class="panel panel-high" id="highPanel">
-          <h2>Thank you for the great rating! <span>⭐</span></h2>
-          <p>
-            We’re glad you had a good experience. Your feedback helps us keep the team motivated
-            and focused on the right things.
-          </p>
-          <button class="secondary-button" type="button" id="highCtaButton">
+          <div class="high-copy" id="highDefaultCopy">
+            <h2>Thank you for the great rating! <span>⭐</span></h2>
+            <p>
+              We’re glad you had a good experience. Your feedback helps us keep the team motivated
+              and focused on the right things.
+            </p>
+          </div>
+          <div class="high-copy high-five-star" id="fiveStarCopy" hidden>
+            <h2>Thanks for the great rating!</h2>
+            <p>We’d really appreciate a quick Google review.</p>
+            <p class="redirect-hint" id="redirectHint" hidden>Redirecting you to Google…</p>
+          </div>
+          <button class="primary-button" type="button" id="highCtaButton">
             <span id="highCtaLabel">Leave a Google review</span>
           </button>
+          <p class="inline-error" id="googleLinkErrorMessage" hidden>
+            Google review link is not configured. Please ask the owner to update their profile.
+          </p>
           <p class="disclaimer">
             Thanks for supporting the business. If you ever want to update anything you shared
             with us, simply return to this page.
