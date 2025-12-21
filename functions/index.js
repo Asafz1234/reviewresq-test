@@ -299,6 +299,8 @@ const createInviteToken = async ({
       inviteToken,
       customerId: customerId || null,
       customerName: normalizedName || null,
+      phone: normalizedPhone || null,
+      email: normalizedEmail || null,
       channel,
       source,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -499,6 +501,12 @@ const normalizePhone = (phone = "") => {
 };
 
 const normalizeEmail = (email = "") => email.toString().trim().toLowerCase();
+
+const SENDGRID_SENDER = process.env.SENDGRID_SENDER || "support@reviewresq.com";
+const EMAIL_RATE_LIMIT_WINDOW_MS = 2 * 60 * 1000;
+const EMAIL_RATE_LIMIT_MAX = 30;
+
+const basicEmailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/i;
 
 const chunkArray = (items = [], size = 10) => {
   const chunks = [];
@@ -3103,190 +3111,209 @@ exports.ingestCustomerWebhook = functions.https.onRequest(async (req, res) => {
   }
 });
 
-exports.sendReviewRequestEmail = functions.https.onRequest(async (req, res) => {
-  console.log("sendReviewRequestEmail invoked", req.method);
+const extractInviteTokenFromUrl = (url = "") => {
+  try {
+    const parsed = new URL(url);
+    return parsed.searchParams.get("t");
+  } catch (err) {
+    return null;
+  }
+};
 
-  // ---------- CORS ----------
-  const origin = req.headers.origin || "*";
-  const allowedOrigins = [
-    "https://reviewresq.com",
-    "https://www.reviewresq.com",
-  ];
+const resolvePortalUrl = ({ businessId, inviteToken, portalUrl }) => {
+  if (portalUrl) return portalUrl;
+  if (businessId && inviteToken) {
+    return `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(
+      businessId,
+    )}&t=${encodeURIComponent(inviteToken)}`;
+  }
+  return null;
+};
 
-  if (allowedOrigins.includes(origin)) {
-    res.set("Access-Control-Allow-Origin", origin);
-  } else {
-    res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
+async function enforceEmailRateLimit(businessId) {
+  if (!businessId) return;
+  const windowStart = admin.firestore.Timestamp.fromMillis(
+    Date.now() - EMAIL_RATE_LIMIT_WINDOW_MS,
+  );
+
+  const snap = await db
+    .collection("businesses")
+    .doc(businessId)
+    .collection("outboundRequests")
+    .where("channel", "==", "email")
+    .where("createdAt", ">", windowStart)
+    .orderBy("createdAt", "desc")
+    .limit(EMAIL_RATE_LIMIT_MAX + 1)
+    .get();
+
+  if (snap.size > EMAIL_RATE_LIMIT_MAX) {
+    throw new functions.https.HttpsError(
+      "resource-exhausted",
+      "Too many email requests. Please wait and try again.",
+    );
+  }
+}
+
+async function sendReviewRequestEmailCore({
+  businessId,
+  inviteToken,
+  toEmail,
+  customerName,
+  portalUrl,
+  customerPhone = null,
+  source = "manual",
+}) {
+  if (!businessId) {
+    throw new functions.https.HttpsError("invalid-argument", "businessId is required");
   }
 
-  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
-  res.set("Vary", "Origin");
-
-  if (req.method === "OPTIONS") {
-    console.log("Handled OPTIONS preflight");
-    return res.status(204).send("");
+  const email = normalizeEmail(toEmail);
+  if (!email || !basicEmailRegex.test(email)) {
+    throw new functions.https.HttpsError("invalid-argument", "A valid email is required.");
   }
 
-  // ---------- SENDGRID ----------
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) {
-    console.error("Missing SENDGRID_API_KEY");
-    return res.status(500).json({ error: "Server key missing" });
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "email_sending_not_configured",
+    );
   }
+
+  const resolvedInviteToken = inviteToken || extractInviteTokenFromUrl(portalUrl);
+  const inviteRecord = await resolveInviteRecord(businessId, resolvedInviteToken);
+  const inviteData = inviteRecord?.data || {};
+  const portal = resolvePortalUrl({ businessId, inviteToken: resolvedInviteToken, portalUrl });
+
+  await enforceEmailRateLimit(businessId);
 
   sgMail.setApiKey(apiKey);
 
-  try {
-    // נקבל גם את הפורמט החדש וגם את הישן
-    let {
-      to,
-      customerEmail,
-      customerName,
-      businessName,
-      businessLogoUrl,
-      portalUrl,
-      portalLink,
-      subject,
-      text,
-      html,
-      businessId,
-      customerId,
-    } = req.body || {};
+  const identity = (await fetchBusinessIdentity(businessId)) || {};
+  const businessName = identity.businessName || "our business";
+  const safeCustomerName = customerName || inviteData.customerName || "there";
 
-    // איחוד שדות
-    const email = customerEmail || to;
-    const portal = portalUrl || portalLink;
+  const subject = `Quick feedback request from ${businessName}`;
+  const text =
+    `Hi ${safeCustomerName},\n\n` +
+    `We'd love your quick feedback about ${businessName}.\n` +
+    `Share your experience here:\n${portal}\n\n` +
+    `Thank you!\n${businessName} Team`;
 
-    const customerIdentifier =
-      customerId || email || req.body?.customerPhone || "anonymous";
+  const logoImgHtml = identity.logoUrl
+    ? `<div style="margin-bottom:16px; text-align:center;">
+         <img src="${identity.logoUrl}" alt="${businessName} logo"
+              style="max-width:160px;height:auto;border-radius:12px;" />
+       </div>`
+    : "";
 
-    const safeBusinessName = businessName || "our business";
-    const safeCustomerName = customerName || "there";
-
-    if (!email || !portal) {
-      console.error("Missing required fields", {
-        email,
-        portal,
-        body: req.body,
-      });
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    if (businessId && customerIdentifier) {
-      const stateRef = automationStateRef({
-        businessId,
-        customerIdentifier,
-      });
-      const stateSnap = stateRef ? await stateRef.get() : null;
-      const existingState = stateSnap?.data()?.automationState;
-      if (existingState === AUTOMATION_STATES.IN_AI) {
-        return res.status(409).json({
-          error: "Customer is currently in an AI conversation. Suppressing invite.",
-        });
-      }
-    }
-
-    // אם אין subject / text / html – נבנה אותם לבד
-    if (!subject) {
-      subject = `How was your experience with ${safeBusinessName}?`;
-    }
-
-    if (!text) {
-      text =
-        `Hi ${safeCustomerName},\n\n` +
-        `Thanks for choosing ${safeBusinessName}.\n\n` +
-        `We'd really appreciate it if you could take a moment to leave us a review:\n` +
-        `${portal}\n\n` +
-        `Thank you!\n${safeBusinessName} Team`;
-    }
-
-    if (!html) {
-      const logoImgHtml = businessLogoUrl
-        ? `<div style="margin-bottom:16px;">
-             <img src="${businessLogoUrl}"
-                  alt="${safeBusinessName} logo"
-                  style="max-width:160px;height:auto;border-radius:8px;" />
-           </div>`
-        : "";
-
-      html = `
-        <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color:#f4f4f5; padding:24px;">
-          <div style="max-width:480px; margin:0 auto; background:#ffffff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(15,23,42,0.12);">
-            ${logoImgHtml}
-            <h2 style="margin:0 0 12px; color:#111827; font-size:20px;">
-              Hi ${safeCustomerName},
-            </h2>
-            <p style="margin:0 0 12px; color:#4b5563; font-size:14px;">
-              Thanks for choosing <strong>${safeBusinessName}</strong>.
-            </p>
-            <p style="margin:0 0 16px; color:#4b5563; font-size:14px;">
-              We'd really appreciate it if you could take a moment to share your experience.
-            </p>
-            <div style="text-align:center; margin:24px 0;">
-              <a href="${portal}" target="_blank" rel="noopener noreferrer"
-                 style="display:inline-block; padding:12px 24px; border-radius:999px; background:#4f46e5; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px;">
-                Leave a review
-              </a>
-            </div>
-            <p style="margin:0; color:#9ca3af; font-size:12px;">
-              If the button above doesn't work, copy and paste this link into your browser:<br />
-              <span style="word-break:break-all;">${portal}</span>
-            </p>
-          </div>
+  const html = `
+    <div style="font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color:#f4f4f5; padding:24px;">
+      <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(15,23,42,0.12);">
+        ${logoImgHtml}
+        <h2 style="margin:0 0 12px; color:#111827; font-size:20px;">Hi ${safeCustomerName},</h2>
+        <p style="margin:0 0 16px; color:#4b5563; font-size:15px;">${businessName} would love a quick note about your experience.</p>
+        <div style="text-align:center; margin:24px 0;">
+          <a href="${portal}" target="_blank" rel="noopener noreferrer"
+             style="display:inline-block; padding:12px 24px; border-radius:999px; background:#4f46e5; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px;">
+            Share feedback
+          </a>
         </div>
-      `;
-    }
+        <p style="margin:0; color:#9ca3af; font-size:12px;">If the button doesn't work, copy and paste this link:<br />
+          <span style="word-break:break-all;">${portal}</span>
+        </p>
+      </div>
+    </div>
+  `;
 
-    const msg = {
-      to: email,
-      from: "support@reviewresq.com",
-      subject,
-      text,
-      html,
-    };
+  const msg = {
+    to: email,
+    from: SENDGRID_SENDER,
+    subject,
+    text,
+    html,
+  };
 
-    console.log("Sending email via SendGrid", { to: email, subject });
+  console.log("[email] sending review request", { to: email, businessId });
+  await sgMail.send(msg);
 
-    await sgMail.send(msg);
-
-    console.log("Email sent successfully");
-
-    if (businessId && customerIdentifier) {
-      await setAutomationState({
-        businessId,
-        customerIdentifier,
-        state: AUTOMATION_STATES.WAITING,
-        extra: {
-          portalUrl: portal,
-          lastInviteChannel: "email",
-        },
-      });
-    }
-
-    if (businessId) {
-      try {
-        await upsertCustomerRecord({
-          businessId,
-          name: customerName || null,
-          phone: req.body?.customerPhone || null,
-          email,
-          source: normalizeCustomerSource(req.body?.source || "manual"),
-          reviewStatus: "requested",
-          lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
-          timelineEntry: {
-            type: "email_sent",
-            metadata: { reason: "review_invite" },
-          },
-        });
-      } catch (err) {
-        console.error("[customers] failed to record manual invite", err);
-      }
-    }
-
-    return res.status(200).json({ success: true });
+  try {
+    await upsertCustomerRecord({
+      businessId,
+      name: customerName || inviteData.customerName || null,
+      phone: customerPhone || inviteData.phone || null,
+      email,
+      source: normalizeCustomerSource(source || "manual"),
+      reviewStatus: "requested",
+      lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+      timelineEntry: {
+        type: "email_sent",
+        metadata: { reason: "review_invite" },
+      },
+    });
   } catch (err) {
-    console.error("SendGrid error", err);
+    console.error("[customers] failed to record manual invite", err);
+  }
+
+  return { success: true, portalUrl: portal };
+}
+
+exports.sendReviewRequestEmail = functions.https.onCall(async (data, context) => {
+  const caller = context.auth?.uid;
+  const businessId = data?.businessId || caller;
+
+  if (!caller) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication is required to send review requests.",
+    );
+  }
+
+  if (!businessId || caller !== businessId) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "You can only send review requests for your own business.",
+    );
+  }
+
+  return sendReviewRequestEmailCore({
+    businessId,
+    inviteToken: data?.inviteToken,
+    toEmail: data?.toEmail || data?.customerEmail,
+    customerName: data?.customerName,
+    portalUrl: data?.portalUrl,
+    customerPhone: data?.customerPhone,
+    source: data?.source || "ask-reviews",
+  });
+});
+
+exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) => {
+  console.log("sendReviewRequestEmail (HTTP) invoked", req.method);
+
+  if (applyCors(req, res, "POST, OPTIONS")) return;
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "method_not_allowed" });
+  }
+
+  try {
+    const result = await sendReviewRequestEmailCore({
+      businessId: req.body?.businessId,
+      inviteToken: req.body?.inviteToken,
+      toEmail: req.body?.to || req.body?.customerEmail,
+      customerName: req.body?.customerName,
+      portalUrl: req.body?.portalUrl || req.body?.portalLink,
+      customerPhone: req.body?.customerPhone,
+      source: req.body?.source || "manual",
+    });
+
+    return res.status(200).json({ success: Boolean(result?.success) });
+  } catch (err) {
+    console.error("[email] send failed", err);
+    if (err instanceof functions.https.HttpsError) {
+      const status = err.code === "unauthenticated" ? 401 : 400;
+      return res.status(status).json({ error: err.message });
+    }
     return res.status(500).json({ error: "Failed to send email" });
   }
 });
