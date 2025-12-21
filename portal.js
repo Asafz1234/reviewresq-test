@@ -4,16 +4,13 @@
 import {
   db,
   doc,
+  collection,
   getDoc,
   getDocs,
   query,
   where,
   setDoc,
 } from "./firebase-config.js";
-import {
-  buildFeedbackPayload,
-  submitFeedback,
-} from "./feedback-store.js";
 import { resolveCanonicalReviewUrl } from "./google-link-utils.js";
 
 // ----- DOM ELEMENTS -----
@@ -44,6 +41,7 @@ const feedbackForm = document.getElementById("feedbackForm");
 const feedbackMessageInput = document.getElementById("feedbackMessage");
 const customerNameInput = document.getElementById("customerNameInput");
 const customerEmailInput = document.getElementById("customerEmailInput");
+const contactFieldsRow = document.getElementById("contactFields");
 const sendFeedbackBtn = document.getElementById("sendFeedbackBtn");
 
 const thankyouCopy = document.getElementById("thankyouCopy");
@@ -67,6 +65,7 @@ const businessIdFromParams =
   urlParams.get("id") ||
   urlParams.get("portalId") ||
   urlParams.get("shareKey");
+const inviteTokenParam = urlParams.get("t") || urlParams.get("token") || "";
 const shareKeyParam =
   urlParams.get("shareKey") ||
   urlParams.get("portalId") ||
@@ -85,6 +84,8 @@ let businessLogoUrl = null;
 let googleReviewUrl = "";
 let businessSnapshot = null;
 let didRedirect = false;
+let inviteToken = inviteTokenParam || "";
+let resolvedCustomerId = null;
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
 );
@@ -107,6 +108,16 @@ function setPortalStatus(status, message = "") {
   portalStatus.hidden = status === "ready";
   portalEl.classList.toggle("is-loading", status === "loading");
   portalEl.classList.toggle("has-error", status === "error");
+}
+
+function setContactFieldsVisible(isVisible) {
+  if (!contactFieldsRow) return;
+
+  contactFieldsRow.hidden = !isVisible;
+  if (!isVisible) {
+    if (customerNameInput) customerNameInput.value = "";
+    if (customerEmailInput) customerEmailInput.value = "";
+  }
 }
 
 function handleMissingBusinessData(message) {
@@ -223,9 +234,9 @@ function setPortalClasses() {
   portalEl.classList.add("has-rating");
   portalEl.classList.remove("low-rating", "high-rating");
 
-  if (currentRating <= 3) {
+  if (currentRating && currentRating < 5) {
     portalEl.classList.add("low-rating");
-  } else if (currentRating >= 4) {
+  } else if (currentRating === 5) {
     portalEl.classList.add("high-rating");
   }
 
@@ -239,6 +250,15 @@ function setPortalClasses() {
   });
 }
 
+function updateMessageRequirement() {
+  if (!feedbackMessageInput) return;
+  const requireMessage = currentRating > 0 && currentRating <= 2;
+  feedbackMessageInput.required = requireMessage;
+  feedbackMessageInput.placeholder = requireMessage
+    ? "Tell us what happened so we can help"
+    : "Optional note (helps the team improve)";
+}
+
 function setRatingEnabled(isEnabled) {
   ratingButtons.forEach((btn) => {
     btn.disabled = !isEnabled;
@@ -246,8 +266,10 @@ function setRatingEnabled(isEnabled) {
   });
 
   if (highCtaButton) {
-    highCtaButton.disabled = !isEnabled || !googleReviewUrl;
-    highCtaButton.classList.toggle("disabled", !isEnabled || !googleReviewUrl);
+    const hasGoogleLink = Boolean(googleReviewUrl);
+    const shouldDisableHighCta = !isEnabled || !hasGoogleLink;
+    highCtaButton.disabled = shouldDisableHighCta;
+    highCtaButton.classList.toggle("disabled", shouldDisableHighCta);
   }
 }
 
@@ -259,6 +281,8 @@ function updateHighRatingUi() {
   if (!isFiveStar) {
     setGoogleLinkError(false);
     clearRedirectTimer();
+  } else if (!googleReviewUrl) {
+    setGoogleLinkError(true);
   }
 }
 
@@ -287,6 +311,7 @@ function resetRating() {
   resetRedirectFlow();
   toggleFiveStarUi(false);
   setGoogleLinkError(false);
+  updateMessageRequirement();
 }
 
 function showThankYouState() {
@@ -351,6 +376,26 @@ function redirectToGoogleReview(selectedRating = null) {
   }
 
   safeRedirect(googleUrl);
+}
+
+async function submitFeedbackToBackend(payload) {
+  const endpoint =
+    "https://us-central1-reviewresq-app.cloudfunctions.net/submitPortalFeedback";
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response
+    .json()
+    .catch(() => ({ error: "Unable to parse response" }));
+
+  if (!response.ok) {
+    throw new Error(data?.error || "Failed to send feedback");
+  }
+
+  return data;
 }
 
 // ----- LOAD BUSINESS PROFILE -----
@@ -453,26 +498,17 @@ async function loadBusinessProfile() {
 
     googleReviewUrl =
       data.googleReviewLink || data.googleReviewUrl || resolveCanonicalReviewUrl(data) || "";
-    const hasGoogleLink = Boolean(googleReviewUrl);
+    setRatingEnabled(true);
 
-    setRatingEnabled(hasGoogleLink);
-
-    if (sendFeedbackBtn) {
-      sendFeedbackBtn.disabled = !hasGoogleLink;
-    }
-
-    if (!hasGoogleLink) {
+    if (!googleReviewUrl) {
       console.error("[portal] googleReviewLink missing", {
         businessId,
         snapshot: data,
       });
-      handleMissingBusinessData(
-        "Google review link is not configured. Please ask the owner to update their profile."
-      );
       setGoogleLinkError(true);
-    } else {
-      setPortalStatus("ready");
     }
+
+    setPortalStatus("ready");
 
     if (googleReviewUrl && ref && ref.id) {
       try {
@@ -489,6 +525,7 @@ async function loadBusinessProfile() {
     document.title = `${businessName} • Feedback Portal`;
 
     await loadPortalSettings();
+    setContactFieldsVisible(true);
   } catch (err) {
     const permissionDenied = err?.code === "permission-denied";
     if (permissionDenied) {
@@ -549,6 +586,63 @@ function applyPortalSettings() {
   if (thankyouBodyText) thankyouBodyText.textContent = portalSettings.thankYouBody || thankyouBodyText.textContent;
 }
 
+async function resolveInviteTokenOnLoad() {
+  setPortalStatus("loading", "Loading your invite…");
+
+  const requestedBusinessId = getBusinessIdFromUrl();
+  if (!requestedBusinessId) {
+    handleMissingBusinessData(
+      "This invite link is missing the business id. Please ask the business owner to resend it."
+    );
+    return;
+  }
+
+  const endpoint =
+    "https://us-central1-reviewresq-app.cloudfunctions.net/resolveInviteToken";
+
+  try {
+    const response = await fetch(
+      `${endpoint}?businessId=${encodeURIComponent(requestedBusinessId)}&t=${encodeURIComponent(inviteToken)}`
+    );
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Unable to resolve invite");
+    }
+
+    const resolvedBusinessName = (data?.businessName || "").trim();
+    if (!resolvedBusinessName) {
+      throw new Error("This portal is missing the business name.");
+    }
+
+    businessId = data?.businessId || requestedBusinessId;
+    resolvedCustomerId = data?.customerId || null;
+    businessName = resolvedBusinessName;
+    businessTagline = "";
+    businessLogoUrl = data?.logoUrl || null;
+    googleReviewUrl = data?.googleReviewLink || "";
+
+    if (bizNameDisplay) bizNameDisplay.textContent = businessName;
+    if (bizSubtitleDisplay) bizSubtitleDisplay.textContent = "";
+    renderBusinessIdentity();
+    setRatingEnabled(true);
+    setContactFieldsVisible(false);
+
+    if (!googleReviewUrl) {
+      setGoogleLinkError(true);
+    }
+
+    document.title = `${businessName} • Feedback Portal`;
+    await loadPortalSettings();
+    setPortalStatus("ready");
+  } catch (err) {
+    console.error("[portal] failed to resolve invite", err);
+    handleMissingBusinessData(
+      err?.message || "We could not load this invite. Please ask the business owner for a new link."
+    );
+  }
+}
+
 // ----- RATING HANDLERS -----
 ratingButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -558,6 +652,7 @@ ratingButtons.forEach((btn) => {
     if (!value) return;
     resetRedirectFlow();
     currentRating = value;
+    updateMessageRequirement();
     setPortalClasses();
     updateHighRatingUi();
 
@@ -609,6 +704,11 @@ async function handleFeedbackSubmit(event) {
     return;
   }
 
+  if (rating <= 2 && !message) {
+    alert("Please share a few details so we can make things right.");
+    return;
+  }
+
   try {
     if (sendFeedbackBtn) {
       sendFeedbackBtn.disabled = true;
@@ -623,18 +723,27 @@ async function handleFeedbackSubmit(event) {
       customerEmail,
     });
 
-    const payload = buildFeedbackPayload(currentBusinessId, {
+    const payload = {
+      businessId: currentBusinessId,
       rating,
       message,
-      customerName,
-      customerEmail,
-      source: "portal",
-      status: "new",
-      writeVersion: "v2",
       env: typeof window !== "undefined" ? window.location.hostname : "unknown",
-    });
+    };
 
-    await submitFeedback(currentBusinessId, payload, { dualWriteLegacy: true });
+    if (inviteToken) {
+      payload.t = inviteToken;
+    }
+    if (!inviteToken && customerName) {
+      payload.customerName = customerName;
+    }
+    if (customerEmail) {
+      payload.email = customerEmail;
+    }
+
+    const result = await submitFeedbackToBackend(payload);
+    if (result?.customerId) {
+      resolvedCustomerId = result.customerId;
+    }
 
     console.log("[portal] Feedback submitted successfully");
     showThankYouState();
@@ -658,5 +767,11 @@ if (feedbackForm) {
 }
 
 // ----- INIT -----
+updateMessageRequirement();
 showOwnerToolbarIfNeeded();
-loadBusinessProfile();
+if (inviteToken) {
+  resolveInviteTokenOnLoad();
+} else {
+  setContactFieldsVisible(true);
+  loadBusinessProfile();
+}
