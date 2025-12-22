@@ -159,9 +159,7 @@ function updateChannelUi() {
     singleEmailHint.textContent = emailRequired ? "(required for email)" : "(optional)";
   if (generateSingleBtn)
     generateSingleBtn.textContent = emailRequired ? "Send email request" : "Generate & Copy Link";
-  if (!emailRequired) {
-    resetStatusBanners();
-  }
+  resetStatusBanners();
 }
 
 function hideEmailBanners() {
@@ -195,6 +193,9 @@ function setErrorBanner(message = "") {
   if (!emailErrorBanner) return;
   emailErrorBanner.textContent = message || "";
   emailErrorBanner.hidden = !message;
+  if (message && emailSuccessBanner && !emailSuccessBanner.hidden) {
+    emailSuccessBanner.hidden = true;
+  }
 }
 
 function formatDateLabel(timestampMs) {
@@ -255,7 +256,8 @@ function renderOutboundTable() {
 
     customerCell.textContent = entry.customerName || entry.customerEmail || "Unknown";
     channelCell.textContent = entry.channel || "link";
-    sentCell.textContent = entry.sentAtMs ? formatDateLabel(entry.sentAtMs) : "—";
+    const sentTimestamp = entry.deliveredAtMs || entry.sentAtMs || entry.processedAtMs;
+    sentCell.textContent = sentTimestamp ? formatDateLabel(sentTimestamp) : "—";
     openedCell.textContent = entry.openedAtMs ? "✅" : "—";
     clickedCell.textContent = entry.clickedAtMs ? "✅" : "—";
     statusCell.textContent = formatStatus(entry.status);
