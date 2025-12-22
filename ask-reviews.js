@@ -258,8 +258,8 @@ function renderOutboundTable() {
     channelCell.textContent = entry.channel || "link";
     const sentTimestamp = entry.deliveredAtMs || entry.sentAtMs || entry.processedAtMs;
     sentCell.textContent = sentTimestamp ? formatDateLabel(sentTimestamp) : "—";
-    openedCell.textContent = entry.openedAtMs ? "✅" : "—";
-    clickedCell.textContent = entry.clickedAtMs ? "✅" : "—";
+    openedCell.textContent = entry.openedAtMs ? formatDateLabel(entry.openedAtMs) : "—";
+    clickedCell.textContent = entry.clickedAtMs ? formatDateLabel(entry.clickedAtMs) : "—";
     statusCell.textContent = formatStatus(entry.status);
     dateCell.textContent = formatDateLabel(entry.createdAtMs || entry.updatedAtMs);
 
@@ -545,6 +545,7 @@ function initApp() {
 
 document.addEventListener("DOMContentLoaded", () => {
   hideEmailBanners();
+  updateChannelUi();
   initApp();
 });
 
