@@ -3284,7 +3284,6 @@ async function enforceEmailRateLimit(businessId) {
 
 async function sendReviewRequestEmailCore({
   businessId,
-  inviteToken,
   toEmail,
   customerName,
   portalUrl,
@@ -3309,12 +3308,10 @@ async function sendReviewRequestEmailCore({
     );
   }
 
-  const resolvedInviteToken = inviteToken || extractInviteTokenFromUrl(portalUrl);
-  const requestId = explicitRequestId || resolvedInviteToken;
-  const inviteRecord = await resolveInviteRecord(businessId, resolvedInviteToken);
-  const inviteData = inviteRecord?.data || {};
-  const portal = resolvePortalUrl({ businessId, inviteToken: resolvedInviteToken, portalUrl });
-  const customerLabel = customerName || inviteData.customerName || null;
+  const requestId = explicitRequestId || crypto.randomBytes(12).toString("hex");
+  const portal =
+    portalUrl || `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(businessId)}`;
+  const customerLabel = customerName || null;
 
   await enforceEmailRateLimit(businessId);
 
@@ -3363,11 +3360,13 @@ async function sendReviewRequestEmailCore({
     channel: "email",
     customerName: customerLabel,
     customerEmail: email,
-    customerPhone: customerPhone || inviteData.phone || null,
+    customerPhone: customerPhone || null,
     reviewLink: portal,
     status: "sending",
     provider: "sendgrid",
   });
+
+  const nowMs = Date.now();
 
   await updateOutboundRequest({
     businessId,
@@ -3377,12 +3376,12 @@ async function sendReviewRequestEmailCore({
       status: "sending",
       customerName: customerLabel,
       customerEmail: email,
-      customerPhone: customerPhone || inviteData.phone || null,
+      customerPhone: customerPhone || null,
       reviewLink: portal,
       provider: "sendgrid",
-      inviteToken: resolvedInviteToken,
       source,
       error: null,
+      processedAtMs: nowMs,
     },
   });
 
@@ -3395,7 +3394,6 @@ async function sendReviewRequestEmailCore({
     customArgs: {
       businessId,
       requestId,
-      inviteToken: resolvedInviteToken,
     },
     trackingSettings: {
       clickTracking: { enable: true, enableText: true },
@@ -3443,7 +3441,7 @@ async function sendReviewRequestEmailCore({
     await upsertCustomerRecord({
       businessId,
       name: customerLabel || null,
-      phone: customerPhone || inviteData.phone || null,
+      phone: customerPhone || null,
       email,
       source: normalizeCustomerSource(source || "manual"),
       reviewStatus: "requested",
@@ -3457,7 +3455,7 @@ async function sendReviewRequestEmailCore({
     console.error("[customers] failed to record manual invite", err);
   }
 
-  return { success: true, portalUrl: portal, requestId };
+  return { success: true, ok: true, portalUrl: portal, requestId };
 }
 
 exports.sendReviewRequestEmail = functions.https.onCall(async (data, context) => {
@@ -3480,11 +3478,10 @@ exports.sendReviewRequestEmail = functions.https.onCall(async (data, context) =>
 
   return sendReviewRequestEmailCore({
     businessId,
-    inviteToken: data?.inviteToken,
-    toEmail: data?.toEmail || data?.customerEmail,
+    toEmail: data?.email || data?.toEmail || data?.customerEmail,
     customerName: data?.customerName,
     portalUrl: data?.portalUrl,
-    customerPhone: data?.customerPhone,
+    customerPhone: data?.customerPhone || data?.phone,
     source: data?.source || "ask-reviews",
   });
 });
@@ -3509,16 +3506,15 @@ exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) 
 
     const result = await sendReviewRequestEmailCore({
       businessId,
-      inviteToken: req.body?.inviteToken,
-      toEmail: req.body?.to || req.body?.customerEmail,
+      toEmail: req.body?.email || req.body?.to || req.body?.customerEmail,
       customerName: req.body?.customerName,
       portalUrl: req.body?.portalUrl || req.body?.portalLink,
-      customerPhone: req.body?.customerPhone,
-      source: req.body?.source || "manual",
+      customerPhone: req.body?.customerPhone || req.body?.phone,
+      source: req.body?.source || "ask-for-reviews",
     });
 
     const success = Boolean(result?.success);
-    return res.status(200).json({ ok: success, success });
+    return res.status(200).json({ ok: success, success, requestId: result?.requestId });
   } catch (err) {
     console.error("[email] send failed", err);
     if (err instanceof functions.https.HttpsError) {
