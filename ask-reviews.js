@@ -5,8 +5,6 @@ import {
   where,
   onSnapshot,
   orderBy,
-  functions,
-  httpsCallable,
 } from "./firebase-config.js";
 import { listenForUser } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
@@ -54,6 +52,42 @@ let outboundUnsub = null;
 let bulkLinks = [];
 let emailSuccessTimer = null;
 let outboundRequests = [];
+let currentUser = null;
+
+async function callApi(path, payload = {}) {
+  const token = await currentUser?.getIdToken?.();
+  if (!token) {
+    throw new Error("You need to be signed in to send requests.");
+  }
+
+  const response = await fetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await response.text();
+  let body = {};
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch (err) {
+      console.warn(`[ask-reviews] failed to parse response from ${path}`, err);
+    }
+  }
+
+  if (!response.ok || body?.ok === false) {
+    const message = body?.error || body?.message || response.statusText || "Request failed";
+    const error = new Error(message);
+    error.details = body;
+    throw error;
+  }
+
+  return body;
+}
 
 function showToast(message, isError = false) {
   if (!toastEl) return alert(message);
@@ -332,8 +366,7 @@ async function handleSingleSubmit(event) {
   generateSingleBtn.textContent = isEmailChannel ? "Sending…" : "Generating…";
 
   try {
-    const callable = httpsCallable(functions, "createInviteToken");
-    const result = await callable({
+    const inviteResponse = await callApi("/api/createInviteToken", {
       businessId,
       customerName: name,
       phone,
@@ -341,22 +374,21 @@ async function handleSingleSubmit(event) {
       channel,
       source: "ask-reviews",
     });
-    const portalUrl = result?.data?.portalUrl;
-    const inviteToken = result?.data?.inviteToken;
-    if (!portalUrl) throw new Error("No portal URL returned");
+    const portalUrl = inviteResponse?.portalUrl;
+    const inviteToken = inviteResponse?.inviteToken;
+    if (!inviteResponse?.ok || !portalUrl) throw new Error("No portal URL returned");
     if (singleLinkOutput) singleLinkOutput.value = portalUrl;
     if (singleResult) singleResult.hidden = false;
     if (isEmailChannel) {
-      const sendCallable = httpsCallable(functions, "sendReviewRequestEmail");
-      const sendResult = await sendCallable({
+      const sendResult = await callApi("/api/sendReviewRequestEmail", {
         businessId,
         inviteToken,
         toEmail: email,
         customerName: name,
       });
-      const sendSuccess = Boolean(sendResult?.data?.success);
+      const sendSuccess = Boolean(sendResult?.ok);
       if (!sendSuccess) {
-        throw new Error(sendResult?.data?.error || "Email send failed");
+        throw new Error(sendResult?.error || "Email send failed");
       }
       showEmailSuccess();
       showToast("Email sent");
@@ -430,10 +462,9 @@ async function handleBulkSubmit(event) {
   bulkLinks = [];
 
   try {
-    const callable = httpsCallable(functions, "createInviteToken");
     for (const customer of selected) {
       try {
-        const result = await callable({
+        const result = await callApi("/api/createInviteToken", {
           businessId,
           customerId: customer.id,
           customerName: customer.name,
@@ -442,7 +473,7 @@ async function handleBulkSubmit(event) {
           channel: "link",
           source: "ask-reviews",
         });
-        const portalUrl = result?.data?.portalUrl;
+        const portalUrl = result?.portalUrl;
         if (portalUrl) {
           bulkLinks.push({
             name: customer.name || "Unnamed",
@@ -545,6 +576,7 @@ function attachEvents() {
 function initApp() {
   listenForUser(({ user, subscription }) => {
     if (!user) return;
+    currentUser = user;
     businessId = user.uid;
     setPlan(subscription?.planId || subscription?.planTier);
     attachEvents();

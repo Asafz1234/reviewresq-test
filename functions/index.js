@@ -3495,7 +3495,7 @@ exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) 
   if (applyCors(req, res, "POST, OPTIONS")) return;
 
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "method_not_allowed" });
+    return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
   try {
@@ -3504,7 +3504,7 @@ exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) 
     const businessId = bodyBusinessId || decoded.uid;
 
     if (!businessId || decoded.uid !== businessId) {
-      return res.status(403).json({ error: "permission_denied" });
+      return res.status(403).json({ ok: false, error: "permission_denied" });
     }
 
     const result = await sendReviewRequestEmailCore({
@@ -3517,17 +3517,52 @@ exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) 
       source: req.body?.source || "manual",
     });
 
-    return res.status(200).json({ success: Boolean(result?.success) });
+    const success = Boolean(result?.success);
+    return res.status(200).json({ ok: success, success });
   } catch (err) {
     console.error("[email] send failed", err);
     if (err instanceof functions.https.HttpsError) {
       const status = err.code === "unauthenticated" ? 401 : 400;
-      return res.status(status).json({ error: err.message });
+      return res.status(status).json({ ok: false, error: err.message });
     }
     if (err?.code === "UNAUTHENTICATED") {
-      return res.status(401).json({ error: err.message || "Authentication required" });
+      return res.status(401).json({ ok: false, error: err.message || "Authentication required" });
     }
-    return res.status(500).json({ error: "Failed to send email" });
+    return res.status(500).json({ ok: false, error: "Failed to send email" });
+  }
+});
+
+exports.createInviteTokenHttp = functions.https.onRequest(async (req, res) => {
+  if (applyCors(req, res, "POST, OPTIONS")) return;
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "method_not_allowed" });
+  }
+
+  try {
+    const decoded = await verifyRequestAuth(req);
+    const bodyBusinessId = req.body?.businessId;
+    const businessId = bodyBusinessId || decoded.uid;
+
+    if (!businessId || decoded.uid !== businessId) {
+      return res.status(403).json({ ok: false, error: "permission_denied" });
+    }
+
+    const inviteResponse = await createInviteToken({
+      businessId,
+      customerId: req.body?.customerId,
+      customerName: req.body?.customerName,
+      phone: req.body?.phone,
+      email: req.body?.email,
+      channel: req.body?.channel,
+      source: req.body?.source || "manual",
+    });
+
+    return res.status(200).json({ ok: true, ...inviteResponse });
+  } catch (err) {
+    console.error("[invite] http create failed", err);
+    const status = err.code === "UNAUTHENTICATED" ? 401 : 400;
+    return res.status(status).json({ ok: false, error: err.message || "Unable to create invite" });
   }
 });
 
