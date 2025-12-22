@@ -378,11 +378,20 @@ const writeFeedbackDocuments = async (businessId, payload) => {
   return primaryResult.value;
 };
 
+const CORS_ALLOWED_ORIGINS = new Set([
+  "https://reviewresq.com",
+  "https://www.reviewresq.com",
+]);
+
 const applyCors = (req, res, methods = "GET, POST, OPTIONS") => {
-  const origin = req.headers.origin || "*";
-  res.set("Access-Control-Allow-Origin", origin);
+  const origin = req.headers.origin || "";
+  const allowOrigin = CORS_ALLOWED_ORIGINS.has(origin)
+    ? origin
+    : "https://reviewresq.com";
+
+  res.set("Access-Control-Allow-Origin", allowOrigin);
   res.set("Access-Control-Allow-Methods", methods);
-  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.set("Vary", "Origin");
 
   if (req.method === "OPTIONS") {
