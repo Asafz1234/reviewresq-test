@@ -387,12 +387,13 @@ const ALLOWED_ORIGINS = new Set([
 
 const resolveCorsOrigin = (origin = "") => {
   if (ALLOWED_ORIGINS.has(origin)) return origin;
-  return "https://reviewresq.com";
+  return null;
 };
 
 const applyCors = (req, res, methods = "GET, POST, OPTIONS") => {
-  const origin = resolveCorsOrigin(req.headers.origin || "");
-  res.set("Access-Control-Allow-Origin", origin);
+  const requestOrigin = req.headers.origin || "";
+  const allowedOrigin = resolveCorsOrigin(requestOrigin);
+
   res.set("Access-Control-Allow-Methods", methods);
   res.set(
     "Access-Control-Allow-Headers",
@@ -406,6 +407,17 @@ const applyCors = (req, res, methods = "GET, POST, OPTIONS") => {
   );
   res.set("Access-Control-Allow-Credentials", "true");
   res.set("Vary", "Origin");
+
+  if (allowedOrigin) {
+    res.set("Access-Control-Allow-Origin", allowedOrigin);
+  } else if (!requestOrigin) {
+    res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
+  }
+
+  if (requestOrigin && !allowedOrigin) {
+    res.status(403).json({ error: "origin_not_allowed" });
+    return true;
+  }
 
   if (req.method === "OPTIONS") {
     res.status(204).send("");
