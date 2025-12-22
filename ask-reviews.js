@@ -44,6 +44,8 @@ const customEndInput = document.getElementById("requestEnd");
 
 const toastEl = document.getElementById("askToast");
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+
 let businessId = null;
 let plan = "starter";
 let customers = [];
@@ -170,12 +172,14 @@ function hideEmailBanners() {
   if (emailSuccessBanner) {
     emailSuccessBanner.hidden = true;
     emailSuccessBanner.style.removeProperty("display");
+    emailSuccessBanner.textContent = "";
   }
   setErrorBanner("");
 }
 
 function showEmailSuccess() {
   if (!emailSuccessBanner) return;
+  emailSuccessBanner.textContent = "Email sent";
   emailSuccessBanner.hidden = false;
   emailSuccessBanner.style.removeProperty("display");
   emailSuccessTimer = setTimeout(() => {
@@ -293,6 +297,8 @@ async function handleSingleSubmit(event) {
   const channel = channelSelect?.value || "link";
   const isEmailChannel = channel === "email";
 
+  resetStatusBanners();
+
   if (!name) {
     showToast("Customer name is required", true);
     setErrorBanner("Customer name is required");
@@ -305,7 +311,11 @@ async function handleSingleSubmit(event) {
     return;
   }
 
-  resetStatusBanners();
+  if (isEmailChannel && email && !emailRegex.test(email)) {
+    showToast("Enter a valid email address", true);
+    setErrorBanner("Enter a valid email address");
+    return;
+  }
 
   const defaultLabel = generateSingleBtn.textContent;
   generateSingleBtn.disabled = true;
