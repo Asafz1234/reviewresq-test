@@ -378,11 +378,22 @@ const writeFeedbackDocuments = async (businessId, payload) => {
   return primaryResult.value;
 };
 
+const ALLOWED_ORIGINS = new Set([
+  "https://reviewresq.com",
+  "http://localhost:5000",
+  "http://127.0.0.1:5000",
+]);
+
+const resolveCorsOrigin = (origin = "") => {
+  if (ALLOWED_ORIGINS.has(origin)) return origin;
+  return "https://reviewresq.com";
+};
+
 const applyCors = (req, res, methods = "GET, POST, OPTIONS") => {
-  const origin = req.headers.origin || "*";
+  const origin = resolveCorsOrigin(req.headers.origin || "");
   res.set("Access-Control-Allow-Origin", origin);
   res.set("Access-Control-Allow-Methods", methods);
-  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Api-Key");
   res.set("Vary", "Origin");
 
   if (req.method === "OPTIONS") {
@@ -3225,13 +3236,13 @@ async function enforceEmailRateLimit(businessId) {
     .collection("businesses")
     .doc(businessId)
     .collection("outboundRequests")
-    .where("channel", "==", "email")
     .where("createdAt", ">", windowStart)
     .orderBy("createdAt", "desc")
-    .limit(EMAIL_RATE_LIMIT_MAX + 1)
+    .limit(EMAIL_RATE_LIMIT_MAX * 2)
     .get();
 
-  if (snap.size > EMAIL_RATE_LIMIT_MAX) {
+  const recentEmails = snap.docs.filter((doc) => (doc.data()?.channel || "") === "email");
+  if (recentEmails.length > EMAIL_RATE_LIMIT_MAX) {
     throw new functions.https.HttpsError(
       "resource-exhausted",
       "Too many email requests. Please wait and try again.",
@@ -3500,6 +3511,29 @@ async function applySendGridEvent(event = {}) {
     const existing = snap.exists ? snap.data() : {};
     const currentStatus = existing.status || "draft";
 
+    const defaults = snap.exists
+      ? {
+          businessId: String(businessId),
+          requestId: String(requestId),
+          channel: existing.channel || "email",
+          provider: existing.provider || "sendgrid",
+          sentAtMs: existing.sentAtMs ?? null,
+          deliveredAtMs: existing.deliveredAtMs ?? null,
+          openedAtMs: existing.openedAtMs ?? null,
+          clickedAtMs: existing.clickedAtMs ?? null,
+        }
+      : buildOutboundDefaults({
+          businessId,
+          requestId: String(requestId),
+          channel: "email",
+          customerName: existing.customerName || null,
+          customerEmail: existing.customerEmail || null,
+          customerPhone: existing.customerPhone || null,
+          reviewLink: existing.reviewLink || null,
+          status: currentStatus,
+          provider: existing.provider || "sendgrid",
+        });
+
     const updates = {
       businessId: String(businessId),
       requestId: String(requestId),
@@ -3547,32 +3581,24 @@ async function applySendGridEvent(event = {}) {
     }
 
     updates.status = nextStatus;
-    tx.set(ref, updates, { merge: true });
+    tx.set(ref, { ...defaults, ...updates }, { merge: true });
   });
 }
 
 exports.sendgridEvents = functions.https.onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Api-Key");
-  res.set("Vary", "Origin");
-
-  if (req.method === "OPTIONS") {
-    return res.status(204).send("");
-  }
+  if (applyCors(req, res, "POST, OPTIONS")) return;
 
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
-  if (SENDGRID_WEBHOOK_SECRET) {
-    const provided =
-      req.headers["x-api-key"] ||
-      req.headers["x-sendgrid-signature"] ||
-      (req.headers.authorization || "").replace("Bearer ", "");
-    if (provided !== SENDGRID_WEBHOOK_SECRET) {
-      return res.status(401).json({ ok: false, error: "unauthorized" });
-    }
+  const provided =
+    req.headers["x-api-key"] ||
+    req.headers["x-sendgrid-signature"] ||
+    (req.headers.authorization || "").replace("Bearer ", "");
+
+  if (!SENDGRID_WEBHOOK_SECRET || provided !== SENDGRID_WEBHOOK_SECRET) {
+    return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
   const events = Array.isArray(req.body) ? req.body : [];
@@ -4311,15 +4337,7 @@ exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
 });
 
 exports.recordReviewLinkClick = onRequest(async (req, res) => {
-  const origin = req.headers.origin || "*";
-  res.set("Access-Control-Allow-Origin", origin);
-  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
-  res.set("Vary", "Origin");
-
-  if (req.method === "OPTIONS") {
-    return res.status(204).send("");
-  }
+  if (applyCors(req, res, "POST, OPTIONS")) return;
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -4441,10 +4459,14 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
   let customerProfile = null;
   let customerId = payload.customerId || null;
   let inviteRef = null;
+  let inviteData = null;
+  const requestId =
+    (payload.requestId || payload.reqId || payload.t || payload.inviteToken || "").toString().trim() || null;
 
   try {
     if (inviteToken) {
       const resolved = await resolveInviteRecord(businessId, inviteToken);
+      inviteData = resolved.data || {};
       customerId = resolved.data.customerId || customerId;
       inviteRef = resolved.ref;
     }
@@ -4462,11 +4484,12 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
   const feedbackPayload = {
     businessId,
     customerId: customerId || null,
-    customerName: customerData.name || providedName || "Anonymous",
-    phone: customerData.phone || null,
-    customerPhone: customerData.phone || null,
-    email: providedEmail || null,
-    customerEmail: providedEmail || null,
+    requestId: requestId || inviteToken || null,
+    customerName: providedName || customerData.name || inviteData?.customerName || "Anonymous",
+    phone: inviteData?.phone || customerData.phone || null,
+    customerPhone: inviteData?.phone || customerData.phone || null,
+    email: providedEmail || inviteData?.email || customerData.email || null,
+    customerEmail: providedEmail || inviteData?.email || customerData.email || null,
     rating,
     message,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),

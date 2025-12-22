@@ -167,8 +167,20 @@ function hideEmailBanners() {
     clearTimeout(emailSuccessTimer);
     emailSuccessTimer = null;
   }
-  if (emailSuccessBanner) emailSuccessBanner.hidden = true;
+  if (emailSuccessBanner) {
+    emailSuccessBanner.hidden = true;
+    emailSuccessBanner.style.removeProperty("display");
+  }
   setErrorBanner("");
+}
+
+function showEmailSuccess() {
+  if (!emailSuccessBanner) return;
+  emailSuccessBanner.hidden = false;
+  emailSuccessBanner.style.removeProperty("display");
+  emailSuccessTimer = setTimeout(() => {
+    emailSuccessBanner.hidden = true;
+  }, 5000);
 }
 
 function resetStatusBanners() {
@@ -316,18 +328,16 @@ async function handleSingleSubmit(event) {
     if (singleResult) singleResult.hidden = false;
     if (isEmailChannel) {
       const sendCallable = httpsCallable(functions, "sendReviewRequestEmail");
-      await sendCallable({
+      const sendResult = await sendCallable({
         businessId,
         inviteToken,
         toEmail: email,
         customerName: name,
       });
-      if (emailSuccessBanner) {
-        emailSuccessBanner.hidden = false;
-        emailSuccessTimer = setTimeout(() => {
-          emailSuccessBanner.hidden = true;
-        }, 5000);
+      if (!sendResult?.data?.success) {
+        throw new Error("Email send failed");
       }
+      showEmailSuccess();
       showToast("Email sent");
     } else {
       await copyText(portalUrl);
