@@ -3020,6 +3020,61 @@ exports.createInviteToken = functions.https.onCall(async (data = {}, context) =>
   }
 });
 
+exports.createInviteTokenCallable = functions.https.onCall(async (data = {}, context) => {
+  const caller = context.auth?.uid;
+  const businessId = data.businessId || caller;
+  const customerId = data.customerId;
+  const customerName = (data.customerName || data.name || "").toString().trim();
+  const phone = (data.phone || "").toString().trim();
+  const email = (data.email || "").toString().trim();
+  const channelRaw = typeof data.channel === "string" ? data.channel.toLowerCase() : "manual";
+  const allowedChannels = new Set(["sms", "email", "whatsapp", "manual", "link"]);
+  const channel = allowedChannels.has(channelRaw) ? channelRaw : "manual";
+  const source = data.source || "ask-reviews";
+
+  if (!caller) {
+    throw new functions.https.HttpsError("unauthenticated", "Authentication is required.");
+  }
+
+  if (!businessId || caller !== businessId) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Only business owners can create invite tokens.",
+    );
+  }
+
+  if (!customerName) {
+    throw new functions.https.HttpsError("invalid-argument", "customerName is required.");
+  }
+
+  if (channel === "email" && !email) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Email is required for email invitations.",
+    );
+  }
+
+  try {
+    const inviteResponse = await createInviteToken({
+      businessId,
+      customerId,
+      customerName,
+      phone,
+      email,
+      channel,
+      source,
+    });
+
+    return { ok: true, ...inviteResponse, portalLink: inviteResponse.portalUrl };
+  } catch (err) {
+    console.error("[functions.createInviteTokenCallable] failed", err);
+    throw new functions.https.HttpsError(
+      "internal",
+      err?.message || "Unable to create invite token",
+    );
+  }
+});
+
 exports.importCustomersCsv = functions.https.onCall(async (data, context) => {
   if (!context.auth?.uid) {
     throw new functions.https.HttpsError(
@@ -3455,7 +3510,13 @@ async function sendReviewRequestEmailCore({
     console.error("[customers] failed to record manual invite", err);
   }
 
-  return { success: true, ok: true, portalUrl: portal, requestId };
+  return {
+    success: true,
+    ok: true,
+    portalUrl: portal,
+    requestId,
+    providerMessageId: providerMessageId || null,
+  };
 }
 
 exports.sendReviewRequestEmail = functions.https.onCall(async (data, context) => {
@@ -3484,6 +3545,85 @@ exports.sendReviewRequestEmail = functions.https.onCall(async (data, context) =>
     customerPhone: data?.customerPhone || data?.phone,
     source: data?.source || "ask-reviews",
   });
+});
+
+exports.sendReviewRequestEmailCallable = functions.https.onCall(async (data = {}, context) => {
+  const caller = context.auth?.uid;
+  const businessId = data.businessId || caller;
+  const customerName = (data.customerName || data.name || "").toString().trim();
+  const email = (data.email || data.toEmail || data.customerEmail || "").toString().trim();
+  const phone = (data.customerPhone || data.phone || "").toString().trim();
+  let portalLink = data.portalLink || data.portalUrl || null;
+  let requestId = data.requestId || null;
+  const source = data.source || "ask-reviews";
+
+  if (!caller) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication is required to send review requests.",
+    );
+  }
+
+  if (!businessId || caller !== businessId) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "You can only send review requests for your own business.",
+    );
+  }
+
+  if (!customerName) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "customerName is required to send a review request.",
+    );
+  }
+
+  if (!email || !basicEmailRegex.test(email)) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "A valid email is required to send a review request.",
+    );
+  }
+
+  try {
+    if (!portalLink) {
+      const invite = await createInviteToken({
+        businessId,
+        customerName,
+        phone,
+        email,
+        channel: "email",
+        source,
+      });
+      portalLink = invite.portalUrl;
+      requestId = requestId || invite.requestId;
+    }
+
+    const sendResult = await sendReviewRequestEmailCore({
+      businessId,
+      toEmail: email,
+      customerName,
+      portalUrl: portalLink,
+      customerPhone: phone,
+      source,
+      requestId,
+    });
+
+    return {
+      ok: true,
+      requestId: sendResult.requestId,
+      portalLink: portalLink || sendResult.portalUrl,
+      portalUrl: sendResult.portalUrl,
+      sendgridMessageId: sendResult.providerMessageId || null,
+    };
+  } catch (err) {
+    console.error("[functions.sendReviewRequestEmailCallable] failed", err);
+    if (err instanceof functions.https.HttpsError) throw err;
+    throw new functions.https.HttpsError(
+      "internal",
+      err?.message || "Unable to send review request",
+    );
+  }
 });
 
 exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) => {

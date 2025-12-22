@@ -6,6 +6,7 @@ import {
   onSnapshot,
   orderBy,
 } from "./firebase-config.js";
+import { functions, httpsCallable } from "./firebase-config.js";
 import { listenForUser } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
@@ -54,47 +55,8 @@ let emailSuccessTimer = null;
 let outboundRequests = [];
 let currentUser = null;
 
-async function callApi(path, payload = {}) {
-  const token = await currentUser?.getIdToken?.();
-  if (!token) {
-    throw new Error("You need to be signed in to send requests.");
-  }
-
-  const response = await fetch(path, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const text = await response.text();
-  let body = {};
-  if (text) {
-    try {
-      body = JSON.parse(text);
-    } catch (err) {
-      console.warn(`[ask-reviews] failed to parse response from ${path}`, err);
-    }
-  }
-
-  if (!response.ok || body?.ok === false) {
-    const message = body?.error || body?.message || response.statusText || "Request failed";
-    const error = new Error(message);
-    error.details = body;
-    throw error;
-  }
-
-  if (body?.ok !== true) {
-    const message = body?.error || body?.message || response.statusText || "Request failed";
-    const error = new Error(message);
-    error.details = body;
-    throw error;
-  }
-
-  return body;
-}
+const createInviteTokenCallable = httpsCallable(functions, "createInviteTokenCallable");
+const sendReviewRequestEmailCallable = httpsCallable(functions, "sendReviewRequestEmailCallable");
 
 function showToast(message, isError = false) {
   if (!toastEl) return alert(message);
@@ -304,7 +266,7 @@ function renderOutboundTable() {
 
     customerCell.textContent = entry.customerName || entry.customerEmail || "Unknown";
     channelCell.textContent = entry.channel || "link";
-    const sentTimestamp = entry.deliveredAtMs || entry.sentAtMs || entry.processedAtMs;
+    const sentTimestamp = entry.sentAtMs || entry.deliveredAtMs || entry.processedAtMs;
     sentCell.textContent = sentTimestamp ? formatDateLabel(sentTimestamp) : "—";
     openedCell.textContent = entry.openedAtMs ? formatDateLabel(entry.openedAtMs) : "—";
     clickedCell.textContent = entry.clickedAtMs ? formatDateLabel(entry.clickedAtMs) : "—";
@@ -374,17 +336,37 @@ async function handleSingleSubmit(event) {
 
   try {
     if (isEmailChannel) {
-      const sendResult = await callApi("/api/sendReviewRequestEmail", {
+      const inviteResponse = await createInviteTokenCallable({
+        businessId,
+        customerName: name,
+        phone,
+        email,
+        channel: "email",
+        source: "ask-for-reviews",
+      });
+
+      const inviteData = inviteResponse?.data || {};
+      const portalLink = inviteData.portalLink || inviteData.portalUrl;
+      const requestId = inviteData.requestId;
+
+      if (!inviteData?.ok || !portalLink) {
+        throw new Error(inviteData?.error || "Unable to create invite link");
+      }
+
+      const sendResponse = await sendReviewRequestEmailCallable({
         businessId,
         customerName: name,
         email,
         phone,
+        portalLink,
+        requestId,
         source: "ask-for-reviews",
       });
 
-      const sendSuccess = Boolean(sendResult?.ok);
+      const sendData = sendResponse?.data || {};
+      const sendSuccess = Boolean(sendData?.ok);
       if (!sendSuccess) {
-        throw new Error(sendResult?.error || "Email send failed");
+        throw new Error(sendData?.error || "Email send failed");
       }
 
       if (singleLinkOutput) singleLinkOutput.value = "";
@@ -392,7 +374,7 @@ async function handleSingleSubmit(event) {
       showEmailSuccess();
       showToast("Email sent");
     } else {
-      const inviteResponse = await callApi("/api/createInviteToken", {
+      const inviteResponse = await createInviteTokenCallable({
         businessId,
         customerName: name,
         phone,
@@ -400,8 +382,9 @@ async function handleSingleSubmit(event) {
         channel,
         source: "ask-reviews",
       });
-      const portalUrl = inviteResponse?.portalUrl;
-      if (!inviteResponse?.ok || !portalUrl) throw new Error("No portal URL returned");
+      const inviteData = inviteResponse?.data || {};
+      const portalUrl = inviteData.portalLink || inviteData.portalUrl;
+      if (!inviteData?.ok || !portalUrl) throw new Error("No portal URL returned");
       if (singleLinkOutput) singleLinkOutput.value = portalUrl;
       if (singleResult) singleResult.hidden = false;
       await copyText(portalUrl);
@@ -475,7 +458,7 @@ async function handleBulkSubmit(event) {
   try {
     for (const customer of selected) {
       try {
-        const result = await callApi("/api/createInviteToken", {
+        const result = await createInviteTokenCallable({
           businessId,
           customerId: customer.id,
           customerName: customer.name,
@@ -484,7 +467,8 @@ async function handleBulkSubmit(event) {
           channel: "link",
           source: "ask-reviews",
         });
-        const portalUrl = result?.portalUrl;
+        const inviteData = result?.data || {};
+        const portalUrl = inviteData.portalLink || inviteData.portalUrl;
         if (portalUrl) {
           bulkLinks.push({
             name: customer.name || "Unnamed",
