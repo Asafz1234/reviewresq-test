@@ -394,7 +394,16 @@ const applyCors = (req, res, methods = "GET, POST, OPTIONS") => {
   const origin = resolveCorsOrigin(req.headers.origin || "");
   res.set("Access-Control-Allow-Origin", origin);
   res.set("Access-Control-Allow-Methods", methods);
-  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Api-Key");
+  res.set(
+    "Access-Control-Allow-Headers",
+    [
+      "Content-Type",
+      "Authorization",
+      "X-Api-Key",
+      "X-Twilio-Email-Event-Webhook-Signature",
+      "X-Twilio-Email-Event-Webhook-Timestamp",
+    ].join(", "),
+  );
   res.set("Access-Control-Allow-Credentials", "true");
   res.set("Vary", "Origin");
 
@@ -589,6 +598,7 @@ const buildOutboundDefaults = ({
     providerMessageId: null,
     createdAtMs,
     updatedAtMs: createdAtMs,
+    processedAtMs: null,
     sentAtMs: null,
     deliveredAtMs: null,
     openedAtMs: null,
@@ -3502,6 +3512,26 @@ exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) 
 });
 
 const SENDGRID_WEBHOOK_SECRET = process.env.SENDGRID_WEBHOOK_SECRET || "";
+const SENDGRID_WEBHOOK_PUBLIC_KEY = (process.env.SENDGRID_WEBHOOK_PUBLIC_KEY || "")
+  .replace(/\\n/g, "\n")
+  .trim();
+
+const isSendgridSignatureValid = (req) => {
+  if (!SENDGRID_WEBHOOK_PUBLIC_KEY) return false;
+  const signature = req.headers["x-twilio-email-event-webhook-signature"];
+  const timestamp = req.headers["x-twilio-email-event-webhook-timestamp"];
+  if (!signature || !timestamp || !req.rawBody) return false;
+
+  try {
+    const verifier = crypto.createVerify("RSA-SHA256");
+    verifier.update(`${timestamp}${req.rawBody.toString()}`);
+    verifier.end();
+    return verifier.verify(SENDGRID_WEBHOOK_PUBLIC_KEY, signature, "base64");
+  } catch (err) {
+    console.error("[sendgrid] signature verification failed", err);
+    return false;
+  }
+};
 
 async function applySendGridEvent(event = {}) {
   const customArgs = event.custom_args || event.customArgs || {};
@@ -3530,6 +3560,7 @@ async function applySendGridEvent(event = {}) {
           requestId: String(requestId),
           channel: existing.channel || "email",
           provider: existing.provider || "sendgrid",
+          processedAtMs: existing.processedAtMs ?? null,
           sentAtMs: existing.sentAtMs ?? null,
           deliveredAtMs: existing.deliveredAtMs ?? null,
           openedAtMs: existing.openedAtMs ?? null,
@@ -3564,6 +3595,7 @@ async function applySendGridEvent(event = {}) {
     switch (event.event) {
       case "processed":
         nextStatus = resolveStatusProgression(currentStatus, "sent");
+        updates.processedAtMs = existing.processedAtMs || eventMs;
         updates.sentAtMs = existing.sentAtMs || eventMs;
         break;
       case "delivered":
@@ -3610,7 +3642,10 @@ exports.sendgridEvents = functions.https.onRequest(async (req, res) => {
     req.headers["x-sendgrid-signature"] ||
     (req.headers.authorization || "").replace("Bearer ", "");
 
-  if (!SENDGRID_WEBHOOK_SECRET || provided !== SENDGRID_WEBHOOK_SECRET) {
+  const hasSharedSecret = Boolean(SENDGRID_WEBHOOK_SECRET) && provided === SENDGRID_WEBHOOK_SECRET;
+  const signatureValid = isSendgridSignatureValid(req);
+
+  if (!hasSharedSecret && !signatureValid) {
     return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
