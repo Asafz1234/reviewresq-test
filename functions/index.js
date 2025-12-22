@@ -394,18 +394,26 @@ const applyCors = (req, res, methods = "GET, POST, OPTIONS") => {
   const requestOrigin = req.headers.origin || "";
   const allowedOrigin = resolveCorsOrigin(requestOrigin);
 
+  const requestedHeaders = (req.headers["access-control-request-headers"] || "")
+    .split(",")
+    .map((h) => h.trim())
+    .filter(Boolean);
+
+  const allowHeaders = new Set([
+    "Content-Type",
+    "Authorization",
+    "X-Api-Key",
+    "X-Twilio-Email-Event-Webhook-Signature",
+    "X-Twilio-Email-Event-Webhook-Timestamp",
+    "X-Requested-With",
+  ]);
+
+  requestedHeaders.forEach((header) => allowHeaders.add(header));
+
   res.set("Access-Control-Allow-Methods", methods);
-  res.set(
-    "Access-Control-Allow-Headers",
-    [
-      "Content-Type",
-      "Authorization",
-      "X-Api-Key",
-      "X-Twilio-Email-Event-Webhook-Signature",
-      "X-Twilio-Email-Event-Webhook-Timestamp",
-    ].join(", "),
-  );
+  res.set("Access-Control-Allow-Headers", Array.from(allowHeaders).join(", "));
   res.set("Access-Control-Allow-Credentials", "true");
+  res.set("Access-Control-Max-Age", "3600");
   res.set("Vary", "Origin");
 
   if (allowedOrigin) {
@@ -414,13 +422,13 @@ const applyCors = (req, res, methods = "GET, POST, OPTIONS") => {
     res.set("Access-Control-Allow-Origin", "https://reviewresq.com");
   }
 
-  if (requestOrigin && !allowedOrigin) {
-    res.status(403).json({ error: "origin_not_allowed" });
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
     return true;
   }
 
-  if (req.method === "OPTIONS") {
-    res.status(204).send("");
+  if (requestOrigin && !allowedOrigin) {
+    res.status(403).json({ error: "origin_not_allowed" });
     return true;
   }
 

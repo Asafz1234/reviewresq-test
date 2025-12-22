@@ -167,12 +167,18 @@ function hideEmailBanners() {
     clearTimeout(emailSuccessTimer);
     emailSuccessTimer = null;
   }
+
   if (emailSuccessBanner) {
     emailSuccessBanner.hidden = true;
-    emailSuccessBanner.style.removeProperty("display");
+    emailSuccessBanner.style.display = "none";
     emailSuccessBanner.textContent = "";
   }
-  setErrorBanner("");
+
+  if (emailErrorBanner) {
+    emailErrorBanner.hidden = true;
+    emailErrorBanner.style.display = "none";
+    emailErrorBanner.textContent = "";
+  }
 }
 
 function showEmailSuccess() {
@@ -181,7 +187,7 @@ function showEmailSuccess() {
   emailSuccessBanner.hidden = false;
   emailSuccessBanner.style.removeProperty("display");
   emailSuccessTimer = setTimeout(() => {
-    emailSuccessBanner.hidden = true;
+    if (emailSuccessBanner) emailSuccessBanner.hidden = true;
   }, 5000);
 }
 
@@ -193,6 +199,7 @@ function setErrorBanner(message = "") {
   if (!emailErrorBanner) return;
   emailErrorBanner.textContent = message || "";
   emailErrorBanner.hidden = !message;
+  emailErrorBanner.style.display = message ? "" : "none";
   if (message && emailSuccessBanner && !emailSuccessBanner.hidden) {
     emailSuccessBanner.hidden = true;
   }
@@ -321,6 +328,7 @@ async function handleSingleSubmit(event) {
 
   const defaultLabel = generateSingleBtn.textContent;
   generateSingleBtn.disabled = true;
+  generateSingleBtn.setAttribute("aria-busy", "true");
   generateSingleBtn.textContent = isEmailChannel ? "Sending…" : "Generating…";
 
   try {
@@ -346,8 +354,9 @@ async function handleSingleSubmit(event) {
         toEmail: email,
         customerName: name,
       });
-      if (!sendResult?.data?.success) {
-        throw new Error("Email send failed");
+      const sendSuccess = Boolean(sendResult?.data?.success);
+      if (!sendSuccess) {
+        throw new Error(sendResult?.data?.error || "Email send failed");
       }
       showEmailSuccess();
       showToast("Email sent");
@@ -370,6 +379,7 @@ async function handleSingleSubmit(event) {
     }
   } finally {
     generateSingleBtn.disabled = false;
+    generateSingleBtn.setAttribute("aria-busy", "false");
     generateSingleBtn.textContent = defaultLabel;
   }
 }
