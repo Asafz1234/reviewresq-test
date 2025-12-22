@@ -86,6 +86,13 @@ async function callApi(path, payload = {}) {
     throw error;
   }
 
+  if (body?.ok !== true) {
+    const message = body?.error || body?.message || response.statusText || "Request failed";
+    const error = new Error(message);
+    error.details = body;
+    throw error;
+  }
+
   return body;
 }
 

@@ -3533,7 +3533,15 @@ exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) 
 });
 
 exports.createInviteTokenHttp = functions.https.onRequest(async (req, res) => {
-  if (applyCors(req, res, "POST, OPTIONS")) return;
+  const corsHandled = applyCors(req, res, "POST, OPTIONS");
+  if (req.method === "OPTIONS") {
+    if (!corsHandled) {
+      return res.status(204).send("");
+    }
+    return;
+  }
+
+  if (corsHandled) return;
 
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
