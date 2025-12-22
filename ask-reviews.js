@@ -373,33 +373,37 @@ async function handleSingleSubmit(event) {
   generateSingleBtn.textContent = isEmailChannel ? "Sending…" : "Generating…";
 
   try {
-    const inviteResponse = await callApi("/api/createInviteToken", {
-      businessId,
-      customerName: name,
-      phone,
-      email,
-      channel,
-      source: "ask-reviews",
-    });
-    const portalUrl = inviteResponse?.portalUrl;
-    const inviteToken = inviteResponse?.inviteToken;
-    if (!inviteResponse?.ok || !portalUrl) throw new Error("No portal URL returned");
-    if (singleLinkOutput) singleLinkOutput.value = portalUrl;
-    if (singleResult) singleResult.hidden = false;
     if (isEmailChannel) {
       const sendResult = await callApi("/api/sendReviewRequestEmail", {
         businessId,
-        inviteToken,
-        toEmail: email,
         customerName: name,
+        email,
+        phone,
+        source: "ask-for-reviews",
       });
+
       const sendSuccess = Boolean(sendResult?.ok);
       if (!sendSuccess) {
         throw new Error(sendResult?.error || "Email send failed");
       }
+
+      if (singleLinkOutput) singleLinkOutput.value = "";
+      if (singleResult) singleResult.hidden = true;
       showEmailSuccess();
       showToast("Email sent");
     } else {
+      const inviteResponse = await callApi("/api/createInviteToken", {
+        businessId,
+        customerName: name,
+        phone,
+        email,
+        channel,
+        source: "ask-reviews",
+      });
+      const portalUrl = inviteResponse?.portalUrl;
+      if (!inviteResponse?.ok || !portalUrl) throw new Error("No portal URL returned");
+      if (singleLinkOutput) singleLinkOutput.value = portalUrl;
+      if (singleResult) singleResult.hidden = false;
       await copyText(portalUrl);
       showToast("Link generated and copied");
     }
