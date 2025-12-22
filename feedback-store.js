@@ -49,6 +49,26 @@ function sortFeedback(list = []) {
   });
 }
 
+function normalizeFeedbackItem(input = {}, defaultSource = "canonical") {
+  const raw =
+    typeof input?.data === "function" ? { id: input.id, ...input.data(), _sourcePath: input._sourcePath } : { ...input };
+
+  const messageValue = raw.message ?? raw.text ?? "";
+  const message = typeof messageValue === "string" ? messageValue : String(messageValue ?? "");
+
+  const createdAtMs = normalizeCreatedAtMs(raw) ?? Date.now();
+
+  return {
+    ...raw,
+    id: raw.id ?? input?.id ?? null,
+    businessId: raw.businessId ?? null,
+    rating: raw.rating ?? raw.score ?? null,
+    message,
+    createdAtMs,
+    source: raw.source ?? defaultSource,
+  };
+}
+
 export function buildFeedbackPayload(businessId, data = {}) {
   const rating = Number(data.rating || data.score || 0) || null;
   const createdAtMs = Date.now();
@@ -72,11 +92,32 @@ export function buildFeedbackPayload(businessId, data = {}) {
   };
 }
 
-async function collectSafe(builder, label) {
+async function collectSafe(builder, label, defaultSource = "canonical") {
   try {
     const snap = await builder();
     const docs = [];
-    snap.forEach((docSnap) => docs.push({ id: docSnap.id, ...docSnap.data(), _sourcePath: label }));
+
+    const pushNormalized = (entry) => {
+      const normalized = normalizeFeedbackItem(entry, defaultSource);
+      docs.push(normalized);
+    };
+
+    if (Array.isArray(snap)) {
+      snap.forEach(pushNormalized);
+      return docs;
+    }
+
+    if (Array.isArray(snap?.docs)) {
+      snap.docs.forEach(pushNormalized);
+      return docs;
+    }
+
+    if (typeof snap?.forEach === "function") {
+      snap.forEach(pushNormalized);
+      return docs;
+    }
+
+    console.warn(`[feedback-store] Unknown fetch result for ${label}`);
     return docs;
   } catch (err) {
     console.warn(`[feedback-store] Failed to fetch ${label}`, err);
@@ -116,26 +157,27 @@ export async function fetchFeedbackForBusiness(businessId, { includeLegacy = tru
   if (!businessId) return [];
   const canonical = await collectSafe(
     () => getDocs(collection(db, "businesses", businessId, "feedback")),
-    "businesses/{id}/feedback"
+    "businesses/{id}/feedback",
+    "canonical"
   );
 
-  const legacy = includeLegacy
+  const legacyRoot = includeLegacy
     ? await collectSafe(
-        () =>
-          Promise.all([
-            getDocs(query(collection(db, "feedback"), where("businessId", "==", businessId))),
-            getDocs(collection(db, "businessProfiles", businessId, "feedback")),
-          ]).then(([rootSnap, profileSnap]) => {
-            const combined = [];
-            rootSnap.forEach((docSnap) => combined.push({ id: docSnap.id, ...docSnap.data(), _sourcePath: "feedback" }));
-            profileSnap.forEach((docSnap) =>
-              combined.push({ id: docSnap.id, ...docSnap.data(), _sourcePath: "businessProfiles/{id}/feedback" })
-            );
-            return combined;
-          }),
+        () => getDocs(query(collection(db, "feedback"), where("businessId", "==", businessId))),
+        "feedback",
         "legacy"
       )
     : [];
+
+  const legacyProfile = includeLegacy
+    ? await collectSafe(
+        () => getDocs(collection(db, "businessProfiles", businessId, "feedback")),
+        "businessProfiles/{id}/feedback",
+        "legacy"
+      )
+    : [];
+
+  const legacy = [...legacyRoot, ...legacyProfile];
 
   const merged = dedupeFeedback([...canonical, ...legacy]);
   const sorted = sortFeedback(merged);
@@ -150,6 +192,8 @@ export async function fetchFeedbackForBusiness(businessId, { includeLegacy = tru
       canonical.length,
       "legacyCount",
       legacy.length,
+      "mergedCount",
+      merged.length,
       "newestMs",
       newestTimestamp
     );
