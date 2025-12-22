@@ -380,6 +380,7 @@ const writeFeedbackDocuments = async (businessId, payload) => {
 
 const ALLOWED_ORIGINS = new Set([
   "https://reviewresq.com",
+  "https://www.reviewresq.com",
   "http://localhost:5000",
   "http://127.0.0.1:5000",
 ]);
@@ -394,6 +395,7 @@ const applyCors = (req, res, methods = "GET, POST, OPTIONS") => {
   res.set("Access-Control-Allow-Origin", origin);
   res.set("Access-Control-Allow-Methods", methods);
   res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Api-Key");
+  res.set("Access-Control-Allow-Credentials", "true");
   res.set("Vary", "Origin");
 
   if (req.method === "OPTIONS") {
@@ -3467,8 +3469,16 @@ exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) 
   }
 
   try {
+    const decoded = await verifyRequestAuth(req);
+    const bodyBusinessId = req.body?.businessId;
+    const businessId = bodyBusinessId || decoded.uid;
+
+    if (!businessId || decoded.uid !== businessId) {
+      return res.status(403).json({ error: "permission_denied" });
+    }
+
     const result = await sendReviewRequestEmailCore({
-      businessId: req.body?.businessId,
+      businessId,
       inviteToken: req.body?.inviteToken,
       toEmail: req.body?.to || req.body?.customerEmail,
       customerName: req.body?.customerName,
@@ -3483,6 +3493,9 @@ exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) 
     if (err instanceof functions.https.HttpsError) {
       const status = err.code === "unauthenticated" ? 401 : 400;
       return res.status(status).json({ error: err.message });
+    }
+    if (err?.code === "UNAUTHENTICATED") {
+      return res.status(401).json({ error: err.message || "Authentication required" });
     }
     return res.status(500).json({ error: "Failed to send email" });
   }
