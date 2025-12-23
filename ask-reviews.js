@@ -392,16 +392,21 @@ async function handleSingleSubmit(event) {
     }
   } catch (err) {
     console.error("[ask-reviews] single generate failed", err);
-    const configMissing = err?.message?.includes("email_sending_not_configured");
-    setErrorBanner(
-      configMissing
-        ? "Email sending isn’t configured. Please contact support."
-        : err?.message || (isEmailChannel ? "Unable to send email" : "Unable to generate link"),
-    );
+    const configMissing =
+      err?.code === "failed-precondition" ||
+      err?.message?.includes("email_sending_not_configured");
+    const explicitMessage = err?.message || err?.details;
+    const fallback = isEmailChannel ? "Unable to send email" : "Unable to generate link";
+    const friendlyMessage = configMissing
+      ? "Email sending isn’t configured. Please contact support."
+      : explicitMessage || fallback;
+
+    setErrorBanner(friendlyMessage);
+
     if (configMissing) {
       showToast("Email sending isn’t configured. Please contact support.", true);
     } else {
-      showToast(isEmailChannel ? "Unable to send email" : "Unable to generate link", true);
+      showToast(friendlyMessage || fallback, true);
     }
   } finally {
     generateSingleBtn.disabled = false;

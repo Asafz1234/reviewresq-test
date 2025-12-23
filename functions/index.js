@@ -40,6 +40,10 @@ const GOOGLE_OAUTH_SCOPES = defineString(
     default: "https://www.googleapis.com/auth/business.manage",
   },
 );
+const SENDGRID_API_KEY = defineSecret("SENDGRID_API_KEY");
+const SENDGRID_SENDER_PARAM = defineString("SENDGRID_SENDER", {
+  default: "",
+});
 
 const getSecretValue = (secret) => {
   try {
@@ -562,7 +566,38 @@ const normalizeChannel = (channel = "link") => {
   return "link";
 };
 
-const SENDGRID_SENDER = process.env.SENDGRID_SENDER || "support@reviewresq.com";
+const DEFAULT_SENDGRID_SENDER = "support@reviewresq.com";
+
+const resolveSendgridConfig = () => {
+  const config = typeof functions.config === "function" ? functions.config() : {};
+  const sendgridConfig = config?.sendgrid || {};
+
+  const apiKey =
+    getSecretValue(SENDGRID_API_KEY) ||
+    process.env.SENDGRID_API_KEY ||
+    sendgridConfig.apikey ||
+    sendgridConfig.api_key ||
+    sendgridConfig.key ||
+    "";
+
+  const sender =
+    getSecretValue(SENDGRID_SENDER_PARAM) ||
+    process.env.SENDGRID_SENDER ||
+    sendgridConfig.sender ||
+    sendgridConfig.from ||
+    DEFAULT_SENDGRID_SENDER;
+
+  let source = "none";
+  if (getSecretValue(SENDGRID_API_KEY)) {
+    source = "secret";
+  } else if (process.env.SENDGRID_API_KEY) {
+    source = "env";
+  } else if (sendgridConfig.apikey || sendgridConfig.api_key || sendgridConfig.key) {
+    source = "config";
+  }
+
+  return { apiKey, sender, source };
+};
 const EMAIL_RATE_LIMIT_WINDOW_MS = 2 * 60 * 1000;
 const EMAIL_RATE_LIMIT_MAX = 30;
 
@@ -3355,8 +3390,14 @@ async function sendReviewRequestEmailCore({
     throw new functions.https.HttpsError("invalid-argument", "A valid email is required.");
   }
 
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) {
+  const sendgrid = resolveSendgridConfig();
+  console.log("[sendgrid] config resolved", {
+    businessId,
+    source: sendgrid.source,
+    hasSender: Boolean(sendgrid.sender),
+  });
+
+  if (!sendgrid.apiKey) {
     throw new functions.https.HttpsError(
       "failed-precondition",
       "email_sending_not_configured",
@@ -3370,7 +3411,7 @@ async function sendReviewRequestEmailCore({
 
   await enforceEmailRateLimit(businessId);
 
-  sgMail.setApiKey(apiKey);
+  sgMail.setApiKey(sendgrid.apiKey);
 
   const identity = (await fetchBusinessIdentity(businessId)) || {};
   const businessName = identity.businessName || "our business";
@@ -3442,7 +3483,7 @@ async function sendReviewRequestEmailCore({
 
   const msg = {
     to: email,
-    from: SENDGRID_SENDER,
+    from: sendgrid.sender || DEFAULT_SENDGRID_SENDER,
     subject,
     text,
     html,
@@ -3478,6 +3519,11 @@ async function sendReviewRequestEmailCore({
         sentAtMs: Date.now(),
         error: null,
       },
+    });
+    console.log("[email] review request sent", {
+      businessId,
+      requestId,
+      providerMessageId: providerMessageId || null,
     });
   } catch (err) {
     await updateOutboundRequest({
@@ -3519,154 +3565,162 @@ async function sendReviewRequestEmailCore({
   };
 }
 
-exports.sendReviewRequestEmail = functions.https.onCall(async (data, context) => {
-  const caller = context.auth?.uid;
-  const businessId = data?.businessId || caller;
+exports.sendReviewRequestEmail = functions
+  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .https.onCall(async (data, context) => {
+    const caller = context.auth?.uid;
+    const businessId = data?.businessId || caller;
 
-  if (!caller) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "Authentication is required to send review requests.",
-    );
-  }
+    if (!caller) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Authentication is required to send review requests.",
+      );
+    }
 
-  if (!businessId || caller !== businessId) {
-    throw new functions.https.HttpsError(
-      "permission-denied",
-      "You can only send review requests for your own business.",
-    );
-  }
+    if (!businessId || caller !== businessId) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "You can only send review requests for your own business.",
+      );
+    }
 
-  return sendReviewRequestEmailCore({
-    businessId,
-    toEmail: data?.email || data?.toEmail || data?.customerEmail,
-    customerName: data?.customerName,
-    portalUrl: data?.portalUrl,
-    customerPhone: data?.customerPhone || data?.phone,
-    source: data?.source || "ask-reviews",
+    return sendReviewRequestEmailCore({
+      businessId,
+      toEmail: data?.email || data?.toEmail || data?.customerEmail,
+      customerName: data?.customerName,
+      portalUrl: data?.portalUrl,
+      customerPhone: data?.customerPhone || data?.phone,
+      source: data?.source || "ask-reviews",
+    });
   });
-});
 
-exports.sendReviewRequestEmailCallable = functions.https.onCall(async (data = {}, context) => {
-  const caller = context.auth?.uid;
-  const businessId = data.businessId || caller;
-  const customerName = (data.customerName || data.name || "").toString().trim();
-  const email = (data.email || data.toEmail || data.customerEmail || "").toString().trim();
-  const phone = (data.customerPhone || data.phone || "").toString().trim();
-  let portalLink = data.portalLink || data.portalUrl || null;
-  let requestId = data.requestId || null;
-  const source = data.source || "ask-reviews";
+exports.sendReviewRequestEmailCallable = functions
+  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .https.onCall(async (data = {}, context) => {
+    const caller = context.auth?.uid;
+    const businessId = data.businessId || caller;
+    const customerName = (data.customerName || data.name || "").toString().trim();
+    const email = (data.email || data.toEmail || data.customerEmail || "").toString().trim();
+    const phone = (data.customerPhone || data.phone || "").toString().trim();
+    let portalLink = data.portalLink || data.portalUrl || null;
+    let requestId = data.requestId || null;
+    const source = data.source || "ask-reviews";
 
-  if (!caller) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "Authentication is required to send review requests.",
-    );
-  }
+    if (!caller) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Authentication is required to send review requests.",
+      );
+    }
 
-  if (!businessId || caller !== businessId) {
-    throw new functions.https.HttpsError(
-      "permission-denied",
-      "You can only send review requests for your own business.",
-    );
-  }
+    if (!businessId || caller !== businessId) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "You can only send review requests for your own business.",
+      );
+    }
 
-  if (!customerName) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "customerName is required to send a review request.",
-    );
-  }
+    if (!customerName) {
+      console.warn("[email] missing customer name", { businessId, caller });
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "customerName is required to send a review request.",
+      );
+    }
 
-  if (!email || !basicEmailRegex.test(email)) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "A valid email is required to send a review request.",
-    );
-  }
+    if (!email || !basicEmailRegex.test(email)) {
+      console.warn("[email] invalid email", { businessId, caller, hasEmail: Boolean(email) });
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "A valid email is required to send a review request.",
+      );
+    }
 
-  try {
-    if (!portalLink) {
-      const invite = await createInviteToken({
+    try {
+      if (!portalLink) {
+        const invite = await createInviteToken({
+          businessId,
+          customerName,
+          phone,
+          email,
+          channel: "email",
+          source,
+        });
+        portalLink = invite.portalUrl;
+        requestId = requestId || invite.requestId;
+      }
+
+      const sendResult = await sendReviewRequestEmailCore({
         businessId,
+        toEmail: email,
         customerName,
-        phone,
-        email,
-        channel: "email",
+        portalUrl: portalLink,
+        customerPhone: phone,
         source,
+        requestId,
       });
-      portalLink = invite.portalUrl;
-      requestId = requestId || invite.requestId;
+
+      return {
+        ok: true,
+        requestId: sendResult.requestId,
+        portalLink: portalLink || sendResult.portalUrl,
+        portalUrl: sendResult.portalUrl,
+        sendgridMessageId: sendResult.providerMessageId || null,
+      };
+    } catch (err) {
+      console.error("[functions.sendReviewRequestEmailCallable] failed", err);
+      if (err instanceof functions.https.HttpsError) throw err;
+      throw new functions.https.HttpsError(
+        "internal",
+        err?.message || "Unable to send review request",
+      );
+    }
+  });
+
+exports.sendReviewRequestEmailHttp = functions
+  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .https.onRequest(async (req, res) => {
+    console.log("sendReviewRequestEmail (HTTP) invoked", req.method);
+
+    if (applyCors(req, res, "POST, OPTIONS")) return;
+
+    if (req.method !== "POST") {
+      return res.status(405).json({ ok: false, error: "method_not_allowed" });
     }
 
-    const sendResult = await sendReviewRequestEmailCore({
-      businessId,
-      toEmail: email,
-      customerName,
-      portalUrl: portalLink,
-      customerPhone: phone,
-      source,
-      requestId,
-    });
+    try {
+      const decoded = await verifyRequestAuth(req);
+      const bodyBusinessId = req.body?.businessId;
+      const businessId = bodyBusinessId || decoded.uid;
 
-    return {
-      ok: true,
-      requestId: sendResult.requestId,
-      portalLink: portalLink || sendResult.portalUrl,
-      portalUrl: sendResult.portalUrl,
-      sendgridMessageId: sendResult.providerMessageId || null,
-    };
-  } catch (err) {
-    console.error("[functions.sendReviewRequestEmailCallable] failed", err);
-    if (err instanceof functions.https.HttpsError) throw err;
-    throw new functions.https.HttpsError(
-      "internal",
-      err?.message || "Unable to send review request",
-    );
-  }
-});
+      if (!businessId || decoded.uid !== businessId) {
+        return res.status(403).json({ ok: false, error: "permission_denied" });
+      }
 
-exports.sendReviewRequestEmailHttp = functions.https.onRequest(async (req, res) => {
-  console.log("sendReviewRequestEmail (HTTP) invoked", req.method);
+      const result = await sendReviewRequestEmailCore({
+        businessId,
+        toEmail: req.body?.email || req.body?.to || req.body?.customerEmail,
+        customerName: req.body?.customerName,
+        portalUrl: req.body?.portalUrl || req.body?.portalLink,
+        customerPhone: req.body?.customerPhone || req.body?.phone,
+        source: req.body?.source || "ask-for-reviews",
+      });
 
-  if (applyCors(req, res, "POST, OPTIONS")) return;
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "method_not_allowed" });
-  }
-
-  try {
-    const decoded = await verifyRequestAuth(req);
-    const bodyBusinessId = req.body?.businessId;
-    const businessId = bodyBusinessId || decoded.uid;
-
-    if (!businessId || decoded.uid !== businessId) {
-      return res.status(403).json({ ok: false, error: "permission_denied" });
+      const success = Boolean(result?.success);
+      return res.status(200).json({ ok: success, success, requestId: result?.requestId });
+    } catch (err) {
+      console.error("[email] send failed", err);
+      if (err instanceof functions.https.HttpsError) {
+        const status = err.code === "unauthenticated" ? 401 : 400;
+        return res.status(status).json({ ok: false, error: err.message });
+      }
+      if (err?.code === "UNAUTHENTICATED") {
+        return res.status(401).json({ ok: false, error: err.message || "Authentication required" });
+      }
+      return res.status(500).json({ ok: false, error: "Failed to send email" });
     }
-
-    const result = await sendReviewRequestEmailCore({
-      businessId,
-      toEmail: req.body?.email || req.body?.to || req.body?.customerEmail,
-      customerName: req.body?.customerName,
-      portalUrl: req.body?.portalUrl || req.body?.portalLink,
-      customerPhone: req.body?.customerPhone || req.body?.phone,
-      source: req.body?.source || "ask-for-reviews",
-    });
-
-    const success = Boolean(result?.success);
-    return res.status(200).json({ ok: success, success, requestId: result?.requestId });
-  } catch (err) {
-    console.error("[email] send failed", err);
-    if (err instanceof functions.https.HttpsError) {
-      const status = err.code === "unauthenticated" ? 401 : 400;
-      return res.status(status).json({ ok: false, error: err.message });
-    }
-    if (err?.code === "UNAUTHENTICATED") {
-      return res.status(401).json({ ok: false, error: err.message || "Authentication required" });
-    }
-    return res.status(500).json({ ok: false, error: "Failed to send email" });
-  }
-});
+  });
 
 exports.createInviteTokenHttp = functions.https.onRequest(async (req, res) => {
   const corsHandled = applyCors(req, res, "POST, OPTIONS");
