@@ -10,6 +10,8 @@ import {
   query,
   where,
   setDoc,
+  addDoc,
+  serverTimestamp,
 } from "./firebase-config.js";
 import { resolveCanonicalReviewUrl } from "./google-link-utils.js";
 
@@ -250,6 +252,44 @@ function setPortalClasses() {
   });
 }
 
+function resolveBranding(data = {}) {
+  const branding = data.branding || {};
+  const brandingDisplayName = (branding.displayName || "").toString().trim();
+  const baseName = (data.businessName || data.name || data.displayName || "")
+    .toString()
+    .trim();
+
+  const missingFields = [];
+  if (!brandingDisplayName) missingFields.push("branding.displayName");
+  if (!baseName) missingFields.push("businessName|name");
+
+  const fallbackName = brandingDisplayName || baseName || "Our Business";
+  return { brandingDisplayName, baseName, fallbackName, missingFields };
+}
+
+async function logPortalError(missingFields = []) {
+  if (!businessId || !missingFields.length) return;
+  try {
+    await addDoc(collection(db, "portalErrors"), {
+      businessId,
+      missingFields,
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+      occurredAt: serverTimestamp(),
+      shareKey: shareKeyParam || null,
+      inviteToken: inviteToken || null,
+    });
+  } catch (err) {
+    console.warn("[portal] failed to log portal error", err);
+  }
+}
+
+function showBrandingFallbackNotice() {
+  if (!portalStatus) return;
+  portalStatus.textContent = "Business setup incomplete — please try again later.";
+  portalStatus.hidden = false;
+  portalEl?.classList.remove("is-loading");
+}
+
 function updateMessageRequirement() {
   if (!feedbackMessageInput) return;
   const requireMessage = currentRating > 0 && currentRating <= 2;
@@ -460,21 +500,8 @@ async function loadBusinessProfile() {
     const data = snap.data() || {};
     businessSnapshot = snap;
 
-    const resolvedBusinessName =
-      (data.businessName || data.displayName || data.name || "").trim();
-
-    if (!resolvedBusinessName) {
-      console.error("[portal] Business name missing", {
-        businessId,
-        snapshot: data,
-      });
-      handleMissingBusinessData(
-        "This portal is missing required business info. Please ask the owner to update their profile."
-      );
-      return;
-    }
-
-    businessName = resolvedBusinessName;
+    const branding = resolveBranding(data);
+    businessName = branding.fallbackName;
     businessTagline = data.tagline || data.businessTagline || "";
 
     if (bizNameDisplay) {
@@ -500,6 +527,15 @@ async function loadBusinessProfile() {
       data.googleReviewLink || data.googleReviewUrl || resolveCanonicalReviewUrl(data) || "";
     setRatingEnabled(true);
 
+    const hasMissingBranding = branding.missingFields.length > 0;
+    if (hasMissingBranding) {
+      console.warn("[portal] Missing required branding fields", {
+        businessId,
+        missingFields: branding.missingFields,
+      });
+      await logPortalError(branding.missingFields);
+    }
+
     if (!googleReviewUrl) {
       console.error("[portal] googleReviewLink missing", {
         businessId,
@@ -509,6 +545,10 @@ async function loadBusinessProfile() {
     }
 
     setPortalStatus("ready");
+
+    if (hasMissingBranding) {
+      showBrandingFallbackNotice();
+    }
 
     if (googleReviewUrl && ref && ref.id) {
       try {
