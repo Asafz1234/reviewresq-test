@@ -237,6 +237,35 @@ const fetchBusinessIdentity = async (businessId) => {
   return null;
 };
 
+const loadBusinessProfileSnapshot = async (businessId) => {
+  if (!businessId) return null;
+  const candidates = [
+    db.collection("publicBusinesses").doc(businessId),
+    db.collection("businessProfiles").doc(businessId),
+  ];
+
+  for (const ref of candidates) {
+    const snap = await ref.get();
+    if (snap.exists) {
+      return { ref, snap, data: snap.data() || {} };
+    }
+  }
+
+  return null;
+};
+
+async function assertBusinessProfileExists(businessId) {
+  const profile = await loadBusinessProfileSnapshot(businessId);
+  if (!profile) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "Business profile not found for this portal link.",
+    );
+  }
+
+  return profile;
+}
+
 const resolveInviteRecord = async (businessId, inviteToken) => {
   if (!businessId || !inviteToken) {
     throw new Error("businessId and invite token are required");
@@ -269,6 +298,8 @@ const createInviteToken = async ({
   if (!businessId) {
     throw new Error("businessId is required to create an invite token");
   }
+
+  await assertBusinessProfileExists(businessId);
 
   const normalizedName = (customerName || "").toString().trim();
   const normalizedPhone = (phone || "").toString().trim();
@@ -569,34 +600,36 @@ const normalizeChannel = (channel = "link") => {
 const DEFAULT_SENDGRID_SENDER = "support@reviewresq.com";
 
 const resolveSendgridConfig = () => {
-  const config = typeof functions.config === "function" ? functions.config() : {};
-  const sendgridConfig = config?.sendgrid || {};
-
-  const apiKey =
-    getSecretValue(SENDGRID_API_KEY) ||
-    process.env.SENDGRID_API_KEY ||
-    sendgridConfig.apikey ||
-    sendgridConfig.api_key ||
-    sendgridConfig.key ||
-    "";
-
-  const sender =
-    getSecretValue(SENDGRID_SENDER_PARAM) ||
-    process.env.SENDGRID_SENDER ||
-    sendgridConfig.sender ||
-    sendgridConfig.from ||
-    DEFAULT_SENDGRID_SENDER;
+  const apiKey = getSecretValue(SENDGRID_API_KEY) || process.env.SENDGRID_API_KEY || "";
+  const senderParamValue = getSecretOrEnv(SENDGRID_SENDER_PARAM, "SENDGRID_SENDER");
+  const sender = senderParamValue || DEFAULT_SENDGRID_SENDER;
 
   let source = "none";
   if (getSecretValue(SENDGRID_API_KEY)) {
     source = "secret";
   } else if (process.env.SENDGRID_API_KEY) {
     source = "env";
-  } else if (sendgridConfig.apikey || sendgridConfig.api_key || sendgridConfig.key) {
-    source = "config";
   }
 
-  return { apiKey, sender, source };
+  return {
+    apiKey,
+    sender,
+    source,
+    sendgridApiKey: apiKey,
+    sendgridSender: sender,
+  };
+};
+
+const maskEmail = (email = "") => {
+  if (!email) return "";
+  const [user, domain] = email.split("@");
+  if (!domain) return "***";
+  if (!user) return `***@${domain}`;
+  const maskedUser =
+    user.length <= 2
+      ? `${user[0] || "*"}***`
+      : `${user[0]}***${user[user.length - 1]}`;
+  return `${maskedUser}@${domain}`;
 };
 const EMAIL_RATE_LIMIT_WINDOW_MS = 2 * 60 * 1000;
 const EMAIL_RATE_LIMIT_MAX = 30;
@@ -3390,6 +3423,14 @@ async function sendReviewRequestEmailCore({
     throw new functions.https.HttpsError("invalid-argument", "A valid email is required.");
   }
 
+  const profile = await assertBusinessProfileExists(businessId);
+  const identityData = profile.data || {};
+  const identity = {
+    businessName: resolveBusinessName(identityData) || "ReviewResq",
+    logoUrl: resolveBusinessLogo(identityData),
+    googleReviewLink: resolveGoogleReviewLink(identityData) || identityData.googleReviewUrl || "",
+  };
+
   const sendgrid = resolveSendgridConfig();
   console.log("[sendgrid] config resolved", {
     businessId,
@@ -3413,16 +3454,18 @@ async function sendReviewRequestEmailCore({
 
   sgMail.setApiKey(sendgrid.apiKey);
 
-  const identity = (await fetchBusinessIdentity(businessId)) || {};
-  const businessName = identity.businessName || "our business";
+  const businessName = identity.businessName || "ReviewResq";
   const safeCustomerName = customerLabel || "there";
-
   const subject = `Quick feedback request from ${businessName}`;
   const text =
     `Hi ${safeCustomerName},\n\n` +
-    `We'd love your quick feedback about ${businessName}.\n` +
-    `Share your experience here:\n${portal}\n\n` +
-    `Thank you!\n${businessName} Team`;
+    `${businessName} would love a quick note about your experience.\n\n` +
+    `Share your feedback securely here: ${portal}\n\n` +
+    `If you didn’t request this, you can ignore this email.`;
+
+  const senderEmail = sendgrid.sender || DEFAULT_SENDGRID_SENDER;
+  const sender = { email: senderEmail, name: businessName || "ReviewResq" };
+  const replyTo = { email: DEFAULT_SENDGRID_SENDER, name: businessName || "ReviewResq" };
 
   const logoImgHtml = identity.logoUrl
     ? `<div style="margin-bottom:16px; text-align:center;">
@@ -3432,20 +3475,20 @@ async function sendReviewRequestEmailCore({
     : "";
 
   const html = `
-    <div style="font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color:#f4f4f5; padding:24px;">
-      <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(15,23,42,0.12);">
+    <div style="font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color:#f9fafb; padding:24px;">
+      <div style="max-width:560px; margin:0 auto; background:#ffffff; border-radius:16px; padding:24px; box-shadow:0 10px 30px rgba(15,23,42,0.12);">
         ${logoImgHtml}
-        <h2 style="margin:0 0 12px; color:#111827; font-size:20px;">Hi ${safeCustomerName},</h2>
-        <p style="margin:0 0 16px; color:#4b5563; font-size:15px;">${businessName} would love a quick note about your experience.</p>
+        <h2 style="margin:0 0 12px; color:#0f172a; font-size:20px;">Hi ${safeCustomerName},</h2>
+        <p style="margin:0 0 16px; color:#475569; font-size:15px; line-height:1.6;">${businessName} would love a quick note about your experience. Your response helps us improve.</p>
         <div style="text-align:center; margin:24px 0;">
           <a href="${portal}" target="_blank" rel="noopener noreferrer"
-             style="display:inline-block; padding:12px 24px; border-radius:999px; background:#4f46e5; color:#ffffff; text-decoration:none; font-weight:600; font-size:14px;">
+             style="display:inline-block; padding:14px 28px; border-radius:999px; background:#2563eb; color:#ffffff; text-decoration:none; font-weight:700; font-size:15px; letter-spacing:0.01em;">
             Share feedback
           </a>
         </div>
-        <p style="margin:0; color:#9ca3af; font-size:12px;">If the button doesn't work, copy and paste this link:<br />
-          <span style="word-break:break-all;">${portal}</span>
-        </p>
+        <p style="margin:0 0 12px; color:#6b7280; font-size:13px; line-height:1.5;">If the button doesn't work, copy and paste this link:</p>
+        <p style="margin:0 0 16px; color:#0f172a; font-size:13px; word-break:break-word;">${portal}</p>
+        <p style="margin:0; color:#94a3b8; font-size:12px;">If you didn’t request this, you can ignore this message.</p>
       </div>
     </div>
   `;
@@ -3483,7 +3526,8 @@ async function sendReviewRequestEmailCore({
 
   const msg = {
     to: email,
-    from: sendgrid.sender || DEFAULT_SENDGRID_SENDER,
+    from: sender,
+    replyTo,
     subject,
     text,
     html,
@@ -3491,13 +3535,22 @@ async function sendReviewRequestEmailCore({
       businessId,
       requestId,
     },
+    headers: {
+      "List-Unsubscribe": "<mailto:support@reviewresq.com?subject=unsubscribe>",
+    },
     trackingSettings: {
       clickTracking: { enable: true, enableText: true },
       openTracking: { enable: true },
     },
   };
 
-  console.log("[email] sending review request", { to: email, businessId });
+  console.log("[email] sending review request", {
+    businessId,
+    businessName,
+    to: maskEmail(email),
+    sender,
+    configSource: sendgrid.source,
+  });
 
   let providerMessageId = null;
   try {
@@ -3522,7 +3575,11 @@ async function sendReviewRequestEmailCore({
     });
     console.log("[email] review request sent", {
       businessId,
+      businessName,
       requestId,
+      to: maskEmail(email),
+      sender,
+      configSource: sendgrid.source,
       providerMessageId: providerMessageId || null,
     });
   } catch (err) {
@@ -3534,6 +3591,14 @@ async function sendReviewRequestEmailCore({
         status: "failed",
         error: { message: err?.message || "Send failed" },
       },
+    });
+    console.error("[email] review request send failed", {
+      businessId,
+      businessName,
+      to: maskEmail(email),
+      sender,
+      configSource: sendgrid.source,
+      error: err?.message,
     });
     throw err;
   }
@@ -3720,6 +3785,47 @@ exports.sendReviewRequestEmailHttp = functions
       }
       return res.status(500).json({ ok: false, error: "Failed to send email" });
     }
+  });
+
+exports.portalDiagnostics = functions
+  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .https.onCall(async (data = {}, context) => {
+    const caller = context.auth?.uid;
+    if (!caller) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Authentication is required",
+      );
+    }
+
+    const businessId = data.businessId || caller;
+    const profile = await assertBusinessProfileExists(businessId);
+    const profileData = profile.data || {};
+    const branding = profileData.branding || {};
+    const missingFields = [];
+
+    if (!branding.displayName) missingFields.push("branding.displayName");
+    if (!(profileData.businessName || profileData.name)) {
+      missingFields.push("businessName|name");
+    }
+
+    const displayName =
+      branding.displayName || profileData.businessName || profileData.name || "Our Business";
+    const sendgrid = resolveSendgridConfig();
+
+    return {
+      ok: true,
+      businessId,
+      brandingExists: missingFields.length === 0,
+      missingFields,
+      displayName,
+      sender: {
+        email: sendgrid.sender || DEFAULT_SENDGRID_SENDER,
+        name: displayName || "ReviewResq",
+      },
+      configSource: sendgrid.source || "none",
+      profileSource: profile.ref.parent.id,
+    };
   });
 
 exports.createInviteTokenHttp = functions.https.onRequest(async (req, res) => {
@@ -3969,16 +4075,24 @@ const deriveRateLimit = (planId = "starter", requestedRate) => {
 };
 
 async function deliverMessage({ channel, recipient, message, businessName }) {
-  const apiKey = process.env.SENDGRID_API_KEY;
+  const sendgrid = resolveSendgridConfig();
   if (channel === "email") {
-    if (!apiKey) throw new Error("Email channel not configured");
+    if (!sendgrid.apiKey) throw new Error("Email channel not configured");
     if (!recipient.email) throw new Error("Missing email address");
-    sgMail.setApiKey(apiKey);
+    sgMail.setApiKey(sendgrid.apiKey);
+    const sender = {
+      email: sendgrid.sender || DEFAULT_SENDGRID_SENDER,
+      name: businessName || "ReviewResq",
+    };
     await sgMail.send({
       to: recipient.email,
-      from: "support@reviewresq.com",
+      from: sender,
+      replyTo: sender,
       subject: `A note from ${businessName || "our team"}`,
       text: message,
+      headers: {
+        "List-Unsubscribe": "<mailto:support@reviewresq.com?subject=unsubscribe>",
+      },
     });
     return;
   }
@@ -4065,8 +4179,12 @@ async function sendCampaignBatchHandler(data = {}, context) {
   return { sent, failed, channel, rateLimit, delayMs, campaignId };
 }
 
-exports.sendCampaignBatch = functions.https.onCall(sendCampaignBatchHandler);
-exports.bulkSendMessages = functions.https.onCall(sendCampaignBatchHandler);
+exports.sendCampaignBatch = functions
+  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .https.onCall(sendCampaignBatchHandler);
+exports.bulkSendMessages = functions
+  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .https.onCall(sendCampaignBatchHandler);
 
 exports.saveAutomationFlow = functions.https.onCall(async (data = {}, context) => {
   const caller = context.auth?.uid;
@@ -4242,14 +4360,19 @@ async function sendAiResponseToCustomer({
   aiMessage,
 }) {
   const hasEmail = Boolean(email);
-  const apiKey = process.env.SENDGRID_API_KEY;
+  const sendgrid = resolveSendgridConfig();
 
-  if (hasEmail && apiKey) {
+  if (hasEmail && sendgrid.apiKey) {
     try {
-      sgMail.setApiKey(apiKey);
+      sgMail.setApiKey(sendgrid.apiKey);
+      const sender = {
+        email: sendgrid.sender || DEFAULT_SENDGRID_SENDER,
+        name: customerName || "ReviewResq",
+      };
       await sgMail.send({
         to: email,
-        from: "support@reviewresq.com",
+        from: sender,
+        replyTo: sender,
         subject: "We're on it — our AI is handling your feedback",
         text: aiMessage,
         html: `<p>Hi ${customerName || "there"},</p><p>${aiMessage}</p>`,
@@ -4275,12 +4398,19 @@ async function sendPositiveThankYou({
     "Thank you for your feedback! We appreciate you taking the time to share your experience. " +
     `If you have a moment, we'd love a public review here: ${googleReviewLink}.`;
 
-  if (email && process.env.SENDGRID_API_KEY) {
+  const sendgrid = resolveSendgridConfig();
+
+  if (email && sendgrid.apiKey) {
     try {
-      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      sgMail.setApiKey(sendgrid.apiKey);
+      const sender = {
+        email: sendgrid.sender || DEFAULT_SENDGRID_SENDER,
+        name: businessName || "ReviewResq",
+      };
       await sgMail.send({
         to: email,
-        from: "support@reviewresq.com",
+        from: sender,
+        replyTo: sender,
         subject: "Thank you for your feedback",
         text: message,
         html: `<p>Hi ${customerName || "there"},</p><p>${message}</p>`,
