@@ -1,0 +1,13 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /logos/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Explicitly block other storage paths by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

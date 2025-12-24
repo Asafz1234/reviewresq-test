@@ -1180,3 +1180,263 @@ textarea.input {
   color: #0f172a;
   border: 1px solid #e2e8f0;
 }
+
+.brand-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.brand-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.brand-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.brand-color-field {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.brand-color-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-picker-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-hex {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: #fff;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.readonly-field {
+  border: 1px dashed var(--border-soft);
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.readonly-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.readonly-value {
+  font-weight: 600;
+  margin: 0;
+  color: #0f172a;
+}
+
+.badge.pill {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.badge.muted {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.logo-grid {
+  align-items: center;
+}
+
+.upload-status {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.upload-status.error {
+  color: #b91c1c;
+}
+
+.upload-status.success {
+  color: #166534;
+}
+
+.preview-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: #fff;
+  padding: 16px;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.04);
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.preview-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.preview-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.preview-title {
+  font-weight: 700;
+  margin: 0;
+}
+
+.preview-subtitle {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+}
+
+.preview-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview-section {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.preview-label {
+  font-size: 13px;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.preview-email {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  background: #fff;
+}
+
+.preview-email-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.preview-email-body {
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.preview-email-subject {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.preview-email-address {
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.preview-portal {
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.preview-portal-title {
+  margin: 0;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.preview-button {
+  cursor: default;
+  pointer-events: none;
+  color: #fff;
+  border: none;
+}
+
+.diagnostics {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.diagnostics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.diagnostics-output {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  color: #0f172a;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  white-space: pre-wrap;
+  overflow: auto;
+  min-height: 140px;
+}
+
+@media (max-width: 1024px) {
+  .brand-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-color-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

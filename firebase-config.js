@@ -33,7 +33,7 @@ import {
 import {
   getStorage,
   ref as storageRef,
-  uploadBytes,
+  uploadBytesResumable,
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
 
@@ -74,7 +74,7 @@ setLogLevel("error");
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const storage = getStorage(app);
+export const storage = getStorage(app, "gs://reviewresq-app.appspot.com");
 export const functions = getFunctions(app);
 
 // ✅ שלב 2: חשיפה ל-Console (כדי לבדוק currentUser)
@@ -105,13 +105,13 @@ export {
   arrayUnion,
   onSnapshot,
   storageRef,
-  uploadBytes,
+  uploadBytesResumable,
   getDownloadURL,
   httpsCallable,
 };
 
 // העלאת לוגו והחזרת URL
-export async function uploadLogoAndGetURL(file, userId) {
+export async function uploadLogoAndGetURL(file, userId, { timeoutMs = 20000, retry = true } = {}) {
   if (!file || !userId) {
     throw new Error("File and userId are required to upload a logo.");
   }
@@ -120,8 +120,50 @@ export async function uploadLogoAndGetURL(file, userId) {
   const safeExt = ext && ext.length < 8 ? `.${ext}` : "";
   const logoRef = storageRef(storage, `logos/${userId}/portal-logo${safeExt}`);
 
-  const snapshot = await uploadBytes(logoRef, file);
-  return getDownloadURL(snapshot.ref);
+  const uploadTask = uploadBytesResumable(logoRef, file, {
+    contentType: file.type || "image/png",
+  });
+
+  const uploadPromise = new Promise((resolve, reject) => {
+    let timer = null;
+    const clear = () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+
+    timer = setTimeout(() => {
+      uploadTask.cancel();
+      reject(new Error("Upload timed out. Please try again."));
+    }, timeoutMs);
+
+    uploadTask.on(
+      "state_changed",
+      null,
+      (error) => {
+        clear();
+        reject(error);
+      },
+      async () => {
+        clear();
+        try {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(url);
+        } catch (err) {
+          reject(err);
+        }
+      }
+    );
+  });
+
+  try {
+    return await uploadPromise;
+  } catch (error) {
+    if (retry) {
+      return uploadLogoAndGetURL(file, userId, { timeoutMs, retry: false });
+    }
+    throw error;
+  }
 }
 
 // המרת קובץ ל-DataURL
