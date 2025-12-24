@@ -88,6 +88,7 @@ let businessSnapshot = null;
 let didRedirect = false;
 let inviteToken = inviteTokenParam || "";
 let resolvedCustomerId = null;
+let brandingColor = "#2563eb";
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
 );
@@ -252,19 +253,45 @@ function setPortalClasses() {
   });
 }
 
+function resolveBusinessLogo(data = {}) {
+  return (
+    data?.branding?.logoUrl ||
+    data?.logoUrl ||
+    data?.logoURL ||
+    data?.businessLogoUrl ||
+    data?.brandLogoUrl ||
+    data?.logoDataUrl ||
+    null
+  );
+}
+
 function resolveBranding(data = {}) {
   const branding = data.branding || {};
-  const brandingDisplayName = (branding.displayName || "").toString().trim();
+  const brandingDisplayName = (branding.name || branding.displayName || "").toString().trim();
   const baseName = (data.businessName || data.name || data.displayName || "")
     .toString()
     .trim();
+  const brandingLogoUrl = branding.logoUrl || null;
+  const supportEmail = (branding.supportEmail || "support@reviewresq.com").toString().trim();
+  const senderName = (branding.senderName || brandingDisplayName || baseName || "Our Business").toString().trim();
+  const color = (branding.color || data.brandColor || "#2563eb").toString().trim();
 
   const missingFields = [];
-  if (!brandingDisplayName) missingFields.push("branding.displayName");
-  if (!baseName) missingFields.push("businessName|name");
+  if (!brandingDisplayName && !baseName) missingFields.push("branding.name");
+  if (!branding.senderName) missingFields.push("branding.senderName");
+  if (!branding.supportEmail) missingFields.push("branding.supportEmail");
 
   const fallbackName = brandingDisplayName || baseName || "Our Business";
-  return { brandingDisplayName, baseName, fallbackName, missingFields };
+  return {
+    brandingDisplayName,
+    baseName,
+    fallbackName,
+    brandingLogoUrl,
+    supportEmail,
+    senderName,
+    color,
+    missingFields,
+  };
 }
 
 async function logPortalError(missingFields = []) {
@@ -285,9 +312,10 @@ async function logPortalError(missingFields = []) {
 
 function showBrandingFallbackNotice() {
   if (!portalStatus) return;
-  portalStatus.textContent = "Business setup incomplete — please try again later.";
+  portalStatus.textContent = "Branding defaults applied (owner/internal notice).";
   portalStatus.hidden = false;
-  portalEl?.classList.remove("is-loading");
+  portalStatus.classList.add("notice");
+  portalEl?.classList.remove("is-loading", "has-error");
 }
 
 function updateMessageRequirement() {
@@ -503,6 +531,7 @@ async function loadBusinessProfile() {
     const branding = resolveBranding(data);
     businessName = branding.fallbackName;
     businessTagline = data.tagline || data.businessTagline || "";
+    brandingColor = branding.color || brandingColor;
 
     if (bizNameDisplay) {
       bizNameDisplay.textContent = businessName;
@@ -512,13 +541,7 @@ async function loadBusinessProfile() {
       bizSubtitleDisplay.textContent = businessTagline || "";
     }
 
-    const resolvedLogoUrl =
-      data.logoUrl ||
-      data.logoURL ||
-      data.businessLogoUrl ||
-      data.brandLogoUrl ||
-      data.logoDataUrl ||
-      null;
+    const resolvedLogoUrl = branding.brandingLogoUrl || resolveBusinessLogo(data);
 
     businessLogoUrl = resolvedLogoUrl || null;
     renderBusinessIdentity();
@@ -593,7 +616,7 @@ async function loadPortalSettings() {
   portalSettings = snap.exists()
     ? snap.data()
     : {
-        primaryColor: "#2563eb",
+        primaryColor: brandingColor || "#2563eb",
         accentColor: "#7c3aed",
         backgroundStyle: "gradient",
         headline: "How was your experience today?",
@@ -603,6 +626,10 @@ async function loadPortalSettings() {
         thankYouTitle: "Thank you for the feedback!",
         thankYouBody: "We read every note and follow up where needed.",
       };
+
+  if (!portalSettings.primaryColor) {
+    portalSettings.primaryColor = brandingColor || "#2563eb";
+  }
   renderBusinessIdentity();
   applyPortalSettings();
 }
@@ -610,8 +637,10 @@ async function loadPortalSettings() {
 function applyPortalSettings() {
   if (!portalSettings) return;
   const root = document.documentElement;
-  if (portalSettings.primaryColor) root.style.setProperty("--accent", portalSettings.primaryColor);
-  if (portalSettings.accentColor) root.style.setProperty("--accent-strong", portalSettings.accentColor);
+  const accentColor = portalSettings.primaryColor || brandingColor || "#2563eb";
+  if (accentColor) root.style.setProperty("--accent", accentColor);
+  const strongAccent = portalSettings.accentColor || accentColor;
+  if (strongAccent) root.style.setProperty("--accent-strong", strongAccent);
   if (portalSettings.backgroundStyle === "dark") {
     root.style.setProperty("--bg", "#0b1224");
     document.body.classList.add("dark-portal");
@@ -650,17 +679,22 @@ async function resolveInviteTokenOnLoad() {
       throw new Error(data?.error || "Unable to resolve invite");
     }
 
-    const resolvedBusinessName = (data?.businessName || "").trim();
-    if (!resolvedBusinessName) {
-      throw new Error("This portal is missing the business name.");
-    }
-
     businessId = data?.businessId || requestedBusinessId;
+    const brandingMissingFields = Array.isArray(data?.brandingMissingFields)
+      ? data.brandingMissingFields
+      : [];
+    const resolvedBusinessName = (data?.businessName || "").trim() || "Our Business";
     resolvedCustomerId = data?.customerId || null;
     businessName = resolvedBusinessName;
     businessTagline = "";
-    businessLogoUrl = data?.logoUrl || null;
+    businessLogoUrl = data?.branding?.logoUrl || data?.logoUrl || null;
     googleReviewUrl = data?.googleReviewLink || "";
+    brandingColor = data?.branding?.color || brandingColor;
+
+    if (brandingMissingFields.length) {
+      await logPortalError(brandingMissingFields);
+      showBrandingFallbackNotice();
+    }
 
     if (bizNameDisplay) bizNameDisplay.textContent = businessName;
     if (bizSubtitleDisplay) bizSubtitleDisplay.textContent = "";

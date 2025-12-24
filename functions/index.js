@@ -205,6 +205,87 @@ const resolveGoogleReviewLink = (data = {}) => {
   return typeof linkCandidate === "string" ? linkCandidate.trim() : "";
 };
 
+const normalizeEmail = (email = "") => email.toString().trim().toLowerCase();
+
+const DEFAULT_BRANDING = {
+  name: "Our business",
+  color: "#2563EB",
+  logoUrl: "",
+  senderName: null,
+  supportEmail: "support@reviewresq.com",
+};
+
+const deriveBrandingState = (data = {}) => {
+  const branding = data.branding || {};
+  const baseName = resolveBusinessName(data);
+  const resolvedName =
+    (branding.name || branding.displayName || baseName || DEFAULT_BRANDING.name)
+      .toString()
+      .trim() || DEFAULT_BRANDING.name;
+  const resolvedColor =
+    (branding.color || data.brandColor || DEFAULT_BRANDING.color).toString().trim() ||
+    DEFAULT_BRANDING.color;
+  const resolvedLogo = branding.logoUrl || resolveBusinessLogo(data) || DEFAULT_BRANDING.logoUrl;
+  const resolvedSenderName = (branding.senderName || resolvedName || DEFAULT_BRANDING.name)
+    .toString()
+    .trim();
+  const resolvedSupportEmail =
+    normalizeEmail(branding.supportEmail || data.supportEmail || DEFAULT_BRANDING.supportEmail) ||
+    DEFAULT_BRANDING.supportEmail;
+
+  const missingFields = [];
+  if (!branding.name && !branding.displayName && !baseName) missingFields.push("branding.name");
+  if (!branding.senderName) missingFields.push("branding.senderName");
+  if (!branding.supportEmail) missingFields.push("branding.supportEmail");
+
+  return {
+    branding: {
+      name: resolvedName,
+      color: resolvedColor,
+      logoUrl: resolvedLogo || "",
+      senderName: resolvedSenderName || resolvedName,
+      supportEmail: resolvedSupportEmail || DEFAULT_BRANDING.supportEmail,
+    },
+    missingFields,
+  };
+};
+
+const ensureBrandingDefaults = async (ref, data = {}) => {
+  if (!ref) return deriveBrandingState(data);
+
+  const { branding, missingFields } = deriveBrandingState(data);
+  if (!missingFields.length) {
+    return { branding, missingFields };
+  }
+
+  const payload = {
+    branding: {
+      ...branding,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+  };
+
+  if (branding.name && !resolveBusinessName(data)) {
+    payload.businessName = branding.name;
+    payload.displayName = branding.name;
+    payload.name = branding.name;
+  }
+
+  if (branding.color && !data.brandColor) {
+    payload.brandColor = branding.color;
+  }
+
+  if (branding.logoUrl && !resolveBusinessLogo(data)) {
+    payload.logoUrl = branding.logoUrl;
+    payload.logoURL = branding.logoUrl;
+    payload.businessLogoUrl = branding.logoUrl;
+    payload.brandLogoUrl = branding.logoUrl;
+  }
+
+  await ref.set(payload, { merge: true });
+  return { branding, missingFields };
+};
+
 const INVITE_TOKEN_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 const normalizeTimestampMs = (raw) => {
@@ -227,10 +308,11 @@ const fetchBusinessIdentity = async (businessId) => {
     const snap = await ref.get();
     if (snap.exists) {
       const data = snap.data() || {};
-      const businessName = resolveBusinessName(data);
-      const logoUrl = resolveBusinessLogo(data);
+      const { branding, missingFields } = deriveBrandingState(data);
+      const businessName = branding.name || resolveBusinessName(data);
+      const logoUrl = branding.logoUrl || resolveBusinessLogo(data);
       const googleReviewLink = resolveGoogleReviewLink(data) || data.googleReviewUrl || "";
-      return { businessName, logoUrl, googleReviewLink };
+      return { businessName, logoUrl, googleReviewLink, branding, brandingMissingFields: missingFields };
     }
   }
 
@@ -519,22 +601,26 @@ async function upsertPublicBusiness(businessId, data = {}) {
 
 const loadBusinessAccount = async (businessId) => {
   const businessRef = db.collection("businesses").doc(businessId);
+  const profileRef = db.collection("businessProfiles").doc(businessId);
   const [businessSnap, profileSnap] = await Promise.all([
     businessRef.get(),
-    db.collection("businessProfiles").doc(businessId).get().catch(() => null),
+    profileRef.get().catch(() => null),
   ]);
 
   const businessData = businessSnap.exists ? businessSnap.data() : {};
   const profileData = profileSnap?.exists ? profileSnap.data() : {};
+  const combinedProfile = { ...profileData, ...businessData };
 
   const planId = await resolveUserPlanId(businessId, {
-    ...profileData,
-    ...businessData,
-    planId: businessData.plan || profileData.plan || businessData.planId,
+    ...combinedProfile,
+    planId: combinedProfile.plan || businessData.planId,
   });
 
   const capabilities = derivePlanCapabilities(planId);
   const mergedFeatures = { ...businessData.features, ...capabilities.features };
+
+  const brandingState = await ensureBrandingDefaults(businessRef, combinedProfile);
+  await ensureBrandingDefaults(profileRef, { ...combinedProfile, branding: combinedProfile.branding || brandingState.branding });
 
   await businessRef.set(
     {
@@ -589,8 +675,6 @@ const normalizePhone = (phone = "") => {
   }
   return digits;
 };
-
-const normalizeEmail = (email = "") => email.toString().trim().toLowerCase();
 
 const normalizeChannel = (channel = "link") => {
   if (channel === "email" || channel === "sms" || channel === "link") return channel;
@@ -999,8 +1083,6 @@ const resolveEnvConfig = (() => {
     return cached;
   };
 })();
-
-const normalizePhone = (raw = "") => (raw || "").replace(/[^\d]/g, "");
 
 const normalizePhoneDigits = (raw = "") => {
   const digits = (raw.match(/\d+/g) || []).join("");
@@ -3425,9 +3507,10 @@ async function sendReviewRequestEmailCore({
 
   const profile = await assertBusinessProfileExists(businessId);
   const identityData = profile.data || {};
+  const brandingDetails = deriveBrandingState(identityData).branding;
   const identity = {
-    businessName: resolveBusinessName(identityData) || "ReviewResq",
-    logoUrl: resolveBusinessLogo(identityData),
+    businessName: brandingDetails.name || resolveBusinessName(identityData) || "ReviewResq",
+    logoUrl: brandingDetails.logoUrl || resolveBusinessLogo(identityData),
     googleReviewLink: resolveGoogleReviewLink(identityData) || identityData.googleReviewUrl || "",
   };
 
@@ -3464,8 +3547,10 @@ async function sendReviewRequestEmailCore({
     `If you didn’t request this, you can ignore this email.`;
 
   const senderEmail = sendgrid.sender || DEFAULT_SENDGRID_SENDER;
-  const sender = { email: senderEmail, name: businessName || "ReviewResq" };
-  const replyTo = { email: DEFAULT_SENDGRID_SENDER, name: businessName || "ReviewResq" };
+  const senderName = brandingDetails.senderName || businessName || "ReviewResq";
+  const supportEmail = brandingDetails.supportEmail || DEFAULT_SENDGRID_SENDER;
+  const sender = { email: senderEmail, name: senderName };
+  const replyTo = { email: supportEmail, name: senderName };
 
   const logoImgHtml = identity.logoUrl
     ? `<div style="margin-bottom:16px; text-align:center;">
@@ -3536,7 +3621,7 @@ async function sendReviewRequestEmailCore({
       requestId,
     },
     headers: {
-      "List-Unsubscribe": "<mailto:support@reviewresq.com?subject=unsubscribe>",
+      "List-Unsubscribe": `<mailto:${supportEmail}?subject=unsubscribe>`,
     },
     trackingSettings: {
       clickTracking: { enable: true, enableText: true },
@@ -3801,16 +3886,8 @@ exports.portalDiagnostics = functions
     const businessId = data.businessId || caller;
     const profile = await assertBusinessProfileExists(businessId);
     const profileData = profile.data || {};
-    const branding = profileData.branding || {};
-    const missingFields = [];
-
-    if (!branding.displayName) missingFields.push("branding.displayName");
-    if (!(profileData.businessName || profileData.name)) {
-      missingFields.push("businessName|name");
-    }
-
-    const displayName =
-      branding.displayName || profileData.businessName || profileData.name || "Our Business";
+    const { branding, missingFields } = deriveBrandingState(profileData);
+    const displayName = branding.name || profileData.businessName || profileData.name || "Our Business";
     const sendgrid = resolveSendgridConfig();
 
     return {
@@ -3818,11 +3895,13 @@ exports.portalDiagnostics = functions
       businessId,
       brandingExists: missingFields.length === 0,
       missingFields,
+      branding,
       displayName,
       sender: {
         email: sendgrid.sender || DEFAULT_SENDGRID_SENDER,
-        name: displayName || "ReviewResq",
+        name: branding.senderName || displayName || "ReviewResq",
       },
+      supportEmail: branding.supportEmail || DEFAULT_BRANDING.supportEmail,
       configSource: sendgrid.source || "none",
       profileSource: profile.ref.parent.id,
     };
@@ -4833,16 +4912,30 @@ exports.resolveInviteToken = onRequest(async (req, res) => {
     const { data } = await resolveInviteRecord(businessId, inviteToken);
     const identity = await fetchBusinessIdentity(businessId);
 
-    if (!identity || !identity.businessName || !identity.googleReviewLink) {
-      return res.status(400).json({ error: "Business is missing required branding information" });
+    if (!identity) {
+      return res.status(404).json({ error: "Business not found" });
     }
+
+    const resolvedBranding = deriveBrandingState({
+      ...identity,
+      branding: identity.branding || {},
+      businessName: identity.businessName,
+      logoUrl: identity.logoUrl,
+    });
+    const displayName =
+      resolvedBranding.branding.name || identity.businessName || DEFAULT_BRANDING.name;
 
     return res.status(200).json({
       businessId,
       customerId: data.customerId,
-      businessName: identity.businessName,
-      logoUrl: identity.logoUrl || null,
+      businessName: displayName,
+      logoUrl: resolvedBranding.branding.logoUrl || identity.logoUrl || null,
       googleReviewLink: identity.googleReviewLink || "",
+      brandingMissingFields:
+        resolvedBranding.missingFields?.length
+          ? resolvedBranding.missingFields
+          : identity.brandingMissingFields || [],
+      branding: resolvedBranding.branding,
     });
   } catch (err) {
     console.error("[portal] failed to resolve invite token", err);

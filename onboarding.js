@@ -77,15 +77,29 @@ async function saveBusinessProfile(place, { redirect = false } = {}) {
 
   try {
     const businessDocRef = doc(db, "businessProfiles", uid);
+    const businessRef = doc(db, "businesses", uid);
+    const brandingDefaults = {
+      name: businessName || "Our business",
+      color: "#2563EB",
+      logoUrl: "",
+      senderName: businessName || "Our business",
+      supportEmail: "support@reviewresq.com",
+      updatedAt: serverTimestamp(),
+    };
     const payload = {
       businessId: uid,
       ownerUid: uid,
       businessName,
       updatedAt: serverTimestamp(),
       createdAt: serverTimestamp(),
+      brandColor: brandingDefaults.color,
+      branding: brandingDefaults,
     };
 
-    await setDoc(businessDocRef, payload, { merge: true });
+    await Promise.all([
+      setDoc(businessDocRef, payload, { merge: true }),
+      setDoc(businessRef, payload, { merge: true }),
+    ]);
     let connectResult = null;
     if (place) {
       selectedPlace = place;
