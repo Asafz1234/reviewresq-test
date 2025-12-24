@@ -42,6 +42,7 @@ if (!hasRequiredElements) {
   let currentUser = null;
   let currentLogoUrl = "";
   let profileCreatedAt = null;
+  let currentBranding = {};
 
   async function ensureCanonicalBrandFields({ ref, data = {} }) {
     if (!ref || !data) return;
@@ -87,10 +88,27 @@ if (!hasRequiredElements) {
       createdAt: profileCreatedAt || serverTimestamp(),
     };
 
+    const mergedBranding = {
+      name: name || currentBranding.name || "Our business",
+      color: brandColor || currentBranding.color || "#2563eb",
+      logoUrl: logoUrl !== undefined ? logoUrl : currentBranding.logoUrl || currentLogoUrl || "",
+      senderName:
+        name ||
+        currentBranding.senderName ||
+        currentBranding.name ||
+        bizNameInput.value ||
+        "Our business",
+      supportEmail: currentBranding.supportEmail || "support@reviewresq.com",
+      updatedAt: serverTimestamp(),
+    };
+
+    currentBranding = mergedBranding;
+
     const businessPayload = {
       ...timestamps,
       portalPath: `/portal.html?businessId=${currentUser.uid}`,
-      ...(brandColor ? { brandColor } : {}),
+      brandColor: mergedBranding.color,
+      branding: mergedBranding,
       ...(logoUrl !== undefined
         ? {
             logoUrl,
@@ -99,15 +117,16 @@ if (!hasRequiredElements) {
             businessLogoUrl: logoUrl,
           }
         : {}),
-      ...buildNameAliases(name),
+      ...buildNameAliases(mergedBranding.name),
     };
 
     const profilePayload = {
       ...timestamps,
       portalPath: `/portal.html?bid=${currentUser.uid}`,
-      ...(brandColor ? { brandColor } : {}),
+      brandColor: mergedBranding.color,
+      branding: mergedBranding,
       ...(logoUrl !== undefined ? { logoUrl, logoDataUrl: logoUrl } : {}),
-      ...(name ? { businessName: name } : {}),
+      ...(mergedBranding.name ? { businessName: mergedBranding.name } : {}),
     };
 
     await Promise.all([
@@ -197,19 +216,20 @@ if (!hasRequiredElements) {
     await ensureCanonicalBrandFields({ ref: businessRef, data });
 
     profileCreatedAt = data.createdAt || null;
+    currentBranding = data.branding || {};
 
     // Fill UI
     bizNameInput.value = data.businessName || data.displayName || data.name || "";
 
     // Color
-    const color = data.brandColor || data.branding?.primary || "#2563eb";
+    const color = data.branding?.color || data.brandColor || data.branding?.primary || "#2563eb";
     brandColorInput.value = color;
     brandColorHex.value = color;
 
     // Logo
-    if (data.logoUrl || data.logoDataUrl || data.logoURL || data.businessLogoUrl) {
+    if (data.branding?.logoUrl || data.logoUrl || data.logoDataUrl || data.logoURL || data.businessLogoUrl) {
       currentLogoUrl =
-        data.logoUrl || data.logoDataUrl || data.logoURL || data.businessLogoUrl;
+        data.branding?.logoUrl || data.logoUrl || data.logoDataUrl || data.logoURL || data.businessLogoUrl;
     }
 
     updatePreview();
