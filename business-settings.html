@@ -57,55 +57,115 @@
               <p class="card-subtitle">Share a name, color, and logo so the portal always looks polished.</p>
             </div>
             <div class="button-row">
-              <button id="diagnosticsBtn" class="btn btn-outline" type="button">Run diagnostics</button>
+              <button id="toggleDiagnostics" class="btn btn-ghost" type="button">Troubleshoot (advanced)</button>
               <button id="saveBranding" class="btn btn-primary" type="button">Save changes</button>
             </div>
           </div>
 
-          <div class="form-grid">
-            <label>
-              <span class="card-title">Business name</span>
-              <input id="businessNameInput" class="input" type="text" minlength="2" placeholder="Riverstone Quality Services" required />
-            </label>
-            <label>
-              <span class="card-title">Sender name</span>
-              <input id="senderNameInput" class="input" type="text" placeholder="Name customers see in emails" />
-            </label>
-            <label>
-              <span class="card-title">Support email</span>
-              <input id="supportEmailInput" class="input" type="email" placeholder="support@reviewresq.com" />
-            </label>
-            <label>
-              <span class="card-title">Brand color</span>
-              <input id="brandColorInput" class="input" type="color" value="#2563eb" />
-            </label>
-          </div>
+          <div class="brand-layout">
+            <div class="brand-form">
+              <div class="form-grid">
+                <label>
+                  <span class="card-title">Business name</span>
+                  <input id="businessNameInput" class="input" type="text" minlength="2" placeholder="Riverstone Quality Services" required />
+                </label>
+                <label>
+                  <span class="card-title">Sender name</span>
+                  <input id="senderNameInput" class="input" type="text" placeholder="Name customers see in emails" />
+                </label>
+                <div class="readonly-field">
+                  <div class="readonly-label">
+                    <span class="card-title">Support email</span>
+                    <span class="badge pill muted">Managed</span>
+                  </div>
+                  <p id="supportEmailValue" class="readonly-value">support@reviewresq.com</p>
+                  <p class="caption">This is the email customers can reply to (managed by ReviewResq).</p>
+                </div>
+                <div class="brand-color-field">
+                  <div class="brand-color-header">
+                    <div>
+                      <span class="card-title">Brand color</span>
+                      <p class="caption">This color is used for buttons and highlights your customers will see.</p>
+                    </div>
+                    <button id="resetColorButton" class="btn btn-outline" type="button">Use default</button>
+                  </div>
+                  <div class="color-picker-row">
+                    <input id="brandColorInput" class="input" type="color" value="#2563eb" aria-label="Brand color" />
+                    <span id="brandColorHex" class="color-hex">#2563EB</span>
+                  </div>
+                </div>
+              </div>
 
-          <div class="form-grid">
-            <label>
-              <span class="card-title">Logo</span>
-              <input id="logoInput" class="input" type="file" accept="image/png, image/jpeg, image/webp" />
-              <p class="caption">PNG/JPG/WebP, up to 2MB</p>
-            </label>
-            <div class="logo-preview" aria-live="polite">
-              <div class="card-title">Preview</div>
-              <div class="avatar" id="logoPreviewWrapper">
-                <img id="logoPreview" alt="Business logo preview" />
+              <div class="form-grid logo-grid">
+                <label>
+                  <span class="card-title">Logo</span>
+                  <input id="logoInput" class="input" type="file" accept="image/png, image/jpeg, image/webp" />
+                  <p class="caption">PNG/JPG/WebP, up to 2MB. Larger files will be optimized automatically.</p>
+                  <div id="logoUploadStatus" class="upload-status" aria-live="polite"></div>
+                </label>
+                <div class="logo-preview" aria-live="polite">
+                  <div class="card-title">Preview</div>
+                  <div class="avatar" id="logoPreviewWrapper">
+                    <img id="logoPreview" alt="Business logo preview" />
+                  </div>
+                  <div id="logoPreviewText" class="caption"></div>
+                </div>
+              </div>
+
+              <div class="notice" id="statusMessage" aria-live="polite" hidden></div>
+            </div>
+
+            <div class="brand-preview" aria-live="polite">
+              <div class="preview-card">
+                <div class="preview-header">
+                  <div class="preview-logo" id="previewLogoCircle">
+                    <img id="previewLogo" alt="Preview logo" />
+                  </div>
+                  <div>
+                    <p class="preview-title" id="previewBusinessName">Your business</p>
+                    <p class="preview-subtitle">Customer-facing styling</p>
+                  </div>
+                </div>
+
+                <div class="preview-stack">
+                  <div class="preview-section">
+                    <div class="preview-label">Email preview</div>
+                    <div class="preview-email">
+                      <div class="preview-email-header" id="previewEmailHeader">
+                        <span id="previewSenderName">Sender name</span>
+                        <span class="preview-email-address">support@reviewresq.com</span>
+                      </div>
+                      <div class="preview-email-body">
+                        <div class="preview-email-subject" id="previewEmailSubject">We'd love your feedback</div>
+                        <button class="btn preview-button" id="previewEmailButton" type="button" disabled>Leave a review</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="preview-section">
+                    <div class="preview-label">Portal preview</div>
+                    <div class="preview-portal">
+                      <p class="preview-portal-title" id="previewPortalTitle">Share your experience</p>
+                      <button class="btn preview-button" id="previewPortalButton" type="button" disabled>Start</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="diagnostics" id="diagnosticsPanel" hidden>
+                <div class="diagnostics-header">
+                  <div>
+                    <p class="card-title">Advanced diagnostics</p>
+                    <p class="card-subtitle">Validate branding, email sender, and portal configuration.</p>
+                  </div>
+                  <button id="diagnosticsBtn" class="btn btn-outline" type="button">Run diagnostics</button>
+                </div>
+                <div class="diagnostics-body">
+                  <pre id="diagnosticsOutput" class="diagnostics-output">Run diagnostics to see details here.</pre>
+                </div>
               </div>
             </div>
           </div>
-
-          <div class="notice" id="statusMessage" aria-live="polite" hidden></div>
-        </section>
-
-        <section class="card" aria-live="polite">
-          <div class="card-header">
-            <div>
-              <p class="card-title">Diagnostics</p>
-              <p class="card-subtitle">Validate branding, email sender, and portal configuration.</p>
-            </div>
-          </div>
-          <pre id="diagnosticsOutput" class="code-block" style="min-height: 160px; background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 12px; overflow: auto;">Run diagnostics to see details here.</pre>
         </section>
       </div>
     </div>
