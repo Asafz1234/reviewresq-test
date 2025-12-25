@@ -215,28 +215,28 @@ const DEFAULT_BRANDING = {
   supportEmail: "support@reviewresq.com",
 };
 
+const BRANDING_INCOMPLETE_MESSAGE =
+  "Please complete your Business Settings (business name and sender name) before sending review requests.";
+
 const deriveBrandingState = (data = {}) => {
   const branding = data.branding || {};
   const baseName = resolveBusinessName(data);
-  const resolvedName =
-    (branding.name || branding.displayName || baseName || DEFAULT_BRANDING.name)
-      .toString()
-      .trim() || DEFAULT_BRANDING.name;
+  const rawName =
+    (branding.name || branding.displayName || baseName || "").toString().trim();
+  const resolvedName = rawName || DEFAULT_BRANDING.name;
   const resolvedColor =
     (branding.color || data.brandColor || DEFAULT_BRANDING.color).toString().trim() ||
     DEFAULT_BRANDING.color;
   const resolvedLogo = branding.logoUrl || resolveBusinessLogo(data) || DEFAULT_BRANDING.logoUrl;
-  const resolvedSenderName = (branding.senderName || resolvedName || DEFAULT_BRANDING.name)
-    .toString()
-    .trim();
+  const rawSenderName = (branding.senderName || rawName || "").toString().trim();
+  const resolvedSenderName = rawSenderName || resolvedName;
   const resolvedSupportEmail =
     normalizeEmail(branding.supportEmail || data.supportEmail || DEFAULT_BRANDING.supportEmail) ||
     DEFAULT_BRANDING.supportEmail;
 
   const missingFields = [];
-  if (!branding.name && !branding.displayName && !baseName) missingFields.push("branding.name");
-  if (!branding.senderName) missingFields.push("branding.senderName");
-  if (!branding.supportEmail) missingFields.push("branding.supportEmail");
+  if (!rawName) missingFields.push("branding.name");
+  if (!rawSenderName) missingFields.push("branding.senderName");
 
   return {
     branding: {
@@ -245,7 +245,9 @@ const deriveBrandingState = (data = {}) => {
       logoUrl: resolvedLogo || "",
       senderName: resolvedSenderName || resolvedName,
       supportEmail: resolvedSupportEmail || DEFAULT_BRANDING.supportEmail,
+      brandingComplete: Boolean(rawName && rawSenderName),
     },
+    brandingComplete: Boolean(rawName && rawSenderName),
     missingFields,
   };
 };
@@ -255,7 +257,7 @@ const ensureBrandingDefaults = async (ref, data = {}) => {
 
   const { branding, missingFields } = deriveBrandingState(data);
   if (!missingFields.length) {
-    return { branding, missingFields };
+    return { branding, missingFields, brandingComplete: branding.brandingComplete };
   }
 
   const payload = {
@@ -263,6 +265,7 @@ const ensureBrandingDefaults = async (ref, data = {}) => {
       ...branding,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
+    brandingComplete: branding.brandingComplete,
   };
 
   if (branding.name && !resolveBusinessName(data)) {
@@ -283,7 +286,7 @@ const ensureBrandingDefaults = async (ref, data = {}) => {
   }
 
   await ref.set(payload, { merge: true });
-  return { branding, missingFields };
+  return { branding, missingFields, brandingComplete: branding.brandingComplete };
 };
 
 const INVITE_TOKEN_TTL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -312,7 +315,14 @@ const fetchBusinessIdentity = async (businessId) => {
       const businessName = branding.name || resolveBusinessName(data);
       const logoUrl = branding.logoUrl || resolveBusinessLogo(data);
       const googleReviewLink = resolveGoogleReviewLink(data) || data.googleReviewUrl || "";
-      return { businessName, logoUrl, googleReviewLink, branding, brandingMissingFields: missingFields };
+      return {
+        businessName,
+        logoUrl,
+        googleReviewLink,
+        branding,
+        brandingComplete: branding.brandingComplete,
+        brandingMissingFields: missingFields,
+      };
     }
   }
 
@@ -347,6 +357,22 @@ async function assertBusinessProfileExists(businessId) {
 
   return profile;
 }
+
+const assertBrandingComplete = (brandingState) => {
+  if (brandingState?.brandingComplete) return;
+  throw new functions.https.HttpsError(
+    "failed-precondition",
+    BRANDING_INCOMPLETE_MESSAGE,
+    { code: "BRANDING_INCOMPLETE", message: BRANDING_INCOMPLETE_MESSAGE },
+  );
+};
+
+const assertBusinessBrandingComplete = async (businessId) => {
+  const profile = await assertBusinessProfileExists(businessId);
+  const brandingState = deriveBrandingState(profile.data || {});
+  assertBrandingComplete(brandingState);
+  return { profile, brandingState };
+};
 
 const resolveInviteRecord = async (businessId, inviteToken) => {
   if (!businessId || !inviteToken) {
@@ -3505,9 +3531,9 @@ async function sendReviewRequestEmailCore({
     throw new functions.https.HttpsError("invalid-argument", "A valid email is required.");
   }
 
-  const profile = await assertBusinessProfileExists(businessId);
+  const { profile, brandingState } = await assertBusinessBrandingComplete(businessId);
   const identityData = profile.data || {};
-  const brandingDetails = deriveBrandingState(identityData).branding;
+  const brandingDetails = brandingState.branding;
   const identity = {
     businessName: brandingDetails.name || resolveBusinessName(identityData) || "ReviewResq",
     logoUrl: brandingDetails.logoUrl || resolveBusinessLogo(identityData),
@@ -3863,7 +3889,11 @@ exports.sendReviewRequestEmailHttp = functions
       console.error("[email] send failed", err);
       if (err instanceof functions.https.HttpsError) {
         const status = err.code === "unauthenticated" ? 401 : 400;
-        return res.status(status).json({ ok: false, error: err.message });
+        return res.status(status).json({
+          ok: false,
+          error: err.message,
+          code: err.details?.code || err.code,
+        });
       }
       if (err?.code === "UNAUTHENTICATED") {
         return res.status(401).json({ ok: false, error: err.message || "Authentication required" });
@@ -3886,7 +3916,7 @@ exports.portalDiagnostics = functions
     const businessId = data.businessId || caller;
     const profile = await assertBusinessProfileExists(businessId);
     const profileData = profile.data || {};
-    const { branding, missingFields } = deriveBrandingState(profileData);
+    const { branding, missingFields, brandingComplete } = deriveBrandingState(profileData);
     const displayName = branding.name || profileData.businessName || profileData.name || "Our Business";
     const sendgrid = resolveSendgridConfig();
 
@@ -3894,6 +3924,7 @@ exports.portalDiagnostics = functions
       ok: true,
       businessId,
       brandingExists: missingFields.length === 0,
+      brandingComplete,
       missingFields,
       branding,
       displayName,

@@ -26,11 +26,14 @@ const logoPreviewWrapper = document.getElementById("logoPreviewWrapper");
 const logoPreviewText = document.getElementById("logoPreviewText");
 const logoUploadStatus = document.getElementById("logoUploadStatus");
 const saveButton = document.getElementById("saveBranding");
+const saveAndReturnButton = document.getElementById("saveAndReturn");
 const diagnosticsButton = document.getElementById("diagnosticsBtn");
 const diagnosticsOutput = document.getElementById("diagnosticsOutput");
 const diagnosticsPanel = document.getElementById("diagnosticsPanel");
 const toggleDiagnosticsButton = document.getElementById("toggleDiagnostics");
 const statusMessage = document.getElementById("statusMessage");
+const setupNotice = document.getElementById("setupNotice");
+const setupStatus = document.getElementById("setupStatus");
 
 const previewBusinessName = document.getElementById("previewBusinessName");
 const previewSenderName = document.getElementById("previewSenderName");
@@ -46,17 +49,45 @@ const DEFAULT_COLOR = "#2563EB";
 const DEFAULT_SUPPORT_EMAIL = "support@reviewresq.com";
 const MAX_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
 const MAX_LOGO_DIMENSION = 1024;
+const shouldReturnToDashboard =
+  new URLSearchParams(window.location.search).get("return") === "dashboard";
 
 let currentUserId = null;
 let currentLogoUrl = "";
 let currentLogoPath = "";
 let currentBranding = null;
+let currentBrandingComplete = false;
 
 function setStatus(message, isError = false) {
   if (!statusMessage) return;
   statusMessage.hidden = !message;
   statusMessage.textContent = message || "";
   statusMessage.classList.toggle("error", Boolean(isError));
+}
+
+function computeBrandingComplete(data = {}) {
+  const branding = data.branding || {};
+  const rawName =
+    branding.name ||
+    branding.displayName ||
+    data.businessName ||
+    data.displayName ||
+    data.name ||
+    "";
+  const rawSender = branding.senderName || rawName || "";
+  return Boolean(rawName.toString().trim() && rawSender.toString().trim());
+}
+
+function updateSetupUi(isComplete) {
+  currentBrandingComplete = Boolean(isComplete);
+  if (setupNotice) {
+    setupNotice.hidden = isComplete;
+  }
+  if (setupStatus) {
+    setupStatus.textContent = isComplete ? "Setup: complete" : "Setup: incomplete";
+    setupStatus.classList.toggle("setup-complete", isComplete);
+    setupStatus.classList.toggle("setup-incomplete", !isComplete);
+  }
 }
 
 function updateColorDisplay(color) {
@@ -108,7 +139,14 @@ function deriveBranding(data = {}) {
   const senderName = (branding.senderName || name).toString().trim();
   const supportEmail = (branding.supportEmail || DEFAULT_SUPPORT_EMAIL).toString().trim().toLowerCase();
 
-  return { name, color, logoUrl, senderName, supportEmail };
+  const brandingComplete = computeBrandingComplete({
+    branding,
+    businessName: data.businessName,
+    displayName: data.displayName,
+    name: data.name,
+  });
+
+  return { name, color, logoUrl, senderName, supportEmail, brandingComplete };
 }
 
 function applyLogoPreview(url) {
@@ -162,11 +200,22 @@ async function loadBranding(uid) {
   currentBranding = branding;
   currentLogoUrl = branding.logoUrl || "";
   currentLogoPath = data.branding?.logoPath || "";
+  currentBrandingComplete =
+    branding.brandingComplete !== undefined
+      ? Boolean(branding.brandingComplete)
+      : computeBrandingComplete({
+          branding: data.branding || branding,
+          businessName: data.businessName,
+          displayName: data.displayName,
+          name: data.name,
+        });
 
   if (businessNameInput) businessNameInput.value = branding.name || "";
   if (senderNameInput) senderNameInput.value = branding.senderName || branding.name || "";
   if (supportEmailValue) supportEmailValue.textContent = branding.supportEmail || DEFAULT_SUPPORT_EMAIL;
   updateColorDisplay(branding.color || DEFAULT_COLOR);
+
+  updateSetupUi(currentBrandingComplete);
 
   applyLogoPreview(currentLogoUrl);
   updatePreview();
@@ -284,12 +333,14 @@ async function persistLogoReference(url, path) {
       ...(currentBranding || {}),
       logoUrl: url,
       logoPath: path || currentLogoPath || "",
+      brandingComplete: currentBrandingComplete,
       updatedAt: serverTimestamp(),
     },
     logoUrl: url,
     logoURL: url,
     businessLogoUrl: url,
     brandLogoUrl: url,
+    brandingComplete: currentBrandingComplete,
   };
 
   await Promise.all([
@@ -355,7 +406,7 @@ async function handleLogoUpload(file) {
   }
 }
 
-async function saveBranding() {
+async function saveBranding({ redirectAfterSave = shouldReturnToDashboard } = {}) {
   if (!currentUserId) return;
   const businessName = (businessNameInput?.value || "").trim();
   if (!businessName || businessName.length < 2) {
@@ -366,6 +417,11 @@ async function saveBranding() {
   const senderName = (senderNameInput?.value || businessName).trim();
   const supportEmail = DEFAULT_SUPPORT_EMAIL;
   const color = (brandColorInput?.value || DEFAULT_COLOR).trim() || DEFAULT_COLOR;
+  const brandingComplete = computeBrandingComplete({
+    branding: { name: businessName, senderName },
+    businessName,
+    displayName: businessName,
+  });
   const brandingPayload = {
     name: businessName,
     senderName,
@@ -373,6 +429,7 @@ async function saveBranding() {
     color,
     logoUrl: currentLogoUrl || "",
     logoPath: currentLogoPath || "",
+    brandingComplete,
     updatedAt: serverTimestamp(),
   };
 
@@ -385,6 +442,7 @@ async function saveBranding() {
     businessName,
     displayName: businessName,
     name: businessName,
+    brandingComplete,
     updatedAt: serverTimestamp(),
     ...(brandingPayload.logoUrl
       ? {
@@ -402,7 +460,12 @@ async function saveBranding() {
       setDoc(doc(db, "businessProfiles", currentUserId), payload, { merge: true }),
     ]);
     currentBranding = brandingPayload;
+    updateSetupUi(brandingComplete);
     setStatus("Branding saved successfully.");
+    if (redirectAfterSave && brandingComplete) {
+      window.location.href = "/dashboard.html";
+      return;
+    }
   } catch (err) {
     console.error("[branding] failed to save", err);
     setStatus(err?.message || "Unable to save branding right now.", true);
@@ -460,6 +523,9 @@ function wireEvents() {
   });
 
   saveButton?.addEventListener("click", saveBranding);
+  saveAndReturnButton?.addEventListener("click", () =>
+    saveBranding({ redirectAfterSave: true })
+  );
   diagnosticsButton?.addEventListener("click", runDiagnostics);
 
   toggleDiagnosticsButton?.addEventListener("click", () => {

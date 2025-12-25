@@ -7,6 +7,9 @@ import {
 } from "./firebase-config.js";
 import { PLAN_LABELS, normalizePlan, hasFeature } from "./plan-capabilities.js";
 
+const DEFAULT_BRAND_COLOR = "#2563EB";
+const DEFAULT_SUPPORT_EMAIL = "support@reviewresq.com";
+
 export const PLAN_DETAILS = {
   starter: { label: PLAN_LABELS.starter, priceMonthly: 39 },
   growth: { label: PLAN_LABELS.growth, priceMonthly: 99 },
@@ -19,11 +22,75 @@ let cachedProfile = null;
 let cachedSubscription = null;
 let cachedUser = null;
 
+function resolveLogo(profile = {}) {
+  return (
+    profile.branding?.logoUrl ||
+    profile.logoUrl ||
+    profile.logoURL ||
+    profile.businessLogoUrl ||
+    profile.brandLogoUrl ||
+    ""
+  );
+}
+
+export function deriveBranding(profile = {}) {
+  const branding = profile.branding || {};
+  const rawBusinessName =
+    branding.name ||
+    branding.displayName ||
+    profile.businessName ||
+    profile.displayName ||
+    profile.name ||
+    "";
+  const rawSenderName = branding.senderName || rawBusinessName || "";
+  const brandColor =
+    branding.color ||
+    profile.brandColor ||
+    branding.primaryColor ||
+    DEFAULT_BRAND_COLOR;
+  const supportEmail = (branding.supportEmail || DEFAULT_SUPPORT_EMAIL).toString().trim().toLowerCase();
+
+  const businessName = (rawBusinessName || "Your business").toString().trim() || "Your business";
+  const senderName = (rawSenderName || businessName).toString().trim() || businessName;
+
+  return {
+    businessName,
+    senderName,
+    brandColor: (brandColor || DEFAULT_BRAND_COLOR).toString().trim() || DEFAULT_BRAND_COLOR,
+    supportEmail: supportEmail || DEFAULT_SUPPORT_EMAIL,
+    logoUrl: resolveLogo(profile),
+    complete: Boolean(rawBusinessName && rawSenderName),
+  };
+}
+
+export function isBrandingComplete(profile = {}) {
+  return deriveBranding(profile).complete;
+}
+
 async function fetchProfile(uid) {
   const ref = doc(db, "businessProfiles", uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   return { id: uid, ...snap.data() };
+}
+
+function shouldBypassBrandingGate() {
+  if (typeof window === "undefined") return true;
+  const path = window.location.pathname || "";
+  return (
+    path.includes("business-settings") ||
+    path.includes("onboarding") ||
+    path.includes("ask-reviews") ||
+    path.includes("auth") ||
+    path.includes("oauth")
+  );
+}
+
+function redirectToBrandingSetup() {
+  if (typeof window === "undefined") return;
+  const redirectUrl = new URL("/business-settings.html", window.location.origin);
+  redirectUrl.searchParams.set("return", "dashboard");
+  window.location.href = redirectUrl.toString();
 }
 
 async function fetchSubscription(uid) {
@@ -45,14 +112,22 @@ export function listenForUser(callback) {
     cachedUser = user;
 
     if (!cachedProfile) {
-      cachedProfile = await fetchProfile(user.uid);
+      cachedProfile = (await fetchProfile(user.uid)) || { id: user.uid };
     }
 
     if (!cachedSubscription) {
       cachedSubscription = await fetchSubscription(user.uid);
     }
 
-    callback({ user, profile: cachedProfile, subscription: cachedSubscription });
+    const brandingState = deriveBranding(cachedProfile || {});
+    cachedProfile = { ...cachedProfile, brandingComplete: brandingState.complete, brandingState };
+
+    if (!brandingState.complete && !shouldBypassBrandingGate()) {
+      redirectToBrandingSetup();
+      return;
+    }
+
+    callback({ user, profile: cachedProfile, subscription: cachedSubscription, branding: brandingState });
   });
 }
 
@@ -71,7 +146,9 @@ export function getCachedUser() {
 
 export async function refreshProfile() {
   if (!cachedUser) return null;
-  cachedProfile = await fetchProfile(cachedUser.uid);
+  cachedProfile = (await fetchProfile(cachedUser.uid)) || { id: cachedUser.uid };
+  const brandingState = deriveBranding(cachedProfile || {});
+  cachedProfile = { ...cachedProfile, brandingComplete: brandingState.complete, brandingState };
   return cachedProfile;
 }
 

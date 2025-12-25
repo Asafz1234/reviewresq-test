@@ -84,6 +84,7 @@ async function saveBusinessProfile(place, { redirect = false } = {}) {
       logoUrl: "",
       senderName: businessName || "Our business",
       supportEmail: "support@reviewresq.com",
+      brandingComplete: true,
       updatedAt: serverTimestamp(),
     };
     const payload = {
@@ -93,6 +94,7 @@ async function saveBusinessProfile(place, { redirect = false } = {}) {
       updatedAt: serverTimestamp(),
       createdAt: serverTimestamp(),
       brandColor: brandingDefaults.color,
+      brandingComplete: true,
       branding: brandingDefaults,
     };
 
