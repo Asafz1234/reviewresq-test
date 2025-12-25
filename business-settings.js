@@ -6,9 +6,12 @@ import {
   getDoc,
   setDoc,
   serverTimestamp,
-  uploadLogoAndGetURL,
   functions,
   httpsCallable,
+  storage,
+  storageRef,
+  uploadBytesResumable,
+  getDownloadURL,
 } from "./firebase-config.js";
 
 const businessNameInput = document.getElementById("businessNameInput");
@@ -41,6 +44,8 @@ const previewLogoCircle = document.getElementById("previewLogoCircle");
 
 const DEFAULT_COLOR = "#2563EB";
 const DEFAULT_SUPPORT_EMAIL = "support@reviewresq.com";
+const MAX_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_LOGO_DIMENSION = 1024;
 
 let currentUserId = null;
 let currentLogoUrl = "";
@@ -222,18 +227,27 @@ function canvasToBlob(canvas, mimeType, quality = 0.82) {
   });
 }
 
+function getLogoExtension(file) {
+  const type = (file?.type || "").toLowerCase();
+  if (type.includes("webp")) return ".webp";
+  if (type.includes("png")) return ".png";
+  return ".webp";
+}
+
 async function processLogo(file) {
   validateFileType(file);
   const { width, height, dataUrl } = await readImageDimensions(file);
-  const maxDimension = 768;
-  const needsResize = file.size > 700 * 1024 || Math.max(width, height) > 800;
+  const longestSide = Math.max(width, height);
+  const normalizedType = (file.type || "").toLowerCase();
+  const needsOptimization =
+    file.size > MAX_UPLOAD_SIZE_BYTES || longestSide > MAX_LOGO_DIMENSION || normalizedType.includes("jpeg");
 
-  if (!needsResize) {
-    return { file, note: "Ready to upload" };
+  if (!needsOptimization) {
+    return { file, note: "Ready to upload", extension: getLogoExtension(file) };
   }
 
   const canvas = document.createElement("canvas");
-  const ratio = Math.min(maxDimension / width, maxDimension / height, 1);
+  const ratio = Math.min(MAX_LOGO_DIMENSION / width, MAX_LOGO_DIMENSION / height, 1);
   canvas.width = Math.round(width * ratio);
   canvas.height = Math.round(height * ratio);
 
@@ -245,28 +259,23 @@ async function processLogo(file) {
   });
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-  const qualitySteps = [0.82, 0.74, 0.68];
-  for (const quality of qualitySteps) {
+  const qualitySteps = [0.82, 0.74, 0.66];
+  for (const [index, quality] of qualitySteps.entries()) {
     const blob = await canvasToBlob(canvas, "image/webp", quality);
-    if (blob.size <= 500 * 1024) {
-      const optimizedFile = new File([blob], `${file.name.split(".")[0] || "logo"}.webp`, {
+    if (blob.size <= MAX_UPLOAD_SIZE_BYTES || index === qualitySteps.length - 1) {
+      const optimizedFile = new File([blob], "logo.webp", {
         type: "image/webp",
       });
-      return { file: optimizedFile, note: "Optimized for fast loading" };
+      return { file: optimizedFile, note: "Optimized for upload", extension: ".webp" };
     }
   }
 
-  const fallbackBlob = await canvasToBlob(canvas, "image/png");
-  const optimizedFile = new File([fallbackBlob], `${file.name.split(".")[0] || "logo"}.png`, {
-    type: "image/png",
-  });
-  return { file: optimizedFile, note: "Compressed for upload" };
+  return { file, note: "Ready to upload", extension: getLogoExtension(file) };
 }
 
-function getLogoPath(fileName) {
-  const ext = (fileName || "").split(".").pop();
-  const safeExt = ext && ext.length < 8 ? `.${ext}` : "";
-  return `logos/${currentUserId}/portal-logo${safeExt}`;
+function getLogoPath(extension = ".webp") {
+  const safeExt = extension && extension.startsWith(".") ? extension : ".webp";
+  return `branding/${currentUserId}/logo${safeExt}`;
 }
 
 async function persistLogoReference(url, path) {
@@ -292,38 +301,56 @@ async function persistLogoReference(url, path) {
 async function handleLogoUpload(file) {
   if (!file || !currentUserId) return null;
 
-  setUploadStatus("Uploading…");
-
-  if (file.size > 6 * 1024 * 1024) {
-    const message = "File is too large to process (max 6MB).";
-    setUploadStatus(message, "error");
-    throw new Error(message);
-  }
-
-  if (file.size > 2 * 1024 * 1024) {
+  if (file.size > MAX_UPLOAD_SIZE_BYTES) {
     setUploadStatus("Optimizing large file before upload…");
+  } else {
+    setUploadStatus("Preparing upload…");
   }
 
   try {
-    const { file: processedFile, note } = await processLogo(file);
-    const url = await uploadLogoAndGetURL(processedFile, currentUserId, { timeoutMs: 25000 });
+    const { file: processedFile, note, extension } = await processLogo(file);
+    const logoPath = getLogoPath(extension);
+    const logoRef = storageRef(storage, logoPath);
+
+    const uploadTask = uploadBytesResumable(logoRef, processedFile, {
+      contentType: processedFile.type || "image/webp",
+      cacheControl: "public,max-age=31536000",
+    });
+
+    const url = await new Promise((resolve, reject) => {
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          setUploadStatus(`Uploading… ${progress}%`);
+        },
+        (error) => {
+          reject(error);
+        },
+        async () => {
+          try {
+            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(downloadUrl);
+          } catch (err) {
+            reject(err);
+          }
+        }
+      );
+    });
+
     currentLogoUrl = url;
-    currentLogoPath = getLogoPath(processedFile.name);
+    currentLogoPath = logoPath;
     applyLogoPreview(url);
     await persistLogoReference(url, currentLogoPath);
     currentBranding = { ...(currentBranding || {}), logoUrl: url, logoPath: currentLogoPath };
-    setUploadStatus(`Saved ✓ ${note}`, "success");
+    setUploadStatus(`Uploaded ✓ ${note || ""}`.trim(), "success");
     setStatus("Logo uploaded", false);
     updatePreview();
     return url;
   } catch (err) {
     console.error("[branding] logo upload failed", err);
-    setUploadStatus(
-      "Upload failed. Try a different file or smaller image.",
-      "error",
-      err?.message || ""
-    );
-    setStatus(err?.message || "Logo upload failed. Please try a smaller file.", true);
+    setUploadStatus("Upload failed. Try a different file or smaller image.", "error");
+    setStatus("Logo upload failed. Please try again.", true);
     throw err;
   }
 }

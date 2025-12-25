@@ -80,7 +80,7 @@ if (!hasRequiredElements) {
     };
   }
 
-  async function persistBrandFields({ name, logoUrl, brandColor } = {}) {
+  async function persistBrandFields({ name, logoUrl, logoPath, brandColor } = {}) {
     if (!currentUser) return;
 
     const timestamps = {
@@ -92,6 +92,7 @@ if (!hasRequiredElements) {
       name: name || currentBranding.name || "Our business",
       color: brandColor || currentBranding.color || "#2563eb",
       logoUrl: logoUrl !== undefined ? logoUrl : currentBranding.logoUrl || currentLogoUrl || "",
+      logoPath: logoPath !== undefined ? logoPath : currentBranding.logoPath || "",
       senderName:
         name ||
         currentBranding.senderName ||
@@ -171,10 +172,10 @@ if (!hasRequiredElements) {
     const file = logoUpload.files[0];
 
     try {
-      const url = await uploadLogoAndGetURL(file, currentUser.uid);
+      const { url, storagePath } = await uploadLogoAndGetURL(file, currentUser.uid);
 
       currentLogoUrl = url;
-      await persistBrandFields({ logoUrl: url });
+      await persistBrandFields({ logoUrl: url, logoPath: storagePath });
       updatePreview();
     } catch (err) {
       console.error("Failed to upload logo:", err);
