@@ -7,7 +7,7 @@ import {
   orderBy,
 } from "./firebase-config.js";
 import { functions, httpsCallable } from "./firebase-config.js";
-import { listenForUser } from "./session-data.js";
+import { deriveBranding, listenForUser } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
 const singleForm = document.getElementById("singleRequestForm");
@@ -24,6 +24,10 @@ const downloadSingleQrBtn = document.getElementById("downloadSingleQr");
 const emailSuccessBanner = document.getElementById("emailSuccess");
 const emailErrorBanner = document.getElementById("emailError");
 const planBadge = document.querySelector("[data-plan-label]");
+const brandingBlocker = document.getElementById("brandingBlocker");
+const brandingBlockerMessage = document.getElementById("brandingBlockerMessage");
+const completeSettingsBtn = document.getElementById("completeSettingsBtn");
+const setupStatus = document.getElementById("setupStatus");
 
 const bulkSection = document.getElementById("bulkSection");
 const bulkForm = document.getElementById("bulkRequestForm");
@@ -43,6 +47,9 @@ const customEndInput = document.getElementById("requestEnd");
 
 const toastEl = document.getElementById("askToast");
 
+const BRANDING_REQUIRED_MESSAGE =
+  "Before sending requests, please complete your Business Settings (business name + sender name).";
+
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
 let businessId = null;
@@ -54,6 +61,8 @@ let bulkLinks = [];
 let emailSuccessTimer = null;
 let outboundRequests = [];
 let currentUser = null;
+let brandingState = { complete: true };
+let eventsBound = false;
 
 const createInviteTokenCallable = httpsCallable(functions, "createInviteTokenCallable");
 const sendReviewRequestEmailCallable = httpsCallable(functions, "sendReviewRequestEmailCallable");
@@ -198,6 +207,61 @@ function resetStatusBanners() {
   hideEmailBanners();
 }
 
+function updateSetupStatus(isComplete) {
+  if (!setupStatus) return;
+  setupStatus.textContent = isComplete ? "Setup: complete" : "Setup: incomplete";
+  setupStatus.classList.toggle("setup-complete", isComplete);
+  setupStatus.classList.toggle("setup-incomplete", !isComplete);
+}
+
+function toggleRequestForms(enabled) {
+  const disabled = !enabled;
+  [
+    singleNameInput,
+    singlePhoneInput,
+    singleEmailInput,
+    channelSelect,
+    generateSingleBtn,
+    copySingleLinkBtn,
+    downloadSingleQrBtn,
+    bulkCustomerList,
+    bulkGenerateBtn,
+    bulkDownloadBtn,
+    requestRange,
+    customStartInput,
+    customEndInput,
+  ].forEach((el) => {
+    if (el) el.disabled = disabled;
+  });
+}
+
+function applyBrandingGate(branding) {
+  brandingState = branding || { complete: false };
+  const isComplete = Boolean(brandingState.complete);
+  updateSetupStatus(isComplete);
+
+  if (brandingBlocker) {
+    brandingBlocker.hidden = isComplete;
+  }
+  if (brandingBlockerMessage) {
+    brandingBlockerMessage.textContent = BRANDING_REQUIRED_MESSAGE;
+  }
+
+  toggleRequestForms(isComplete);
+  if (!isComplete) {
+    setErrorBanner("");
+    if (singleResult) singleResult.hidden = true;
+    if (bulkResults) bulkResults.hidden = true;
+  }
+}
+
+function requireBrandingOrNotify() {
+  if (brandingState.complete) return true;
+  setErrorBanner(BRANDING_REQUIRED_MESSAGE);
+  showToast(BRANDING_REQUIRED_MESSAGE, true);
+  return false;
+}
+
 function setErrorBanner(message = "") {
   if (!emailErrorBanner) return;
   emailErrorBanner.textContent = message || "";
@@ -302,6 +366,7 @@ function handleRangeChange() {
 async function handleSingleSubmit(event) {
   event.preventDefault();
   if (!businessId) return;
+  if (!requireBrandingOrNotify()) return;
 
   const name = singleNameInput?.value.trim();
   const phone = singlePhoneInput?.value.trim();
@@ -395,13 +460,20 @@ async function handleSingleSubmit(event) {
     const configMissing =
       err?.code === "failed-precondition" ||
       err?.message?.includes("email_sending_not_configured");
-    const explicitMessage = err?.message || err?.details;
+    const explicitMessage = err?.details?.message || err?.message || err?.details;
     const fallback = isEmailChannel ? "Unable to send email" : "Unable to generate link";
-    const friendlyMessage = configMissing
-      ? "Email sending isn’t configured. Please contact support."
-      : explicitMessage || fallback;
+    const brandingBlocked = err?.details?.code === "BRANDING_INCOMPLETE";
+    const friendlyMessage = brandingBlocked
+      ? BRANDING_REQUIRED_MESSAGE
+      : configMissing
+        ? "Email sending isn’t configured. Please contact support."
+        : explicitMessage || fallback;
 
     setErrorBanner(friendlyMessage);
+
+    if (brandingBlocked) {
+      applyBrandingGate({ complete: false });
+    }
 
     if (configMissing) {
       showToast("Email sending isn’t configured. Please contact support.", true);
@@ -447,6 +519,7 @@ async function handleSingleQr() {
 async function handleBulkSubmit(event) {
   event.preventDefault();
   if (!businessId || !bulkSection || plan === "starter") return;
+  if (!requireBrandingOrNotify()) return;
 
   const selected = getSelectedCustomers();
   if (!selected.length) {
@@ -553,6 +626,8 @@ function downloadCsv() {
 }
 
 function attachEvents() {
+  if (eventsBound) return;
+  eventsBound = true;
   bulkCustomerList?.addEventListener("change", () => {
     bulkGenerateBtn.disabled = !bulkCustomerList.selectedOptions.length;
   });
@@ -569,16 +644,21 @@ function attachEvents() {
   requestRange?.addEventListener("change", handleRangeChange);
   customStartInput?.addEventListener("change", renderOutboundTable);
   customEndInput?.addEventListener("change", renderOutboundTable);
+  completeSettingsBtn?.addEventListener("click", () => {
+    window.location.href = "/business-settings.html?return=dashboard";
+  });
   resetStatusBanners();
   updateChannelUi();
 }
 
 function initApp() {
-  listenForUser(({ user, subscription }) => {
+  listenForUser(({ user, profile, subscription, branding }) => {
     if (!user) return;
     currentUser = user;
     businessId = user.uid;
     setPlan(subscription?.planId || subscription?.planTier);
+    const brandingDetails = branding || deriveBranding(profile || {});
+    applyBrandingGate(brandingDetails);
     attachEvents();
     startCustomerFeed(user.uid);
     startOutboundFeed(user.uid);

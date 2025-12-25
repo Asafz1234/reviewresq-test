@@ -32,6 +32,7 @@
         <a class="nav-tab" data-route="business-settings" href="business-settings.html"><span class="nav-icon">🎨</span><span>Business Settings</span></a>
         <a class="nav-tab" data-route="account" href="billing.html"><span class="nav-icon">💳</span><span>Account &amp; Billing</span></a>
       </nav>
+      <div class="setup-status" id="setupStatus">Setup: checking…</div>
     </aside>
 
     <div class="main">
@@ -49,6 +50,16 @@
           <p class="page-title">Ask for reviews</p>
           <p class="page-subtitle">Generate review request links for customers.</p>
         </header>
+
+        <div class="notice" id="brandingBlocker" hidden>
+          <div>
+            <p class="card-title">Setup your business (1 minute)</p>
+            <p class="card-subtitle" id="brandingBlockerMessage"></p>
+          </div>
+          <div class="button-row">
+            <a class="btn btn-primary" id="completeSettingsBtn" href="business-settings.html?return=dashboard">Complete settings</a>
+          </div>
+        </div>
 
         <section class="card">
           <div class="card-header">

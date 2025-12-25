@@ -33,6 +33,7 @@
         <a class="nav-tab" data-route="business-settings" href="business-settings.html"><span class="nav-icon">🎨</span><span>Business Settings</span></a>
         <a class="nav-tab" data-route="account" href="billing.html"><span class="nav-icon">💳</span><span>Account &amp; Billing</span></a>
       </nav>
+      <div class="setup-status" id="setupStatus">Setup: checking…</div>
     </aside>
 
     <div class="main">
@@ -49,6 +50,16 @@
           <p class="page-title">Branding &amp; identity</p>
           <p class="page-subtitle">Update how your business appears in the portal and outgoing emails.</p>
         </header>
+
+        <div class="notice" id="setupNotice" hidden>
+          <div>
+            <p class="card-title">Setup your business (1 minute)</p>
+            <p class="card-subtitle">Add your business name and sender name to unlock sending review requests.</p>
+          </div>
+          <div class="button-row">
+            <button class="btn btn-primary" id="saveAndReturn" type="button">Save and continue</button>
+          </div>
+        </div>
 
         <section class="card">
           <div class="card-header">
