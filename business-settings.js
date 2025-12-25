@@ -400,9 +400,9 @@ async function handleLogoUpload(file) {
     return url;
   } catch (err) {
     console.error("[branding] logo upload failed", err);
-    setUploadStatus("Upload failed. Try a different file or smaller image.", "error");
-    setStatus("Logo upload failed. Please try again.", true);
-    throw err;
+    setUploadStatus("Upload failed. You can skip this step or try a smaller image.", "error");
+    setStatus("Logo upload failed (optional). You can still save without a logo.");
+    return null;
   }
 }
 
@@ -504,7 +504,7 @@ function wireEvents() {
       await handleLogoUpload(file);
     } catch (err) {
       console.error("[branding] logo upload failed", err);
-      setStatus("Logo upload failed. Please try a smaller file.", true);
+      setStatus("Logo upload failed (optional). You can still save your settings.");
     }
   });
 
