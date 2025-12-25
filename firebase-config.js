@@ -60,7 +60,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
   authDomain: "reviewresq-app.firebaseapp.com",
   projectId: "reviewresq-app",
-  storageBucket: "reviewresq-app.firebasestorage.app",
+  storageBucket: "reviewresq-app.appspot.com",
   messagingSenderId: "863497920392",
   appId: "1:863497920392:web:ca99060b42a50711b9e43d",
   measurementId: "G-G3P2BX845N",
@@ -74,7 +74,7 @@ setLogLevel("error");
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const storage = getStorage(app, "gs://reviewresq-app.appspot.com");
+export const storage = getStorage(app);
 export const functions = getFunctions(app);
 
 // ✅ שלב 2: חשיפה ל-Console (כדי לבדוק currentUser)
@@ -111,14 +111,32 @@ export {
 };
 
 // העלאת לוגו והחזרת URL
-export async function uploadLogoAndGetURL(file, userId, { timeoutMs = 20000, retry = true } = {}) {
+function getSafeLogoExtension(file) {
+  const type = (file?.type || "").toLowerCase();
+
+  if (type.includes("webp")) return ".webp";
+  if (type.includes("png")) return ".png";
+
+  const ext = (file?.name || "").split(".").pop()?.toLowerCase();
+  if (ext === "webp") return ".webp";
+  if (ext === "png") return ".png";
+
+  // Default to WebP for deterministic handling
+  return ".webp";
+}
+
+export async function uploadLogoAndGetURL(
+  file,
+  userId,
+  { timeoutMs = 20000, retry = true } = {}
+) {
   if (!file || !userId) {
     throw new Error("File and userId are required to upload a logo.");
   }
 
-  const ext = (file.name || "").split(".").pop();
-  const safeExt = ext && ext.length < 8 ? `.${ext}` : "";
-  const logoRef = storageRef(storage, `logos/${userId}/portal-logo${safeExt}`);
+  const extension = getSafeLogoExtension(file);
+  const storagePath = `branding/${userId}/logo${extension}`;
+  const logoRef = storageRef(storage, storagePath);
 
   const uploadTask = uploadBytesResumable(logoRef, file, {
     contentType: file.type || "image/png",
@@ -148,7 +166,7 @@ export async function uploadLogoAndGetURL(file, userId, { timeoutMs = 20000, ret
         clear();
         try {
           const url = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve(url);
+          resolve({ url, storagePath });
         } catch (err) {
           reject(err);
         }

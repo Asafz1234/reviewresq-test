@@ -111,9 +111,9 @@
       businessForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        let logoUrl = null;
+        let logoUploadResult = null;
         if (logoUpload.files.length > 0) {
-          logoUrl = await uploadLogoAndGetURL(logoUpload.files[0], user.uid);
+          logoUploadResult = await uploadLogoAndGetURL(logoUpload.files[0], user.uid);
         }
 
         const payload = {
@@ -127,13 +127,14 @@
           googleReviewUrl: googleLink.value,
           branding: {
             primary: primaryColor.value,
-            secondary: secondaryColor.value
+            secondary: secondaryColor.value,
+            ...(logoUploadResult?.storagePath ? { logoPath: logoUploadResult.storagePath } : {})
           },
-          ...(logoUrl && {
-            logoUrl,
-            logoURL: logoUrl,
-            brandLogoUrl: logoUrl,
-            businessLogoUrl: logoUrl
+          ...(logoUploadResult?.url && {
+            logoUrl: logoUploadResult.url,
+            logoURL: logoUploadResult.url,
+            brandLogoUrl: logoUploadResult.url,
+            businessLogoUrl: logoUploadResult.url
           })
         };
 

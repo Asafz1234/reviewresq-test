@@ -369,10 +369,13 @@ async function saveSettings() {
     if (!Object.keys(patch || {}).length) {
       throw new Error("No changes to save for your current plan.");
     }
-    const logoUrl = await maybeUploadLogo();
-    if (logoUrl && (currentCapabilities.reviewFunnel?.allowedPatchPaths || []).includes("branding.logoUrl")) {
-      setPatchValue(patch, "branding.logoUrl", logoUrl);
-      activeSettings.branding.logoUrl = logoUrl;
+    const logoUploadResult = await maybeUploadLogo();
+    if (
+      logoUploadResult?.url &&
+      (currentCapabilities.reviewFunnel?.allowedPatchPaths || []).includes("branding.logoUrl")
+    ) {
+      setPatchValue(patch, "branding.logoUrl", logoUploadResult.url);
+      activeSettings.branding.logoUrl = logoUploadResult.url;
     }
 
     const token = await currentUser?.getIdToken();
