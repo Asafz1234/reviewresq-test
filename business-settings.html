@@ -112,11 +112,13 @@
                   <span class="card-title">Logo (optional) — you can skip for now.</span>
                   <input id="logoInput" class="input" type="file" accept="image/png, image/jpeg, image/webp" />
                   <p class="caption">PNG/JPG/WebP, up to 2MB. Larger files will be optimized automatically.</p>
+                  <p class="caption emphasized">Recommended: square logo (512×512), PNG with transparent background.</p>
+                  <p id="logoCropNote" class="caption subtle" hidden>We’ll auto-crop to square.</p>
                   <div id="logoUploadStatus" class="upload-status" aria-live="polite"></div>
                 </label>
                 <div class="logo-preview" aria-live="polite">
                   <div class="card-title">Preview</div>
-                  <div class="avatar" id="logoPreviewWrapper">
+                  <div class="logo-preview-frame" id="logoPreviewWrapper">
                     <img id="logoPreview" alt="Business logo preview" />
                   </div>
                   <div id="logoPreviewText" class="caption"></div>

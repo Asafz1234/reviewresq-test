@@ -25,6 +25,7 @@ const logoPreview = document.getElementById("logoPreview");
 const logoPreviewWrapper = document.getElementById("logoPreviewWrapper");
 const logoPreviewText = document.getElementById("logoPreviewText");
 const logoUploadStatus = document.getElementById("logoUploadStatus");
+const logoCropNote = document.getElementById("logoCropNote");
 const saveButton = document.getElementById("saveBranding");
 const saveAndReturnButton = document.getElementById("saveAndReturn");
 const diagnosticsButton = document.getElementById("diagnosticsBtn");
@@ -48,7 +49,7 @@ const previewLogoCircle = document.getElementById("previewLogoCircle");
 const DEFAULT_COLOR = "#2563EB";
 const DEFAULT_SUPPORT_EMAIL = "support@reviewresq.com";
 const MAX_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
-const MAX_LOGO_DIMENSION = 1024;
+const LOGO_OUTPUT_SIZE = 512;
 const BRANDING_REDIRECT_NOTICE_KEY = "brandingRedirectNotice";
 const shouldReturnToDashboard =
   new URLSearchParams(window.location.search).get("return") === "dashboard";
@@ -193,6 +194,9 @@ function applyLogoPreview(url) {
     if (logoPreviewText) {
       logoPreviewText.textContent = "No logo uploaded";
     }
+    if (logoCropNote) {
+      logoCropNote.hidden = true;
+    }
   }
 }
 
@@ -275,12 +279,22 @@ function readImageDimensions(file) {
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
-      img.onload = () => resolve({ width: img.width, height: img.height, dataUrl: reader.result });
+      img.onload = () =>
+        resolve({ width: img.width, height: img.height, dataUrl: reader.result, image: img });
       img.onerror = () => reject(new Error("Unable to read the image. Please try another file."));
       img.src = reader.result;
     };
     reader.onerror = () => reject(new Error("Unable to read the file."));
     reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Unable to read the image. Please try another file."));
+    img.src = dataUrl;
   });
 }
 
@@ -300,41 +314,55 @@ function canvasToBlob(canvas, mimeType, quality = 0.82) {
   });
 }
 
-async function processLogo(file) {
+async function processLogoFile(file) {
   validateFileType(file);
-  const { width, height, dataUrl } = await readImageDimensions(file);
-  const longestSide = Math.max(width, height);
-  const needsResize = longestSide > MAX_LOGO_DIMENSION;
-  const needsCompression = file.size > MAX_UPLOAD_SIZE_BYTES;
-  const note = needsResize || needsCompression
-    ? "We optimized your logo automatically"
-    : "Ready to upload";
+  const { width, height, dataUrl, image } = await readImageDimensions(file);
 
   const canvas = document.createElement("canvas");
-  const ratio = Math.min(MAX_LOGO_DIMENSION / width, MAX_LOGO_DIMENSION / height, 1);
-  canvas.width = Math.round(width * ratio);
-  canvas.height = Math.round(height * ratio);
+  canvas.width = LOGO_OUTPUT_SIZE;
+  canvas.height = LOGO_OUTPUT_SIZE;
 
   const ctx = canvas.getContext("2d");
-  const img = new Image();
-  img.src = dataUrl;
-  await new Promise((resolve) => {
-    img.onload = resolve;
-  });
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const cropSize = Math.min(width, height);
+  const sourceX = (width - cropSize) / 2;
+  const sourceY = (height - cropSize) / 2;
+  const img = image || (await loadImage(dataUrl));
 
-  const qualitySteps = [0.82, 0.74, 0.66];
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(
+    img,
+    sourceX,
+    sourceY,
+    cropSize,
+    cropSize,
+    0,
+    0,
+    LOGO_OUTPUT_SIZE,
+    LOGO_OUTPUT_SIZE
+  );
+
+  const qualitySteps = [0.85, 0.78, 0.7];
+  let finalBlob = null;
   for (const [index, quality] of qualitySteps.entries()) {
     const blob = await canvasToBlob(canvas, "image/webp", quality);
     if (blob.size <= MAX_UPLOAD_SIZE_BYTES || index === qualitySteps.length - 1) {
-      const optimizedFile = new File([blob], "logo.webp", {
-        type: "image/webp",
-      });
-      return { file: optimizedFile, note, extension: ".webp" };
+      finalBlob = blob;
+      break;
     }
   }
 
-  return { file, note: "Ready to upload", extension: ".webp" };
+  const processedBlob = finalBlob || (await canvasToBlob(canvas, "image/webp", 0.7));
+  const optimizedFile = new File([processedBlob], "logo.webp", { type: "image/webp" });
+  const previewUrl = URL.createObjectURL(processedBlob);
+
+  const willCrop = Math.abs(width - height) > 2;
+  const needsCompression = file.size > MAX_UPLOAD_SIZE_BYTES;
+  const notes = [];
+  if (needsCompression) notes.push("Compressed to fit");
+  if (willCrop) notes.push("Auto-cropped to square");
+  if (!notes.length) notes.push("Ready to upload");
+
+  return { file: optimizedFile, note: notes.join(" · "), extension: ".webp", previewUrl, cropped: willCrop };
 }
 
 function getLogoPath(extension = ".webp") {
@@ -378,7 +406,13 @@ async function handleLogoUpload(file) {
   }
 
   try {
-    const { file: processedFile, note, extension } = await processLogo(file);
+    const { file: processedFile, note, extension, previewUrl, cropped } = await processLogoFile(file);
+    if (previewUrl) {
+      applyLogoPreview(previewUrl);
+    }
+    if (logoCropNote) {
+      logoCropNote.hidden = !cropped;
+    }
     const logoPath = getLogoPath(extension);
     const logoRef = storageRef(storage, logoPath);
 

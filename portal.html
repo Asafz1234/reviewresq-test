@@ -132,18 +132,23 @@
     .business-logo-wrapper {
       position: relative;
       flex-shrink: 0;
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
     }
 
     .business-logo-initials,
     .business-logo-img {
       position: absolute;
       inset: 0;
-      border-radius: 999px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
+      background: #fff;
     }
 
     .business-logo-initials {
@@ -156,14 +161,15 @@
     }
 
     .business-logo-img {
-      overflow: hidden;
-      border: 1px solid rgba(15, 23, 42, 0.20);
+      border: 1px solid rgba(15, 23, 42, 0.12);
     }
 
     .business-logo-img img {
       width: 100%;
       height: 100%;
       object-fit: contain;
+      object-position: center;
+      background: #fff;
       border-radius: inherit;
     }
 
