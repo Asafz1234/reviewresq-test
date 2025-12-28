@@ -216,7 +216,7 @@ const DEFAULT_BRANDING = {
 };
 
 const BRANDING_INCOMPLETE_MESSAGE =
-  "Please complete your Business Settings (business name and sender name) before sending review requests.";
+  "Before sending review requests, please complete your business details (takes under 1 minute).";
 
 const deriveBrandingState = (data = {}) => {
   const branding = data.branding || {};
@@ -407,7 +407,7 @@ const createInviteToken = async ({
     throw new Error("businessId is required to create an invite token");
   }
 
-  await assertBusinessProfileExists(businessId);
+  await assertBusinessBrandingComplete(businessId);
 
   const normalizedName = (customerName || "").toString().trim();
   const normalizedPhone = (phone || "").toString().trim();
@@ -3192,6 +3192,7 @@ exports.createInviteToken = functions.https.onCall(async (data = {}, context) =>
     });
   } catch (err) {
     console.error("[functions.createInviteToken] failed", err);
+    if (err instanceof functions.https.HttpsError) throw err;
     throw new functions.https.HttpsError("internal", err?.message || "Unable to create invite token");
   }
 });
@@ -3244,6 +3245,7 @@ exports.createInviteTokenCallable = functions.https.onCall(async (data = {}, con
     return { ok: true, ...inviteResponse, portalLink: inviteResponse.portalUrl };
   } catch (err) {
     console.error("[functions.createInviteTokenCallable] failed", err);
+    if (err instanceof functions.https.HttpsError) throw err;
     throw new functions.https.HttpsError(
       "internal",
       err?.message || "Unable to create invite token",
@@ -3976,7 +3978,10 @@ exports.createInviteTokenHttp = functions.https.onRequest(async (req, res) => {
   } catch (err) {
     console.error("[invite] http create failed", err);
     const status = err.code === "UNAUTHENTICATED" ? 401 : 400;
-    return res.status(status).json({ ok: false, error: err.message || "Unable to create invite" });
+    const errorCode = err?.details?.code || err?.code || "unknown";
+    return res
+      .status(status)
+      .json({ ok: false, error: err.message || "Unable to create invite", code: errorCode });
   }
 });
 
