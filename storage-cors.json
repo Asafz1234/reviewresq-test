@@ -1,13 +1,23 @@
 [
   {
-    "origin": ["https://reviewresq.com"],
-    "method": ["GET", "POST", "PUT"],
+    "origin": [
+      "https://reviewresq.com",
+      "https://www.reviewresq.com"
+    ],
+    "method": [
+      "GET",
+      "HEAD",
+      "PUT",
+      "POST",
+      "DELETE",
+      "OPTIONS"
+    ],
     "responseHeader": [
       "Content-Type",
       "Authorization",
       "x-goog-resumable",
-      "X-Goog-Upload-Protocol",
-      "X-Goog-Upload-Command"
+      "x-goog-meta-*",
+      "x-goog-content-length-range"
     ],
     "maxAgeSeconds": 3600
   }
