@@ -78,7 +78,7 @@ export const storage = getStorage(
   app,
   "gs://reviewresq-app.firebasestorage.app"
 );
-export const functions = getFunctions(app);
+export const functions = getFunctions(app, "us-central1");
 
 // ✅ שלב 2: חשיפה ל-Console (כדי לבדוק currentUser)
 window._app = app;

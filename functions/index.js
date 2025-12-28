@@ -3770,46 +3770,81 @@ exports.sendReviewRequestEmail = functions
 exports.sendReviewRequestEmailCallable = functions
   .runWith({ secrets: [SENDGRID_API_KEY, SENDGRID_SENDER] })
   .https.onCall(async (data = {}, context) => {
-    const caller = context.auth?.uid;
-    const businessId = data.businessId || caller;
-    const customerName = (data.customerName || data.name || "").toString().trim();
-    const email = (data.email || data.toEmail || data.customerEmail || "").toString().trim();
-    const phone = (data.customerPhone || data.phone || "").toString().trim();
-    let portalLink = data.portalLink || data.portalUrl || null;
-    let requestId = data.requestId || null;
-    const source = data.source || "ask-reviews";
-
-    if (!caller) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Authentication is required to send review requests.",
-      );
-    }
-
-    if (!businessId || caller !== businessId) {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "You can only send review requests for your own business.",
-      );
-    }
-
-    if (!customerName) {
-      console.warn("[email] missing customer name", { businessId, caller });
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "customerName is required to send a review request.",
-      );
-    }
-
-    if (!email || !basicEmailRegex.test(email)) {
-      console.warn("[email] invalid email", { businessId, caller, hasEmail: Boolean(email) });
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "A valid email is required to send a review request.",
-      );
-    }
-
+    let logContext = { requestKeys: Object.keys(data || {}) };
     try {
+      const caller = context.auth?.uid;
+      const businessId = (data.businessId || caller || "").toString().trim();
+      const customerName = (data.customerName || data.name || "").toString().trim();
+      const email = (data.email || data.toEmail || data.customerEmail || "").toString().trim();
+      const phone = (data.customerPhone || data.phone || "").toString().trim();
+      let portalLink = data.portalLink || data.portalUrl || null;
+      let requestId = data.requestId || null;
+      const source = data.source || "ask-reviews";
+      logContext = {
+        businessId,
+        caller,
+        source,
+        requestKeys: Object.keys(data || {}),
+        requestIdPresent: Boolean(requestId),
+        portalLinkPresent: Boolean(portalLink),
+        maskedEmail: maskEmail(email),
+      };
+
+      console.log("[functions.sendReviewRequestEmailCallable] invoked", logContext);
+
+      if (!caller) {
+        throw new functions.https.HttpsError(
+          "unauthenticated",
+          "Authentication is required to send review requests.",
+        );
+      }
+
+      if (!businessId || caller !== businessId) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "You can only send review requests for your own business.",
+        );
+      }
+
+      if (!customerName) {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "customerName is required to send a review request.",
+          { missing: ["customerName"] },
+        );
+      }
+
+      if (!email || !basicEmailRegex.test(email)) {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "A valid email is required to send a review request.",
+          { missing: ["customerEmail"] },
+        );
+      }
+
+      if (portalLink && typeof portalLink !== "string") {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "portalLink must be a string when provided.",
+        );
+      }
+
+      if (requestId && typeof requestId !== "string") {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "requestId must be a string when provided.",
+        );
+      }
+
+      const sendgrid = resolveSendgridConfig();
+      if (!sendgrid.apiKey) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "email_sending_not_configured",
+          { missing: ["SENDGRID_API_KEY"] },
+        );
+      }
+
       if (!portalLink) {
         const invite = await createInviteToken({
           businessId,
@@ -3841,7 +3876,12 @@ exports.sendReviewRequestEmailCallable = functions
         sendgridMessageId: sendResult.providerMessageId || null,
       };
     } catch (err) {
-      console.error("[functions.sendReviewRequestEmailCallable] failed", err);
+      console.error("[functions.sendReviewRequestEmailCallable] failed", {
+        ...logContext,
+        code: err?.code || err?.name,
+        message: err?.message,
+        stack: err?.stack,
+      });
       if (err instanceof functions.https.HttpsError) throw err;
       throw new functions.https.HttpsError(
         "internal",
