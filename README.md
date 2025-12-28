@@ -21,6 +21,10 @@ firebase deploy --only functions
 
 For local emulation, create a `.env` file in the project root with the same variable names so that `process.env` resolves them during development.
 
+### Verification
+
+Deploying Functions should no longer prompt for `SENDGRID_SENDER`; the value is sourced from the Cloud Secret Manager secrets `SENDGRID_API_KEY` and `SENDGRID_SENDER` that must exist before deployment.
+
 ## Firebase Storage CORS for logo uploads
 
 Logo uploads from `https://reviewresq.com` require an explicit CORS policy on the Firebase Storage bucket (`gs://reviewresq-app.firebasestorage.app`). Use the supplied `storage-cors.json` file and apply it with `gsutil`:

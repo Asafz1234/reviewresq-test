@@ -41,9 +41,7 @@ const GOOGLE_OAUTH_SCOPES = defineString(
   },
 );
 const SENDGRID_API_KEY = defineSecret("SENDGRID_API_KEY");
-const SENDGRID_SENDER_PARAM = defineString("SENDGRID_SENDER", {
-  default: "",
-});
+const SENDGRID_SENDER = defineSecret("SENDGRID_SENDER");
 
 const getSecretValue = (secret) => {
   try {
@@ -710,16 +708,12 @@ const normalizeChannel = (channel = "link") => {
 const DEFAULT_SENDGRID_SENDER = "support@reviewresq.com";
 
 const resolveSendgridConfig = () => {
-  const apiKey = getSecretValue(SENDGRID_API_KEY) || process.env.SENDGRID_API_KEY || "";
-  const senderParamValue = getSecretOrEnv(SENDGRID_SENDER_PARAM, "SENDGRID_SENDER");
-  const sender = senderParamValue || DEFAULT_SENDGRID_SENDER;
+  const apiKey = getSecretValue(SENDGRID_API_KEY) || "";
+  const senderSecretValue = getSecretValue(SENDGRID_SENDER) || "";
+  const sender = senderSecretValue || DEFAULT_SENDGRID_SENDER;
 
-  let source = "none";
-  if (getSecretValue(SENDGRID_API_KEY)) {
-    source = "secret";
-  } else if (process.env.SENDGRID_API_KEY) {
-    source = "env";
-  }
+  const hasSecret = Boolean(apiKey || senderSecretValue);
+  const source = hasSecret ? "secret" : "none";
 
   return {
     apiKey,
@@ -3744,7 +3738,7 @@ async function sendReviewRequestEmailCore({
 }
 
 exports.sendReviewRequestEmail = functions
-  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .runWith({ secrets: [SENDGRID_API_KEY, SENDGRID_SENDER] })
   .https.onCall(async (data, context) => {
     const caller = context.auth?.uid;
     const businessId = data?.businessId || caller;
@@ -3774,7 +3768,7 @@ exports.sendReviewRequestEmail = functions
   });
 
 exports.sendReviewRequestEmailCallable = functions
-  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .runWith({ secrets: [SENDGRID_API_KEY, SENDGRID_SENDER] })
   .https.onCall(async (data = {}, context) => {
     const caller = context.auth?.uid;
     const businessId = data.businessId || caller;
@@ -3857,7 +3851,7 @@ exports.sendReviewRequestEmailCallable = functions
   });
 
 exports.sendReviewRequestEmailHttp = functions
-  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .runWith({ secrets: [SENDGRID_API_KEY, SENDGRID_SENDER] })
   .https.onRequest(async (req, res) => {
     console.log("sendReviewRequestEmail (HTTP) invoked", req.method);
 
@@ -3905,7 +3899,7 @@ exports.sendReviewRequestEmailHttp = functions
   });
 
 exports.portalDiagnostics = functions
-  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .runWith({ secrets: [SENDGRID_API_KEY, SENDGRID_SENDER] })
   .https.onCall(async (data = {}, context) => {
     const caller = context.auth?.uid;
     if (!caller) {
@@ -4295,10 +4289,10 @@ async function sendCampaignBatchHandler(data = {}, context) {
 }
 
 exports.sendCampaignBatch = functions
-  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .runWith({ secrets: [SENDGRID_API_KEY, SENDGRID_SENDER] })
   .https.onCall(sendCampaignBatchHandler);
 exports.bulkSendMessages = functions
-  .runWith({ secrets: [SENDGRID_API_KEY] })
+  .runWith({ secrets: [SENDGRID_API_KEY, SENDGRID_SENDER] })
   .https.onCall(sendCampaignBatchHandler);
 
 exports.saveAutomationFlow = functions.https.onCall(async (data = {}, context) => {
@@ -4734,8 +4728,9 @@ async function handleNegativeFeedback({ feedback, feedbackRef, feedbackId }) {
   return conversationId;
 }
 
-exports.onPortalFeedback = functions.firestore
-  .document("businessProfiles/{businessId}/feedback/{feedbackId}")
+exports.onPortalFeedback = functions
+  .runWith({ secrets: [SENDGRID_API_KEY, SENDGRID_SENDER] })
+  .firestore.document("businessProfiles/{businessId}/feedback/{feedbackId}")
   .onCreate(async (snap, context) => {
     const data = snap.data() || {};
     const businessId = context.params.businessId;
@@ -4783,7 +4778,9 @@ exports.onPortalFeedback = functions.firestore
     return null;
   });
 
-exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
+exports.aiAgentReply = functions
+  .runWith({ secrets: [SENDGRID_API_KEY, SENDGRID_SENDER] })
+  .https.onRequest(async (req, res) => {
   const origin = req.headers.origin || "*";
   res.set("Access-Control-Allow-Origin", origin);
   res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -4880,7 +4877,7 @@ exports.aiAgentReply = functions.https.onRequest(async (req, res) => {
     category: aiResponse.category,
     sentiment: aiResponse.sentiment,
   });
-});
+  });
 
 exports.recordReviewLinkClick = onRequest(async (req, res) => {
   if (applyCors(req, res, "POST, OPTIONS")) return;
@@ -5087,8 +5084,9 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
   }
 });
 
-exports.onAiConversationResolved = functions.firestore
-  .document("ai_conversations/{conversationId}")
+exports.onAiConversationResolved = functions
+  .runWith({ secrets: [SENDGRID_API_KEY, SENDGRID_SENDER] })
+  .firestore.document("ai_conversations/{conversationId}")
   .onUpdate(async (change, context) => {
     const beforeStatus = change.before.data()?.status;
     const afterStatus = change.after.data()?.status;
