@@ -143,6 +143,7 @@ function deriveBranding(data = {}) {
   const name = (branding.name || branding.displayName || baseName || "Our business").toString().trim();
   const color = (branding.color || data.brandColor || DEFAULT_COLOR).toString().trim() || DEFAULT_COLOR;
   const logoUrl =
+    branding.logoDownloadUrl ||
     branding.logoUrl ||
     data.logoUrl ||
     data.logoURL ||
@@ -210,9 +211,19 @@ async function loadBranding(uid) {
       : {};
 
   const branding = deriveBranding(data);
-  currentBranding = branding;
   currentLogoUrl = branding.logoUrl || "";
-  currentLogoPath = data.branding?.logoPath || "";
+  currentLogoPath =
+    data.branding?.logoStoragePath ||
+    data.branding?.logoPath ||
+    data.logoStoragePath ||
+    data.logoPath ||
+    "";
+  currentBranding = {
+    ...branding,
+    logoPath: currentLogoPath,
+    logoStoragePath: currentLogoPath,
+    logoDownloadUrl: currentLogoUrl,
+  };
   currentBrandingComplete =
     branding.brandingComplete !== undefined
       ? Boolean(branding.brandingComplete)
@@ -295,7 +306,9 @@ async function processLogo(file) {
   const longestSide = Math.max(width, height);
   const needsResize = longestSide > MAX_LOGO_DIMENSION;
   const needsCompression = file.size > MAX_UPLOAD_SIZE_BYTES;
-  const note = needsResize || needsCompression ? "Optimized for upload" : "Ready to upload";
+  const note = needsResize || needsCompression
+    ? "We optimized your logo automatically"
+    : "Ready to upload";
 
   const canvas = document.createElement("canvas");
   const ratio = Math.min(MAX_LOGO_DIMENSION / width, MAX_LOGO_DIMENSION / height, 1);
@@ -324,14 +337,17 @@ async function processLogo(file) {
   return { file, note: "Ready to upload", extension: ".webp" };
 }
 
-function getLogoPath() {
-  return `branding/${currentUserId}/logo.webp`;
+function getLogoPath(extension = ".webp") {
+  const safeExt = extension?.startsWith(".") ? extension : ".webp";
+  return `branding/${currentUserId}/logo${safeExt}`;
 }
 
 async function persistLogoReference(url, path) {
   const payload = {
     branding: {
       ...(currentBranding || {}),
+      logoDownloadUrl: url,
+      logoStoragePath: path || currentLogoPath || "",
       logoUrl: url,
       logoPath: path || currentLogoPath || "",
       brandingComplete: currentBrandingComplete,
@@ -341,6 +357,8 @@ async function persistLogoReference(url, path) {
     logoURL: url,
     businessLogoUrl: url,
     brandLogoUrl: url,
+    logoDownloadUrl: url,
+    logoStoragePath: path || currentLogoPath || "",
     brandingComplete: currentBrandingComplete,
   };
 
@@ -360,8 +378,8 @@ async function handleLogoUpload(file) {
   }
 
   try {
-    const { file: processedFile, note } = await processLogo(file);
-    const logoPath = getLogoPath();
+    const { file: processedFile, note, extension } = await processLogo(file);
+    const logoPath = getLogoPath(extension);
     const logoRef = storageRef(storage, logoPath);
 
     const uploadTask = uploadBytesResumable(logoRef, processedFile, {
@@ -394,8 +412,17 @@ async function handleLogoUpload(file) {
     currentLogoPath = logoPath;
     applyLogoPreview(url);
     await persistLogoReference(url, currentLogoPath);
-    currentBranding = { ...(currentBranding || {}), logoUrl: url, logoPath: currentLogoPath };
-    setUploadStatus(`Uploaded ✓ ${note || ""}`.trim(), "success");
+    currentBranding = {
+      ...(currentBranding || {}),
+      logoUrl: url,
+      logoPath: currentLogoPath,
+      logoDownloadUrl: url,
+      logoStoragePath: currentLogoPath,
+    };
+    setUploadStatus(
+      `Uploaded ✓ ${note || ""}`.trim() || "We optimized your logo automatically",
+      "success"
+    );
     setStatus("Logo uploaded", false);
     updatePreview();
     return url;
@@ -430,6 +457,8 @@ async function saveBranding({ redirectAfterSave = shouldReturnToDashboard } = {}
     color,
     logoUrl: currentLogoUrl || "",
     logoPath: currentLogoPath || "",
+    logoDownloadUrl: currentLogoUrl || "",
+    logoStoragePath: currentLogoPath || "",
     brandingComplete,
     updatedAt: serverTimestamp(),
   };
@@ -451,6 +480,8 @@ async function saveBranding({ redirectAfterSave = shouldReturnToDashboard } = {}
           logoURL: brandingPayload.logoUrl,
           brandLogoUrl: brandingPayload.logoUrl,
           businessLogoUrl: brandingPayload.logoUrl,
+          logoDownloadUrl: brandingPayload.logoDownloadUrl,
+          logoStoragePath: brandingPayload.logoStoragePath,
         }
       : {}),
   };
