@@ -415,32 +415,40 @@ async function handleSingleSubmit(event) {
 
   try {
     if (isEmailChannel) {
-      const inviteResponse = await createInviteTokenCallable({
+      const invitePayload = {
         businessId,
         customerName: name,
         phone,
         email,
-        channel: "email",
+        channel,
         source: "ask-for-reviews",
-      });
+      };
+      console.log("[ask-reviews] single payload", Object.keys(invitePayload), invitePayload);
+
+      const inviteResponse = await createInviteTokenCallable(invitePayload);
 
       const inviteData = inviteResponse?.data || {};
       const portalLink = inviteData.portalLink || inviteData.portalUrl;
-      const requestId = inviteData.requestId;
+      const requestId = inviteData.requestId || inviteData.inviteToken;
 
       if (!inviteData?.ok || !portalLink) {
         throw new Error(inviteData?.error || "Unable to create invite link");
       }
 
-      const sendResponse = await sendReviewRequestEmailCallable({
+      const sendPayload = {
         businessId,
         customerName: name,
+        customerEmail: email,
         email,
-        phone,
+        customerPhone: phone,
         portalLink,
         requestId,
         source: "ask-for-reviews",
-      });
+      };
+
+      console.log("[ask-reviews] single payload", Object.keys(sendPayload), sendPayload);
+
+      const sendResponse = await sendReviewRequestEmailCallable(sendPayload);
 
       const sendData = sendResponse?.data || {};
       const sendSuccess = Boolean(sendData?.ok);
@@ -470,7 +478,12 @@ async function handleSingleSubmit(event) {
       showToast("Link generated and copied");
     }
   } catch (err) {
-    console.error("[ask-reviews] single generate failed", err);
+    console.error(
+      "[ask-reviews] single generate failed",
+      err?.code || err?.name || "unknown",
+      err?.message,
+      err?.details,
+    );
     const configMissing =
       err?.code === "failed-precondition" ||
       err?.message?.includes("email_sending_not_configured");
