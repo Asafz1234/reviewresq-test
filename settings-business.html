@@ -113,7 +113,12 @@
 
         let logoUploadResult = null;
         if (logoUpload.files.length > 0) {
-          logoUploadResult = await uploadLogoAndGetURL(logoUpload.files[0], user.uid);
+          try {
+            logoUploadResult = await uploadLogoAndGetURL(logoUpload.files[0], user.uid);
+          } catch (err) {
+            console.error("Logo upload failed. Saving without logo.", err);
+            statusMsg.innerText = "Saved without uploading a new logo (upload failed).";
+          }
         }
 
         const payload = {
@@ -139,7 +144,11 @@
         };
 
         await setDoc(ref, payload, { merge: true });
-        statusMsg.innerText = "Business profile updated successfully!";
+        if (!logoUploadResult && logoUpload.files.length > 0) {
+          statusMsg.innerText = "Business profile updated, but logo upload was skipped.";
+        } else {
+          statusMsg.innerText = "Business profile updated successfully!";
+        }
       });
     });
   </script>
