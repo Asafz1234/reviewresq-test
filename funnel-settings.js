@@ -369,7 +369,14 @@ async function saveSettings() {
     if (!Object.keys(patch || {}).length) {
       throw new Error("No changes to save for your current plan.");
     }
-    const logoUploadResult = await maybeUploadLogo();
+
+    let logoUploadResult = null;
+    try {
+      logoUploadResult = await maybeUploadLogo();
+    } catch (err) {
+      console.error("[funnel] logo upload failed, continuing without logo", err);
+      showToast("Logo upload failed; saving other changes.", true);
+    }
     if (
       logoUploadResult?.url &&
       (currentCapabilities.reviewFunnel?.allowedPatchPaths || []).includes("branding.logoUrl")
