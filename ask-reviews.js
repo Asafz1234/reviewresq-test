@@ -48,7 +48,9 @@ const customEndInput = document.getElementById("requestEnd");
 const toastEl = document.getElementById("askToast");
 
 const BRANDING_REQUIRED_MESSAGE =
-  "Before sending requests, please complete your Business Settings (business name + sender name).";
+  "Before sending review requests, please complete your business details (takes under 1 minute).";
+
+const BRANDING_REDIRECT_NOTICE_KEY = "brandingRedirectNotice";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
@@ -259,7 +261,19 @@ function requireBrandingOrNotify() {
   if (brandingState.complete) return true;
   setErrorBanner(BRANDING_REQUIRED_MESSAGE);
   showToast(BRANDING_REQUIRED_MESSAGE, true);
+  redirectToBrandingSetup();
   return false;
+}
+
+function redirectToBrandingSetup() {
+  try {
+    sessionStorage.setItem(BRANDING_REDIRECT_NOTICE_KEY, BRANDING_REQUIRED_MESSAGE);
+  } catch (err) {
+    console.warn("[ask-reviews] unable to persist redirect notice", err);
+  }
+  const redirectUrl = new URL("/business-settings.html", window.location.origin);
+  redirectUrl.searchParams.set("return", "ask-reviews");
+  window.location.href = redirectUrl.toString();
 }
 
 function setErrorBanner(message = "") {
@@ -645,6 +659,11 @@ function attachEvents() {
   customStartInput?.addEventListener("change", renderOutboundTable);
   customEndInput?.addEventListener("change", renderOutboundTable);
   completeSettingsBtn?.addEventListener("click", () => {
+    try {
+      sessionStorage.setItem(BRANDING_REDIRECT_NOTICE_KEY, BRANDING_REQUIRED_MESSAGE);
+    } catch (err) {
+      console.warn("[ask-reviews] unable to persist redirect notice", err);
+    }
     window.location.href = "/business-settings.html?return=dashboard";
   });
   resetStatusBanners();

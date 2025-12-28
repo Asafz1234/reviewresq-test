@@ -49,6 +49,7 @@ const DEFAULT_COLOR = "#2563EB";
 const DEFAULT_SUPPORT_EMAIL = "support@reviewresq.com";
 const MAX_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
 const MAX_LOGO_DIMENSION = 1024;
+const BRANDING_REDIRECT_NOTICE_KEY = "brandingRedirectNotice";
 const shouldReturnToDashboard =
   new URLSearchParams(window.location.search).get("return") === "dashboard";
 
@@ -63,6 +64,18 @@ function setStatus(message, isError = false) {
   statusMessage.hidden = !message;
   statusMessage.textContent = message || "";
   statusMessage.classList.toggle("error", Boolean(isError));
+}
+
+function consumeRedirectNotice() {
+  try {
+    const notice = sessionStorage.getItem(BRANDING_REDIRECT_NOTICE_KEY);
+    if (notice) {
+      setStatus(notice, false);
+      sessionStorage.removeItem(BRANDING_REDIRECT_NOTICE_KEY);
+    }
+  } catch (err) {
+    console.warn("[branding] unable to read redirect notice", err);
+  }
 }
 
 function computeBrandingComplete(data = {}) {
@@ -276,24 +289,13 @@ function canvasToBlob(canvas, mimeType, quality = 0.82) {
   });
 }
 
-function getLogoExtension(file) {
-  const type = (file?.type || "").toLowerCase();
-  if (type.includes("webp")) return ".webp";
-  if (type.includes("png")) return ".png";
-  return ".webp";
-}
-
 async function processLogo(file) {
   validateFileType(file);
   const { width, height, dataUrl } = await readImageDimensions(file);
   const longestSide = Math.max(width, height);
-  const normalizedType = (file.type || "").toLowerCase();
-  const needsOptimization =
-    file.size > MAX_UPLOAD_SIZE_BYTES || longestSide > MAX_LOGO_DIMENSION || normalizedType.includes("jpeg");
-
-  if (!needsOptimization) {
-    return { file, note: "Ready to upload", extension: getLogoExtension(file) };
-  }
+  const needsResize = longestSide > MAX_LOGO_DIMENSION;
+  const needsCompression = file.size > MAX_UPLOAD_SIZE_BYTES;
+  const note = needsResize || needsCompression ? "Optimized for upload" : "Ready to upload";
 
   const canvas = document.createElement("canvas");
   const ratio = Math.min(MAX_LOGO_DIMENSION / width, MAX_LOGO_DIMENSION / height, 1);
@@ -315,16 +317,15 @@ async function processLogo(file) {
       const optimizedFile = new File([blob], "logo.webp", {
         type: "image/webp",
       });
-      return { file: optimizedFile, note: "Optimized for upload", extension: ".webp" };
+      return { file: optimizedFile, note, extension: ".webp" };
     }
   }
 
-  return { file, note: "Ready to upload", extension: getLogoExtension(file) };
+  return { file, note: "Ready to upload", extension: ".webp" };
 }
 
-function getLogoPath(extension = ".webp") {
-  const safeExt = extension && extension.startsWith(".") ? extension : ".webp";
-  return `branding/${currentUserId}/logo${safeExt}`;
+function getLogoPath() {
+  return `branding/${currentUserId}/logo.webp`;
 }
 
 async function persistLogoReference(url, path) {
@@ -359,8 +360,8 @@ async function handleLogoUpload(file) {
   }
 
   try {
-    const { file: processedFile, note, extension } = await processLogo(file);
-    const logoPath = getLogoPath(extension);
+    const { file: processedFile, note } = await processLogo(file);
+    const logoPath = getLogoPath();
     const logoRef = storageRef(storage, logoPath);
 
     const uploadTask = uploadBytesResumable(logoRef, processedFile, {
@@ -545,5 +546,6 @@ onAuthStateChanged(auth, async (user) => {
 
   currentUserId = user.uid;
   wireEvents();
+  consumeRedirectNotice();
   await loadBranding(user.uid);
 });
