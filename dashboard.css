@@ -668,6 +668,28 @@ label span.card-title {
   color: var(--text-main);
 }
 
+.logo-preview-frame {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  overflow: hidden;
+}
+
+.logo-preview-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 10px;
+  background: #fff;
+}
+
 .strong {
   margin: 0;
   font-weight: 600;
@@ -1303,6 +1325,15 @@ textarea.input {
   color: #166534;
 }
 
+.caption.emphasized {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.caption.subtle {
+  color: #475569;
+}
+
 .preview-card {
   border: 1px solid var(--border-soft);
   border-radius: 14px;
@@ -1319,10 +1350,11 @@ textarea.input {
 }
 
 .preview-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: #e2e8f0;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1333,6 +1365,8 @@ textarea.input {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center;
+  background: #fff;
 }
 
 .preview-title {
