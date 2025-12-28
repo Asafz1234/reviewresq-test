@@ -23,11 +23,11 @@ For local emulation, create a `.env` file in the project root with the same vari
 
 ## Firebase Storage CORS for logo uploads
 
-Logo uploads from `https://reviewresq.com` require an explicit CORS policy on the Firebase Storage bucket (`gs://reviewresq-app.appspot.com`). Use the supplied `storage-cors.json` file and apply it with `gsutil`:
+Logo uploads from `https://reviewresq.com` require an explicit CORS policy on the Firebase Storage bucket (`gs://reviewresq-app.firebasestorage.app`). Use the supplied `storage-cors.json` file and apply it with `gsutil`:
 
 ```bash
-gsutil cors set storage-cors.json gs://reviewresq-app.appspot.com
-gsutil cors get gs://reviewresq-app.appspot.com
+gsutil cors set storage-cors.json gs://reviewresq-app.firebasestorage.app
+gsutil cors get gs://reviewresq-app.firebasestorage.app
 ```
 
 This configuration allows both the apex and `www` domains to complete the preflight/POST flow used by `uploadBytesResumable`, enabling logo uploads without changing client-side validation or compression.

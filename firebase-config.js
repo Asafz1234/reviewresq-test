@@ -60,7 +60,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDdwnrO8RKn1ER5J3pyFbr69P9GjvR7CZ8",
   authDomain: "reviewresq-app.firebaseapp.com",
   projectId: "reviewresq-app",
-  storageBucket: "reviewresq-app.appspot.com",
+  storageBucket: "reviewresq-app.firebasestorage.app",
   messagingSenderId: "863497920392",
   appId: "1:863497920392:web:ca99060b42a50711b9e43d",
   measurementId: "G-G3P2BX845N",
@@ -74,7 +74,10 @@ setLogLevel("error");
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const storage = getStorage(app);
+export const storage = getStorage(
+  app,
+  "gs://reviewresq-app.firebasestorage.app"
+);
 export const functions = getFunctions(app);
 
 // ✅ שלב 2: חשיפה ל-Console (כדי לבדוק currentUser)
