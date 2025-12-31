@@ -3569,10 +3569,7 @@ async function sendReviewRequestEmailCore({
     `If you didn’t request this, you can ignore this email.`;
 
   const senderEmail = sendgrid.sender || DEFAULT_SENDGRID_SENDER;
-  const senderName = brandingDetails.senderName || businessName || "ReviewResq";
   const supportEmail = brandingDetails.supportEmail || DEFAULT_SENDGRID_SENDER;
-  const sender = { email: senderEmail, name: senderName };
-  const replyTo = { email: supportEmail, name: senderName };
 
   const logoImgHtml = identity.logoUrl
     ? `<div style="margin-bottom:16px; text-align:center;">
@@ -3633,8 +3630,8 @@ async function sendReviewRequestEmailCore({
 
   const msg = {
     to: email,
-    from: sender,
-    replyTo,
+    from: senderEmail,
+    reply_to: senderEmail,
     subject,
     text,
     html,
@@ -3651,11 +3648,29 @@ async function sendReviewRequestEmailCore({
     },
   };
 
+  const hasHtml = Boolean(msg.html);
+  const hasText = Boolean(msg.text);
+  const hasTemplate = Boolean(msg.templateId || msg.dynamic_template_data);
+
+  if (!hasHtml && !hasText && !hasTemplate) {
+    msg.html = `${businessName} would love your feedback`;
+    msg.text = `${businessName} would love your feedback`;
+  }
+
+  console.log("[email] prepared send payload", {
+    businessId,
+    from: msg.from,
+    to: maskEmail(msg.to),
+    hasHtml: Boolean(msg.html),
+    hasText: Boolean(msg.text),
+    hasTemplateId: Boolean(msg.templateId),
+  });
+
   console.log("[email] sending review request", {
     businessId,
     businessName,
     to: maskEmail(email),
-    sender,
+    from: msg.from,
     configSource: sendgrid.source,
   });
 
@@ -3685,7 +3700,7 @@ async function sendReviewRequestEmailCore({
       businessName,
       requestId,
       to: maskEmail(email),
-      sender,
+      from: msg.from,
       configSource: sendgrid.source,
       providerMessageId: providerMessageId || null,
     });
@@ -3703,7 +3718,7 @@ async function sendReviewRequestEmailCore({
       businessId,
       businessName,
       to: maskEmail(email),
-      sender,
+      from: msg.from,
       configSource: sendgrid.source,
       error: err?.message,
     });
