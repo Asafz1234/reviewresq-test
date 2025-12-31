@@ -327,6 +327,17 @@ const fetchBusinessIdentity = async (businessId) => {
   return null;
 };
 
+const fetchPortalSettings = async (businessId) => {
+  if (!businessId) return null;
+  try {
+    const snap = await db.collection("portalSettings").doc(businessId).get();
+    if (snap.exists) return snap.data() || null;
+  } catch (err) {
+    console.warn("[portal] failed to fetch portal settings", { businessId, error: err });
+  }
+  return null;
+};
+
 const loadBusinessProfileSnapshot = async (businessId) => {
   if (!businessId) return null;
   const candidates = [
@@ -3574,7 +3585,7 @@ async function sendReviewRequestEmailCore({
   const logoImgHtml = identity.logoUrl
     ? `<div style="margin-bottom:16px; text-align:center;">
          <img src="${identity.logoUrl}" alt="${businessName} logo"
-              style="max-width:160px;height:auto;border-radius:12px;" />
+             style="width:120px;max-width:120px;height:auto;display:block;margin:0 auto 16px;border-radius:12px;" />
        </div>`
     : "";
 
@@ -4984,6 +4995,193 @@ exports.recordReviewLinkClick = onRequest(async (req, res) => {
     return res.status(500).json({ error: "Failed to record review click" });
   }
 });
+
+exports.resolveInviteTokenCallable = functions
+  .region("us-central1")
+  .https.onCall(async (data, context) => {
+    const businessId = (data?.businessId || "").toString().trim();
+    const inviteToken = (data?.token || data?.t || data?.inviteToken || "").toString().trim();
+
+    if (!businessId || !inviteToken) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "businessId and token are required.",
+      );
+    }
+
+    if (inviteToken.length < 6 || inviteToken.length > 200) {
+      throw new functions.https.HttpsError("invalid-argument", "Invalid invite token format.");
+    }
+
+    const tokenPrefix = inviteToken.slice(0, 6);
+
+    try {
+      const { data: inviteData } = await resolveInviteRecord(businessId, inviteToken);
+      if (inviteData.businessId && inviteData.businessId !== businessId) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Invite token does not belong to this business.",
+        );
+      }
+
+      const identity = await fetchBusinessIdentity(businessId);
+      if (!identity) {
+        throw new functions.https.HttpsError("not-found", "Business not found");
+      }
+
+      const portalSettings = await fetchPortalSettings(businessId);
+
+      return {
+        ok: true,
+        businessId,
+        requestId: inviteToken,
+        token: inviteToken,
+        businessName: identity.businessName || "Our Business",
+        businessLogoUrl: identity.logoUrl || null,
+        googleReviewLink: identity.googleReviewLink || "",
+        branding: identity.branding || {},
+        brandingColor: identity.branding?.color || identity.branding?.primaryColor || null,
+        customerId: inviteData.customerId || null,
+        customerName: inviteData.customerName || null,
+        customerEmail: inviteData.email || null,
+        customerPhone: inviteData.phone || null,
+        portalSettings: portalSettings || null,
+      };
+    } catch (err) {
+      console.warn("[portal.resolveInviteTokenCallable] token validation failed", {
+        businessId,
+        tokenPrefix,
+        error: err?.message,
+      });
+      if (err instanceof functions.https.HttpsError) throw err;
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        err?.message || "Unable to resolve invite token",
+      );
+    }
+  });
+
+exports.submitPortalFeedbackCallable = functions
+  .region("us-central1")
+  .https.onCall(async (data, context) => {
+    const businessId = (data?.businessId || "").toString().trim();
+    const inviteToken = (data?.token || data?.t || data?.inviteToken || "").toString().trim();
+    const rating = Number(data?.rating || 0);
+    const feedbackText = (data?.feedbackText || data?.message || "").toString().trim();
+    const providedEmail = normalizeEmail(data?.customerEmail || data?.email || "");
+    const providedName = (data?.customerName || data?.name || "").toString().trim();
+
+    if (!businessId || !inviteToken) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "businessId and token are required.",
+      );
+    }
+
+    if (inviteToken.length < 6 || inviteToken.length > 200) {
+      throw new functions.https.HttpsError("invalid-argument", "Invalid invite token format.");
+    }
+
+    if (!rating) {
+      throw new functions.https.HttpsError("invalid-argument", "rating is required");
+    }
+
+    if (rating <= 2 && !feedbackText) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Feedback is required for low ratings.",
+      );
+    }
+
+    const tokenPrefix = inviteToken.slice(0, 6);
+    let inviteRef = null;
+    let inviteData = null;
+    let customerProfile = null;
+
+    try {
+      const resolved = await resolveInviteRecord(businessId, inviteToken);
+      inviteData = resolved.data || {};
+      inviteRef = resolved.ref;
+
+      if (inviteData.businessId && inviteData.businessId !== businessId) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Invite token does not belong to this business.",
+        );
+      }
+
+      if (inviteData.customerId) {
+        customerProfile = await fetchCustomerProfile(businessId, inviteData.customerId);
+      }
+    } catch (err) {
+      console.warn("[portal.submitPortalFeedbackCallable] token validation failed", {
+        businessId,
+        tokenPrefix,
+        error: err?.message,
+      });
+      if (err instanceof functions.https.HttpsError) throw err;
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        err?.message || "Invalid invite token",
+      );
+    }
+
+    const customerData = customerProfile?.data || {};
+    const createdAtMs = Date.now();
+    const feedbackPayload = {
+      businessId,
+      customerId: inviteData?.customerId || null,
+      requestId: inviteToken,
+      customerName: providedName || customerData.name || inviteData?.customerName || "Anonymous",
+      phone: inviteData?.phone || customerData.phone || null,
+      customerPhone: inviteData?.phone || customerData.phone || null,
+      email: providedEmail || inviteData?.email || customerData.email || null,
+      customerEmail: providedEmail || inviteData?.email || customerData.email || null,
+      rating,
+      message: feedbackText,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAtMs,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      source: "portal",
+      status: "new",
+      env: "portal",
+    };
+
+    try {
+      const docRef = await writeFeedbackDocuments(businessId, feedbackPayload);
+
+      if (customerProfile?.ref) {
+        await customerProfile.ref.set(
+          {
+            lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+            reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
+          },
+          { merge: true },
+        );
+      }
+
+      if (inviteRef) {
+        await inviteRef.set(
+          { used: true, usedAt: admin.firestore.FieldValue.serverTimestamp() },
+          { merge: true },
+        );
+      }
+
+      console.log("[portal.submitPortalFeedbackCallable] feedback submitted", {
+        businessId,
+        tokenPrefix,
+        feedbackId: docRef.id,
+      });
+
+      return { ok: true, feedbackId: docRef.id, customerId: inviteData?.customerId || null };
+    } catch (err) {
+      console.error("[portal.submitPortalFeedbackCallable] failed", err);
+      throw new functions.https.HttpsError(
+        "internal",
+        err?.message || "Failed to submit feedback",
+      );
+    }
+  });
 
 exports.resolveInviteToken = onRequest(async (req, res) => {
   if (applyCors(req, res, "GET, POST, OPTIONS")) return;
