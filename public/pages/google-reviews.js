@@ -4,16 +4,16 @@ import {
   calculateMetrics,
   buildRatingBreakdown,
   describeReview,
-} from "./dashboard-data.js";
-import { initialsFromName, formatDate } from "./session-data.js";
+} from "../dashboard-data.js";
+import { initialsFromName, formatDate } from "../session-data.js";
 import {
   db,
   doc,
   getDoc,
   serverTimestamp,
   setDoc,
-} from "./firebase-config.js";
-import { normalizePlan } from "./plan-capabilities.js";
+} from "../firebase-config.js";
+import { normalizePlan } from "../plan-capabilities.js";
 
 const buildId = window.__REVIEWRESQ_BUILD_ID || "dev";
 const allowDebugBadges =
@@ -24,7 +24,7 @@ let googleConnectModulePromise;
 
 async function getGoogleConnectModule() {
   if (!googleConnectModulePromise) {
-    const moduleUrl = new URL("./google-connect.js", import.meta.url);
+    const moduleUrl = new URL("../google-connect.js", import.meta.url);
     moduleUrl.searchParams.set("v", buildId);
     googleConnectModulePromise = import(moduleUrl.toString());
   }

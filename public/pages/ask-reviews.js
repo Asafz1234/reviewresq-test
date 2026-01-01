@@ -5,10 +5,10 @@ import {
   where,
   onSnapshot,
   orderBy,
-} from "./firebase-config.js";
-import { functions, httpsCallable } from "./firebase-config.js";
-import { deriveBranding, listenForUser } from "./session-data.js";
-import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
+} from "../firebase-config.js";
+import { functions, httpsCallable } from "../firebase-config.js";
+import { deriveBranding, listenForUser } from "../session-data.js";
+import { PLAN_LABELS, normalizePlan } from "../plan-capabilities.js";
 
 const singleForm = document.getElementById("singleRequestForm");
 const singleNameInput = document.getElementById("singleName");
