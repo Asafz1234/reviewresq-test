@@ -61,6 +61,9 @@ const getStringOrEnv = (param, envKey, fallback = "") => {
   return fallback;
 };
 
+const hashToken = (token = "") =>
+  crypto.createHash("sha256").update(String(token)).digest("hex");
+
 const normalizePlan = (raw = "starter") => {
   return sharedNormalizePlan ? sharedNormalizePlan(raw) : "starter";
 };
@@ -401,6 +404,69 @@ const resolveInviteRecord = async (businessId, inviteToken) => {
   }
 
   return { ref, data };
+};
+
+const validatePortalInvite = async ({ businessId, inviteToken }) => {
+  if (!businessId || !inviteToken) {
+    return {
+      ok: false,
+      code: "missing_params",
+      message: "businessId and token are required.",
+    };
+  }
+
+  const ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
+  const snap = await ref.get();
+
+  if (!snap.exists) {
+    return {
+      ok: false,
+      code: "invalid_token",
+      message: "This feedback link is invalid.",
+    };
+  }
+
+  const data = snap.data() || {};
+  const expiresAtMs = normalizeTimestampMs(data.expiresAt);
+  const usedAtMs = normalizeTimestampMs(data.usedAt);
+
+  if (data.businessId && data.businessId !== businessId) {
+    return {
+      ok: false,
+      code: "invalid_token",
+      message: "This feedback link does not match this business.",
+    };
+  }
+
+  if (expiresAtMs && expiresAtMs < Date.now()) {
+    return {
+      ok: false,
+      code: "expired",
+      message: "This feedback link has expired.",
+      tokenStatus: { state: "expired", expiresAt: expiresAtMs },
+    };
+  }
+
+  if (data.used || usedAtMs) {
+    return {
+      ok: false,
+      code: "used",
+      message: "This feedback link has already been used.",
+      tokenStatus: { state: "used", usedAt: usedAtMs || null },
+    };
+  }
+
+  return {
+    ok: true,
+    ref,
+    data,
+    tokenStatus: {
+      state: "valid",
+      expiresAt: expiresAtMs || null,
+      usedAt: usedAtMs || null,
+      used: Boolean(data.used),
+    },
+  };
 };
 
 const createInviteToken = async ({
@@ -3585,7 +3651,7 @@ async function sendReviewRequestEmailCore({
   const logoImgHtml = identity.logoUrl
     ? `<div style="margin-bottom:16px; text-align:center;">
          <img src="${identity.logoUrl}" alt="${businessName} logo"
-             style="width:120px;max-width:120px;height:auto;display:block;margin:0 auto 16px;border-radius:12px;" />
+            style="max-width:120px;width:120px;height:auto;display:block;margin:0 auto;border-radius:12px;" />
        </div>`
     : "";
 
@@ -5182,6 +5248,222 @@ exports.submitPortalFeedbackCallable = functions
       );
     }
   });
+
+exports.portalContext = onRequest(async (req, res) => {
+  if (applyCors(req, res, "GET, OPTIONS")) return;
+
+  if (req.method !== "GET") {
+    return res.status(405).json({ ok: false, code: "method_not_allowed" });
+  }
+
+  const payload = req.query || {};
+  const businessId = (payload.businessId || payload.bid || "").toString().trim();
+  const inviteToken = (payload.t || payload.token || payload.inviteToken || "").toString().trim();
+  const tokenHash = hashToken(inviteToken || "missing");
+
+  const validation = await validatePortalInvite({ businessId, inviteToken });
+  if (!validation.ok) {
+    console.error("[portal.api.context] validation_failed", {
+      businessId,
+      tokenHash,
+      code: validation.code,
+      message: validation.message,
+    });
+    const status = validation.code === "missing_params" ? 400 : 403;
+    return res.status(status).json({
+      ok: false,
+      code: validation.code,
+      message: validation.message,
+      tokenStatus: validation.tokenStatus || null,
+    });
+  }
+
+  try {
+    const identity = await fetchBusinessIdentity(businessId);
+    if (!identity) {
+      console.error("[portal.api.context] business_not_found", { businessId, tokenHash });
+      return res.status(404).json({
+        ok: false,
+        code: "business_not_found",
+        message: "Business profile not found for this portal link.",
+      });
+    }
+
+    const portalSettings = await fetchPortalSettings(businessId);
+    const inviteData = validation.data || {};
+    const brandingColor =
+      portalSettings?.primaryColor ||
+      portalSettings?.accentColor ||
+      identity.branding?.color ||
+      identity.branding?.primaryColor ||
+      null;
+
+    return res.status(200).json({
+      ok: true,
+      businessId,
+      businessName: identity.businessName || "Our Business",
+      businessLogoUrl: identity.logoUrl || null,
+      logoUrl: identity.logoUrl || null,
+      googleReviewLink: identity.googleReviewLink || "",
+      brandingColor,
+      brandColor: brandingColor,
+      language: portalSettings?.language || inviteData.language || "en",
+      portalSettings: portalSettings || null,
+      questionsConfig: portalSettings?.questions || null,
+      customerId: inviteData.customerId || null,
+      customerName: inviteData.customerName || null,
+      customerEmail: inviteData.email || null,
+      customerPhone: inviteData.phone || null,
+      tokenStatus: validation.tokenStatus || { state: "valid" },
+    });
+  } catch (err) {
+    console.error("[portal.api.context] internal_error", {
+      businessId,
+      tokenHash,
+      message: err?.message,
+      stack: err?.stack,
+    });
+    return res.status(500).json({
+      ok: false,
+      code: "internal",
+      message: "Unable to load portal right now. Please try again in a moment.",
+    });
+  }
+});
+
+exports.portalSubmit = onRequest(async (req, res) => {
+  if (applyCors(req, res, "POST, OPTIONS")) return;
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, code: "method_not_allowed" });
+  }
+
+  const payload =
+    req.body && typeof req.body === "object"
+      ? req.body
+      : (() => {
+          try {
+            return JSON.parse(req.body || "{}") || {};
+          } catch (err) {
+            return {};
+          }
+        })();
+
+  const businessId = (payload.businessId || payload.bid || "").toString().trim();
+  const inviteToken = (payload.t || payload.token || payload.inviteToken || "").toString().trim();
+  const rating = Number(payload.rating || 0);
+  const message = (payload.comment || payload.message || payload.feedback || "").toString().trim();
+  const providedEmail = normalizeEmail(payload.email || payload.customerEmail || "");
+  const providedName = (payload.customerName || payload.name || "").toString().trim();
+  const providedPhone = normalizePhone(payload.customerPhone || payload.phone || "");
+  const tokenHash = hashToken(inviteToken || "missing");
+
+  if (!rating) {
+    return res.status(400).json({
+      ok: false,
+      code: "missing_rating",
+      message: "rating is required",
+    });
+  }
+
+  if (rating <= 2 && !message) {
+    return res.status(400).json({
+      ok: false,
+      code: "message_required",
+      message: "Feedback is required for low ratings.",
+    });
+  }
+
+  const validation = await validatePortalInvite({ businessId, inviteToken });
+  if (!validation.ok) {
+    console.error("[portal.api.submit] validation_failed", {
+      businessId,
+      tokenHash,
+      code: validation.code,
+      message: validation.message,
+    });
+    const status = validation.code === "missing_params" ? 400 : 403;
+    return res.status(status).json({
+      ok: false,
+      code: validation.code,
+      message: validation.message,
+      tokenStatus: validation.tokenStatus || null,
+    });
+  }
+
+  try {
+    const inviteData = validation.data || {};
+    const createdAtMs = Date.now();
+    const customerId = inviteData.customerId || null;
+    const feedbackPayload = {
+      businessId,
+      customerId,
+      requestId: inviteToken,
+      customerName: providedName || inviteData.customerName || "Anonymous",
+      phone: providedPhone || inviteData.phone || null,
+      customerPhone: providedPhone || inviteData.phone || null,
+      email: providedEmail || inviteData.email || null,
+      customerEmail: providedEmail || inviteData.email || null,
+      rating,
+      message,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAtMs,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      source: "portal",
+      status: "new",
+      env: payload.env || "portal",
+    };
+
+    let customerProfile = null;
+    if (customerId) {
+      customerProfile = await fetchCustomerProfile(businessId, customerId);
+    }
+
+    const docRef = await writeFeedbackDocuments(businessId, feedbackPayload);
+
+    if (customerProfile?.ref) {
+      await customerProfile.ref.set(
+        {
+          lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+          reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
+        },
+        { merge: true },
+      );
+    }
+
+    if (validation.ref) {
+      await validation.ref.set(
+        { used: true, usedAt: admin.firestore.FieldValue.serverTimestamp() },
+        { merge: true },
+      );
+    }
+
+    console.log("[portal.api.submit] feedback_submitted", {
+      businessId,
+      tokenHash,
+      feedbackId: docRef.id,
+    });
+
+    return res.status(200).json({
+      ok: true,
+      feedbackId: docRef.id,
+      customerId: customerId || null,
+      tokenStatus: { state: "used", used: true },
+    });
+  } catch (err) {
+    console.error("[portal.api.submit] internal_error", {
+      businessId,
+      tokenHash,
+      message: err?.message,
+      stack: err?.stack,
+    });
+    return res.status(500).json({
+      ok: false,
+      code: "internal",
+      message: "Failed to submit feedback. Please try again.",
+    });
+  }
+});
 
 exports.resolveInviteToken = onRequest(async (req, res) => {
   if (applyCors(req, res, "GET, POST, OPTIONS")) return;
