@@ -46,6 +46,16 @@ ReviewResQ now centralizes every inbound customer record under a unified `custom
 - **Backend**: `/functions` (Firebase Functions and callable/HTTP endpoints).
 - **Local scripts**: `/scripts` (utility generators like `generate-runtime-env.js`).
 
+Key public pages (all served from `/public`): `google-reviews.html` + `google-reviews.js`, `portal.html` + `portal.js`, and `ask-reviews.html` + `ask-reviews.js` along with shared assets such as `dashboard.css`, `runtime-env.js`, and `logo.png`.
+
+## Hosting verification checklist
+
+After deploying Hosting + Functions, spot-check the custom domain:
+
+- Visit `https://reviewresq.com/google-reviews.html` and confirm the page renders (not blank).
+- Visit `https://reviewresq.com/portal.html` and watch the network panel for `/api/*` calls returning 200s.
+- Scan the browser console for missing JS/CSS assets (no 404s for `portal.js`, `google-reviews.js`, or shared styles/scripts).
+
 ## Deploying from VS Code (PowerShell)
 
 Run the frontend env build and deploy Hosting + Functions from a VS Code terminal on Windows:
