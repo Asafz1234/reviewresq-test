@@ -1,7 +1,7 @@
 // portal.js
-// Loads business profile into the portal and handles feedback submission
+// Loads business profile into the portal and handles feedback submission without client Firestore access
 
-import { functions, httpsCallable } from "./firebase-config.js";
+const FUNCTIONS_BASE = "https://us-central1-reviewresq-app.cloudfunctions.net";
 
 // ----- DOM ELEMENTS -----
 const portalEl = document.getElementById("portal");
@@ -76,6 +76,7 @@ let didRedirect = false;
 let inviteToken = inviteTokenParam || "";
 let resolvedCustomerId = null;
 let brandingColor = "#2563eb";
+let businessSnapshot = null;
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
 );
@@ -98,6 +99,50 @@ function setPortalStatus(status, message = "") {
   portalStatus.hidden = status === "ready";
   portalEl.classList.toggle("is-loading", status === "loading");
   portalEl.classList.toggle("has-error", status === "error");
+}
+
+function buildFunctionsUrl(path, params = {}) {
+  const url = new URL(`${FUNCTIONS_BASE}${path}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    url.searchParams.set(key, value);
+  });
+  return url.toString();
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  let data = {};
+  try {
+    data = await response.json();
+  } catch (err) {
+    data = {};
+  }
+
+  if (!response.ok || data?.ok === false) {
+    const error = new Error(data?.message || data?.error || "Request failed");
+    error.code = data?.code || response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+
+async function fetchPortalContext(businessId, token) {
+  const url = buildFunctionsUrl("/portalContext", { businessId, t: token });
+  return fetchJson(url, { method: "GET" });
+}
+
+async function submitFeedbackToBackend(payload) {
+  const url = `${FUNCTIONS_BASE}/portalSubmit`;
+  return fetchJson(url, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 function setContactFieldsVisible(isVisible) {
@@ -350,16 +395,6 @@ function redirectToGoogleReview(selectedRating = null) {
   safeRedirect(googleUrl);
 }
 
-async function submitFeedbackToBackend(payload) {
-  const submitCallable = httpsCallable(functions, "submitPortalFeedbackCallable");
-  const response = await submitCallable(payload);
-  const data = response?.data || {};
-  if (!data?.ok) {
-    throw new Error(data?.error || "Failed to send feedback");
-  }
-  return data;
-}
-
 // ----- LOAD BUSINESS PROFILE -----
 
 function buildDefaultPortalSettings(accentColor = brandingColor || "#2563eb") {
@@ -419,20 +454,15 @@ async function resolveInviteTokenOnLoad() {
   }
 
   try {
-    const resolveCallable = httpsCallable(functions, "resolveInviteTokenCallable");
-    const response = await resolveCallable({ businessId: requestedBusinessId, token: inviteToken });
-    const data = response?.data || {};
-
-    if (!data?.ok) {
-      throw new Error(data?.error || "Unable to load this invite.");
-    }
+    const data = await fetchPortalContext(requestedBusinessId, inviteToken);
 
     businessId = data.businessId || requestedBusinessId;
     businessName = (data.businessName || "Our Business").trim();
     businessTagline = data.businessTagline || "";
-    businessLogoUrl = data.businessLogoUrl || data.logoUrl || data.branding?.logoUrl || null;
+    businessLogoUrl =
+      data.businessLogoUrl || data.logoUrl || data.portalSettings?.businessLogoUrl || null;
     googleReviewUrl = data.googleReviewLink || "";
-    brandingColor = data.brandingColor || data.branding?.color || brandingColor;
+    brandingColor = data.brandingColor || data.brandColor || brandingColor;
     resolvedCustomerId = data.customerId || null;
 
     if (bizNameDisplay) bizNameDisplay.textContent = businessName;
@@ -453,15 +483,22 @@ async function resolveInviteTokenOnLoad() {
 
     document.title = `${businessName} • Feedback Portal`;
     applyPortalSettingsFromPayload(data.portalSettings || {});
+    businessSnapshot = data;
     setPortalStatus("ready");
   } catch (err) {
     console.error("[portal] failed to resolve invite", err);
-    const isPermission = err?.code === "permission-denied";
-    handleMissingBusinessData(
-      isPermission
-        ? "This link has expired or is invalid. Please request a new one from the business."
-        : err?.message || "We could not load this invite. Please ask the business owner for a new link."
-    );
+    const isPermission = err?.code === "permission-denied" || err?.code === 403;
+    const errorCode = err?.code || err?.data?.code;
+    const friendlyMessage =
+      errorCode === "expired"
+        ? "This link has expired. Please request a new one from the business."
+        : errorCode === "used"
+          ? "This link has already been used. Please request a fresh one from the business."
+          : isPermission
+            ? "This link has expired or is invalid. Please request a new one from the business."
+            : err?.message ||
+              "We could not load this invite. Please ask the business owner for a new link.";
+    handleMissingBusinessData(friendlyMessage);
   }
 }
 
