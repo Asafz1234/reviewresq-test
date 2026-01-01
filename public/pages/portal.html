@@ -112,6 +112,55 @@
       z-index: 1;
     }
 
+    .debug-banner {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      line-height: 1.5;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.3);
+    }
+
+    .debug-banner__label {
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      color: #bfdbfe;
+    }
+
+    .debug-banner__row {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .debug-banner code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      background: rgba(226, 232, 240, 0.12);
+      padding: 2px 4px;
+      border-radius: 6px;
+      word-break: break-word;
+      color: #e0f2fe;
+      border: 1px solid rgba(226, 232, 240, 0.24);
+    }
+
+    .debug-banner__error {
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      color: #fecdd3;
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-top: 8px;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     /* HEADER */
 
     .portal-header {
@@ -634,6 +683,22 @@
         Loading your feedback portal…
       </div>
       <div class="portal-inner">
+        <div class="debug-banner" id="debugBanner" hidden>
+          <div class="debug-banner__label">Portal API debug</div>
+          <div class="debug-banner__row">
+            <span>Resolve:</span>
+            <code id="debugResolveEndpoint"></code>
+          </div>
+          <div class="debug-banner__row">
+            <span>Submit:</span>
+            <code id="debugSubmitEndpoint"></code>
+          </div>
+          <div class="debug-banner__row">
+            <span>Track:</span>
+            <code id="debugTrackEndpoint"></code>
+          </div>
+          <pre class="debug-banner__error" id="debugErrorMessage" hidden></pre>
+        </div>
         <div
           class="owner-toolbar"
           id="ownerToolbar"

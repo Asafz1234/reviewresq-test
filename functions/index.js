@@ -5488,12 +5488,20 @@ exports.resolveInviteToken = onRequest(async (req, res) => {
   }
 
   try {
-    const { data } = await resolveInviteRecord(businessId, inviteToken);
+    const { data, tokenStatus } = await resolveInviteRecord(businessId, inviteToken);
     const identity = await fetchBusinessIdentity(businessId);
 
     if (!identity) {
       return res.status(404).json({ error: "Business not found" });
     }
+
+    const portalSettings = await fetchPortalSettings(businessId);
+    const brandingColor =
+      portalSettings?.primaryColor ||
+      portalSettings?.accentColor ||
+      identity.branding?.color ||
+      identity.branding?.primaryColor ||
+      null;
 
     const resolvedBranding = deriveBrandingState({
       ...identity,
@@ -5505,11 +5513,23 @@ exports.resolveInviteToken = onRequest(async (req, res) => {
       resolvedBranding.branding.name || identity.businessName || DEFAULT_BRANDING.name;
 
     return res.status(200).json({
+      ok: true,
       businessId,
-      customerId: data.customerId,
       businessName: displayName,
+      businessTagline: identity.businessTagline || identity.tagline || identity.subtitle || "",
+      businessLogoUrl: identity.logoUrl || null,
       logoUrl: resolvedBranding.branding.logoUrl || identity.logoUrl || null,
       googleReviewLink: identity.googleReviewLink || "",
+      brandingColor,
+      brandColor: brandingColor,
+      language: portalSettings?.language || data.language || "en",
+      portalSettings: portalSettings || null,
+      questionsConfig: portalSettings?.questions || null,
+      customerId: data.customerId || null,
+      customerName: data.customerName || null,
+      customerEmail: data.email || null,
+      customerPhone: data.phone || null,
+      tokenStatus: tokenStatus || { state: "valid" },
       brandingMissingFields:
         resolvedBranding.missingFields?.length
           ? resolvedBranding.missingFields
