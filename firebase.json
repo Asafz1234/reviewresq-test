@@ -6,6 +6,9 @@
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
+      { "source": "/google-reviews.html", "destination": "/pages/google-reviews.html" },
+      { "source": "/ask-reviews.html", "destination": "/pages/ask-reviews.html" },
+      { "source": "/portal.html", "destination": "/pages/portal.html" },
       { "source": "/api/sendReviewRequestEmail", "function": "sendReviewRequestEmailHttp" },
       { "source": "/api/createInviteToken", "function": "createInviteTokenHttp" },
       { "source": "/api/sendgrid/events", "function": "sendgridEvents" },
