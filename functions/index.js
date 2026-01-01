@@ -5250,13 +5250,24 @@ exports.submitPortalFeedbackCallable = functions
   });
 
 exports.portalContext = onRequest(async (req, res) => {
-  if (applyCors(req, res, "GET, OPTIONS")) return;
+  if (applyCors(req, res, "GET, POST, OPTIONS")) return;
 
-  if (req.method !== "GET") {
+  if (!["GET", "POST"].includes(req.method)) {
     return res.status(405).json({ ok: false, code: "method_not_allowed" });
   }
 
-  const payload = req.query || {};
+  const payload =
+    req.method === "GET"
+      ? req.query || {}
+      : (() => {
+          try {
+            return req.body && typeof req.body === "object"
+              ? req.body
+              : JSON.parse(req.body || "{}") || {};
+          } catch (err) {
+            return {};
+          }
+        })();
   const businessId = (payload.businessId || payload.bid || "").toString().trim();
   const inviteToken = (payload.t || payload.token || payload.inviteToken || "").toString().trim();
   const tokenHash = hashToken(inviteToken || "missing");

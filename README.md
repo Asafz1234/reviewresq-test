@@ -40,6 +40,22 @@ This configuration allows both the apex and `www` domains to complete the prefli
 
 ReviewResQ now centralizes every inbound customer record under a unified `customerSources` flow so that requests, follow-ups, and automations share the same Firestore documents.
 
+## Project layout
+
+- **Frontend**: `/public` (Firebase Hosting serves files at the site root, e.g. `/portal.html` maps to `public/portal.html`).
+- **Backend**: `/functions` (Firebase Functions and callable/HTTP endpoints).
+- **Local scripts**: `/scripts` (utility generators like `generate-runtime-env.js`).
+
+## Deploying from VS Code (PowerShell)
+
+Run the frontend env build and deploy Hosting + Functions from a VS Code terminal on Windows:
+
+```powershell
+cd /path/to/reviewresq-test
+npm run build:env
+firebase deploy --only "hosting,functions" --project reviewresq-app
+```
+
 Supported inputs:
 
 - Manual entry via the dashboard

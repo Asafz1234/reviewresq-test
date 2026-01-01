@@ -3,10 +3,15 @@
     "source": "functions"
   },
   "hosting": {
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       { "source": "/api/sendReviewRequestEmail", "function": "sendReviewRequestEmailHttp" },
       { "source": "/api/createInviteToken", "function": "createInviteTokenHttp" },
-      { "source": "/api/sendgrid/events", "function": "sendgridEvents" }
+      { "source": "/api/sendgrid/events", "function": "sendgridEvents" },
+      { "source": "/api/portalContext", "function": "portalContext" },
+      { "source": "/api/resolveInviteToken", "function": "resolveInviteToken" },
+      { "source": "/api/portalSubmit", "function": "portalSubmit" }
     ]
   }
 }

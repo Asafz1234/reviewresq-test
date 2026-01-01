@@ -1,7 +1,7 @@
 // portal.js
 // Loads business profile into the portal and handles feedback submission without client Firestore access
 
-const FUNCTIONS_BASE = "https://us-central1-reviewresq-app.cloudfunctions.net";
+const API_BASE = "/api";
 
 // ----- DOM ELEMENTS -----
 const portalEl = document.getElementById("portal");
@@ -102,7 +102,8 @@ function setPortalStatus(status, message = "") {
 }
 
 function buildFunctionsUrl(path, params = {}) {
-  const url = new URL(`${FUNCTIONS_BASE}${path}`);
+  const origin = window?.location?.origin || "";
+  const url = new URL(`${API_BASE}${path}`, origin || undefined);
   Object.entries(params).forEach(([key, value]) => {
     if (value === undefined || value === null || value === "") return;
     url.searchParams.set(key, value);
@@ -133,12 +134,15 @@ async function fetchJson(url, options = {}) {
 }
 
 async function fetchPortalContext(businessId, token) {
-  const url = buildFunctionsUrl("/portalContext", { businessId, t: token });
-  return fetchJson(url, { method: "GET" });
+  const url = buildFunctionsUrl("/portalContext");
+  return fetchJson(url, {
+    method: "POST",
+    body: JSON.stringify({ businessId, t: token }),
+  });
 }
 
 async function submitFeedbackToBackend(payload) {
-  const url = `${FUNCTIONS_BASE}/portalSubmit`;
+  const url = `${API_BASE}/portalSubmit`;
   return fetchJson(url, {
     method: "POST",
     body: JSON.stringify(payload),
