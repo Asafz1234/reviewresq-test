@@ -62,6 +62,11 @@ const runtimeEnvScript = `${banner}window.RUNTIME_ENV = ${JSON.stringify(
   2
 )};\n`;
 
-const outputPath = path.join(projectRoot, "runtime-env.js");
+const outputDir = path.join(projectRoot, "public");
+if (!fs.existsSync(outputDir)) {
+  fs.mkdirSync(outputDir, { recursive: true });
+}
+
+const outputPath = path.join(outputDir, "runtime-env.js");
 fs.writeFileSync(outputPath, runtimeEnvScript, "utf8");
 console.log(`runtime-env.js generated at ${outputPath}`);
