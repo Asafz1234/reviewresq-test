@@ -2,6 +2,11 @@
 // Loads business profile into the portal and handles feedback submission without client Firestore access
 
 const API_BASE = "/api";
+const ENDPOINTS = {
+  resolveInvite: `${API_BASE}/resolveInviteToken`,
+  submitFeedback: `${API_BASE}/submitPortalFeedback`,
+  trackReviewLink: `${API_BASE}/recordReviewLinkClick`,
+};
 
 // ----- DOM ELEMENTS -----
 const portalEl = document.getElementById("portal");
@@ -18,6 +23,12 @@ const ratingButtons = document.querySelectorAll(".rating-button");
 const currentRatingLine = document.getElementById("currentRatingLine");
 const currentRatingValue = document.getElementById("currentRatingValue");
 const changeRatingLink = document.getElementById("changeRatingLink");
+
+const debugBanner = document.getElementById("debugBanner");
+const debugResolveEndpoint = document.getElementById("debugResolveEndpoint");
+const debugSubmitEndpoint = document.getElementById("debugSubmitEndpoint");
+const debugTrackEndpoint = document.getElementById("debugTrackEndpoint");
+const debugErrorMessage = document.getElementById("debugErrorMessage");
 
 ratingButtons.forEach((btn) => {
   btn.disabled = true;
@@ -81,6 +92,8 @@ const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
 );
 
+updateDebugBannerEndpoints();
+
 // ----- HELPERS -----
 function getBusinessIdFromUrl() {
   const id = businessIdFromParams;
@@ -101,21 +114,48 @@ function setPortalStatus(status, message = "") {
   portalEl.classList.toggle("has-error", status === "error");
 }
 
-function buildFunctionsUrl(path, params = {}) {
-  const origin = window?.location?.origin || "";
-  const url = new URL(`${API_BASE}${path}`, origin || undefined);
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === "") return;
-    url.searchParams.set(key, value);
-  });
-  return url.toString();
+function updateDebugBannerEndpoints() {
+  if (debugResolveEndpoint) debugResolveEndpoint.textContent = ENDPOINTS.resolveInvite;
+  if (debugSubmitEndpoint) debugSubmitEndpoint.textContent = ENDPOINTS.submitFeedback;
+  if (debugTrackEndpoint) debugTrackEndpoint.textContent = ENDPOINTS.trackReviewLink;
+  if (debugBanner) debugBanner.hidden = false;
+}
+
+function showDebugError(error) {
+  if (!debugErrorMessage) return;
+
+  const payload =
+    error?.data ||
+    (error && typeof error === "object"
+      ? Object.fromEntries(Object.entries(error).filter(([, v]) => v !== undefined))
+      : {});
+  const message = error?.message || error?.code || "Unknown error";
+  const merged = message && Object.keys(payload || {}).length
+    ? { message, ...payload }
+    : payload || { message };
+
+  debugErrorMessage.textContent = JSON.stringify(merged, null, 2);
+  debugErrorMessage.hidden = false;
+}
+
+function clearDebugError() {
+  if (!debugErrorMessage) return;
+  debugErrorMessage.textContent = "";
+  debugErrorMessage.hidden = true;
 }
 
 async function fetchJson(url, options = {}) {
-  const response = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
+  let response;
+
+  try {
+    response = await fetch(url, {
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      ...options,
+    });
+  } catch (err) {
+    showDebugError(err);
+    throw err;
+  }
   let data = {};
   try {
     data = await response.json();
@@ -127,23 +167,23 @@ async function fetchJson(url, options = {}) {
     const error = new Error(data?.message || data?.error || "Request failed");
     error.code = data?.code || response.status;
     error.data = data;
+    showDebugError(error);
     throw error;
   }
 
+  clearDebugError();
   return data;
 }
 
 async function fetchPortalContext(businessId, token) {
-  const url = buildFunctionsUrl("/portalContext");
-  return fetchJson(url, {
+  return fetchJson(ENDPOINTS.resolveInvite, {
     method: "POST",
     body: JSON.stringify({ businessId, t: token }),
   });
 }
 
 async function submitFeedbackToBackend(payload) {
-  const url = `${API_BASE}/portalSubmit`;
-  return fetchJson(url, {
+  return fetchJson(ENDPOINTS.submitFeedback, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -377,8 +417,7 @@ function redirectToGoogleReview(selectedRating = null) {
     };
 
     try {
-      const trackUrl =
-        "https://us-central1-reviewresq-app.cloudfunctions.net/recordReviewLinkClick";
+      const trackUrl = ENDPOINTS.trackReviewLink;
       const body = JSON.stringify(payload);
 
       if (navigator.sendBeacon) {
@@ -589,10 +628,10 @@ async function handleFeedbackSubmit(event) {
     const payload = {
       businessId: currentBusinessId,
       rating,
-      feedbackText: message,
+      message,
     };
 
-    if (inviteToken) payload.token = inviteToken;
+    if (inviteToken) payload.inviteToken = inviteToken;
     if (customerName) payload.customerName = customerName;
     if (customerEmail) payload.customerEmail = customerEmail;
 
