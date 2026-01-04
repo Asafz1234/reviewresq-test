@@ -138,15 +138,19 @@ function renderLockedFeatureView(route, planId) {
   );
 }
 
+function removeNavTabsByRoute(tabs, route) {
+  tabs
+    .filter((tab) => tab.dataset.route === route)
+    .forEach((tab) => tab.remove());
+}
+
 function decorateNav(planId) {
   const tabs = Array.from(document.querySelectorAll(".nav-tab"));
   const normalizedPlan = normalizePlan(planId);
 
   if (isStarterPlan(normalizedPlan)) {
-    const campaignsTab = tabs.find((tab) => tab.dataset.route === "campaigns");
-    if (campaignsTab) {
-      campaignsTab.remove();
-    }
+    removeNavTabsByRoute(tabs, "campaigns");
+    removeNavTabsByRoute(tabs, "ai-agent");
   }
 
   tabs.forEach((tab) => {
