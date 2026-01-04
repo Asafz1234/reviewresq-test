@@ -7,10 +7,10 @@ import {
   getCachedProfile,
   getCachedSubscription,
   refreshSubscription,
-  isStarterPlan,
 } from "./session-data.js";
 import { PLAN_LABELS, hasFeature, normalizePlan } from "./plan-capabilities.js";
 import { lockUI } from "./plan-lock.js";
+import { applyNavPlanFilter } from "./nav-access.js";
 
 const planBadge = document.getElementById("planBadge");
 const topbarRight = document.querySelector(".topbar-right");
@@ -138,20 +138,11 @@ function renderLockedFeatureView(route, planId) {
   );
 }
 
-function removeNavTabsByRoute(tabs, route) {
-  tabs
-    .filter((tab) => tab.dataset.route === route)
-    .forEach((tab) => tab.remove());
-}
-
 function decorateNav(planId) {
   const tabs = Array.from(document.querySelectorAll(".nav-tab"));
   const normalizedPlan = normalizePlan(planId);
 
-  if (isStarterPlan(normalizedPlan)) {
-    removeNavTabsByRoute(tabs, "campaigns");
-    removeNavTabsByRoute(tabs, "ai-agent");
-  }
+  applyNavPlanFilter(normalizedPlan);
 
   tabs.forEach((tab) => {
     const route = tab.dataset.route;
