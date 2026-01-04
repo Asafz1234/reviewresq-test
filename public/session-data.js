@@ -163,6 +163,11 @@ export function currentPlanTier() {
   return "starter";
 }
 
+export function isStarterPlan(planId) {
+  const normalized = planId ? normalizePlan(planId) : currentPlanTier();
+  return normalized === "starter";
+}
+
 export function hasPlanFeature(feature) {
   return hasFeature(currentPlanTier(), feature);
 }

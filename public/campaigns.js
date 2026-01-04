@@ -9,7 +9,7 @@ import {
   httpsCallable,
   functions,
 } from "./firebase-config.js";
-import { listenForUser, currentPlanTier, hasPlanFeature } from "./session-data.js";
+import { listenForUser, currentPlanTier, hasPlanFeature, isStarterPlan } from "./session-data.js";
 import { PLAN_LABELS } from "./plan-capabilities.js";
 
 const form = document.getElementById("campaignForm");
@@ -40,6 +40,24 @@ let customers = [];
 const selected = new Set();
 let campaignUnsubscribe = null;
 let allowManualCampaigns = false;
+
+function renderCampaignsUpgradeGate() {
+  const main = document.querySelector("main.page-container") || document.querySelector("main");
+  if (!main) return;
+
+  main.innerHTML = `
+    <section class="section">
+      <div class="card">
+        <h1 class="page-title">Upgrade required</h1>
+        <p class="card-sub">Campaigns are not available on the Starter plan. Upgrade to Growth to launch outreach.</p>
+        <div class="button-row" style="margin-top: 12px; justify-content:flex-start;">
+          <a class="btn btn-primary" href="account.html">Upgrade plan</a>
+          <a class="btn btn-secondary" href="overview.html">Return to overview</a>
+        </div>
+      </div>
+    </section>
+  `;
+}
 
 function syncPlanState(plan = "starter") {
   allowManualCampaigns = hasPlanFeature("campaigns_manual");
@@ -292,6 +310,12 @@ function init() {
     businessId = session.user.uid;
     const plan = currentPlanTier();
     syncPlanState(plan);
+
+    if (isStarterPlan(plan)) {
+      renderCampaignsUpgradeGate();
+      return;
+    }
+
     loadCampaigns();
   });
 
