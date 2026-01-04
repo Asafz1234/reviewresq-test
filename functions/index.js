@@ -793,10 +793,25 @@ const NOTIFICATION_PREFS_DEFAULT = {
   followUpReminders: false,
   weeklySummary: false,
   channels: { email: true },
-  recipients: { emails: [] },
+  recipients: [],
 };
 const NOTIFICATIONS_FLAG_TTL_MS = 5 * 60 * 1000;
 let cachedNotificationsFlag = { enabled: false, fetchedAt: 0 };
+
+const ALERT_ENTITLEMENTS = {
+  starter: {
+    newPrivateFeedback: true,
+    newGoogleReview: false,
+    followUpReminders: false,
+    weeklySummary: false,
+  },
+  paid: {
+    newPrivateFeedback: true,
+    newGoogleReview: true,
+    followUpReminders: true,
+    weeklySummary: true,
+  },
+};
 
 const resolveSendgridConfig = () => {
   const apiKey = getSecretValue(SENDGRID_API_KEY) || "";
@@ -860,17 +875,27 @@ const isNotificationsFeatureEnabled = async () => {
 };
 
 const fetchNotificationPrefs = async (businessId, { fallbackRecipients = [] } = {}) => {
-  if (!businessId) return { ...NOTIFICATION_PREFS_DEFAULT, recipients: { emails: fallbackRecipients } };
+  const defaultRecipients = normalizeRecipients([
+    ...fallbackRecipients,
+    DEFAULT_SENDGRID_SENDER,
+  ]);
+  if (!businessId) {
+    return { ...NOTIFICATION_PREFS_DEFAULT, recipients: { emails: defaultRecipients } };
+  }
+
   const ref = db.collection("businesses").doc(businessId).collection("notificationPrefs").doc("main");
   try {
     const snap = await ref.get();
     if (!snap.exists) {
       return {
         ...NOTIFICATION_PREFS_DEFAULT,
-        recipients: { emails: normalizeRecipients(fallbackRecipients) },
+        recipients: { emails: defaultRecipients },
       };
     }
     const data = snap.data() || {};
+    const storedRecipients = Array.isArray(data.recipients)
+      ? data.recipients
+      : data.recipients?.emails;
     return {
       newPrivateFeedback: Boolean(data.newPrivateFeedback),
       newGoogleReview: Boolean(data.newGoogleReview),
@@ -878,7 +903,7 @@ const fetchNotificationPrefs = async (businessId, { fallbackRecipients = [] } = 
       weeklySummary: Boolean(data.weeklySummary),
       channels: { email: data.channels?.email !== false },
       recipients: {
-        emails: normalizeRecipients(data.recipients?.emails || fallbackRecipients),
+        emails: normalizeRecipients(storedRecipients?.length ? storedRecipients : defaultRecipients),
       },
       updatedAt: data.updatedAt || null,
     };
@@ -886,7 +911,7 @@ const fetchNotificationPrefs = async (businessId, { fallbackRecipients = [] } = 
     console.error("[notifications] failed to fetch prefs", { businessId, err });
     return {
       ...NOTIFICATION_PREFS_DEFAULT,
-      recipients: { emails: normalizeRecipients(fallbackRecipients) },
+      recipients: { emails: defaultRecipients },
     };
   }
 };
@@ -905,6 +930,33 @@ const resolveNotificationDefaults = async (businessId) => {
   ]);
 
   return { identity, fallbackEmails };
+};
+
+const resolveAlertPlan = (planId = "starter") => {
+  const raw = String(planId || "").toLowerCase();
+  if (raw.includes("starter")) return "starter";
+  if (raw.includes("pro")) return "paid";
+  if (raw.includes("ai_suite")) return "paid";
+  if (raw.includes("growth")) return "paid";
+  const normalized = normalizePlan(planId);
+  if (normalized === "starter") return "starter";
+  return "paid";
+};
+
+const resolveAlertEntitlements = (planId = "starter") => {
+  const planTier = resolveAlertPlan(planId);
+  return planTier === "starter" ? ALERT_ENTITLEMENTS.starter : ALERT_ENTITLEMENTS.paid;
+};
+
+const fetchBusinessPlanTier = async (businessId) => {
+  if (!businessId) return "starter";
+  try {
+    const planId = await resolveUserPlanId(businessId);
+    return resolveAlertPlan(planId);
+  } catch (err) {
+    console.error("[notifications] failed to resolve plan", { businessId, err });
+    return "starter";
+  }
 };
 
 const buildDashboardLink = (section = "") => {
@@ -5904,6 +5956,12 @@ exports.notifyOnPrivateFeedback = functions.firestore
     const feedback = snap.data() || {};
 
     const { identity, fallbackEmails } = await resolveNotificationDefaults(businessId);
+    const planTier = await fetchBusinessPlanTier(businessId);
+    const entitlements = resolveAlertEntitlements(planTier);
+    if (!entitlements.newPrivateFeedback) {
+      console.log("[notifications] private feedback blocked by plan", { businessId, planTier });
+      return null;
+    }
     const prefs = await fetchNotificationPrefs(businessId, { fallbackRecipients: fallbackEmails });
     if (!prefs.newPrivateFeedback || !prefs.channels?.email) return null;
 
@@ -5940,6 +5998,12 @@ exports.notifyOnGoogleReview = functions.firestore
     const review = snap.data() || {};
 
     const { identity, fallbackEmails } = await resolveNotificationDefaults(businessId);
+    const planTier = await fetchBusinessPlanTier(businessId);
+    const entitlements = resolveAlertEntitlements(planTier);
+    if (!entitlements.newGoogleReview) {
+      console.log("[notifications] google review alert blocked by plan", { businessId, planTier });
+      return null;
+    }
     const prefs = await fetchNotificationPrefs(businessId, { fallbackRecipients: fallbackEmails });
     if (!prefs.newGoogleReview || !prefs.channels?.email) return null;
 
@@ -5991,6 +6055,12 @@ exports.followUpReminderDigest = functions.pubsub
       if (!businessId) continue;
 
       const { fallbackEmails, identity } = await resolveNotificationDefaults(businessId);
+      const planTier = await fetchBusinessPlanTier(businessId);
+      const entitlements = resolveAlertEntitlements(planTier);
+      if (!entitlements.followUpReminders) {
+        console.log("[notifications] follow-up reminders blocked by plan", { businessId, planTier });
+        continue;
+      }
       const prefs = await fetchNotificationPrefs(businessId, { fallbackRecipients: fallbackEmails });
       if (!prefs.followUpReminders || !prefs.channels?.email) continue;
 
@@ -6100,6 +6170,12 @@ exports.weeklySummaryDigest = functions.pubsub
       if (!businessId) continue;
 
       const { fallbackEmails, identity } = await resolveNotificationDefaults(businessId);
+      const planTier = await fetchBusinessPlanTier(businessId);
+      const entitlements = resolveAlertEntitlements(planTier);
+      if (!entitlements.weeklySummary) {
+        console.log("[notifications] weekly summary blocked by plan", { businessId, planTier });
+        continue;
+      }
       const prefs = await fetchNotificationPrefs(businessId, { fallbackRecipients: fallbackEmails });
       if (!prefs.weeklySummary || !prefs.channels?.email) continue;
 
