@@ -7,6 +7,7 @@ import {
   getCachedProfile,
   getCachedSubscription,
   refreshSubscription,
+  isStarterPlan,
 } from "./session-data.js";
 import { PLAN_LABELS, hasFeature, normalizePlan } from "./plan-capabilities.js";
 import { lockUI } from "./plan-lock.js";
@@ -140,6 +141,14 @@ function renderLockedFeatureView(route, planId) {
 function decorateNav(planId) {
   const tabs = Array.from(document.querySelectorAll(".nav-tab"));
   const normalizedPlan = normalizePlan(planId);
+
+  if (isStarterPlan(normalizedPlan)) {
+    const campaignsTab = tabs.find((tab) => tab.dataset.route === "campaigns");
+    if (campaignsTab) {
+      campaignsTab.remove();
+    }
+  }
+
   tabs.forEach((tab) => {
     const route = tab.dataset.route;
     const requirement = NAV_FEATURE_REQUIREMENTS[route];
