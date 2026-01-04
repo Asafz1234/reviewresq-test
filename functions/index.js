@@ -784,6 +784,20 @@ const normalizeChannel = (channel = "link") => {
 
 const DEFAULT_SENDGRID_SENDER = "support@reviewresq.com";
 
+// Admins can enable outbound notifications by setting { enabled: true }
+// in the config/notifications document. Default remains disabled for safety.
+const NOTIFICATIONS_FLAG_REF = db.collection("config").doc("notifications");
+const NOTIFICATION_PREFS_DEFAULT = {
+  newPrivateFeedback: false,
+  newGoogleReview: false,
+  followUpReminders: false,
+  weeklySummary: false,
+  channels: { email: true },
+  recipients: { emails: [] },
+};
+const NOTIFICATIONS_FLAG_TTL_MS = 5 * 60 * 1000;
+let cachedNotificationsFlag = { enabled: false, fetchedAt: 0 };
+
 const resolveSendgridConfig = () => {
   const apiKey = getSecretValue(SENDGRID_API_KEY) || "";
   const senderSecretValue = getSecretValue(SENDGRID_SENDER) || "";
@@ -816,6 +830,117 @@ const EMAIL_RATE_LIMIT_WINDOW_MS = 2 * 60 * 1000;
 const EMAIL_RATE_LIMIT_MAX = 30;
 
 const basicEmailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/i;
+
+const normalizeRecipients = (list = []) => {
+  const seen = new Set();
+  return (list || [])
+    .map((email) => (email || "").toString().trim().toLowerCase())
+    .filter((email) => email && basicEmailRegex.test(email) && !seen.has(email) && seen.add(email));
+};
+
+const isNotificationsFeatureEnabled = async () => {
+  const now = Date.now();
+  if (cachedNotificationsFlag.fetchedAt && now - cachedNotificationsFlag.fetchedAt < NOTIFICATIONS_FLAG_TTL_MS) {
+    return cachedNotificationsFlag.enabled;
+  }
+
+  try {
+    const snap = await NOTIFICATIONS_FLAG_REF.get();
+    const enabled = Boolean(snap?.exists && snap.data()?.enabled);
+    cachedNotificationsFlag = { enabled, fetchedAt: now };
+    if (!enabled) {
+      console.log("[notifications] feature flag disabled");
+    }
+    return enabled;
+  } catch (err) {
+    console.error("[notifications] failed to read feature flag", err);
+    cachedNotificationsFlag = { enabled: false, fetchedAt: now };
+    return false;
+  }
+};
+
+const fetchNotificationPrefs = async (businessId, { fallbackRecipients = [] } = {}) => {
+  if (!businessId) return { ...NOTIFICATION_PREFS_DEFAULT, recipients: { emails: fallbackRecipients } };
+  const ref = db.collection("businesses").doc(businessId).collection("notificationPrefs").doc("main");
+  try {
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return {
+        ...NOTIFICATION_PREFS_DEFAULT,
+        recipients: { emails: normalizeRecipients(fallbackRecipients) },
+      };
+    }
+    const data = snap.data() || {};
+    return {
+      newPrivateFeedback: Boolean(data.newPrivateFeedback),
+      newGoogleReview: Boolean(data.newGoogleReview),
+      followUpReminders: Boolean(data.followUpReminders),
+      weeklySummary: Boolean(data.weeklySummary),
+      channels: { email: data.channels?.email !== false },
+      recipients: {
+        emails: normalizeRecipients(data.recipients?.emails || fallbackRecipients),
+      },
+      updatedAt: data.updatedAt || null,
+    };
+  } catch (err) {
+    console.error("[notifications] failed to fetch prefs", { businessId, err });
+    return {
+      ...NOTIFICATION_PREFS_DEFAULT,
+      recipients: { emails: normalizeRecipients(fallbackRecipients) },
+    };
+  }
+};
+
+const resolveNotificationDefaults = async (businessId) => {
+  const identity = await fetchBusinessIdentity(businessId);
+  const primarySupportEmail = identity?.branding?.supportEmail || DEFAULT_SENDGRID_SENDER;
+
+  const profileSnap = await db.collection("businessProfiles").doc(businessId).get();
+  const profileData = profileSnap.exists ? profileSnap.data() || {} : {};
+  const fallbackEmails = normalizeRecipients([
+    profileData.email,
+    profileData.ownerEmail,
+    profileData.contactEmail,
+    primarySupportEmail,
+  ]);
+
+  return { identity, fallbackEmails };
+};
+
+const buildDashboardLink = (section = "") => {
+  const baseUrl = "https://reviewresq.web.app";
+  if (!section) return `${baseUrl}/dashboard.html`;
+  return `${baseUrl}/${section}.html`;
+};
+
+const sendNotificationEmail = async ({ businessId, recipients, subject, text, html, category }) => {
+  const cleanRecipients = normalizeRecipients(recipients);
+  if (!cleanRecipients.length) {
+    console.warn("[notifications] no recipients to notify", { businessId, category });
+    return { sent: false, reason: "no_recipients" };
+  }
+
+  const sendgrid = resolveSendgridConfig();
+  if (!sendgrid.apiKey) {
+    console.error("[notifications] sendgrid not configured, skipping", { businessId, category });
+    return { sent: false, reason: "missing_sendgrid" };
+  }
+
+  try {
+    sgMail.setApiKey(sendgrid.apiKey);
+    await sgMail.send({
+      to: cleanRecipients,
+      from: { email: sendgrid.sender || DEFAULT_SENDGRID_SENDER, name: "ReviewResQ Alerts" },
+      subject,
+      text,
+      html: html || `<p>${text}</p>`,
+    });
+    return { sent: true, count: cleanRecipients.length };
+  } catch (err) {
+    console.error("[notifications] failed to send", { businessId, category, error: err });
+    return { sent: false, reason: err?.message || "send_failed" };
+  }
+};
 
 const chunkArray = (items = [], size = 10) => {
   const chunks = [];
@@ -5742,6 +5867,271 @@ exports.syncPublicBusinessFromProfile = functions.firestore
       await upsertPublicBusiness(context.params.businessId, change.after.data() || {});
     } catch (err) {
       console.error("[publicBusiness] failed to sync from businessProfiles", err);
+    }
+
+    return null;
+  });
+
+const FEEDBACK_OPEN_STATUSES = new Set(["open", "new", "pending", "unresolved", "todo"]);
+
+const fetchOpenFeedbackNeedingResponse = async (businessId, { limit = 50, olderThanMs = 24 * 60 * 60 * 1000 } = {}) => {
+  const feedbackRef = db.collection("businesses").doc(businessId).collection("feedback");
+  try {
+    const snap = await feedbackRef.orderBy("createdAt", "desc").limit(limit).get();
+    const now = Date.now();
+    return snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((item) => {
+        const createdAtMs = normalizeTimestampMs(item.createdAt);
+        if (!createdAtMs) return false;
+        if (now - createdAtMs < olderThanMs) return false;
+        const status = (item.status || "open").toString().toLowerCase();
+        if (!FEEDBACK_OPEN_STATUSES.has(status)) return false;
+        if (item.respondedAt || item.repliedAt || item.lastReplyAt || item.closedAt) return false;
+        return true;
+      });
+  } catch (err) {
+    console.error("[notifications] failed to fetch feedback needing response", { businessId, err });
+    return [];
+  }
+};
+
+exports.notifyOnPrivateFeedback = functions.firestore
+  .document("businesses/{businessId}/feedback/{feedbackId}")
+  .onCreate(async (snap, context) => {
+    if (!(await isNotificationsFeatureEnabled())) return null;
+    const businessId = context.params.businessId;
+    const feedback = snap.data() || {};
+
+    const { identity, fallbackEmails } = await resolveNotificationDefaults(businessId);
+    const prefs = await fetchNotificationPrefs(businessId, { fallbackRecipients: fallbackEmails });
+    if (!prefs.newPrivateFeedback || !prefs.channels?.email) return null;
+
+    const businessName = identity?.businessName || "Your business";
+    const ratingText = feedback.rating ? `Rating: ${feedback.rating}/5. ` : "";
+    const summaryText = feedback.message || feedback.feedback || "New customer feedback received.";
+    const dashboardLink = buildDashboardLink("feedback");
+
+    const subject = `${businessName} — new private feedback`;
+    const text = `${businessName} received new private feedback. ${ratingText}${summaryText}\n\nView in dashboard: ${dashboardLink}`;
+    const html = `
+      <p>${businessName} received new private feedback.</p>
+      <p>${ratingText}${summaryText}</p>
+      <p><a href="${dashboardLink}">Open dashboard</a></p>
+    `;
+
+    await sendNotificationEmail({
+      businessId,
+      recipients: prefs.recipients.emails,
+      subject,
+      text,
+      html,
+      category: "new_private_feedback",
+    });
+
+    return null;
+  });
+
+exports.notifyOnGoogleReview = functions.firestore
+  .document("businesses/{businessId}/reviews/{reviewId}")
+  .onCreate(async (snap, context) => {
+    if (!(await isNotificationsFeatureEnabled())) return null;
+    const businessId = context.params.businessId;
+    const review = snap.data() || {};
+
+    const { identity, fallbackEmails } = await resolveNotificationDefaults(businessId);
+    const prefs = await fetchNotificationPrefs(businessId, { fallbackRecipients: fallbackEmails });
+    if (!prefs.newGoogleReview || !prefs.channels?.email) return null;
+
+    const businessName = identity?.businessName || "Your business";
+    const ratingText = review.rating ? `${review.rating}/5` : "New review";
+    const summaryText = review.comment || review.text || "You have a new Google review.";
+    const dashboardLink = buildDashboardLink("google-reviews");
+
+    const subject = `${businessName} — new Google review (${ratingText})`;
+    const text = `${businessName} received a new Google review (${ratingText}).\n\n${summaryText}\n\nView in dashboard: ${dashboardLink}`;
+    const html = `
+      <p>${businessName} received a new Google review (${ratingText}).</p>
+      <p>${summaryText}</p>
+      <p><a href="${dashboardLink}">Open Google reviews</a></p>
+    `;
+
+    await sendNotificationEmail({
+      businessId,
+      recipients: prefs.recipients.emails,
+      subject,
+      text,
+      html,
+      category: "new_google_review",
+    });
+
+    return null;
+  });
+
+exports.followUpReminderDigest = functions.pubsub
+  .schedule("every 6 hours")
+  .onRun(async () => {
+    if (!(await isNotificationsFeatureEnabled())) return null;
+    let enabledBusinesses = [];
+    try {
+      const snap = await db
+        .collectionGroup("notificationPrefs")
+        .where("followUpReminders", "==", true)
+        .get();
+      enabledBusinesses = snap.docs;
+    } catch (err) {
+      console.error("[notifications] failed to query follow-up reminders", err);
+      return null;
+    }
+
+    const cutoffMs = 24 * 60 * 60 * 1000;
+    for (const docSnap of enabledBusinesses) {
+      const parentBusiness = docSnap.ref.parent.parent;
+      const businessId = parentBusiness?.id;
+      if (!businessId) continue;
+
+      const { fallbackEmails, identity } = await resolveNotificationDefaults(businessId);
+      const prefs = await fetchNotificationPrefs(businessId, { fallbackRecipients: fallbackEmails });
+      if (!prefs.followUpReminders || !prefs.channels?.email) continue;
+
+      const pending = await fetchOpenFeedbackNeedingResponse(businessId, { olderThanMs: cutoffMs });
+      if (!pending.length) continue;
+
+      const businessName = identity?.businessName || "Your business";
+      const dashboardLink = buildDashboardLink("feedback");
+      const digestItems = pending.slice(0, 10).map((item) => {
+        const createdAtMs = normalizeTimestampMs(item.createdAt);
+        const createdAt = createdAtMs ? new Date(createdAtMs).toLocaleString() : "Unknown time";
+        return `• ${item.displayName || item.name || "Customer"} — ${item.rating ? `${item.rating}/5` : "Unrated"} — ${createdAt}`;
+      });
+
+      const text =
+        `${businessName} has ${pending.length} feedback conversations needing a reply.\n\n` +
+        `${digestItems.join("\n")}\n\n` +
+        `Review in dashboard: ${dashboardLink}`;
+
+      const html = `
+        <p>${businessName} has ${pending.length} feedback conversations needing a reply.</p>
+        <ul>
+          ${digestItems.map((line) => `<li>${line.replace(/^•\s*/, "")}</li>`).join("")}
+        </ul>
+        <p><a href="${dashboardLink}">Open feedback inbox</a></p>
+      `;
+
+      await sendNotificationEmail({
+        businessId,
+        recipients: prefs.recipients.emails,
+        subject: `${businessName} — follow-up reminders ready`,
+        text,
+        html,
+        category: "follow_up_reminders",
+      });
+    }
+
+    return null;
+  });
+
+const fetchWeeklySummaryData = async (businessId) => {
+  const oneWeekAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const summary = { reviews: 0, negativeFeedback: 0, openFollowUps: 0 };
+
+  try {
+    const reviewSnap = await db
+      .collection("businesses")
+      .doc(businessId)
+      .collection("reviews")
+      .where("createdAt", ">=", oneWeekAgo)
+      .limit(100)
+      .get();
+    summary.reviews = reviewSnap.size || 0;
+  } catch (err) {
+    console.warn("[notifications] weekly summary reviews query failed", { businessId, err });
+  }
+
+  try {
+    const feedbackSnap = await db
+      .collection("businesses")
+      .doc(businessId)
+      .collection("feedback")
+      .orderBy("createdAt", "desc")
+      .limit(100)
+      .get();
+    const cutoffMs = oneWeekAgo.toMillis();
+    feedbackSnap.docs.forEach((doc) => {
+      const data = doc.data() || {};
+      const createdAtMs = normalizeTimestampMs(data.createdAt);
+      if (!createdAtMs || createdAtMs < cutoffMs) return;
+      if (data.rating && data.rating <= 2) {
+        summary.negativeFeedback += 1;
+      }
+      const status = (data.status || "open").toLowerCase();
+      if (FEEDBACK_OPEN_STATUSES.has(status)) {
+        summary.openFollowUps += 1;
+      }
+    });
+  } catch (err) {
+    console.warn("[notifications] weekly summary feedback query failed", { businessId, err });
+  }
+
+  return summary;
+};
+
+exports.weeklySummaryDigest = functions.pubsub
+  .schedule("0 9 * * 1")
+  .timeZone("Etc/UTC")
+  .onRun(async () => {
+    if (!(await isNotificationsFeatureEnabled())) return null;
+
+    let enabledBusinesses = [];
+    try {
+      const snap = await db
+        .collectionGroup("notificationPrefs")
+        .where("weeklySummary", "==", true)
+        .get();
+      enabledBusinesses = snap.docs;
+    } catch (err) {
+      console.error("[notifications] failed to query weekly summary prefs", err);
+      return null;
+    }
+
+    for (const docSnap of enabledBusinesses) {
+      const parentBusiness = docSnap.ref.parent.parent;
+      const businessId = parentBusiness?.id;
+      if (!businessId) continue;
+
+      const { fallbackEmails, identity } = await resolveNotificationDefaults(businessId);
+      const prefs = await fetchNotificationPrefs(businessId, { fallbackRecipients: fallbackEmails });
+      if (!prefs.weeklySummary || !prefs.channels?.email) continue;
+
+      const summary = await fetchWeeklySummaryData(businessId);
+      const businessName = identity?.businessName || "Your business";
+      const dashboardLink = buildDashboardLink("dashboard");
+
+      const lines = [
+        `New reviews: ${summary.reviews || 0}`,
+        `Negative feedback: ${summary.negativeFeedback || 0}`,
+        `Open follow-ups: ${summary.openFollowUps || 0}`,
+      ];
+
+      const text =
+        `${businessName} weekly summary\n\n${lines.join("\n")}\n\n` +
+        `See details: ${dashboardLink}`;
+      const html = `
+        <p>${businessName} weekly summary</p>
+        <ul>
+          ${lines.map((line) => `<li>${line}</li>`).join("")}
+        </ul>
+        <p><a href="${dashboardLink}">Open dashboard</a></p>
+      `;
+
+      await sendNotificationEmail({
+        businessId,
+        recipients: prefs.recipients.emails,
+        subject: `${businessName} — weekly summary`,
+        text,
+        html,
+        category: "weekly_summary",
+      });
     }
 
     return null;
