@@ -80,6 +80,19 @@ function ensureNavObserver() {
   return true;
 }
 
+function ensureNavObserver() {
+  if (navObserver || typeof MutationObserver === "undefined") return;
+  const nav = document.querySelector(".global-nav");
+  if (!nav) return;
+
+  navObserver = new MutationObserver(() => {
+    const enforceRemoval = isStarterPlan(currentPlan);
+    applyNavPlanFilter(currentPlan, { forceRemove: enforceRemoval });
+  });
+
+  navObserver.observe(nav, { childList: true });
+}
+
 export function initNavPlanFilter() {
   const cachedPlan = getCachedSubscription()?.planId || "starter";
   applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
