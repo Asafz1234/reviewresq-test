@@ -36,9 +36,8 @@
       <header class="topbar">
         <div class="topbar-title">Alerts</div>
         <div class="topbar-right">
-          <span class="badge">Starter</span>
-          <a class="btn btn-outline" href="billing.html">Account &amp; billing</a>
-          <button class="btn btn-link" type="button" onclick="window.location.href='auth.html'">Log out</button>
+          <a class="badge" id="planBadge" href="account.html">Starter</a>
+          <div class="profile" aria-haspopup="true" aria-expanded="false"></div>
         </div>
       </header>
 
@@ -55,7 +54,7 @@
               <p class="card-subtitle">Send an email when a customer submits feedback.</p>
             </div>
             <label class="switch">
-              <input type="checkbox" checked />
+              <input type="checkbox" data-toggle="newPrivateFeedback" />
               <span class="slider"></span>
             </label>
           </div>
@@ -65,7 +64,7 @@
               <p class="card-subtitle">Notify me when a new Google review is posted.</p>
             </div>
             <label class="switch">
-              <input type="checkbox" checked />
+              <input type="checkbox" data-toggle="newGoogleReview" />
               <span class="slider"></span>
             </label>
           </div>
@@ -75,7 +74,7 @@
               <p class="card-subtitle">Remind me to reply when feedback has no response.</p>
             </div>
             <label class="switch">
-              <input type="checkbox" />
+              <input type="checkbox" data-toggle="followUpReminders" />
               <span class="slider"></span>
             </label>
           </div>
@@ -85,15 +84,29 @@
               <p class="card-subtitle">Digest of reviews and sentiment changes.</p>
             </div>
             <label class="switch">
-              <input type="checkbox" checked />
+              <input type="checkbox" data-toggle="weeklySummary" />
               <span class="slider"></span>
             </label>
           </div>
+
+          <div class="form-row" style="margin-top: 16px;">
+            <label class="strong" for="alertRecipients">Email recipients</label>
+            <p class="card-subtitle">Enter one email per line. Defaults to your login email.</p>
+            <textarea id="alertRecipients" rows="3" class="input" placeholder="you@example.com&#10;support@reviewresq.com"></textarea>
+            <div class="button-row" style="justify-content:flex-start; margin-top: 8px;">
+              <button type="button" class="btn btn-primary" data-save-recipients>Save recipients</button>
+              <span class="caption" data-recipient-hint></span>
+            </div>
+          </div>
+
+          <p class="caption" data-alert-status role="status" aria-live="polite"></p>
         </section>
       </div>
     </div>
   </div>
   <script type="module" src="nav-access-init.js"></script>
   <script src="dashboard-nav.js"></script>
+  <script type="module" src="topbar-menu.js"></script>
+  <script type="module" src="alerts.js"></script>
 </body>
 </html>
