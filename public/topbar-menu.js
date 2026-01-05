@@ -80,8 +80,8 @@ function applyPlanBadge(planId) {
     if (hash && hash.toLowerCase().includes("dashboard")) return "dashboard";
     if (hash && hash.toLowerCase().includes("google-reviews")) return "google-reviews";
     if (hash && hash.toLowerCase().includes("leads")) return "leads";
-    if (hash && hash.toLowerCase().includes("account")) return "account";
-    if (hash && hash.toLowerCase().includes("alerts")) return "alerts";
+    if (hash && hash.toLowerCase().includes("account")) return "settings";
+    if (hash && hash.toLowerCase().includes("alerts")) return "settings";
     if (hash && hash.toLowerCase().includes("links")) return "links";
     if (hash && hash.toLowerCase().includes("funnel")) return "funnel";
 
@@ -89,7 +89,7 @@ function applyPlanBadge(planId) {
     if (pathname.includes("overview")) return "overview";
     if (pathname.includes("feedback")) return "inbox";
     if (pathname.includes("inbox")) return "inbox";
-    if (pathname.includes("alerts")) return "alerts";
+    if (pathname.includes("alerts")) return "settings";
     if (pathname.includes("links")) return "links";
     if (pathname.includes("funnel")) return "funnel";
     if (pathname.includes("automations")) return "automations";
@@ -98,7 +98,7 @@ function applyPlanBadge(planId) {
     if (pathname.includes("leads")) return "leads";
     if (pathname.includes("ai-agent")) return "ai-agent";
     if (pathname.includes("settings")) return "settings";
-    if (pathname.includes("account") || pathname.includes("billing")) return "account";
+    if (pathname.includes("account") || pathname.includes("billing")) return "settings";
     return "overview";
   }
 

@@ -14,9 +14,9 @@
     if (hash && hash.toLowerCase().includes('customers')) return 'customers';
     if (hash && hash.toLowerCase().includes('ask-reviews')) return 'ask-reviews';
     if (hash && hash.toLowerCase().includes('campaigns')) return 'campaigns';
-    if (hash && hash.toLowerCase().includes('business-settings')) return 'business-settings';
-    if (hash && hash.toLowerCase().includes('account')) return 'account';
-    if (hash && hash.toLowerCase().includes('alerts')) return 'alerts';
+    if (hash && hash.toLowerCase().includes('business-settings')) return 'settings';
+    if (hash && hash.toLowerCase().includes('account')) return 'settings';
+    if (hash && hash.toLowerCase().includes('alerts')) return 'settings';
     if (hash && hash.toLowerCase().includes('links')) return 'links';
     if (hash && hash.toLowerCase().includes('funnel')) return 'funnel';
 
@@ -25,7 +25,7 @@
     if (pathname.includes('ask-reviews')) return 'ask-reviews';
     if (pathname.includes('feedback')) return 'inbox';
     if (pathname.includes('inbox')) return 'inbox';
-    if (pathname.includes('alerts')) return 'alerts';
+    if (pathname.includes('alerts')) return 'settings';
     if (pathname.includes('links')) return 'links';
     if (pathname.includes('funnel')) return 'funnel';
     if (pathname.includes('automations')) return 'automations';
@@ -35,9 +35,9 @@
     if (pathname.includes('customers')) return 'customers';
     if (pathname.includes('campaigns')) return 'campaigns';
     if (pathname.includes('ai-agent')) return 'ai-agent';
-    if (pathname.includes('business-settings')) return 'business-settings';
+    if (pathname.includes('business-settings')) return 'settings';
     if (pathname.includes('settings')) return 'settings';
-    if (pathname.includes('account') || pathname.includes('billing')) return 'account';
+    if (pathname.includes('account') || pathname.includes('billing')) return 'settings';
     return 'overview';
   }
 

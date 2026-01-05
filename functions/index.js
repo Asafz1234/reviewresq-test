@@ -800,12 +800,18 @@ let cachedNotificationsFlag = { enabled: false, fetchedAt: 0 };
 
 const ALERT_ENTITLEMENTS = {
   starter: {
-    newPrivateFeedback: true,
+    newPrivateFeedback: false,
     newGoogleReview: false,
     followUpReminders: false,
     weeklySummary: false,
   },
-  paid: {
+  pro: {
+    newPrivateFeedback: true,
+    newGoogleReview: true,
+    followUpReminders: true,
+    weeklySummary: true,
+  },
+  pro_ai: {
     newPrivateFeedback: true,
     newGoogleReview: true,
     followUpReminders: true,
@@ -933,19 +939,21 @@ const resolveNotificationDefaults = async (businessId) => {
 };
 
 const resolveAlertPlan = (planId = "starter") => {
+  const normalized = normalizePlan(planId);
   const raw = String(planId || "").toLowerCase();
   if (raw.includes("starter")) return "starter";
-  if (raw.includes("pro")) return "paid";
-  if (raw.includes("ai_suite")) return "paid";
-  if (raw.includes("growth")) return "paid";
-  const normalized = normalizePlan(planId);
   if (normalized === "starter") return "starter";
-  return "paid";
+  if (raw.includes("pro_ai")) return "pro_ai";
+  if (raw.includes("ai_suite")) return "pro_ai";
+  if (raw.includes("pro")) return "pro";
+  if (normalized === "pro_ai") return "pro_ai";
+  if (normalized === "growth") return "pro";
+  return "pro";
 };
 
 const resolveAlertEntitlements = (planId = "starter") => {
   const planTier = resolveAlertPlan(planId);
-  return planTier === "starter" ? ALERT_ENTITLEMENTS.starter : ALERT_ENTITLEMENTS.paid;
+  return ALERT_ENTITLEMENTS[planTier] || ALERT_ENTITLEMENTS.pro;
 };
 
 const fetchBusinessPlanTier = async (businessId) => {

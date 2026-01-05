@@ -1,13 +1,23 @@
 import { listenForUser, getCachedSubscription, isStarterPlan } from "./session-data.js";
 
-const STARTER_BLOCKED_ROUTES = new Set(["campaigns", "ai-agent"]);
+const STARTER_BLOCKED_ROUTES = new Set([
+  "campaigns",
+  "ai-agent",
+  "business-settings",
+]);
 const STARTER_BLOCKED_ANCHORS = [
   "ai-agent.html#pro-suite",
   "ai-agent.html#phone",
   "ai-agent.html#phone-agent",
   "ai-agent.html#ai-phone-agent",
   "ai-phone-agent",
+  "pro-suite",
 ];
+
+const SETTINGS_ROUTES = ["alerts", "business-settings", "account", "settings"];
+const SETTINGS_TARGET = "settings.html";
+
+let initialized = false;
 
 let currentPlan = "starter";
 let navObserver = null;
@@ -61,6 +71,11 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
     }
   });
 
+  const businessTab = document.querySelector('.settings-tab[data-panel="business"]');
+  if (businessTab) {
+    setTabVisibility(businessTab, hideBlocked);
+  }
+
   if (hideBlocked) {
     console.log("[nav] hiding blocked items for starter");
   }
@@ -74,28 +89,64 @@ function ensureNavObserver() {
   navObserver = new MutationObserver(() => {
     const enforceRemoval = isStarterPlan(currentPlan);
     applyNavPlanFilter(currentPlan, { forceRemove: enforceRemoval });
+    unifySettingsNav();
   });
 
   navObserver.observe(nav, { childList: true, subtree: true });
   return true;
 }
 
-function ensureNavObserver() {
-  if (navObserver || typeof MutationObserver === "undefined") return;
+function unifySettingsNav() {
   const nav = document.querySelector(".global-nav");
   if (!nav) return;
 
-  navObserver = new MutationObserver(() => {
-    const enforceRemoval = isStarterPlan(currentPlan);
-    applyNavPlanFilter(currentPlan, { forceRemove: enforceRemoval });
-  });
+  const existingSettings = nav.querySelector('.nav-tab[data-route="settings"]');
+  const legacyTabs = SETTINGS_ROUTES.flatMap((route) =>
+    Array.from(nav.querySelectorAll(`.nav-tab[data-route="${route}"]`))
+  );
 
-  navObserver.observe(nav, { childList: true });
+  const visibleLegacy = legacyTabs.filter((tab) => tab.dataset.route !== "settings");
+  const primaryTab = existingSettings || visibleLegacy[0];
+
+  if (!existingSettings) {
+    const settingsTab = primaryTab ? primaryTab.cloneNode(true) : document.createElement("a");
+    settingsTab.classList.add("nav-tab");
+    settingsTab.dataset.route = "settings";
+    settingsTab.setAttribute("href", SETTINGS_TARGET);
+    settingsTab.textContent = "Settings";
+    const icon = settingsTab.querySelector(".nav-icon");
+    if (icon) {
+      icon.textContent = "⚙️";
+      if (!icon.nextElementSibling) {
+        const label = document.createElement("span");
+        label.textContent = "Settings";
+        icon.after(label);
+      }
+    } else {
+      settingsTab.innerHTML = `<span class="nav-icon">⚙️</span><span>Settings</span>`;
+    }
+    nav.appendChild(settingsTab);
+  }
+
+  legacyTabs.forEach((tab) => {
+    if (tab.dataset.route !== "settings") {
+      tab.style.display = "none";
+      tab.setAttribute("aria-hidden", "true");
+    }
+    if (SETTINGS_ROUTES.includes(tab.dataset.route || "")) {
+      tab.setAttribute("href", SETTINGS_TARGET);
+      tab.dataset.route = "settings";
+    }
+  });
 }
 
 export function initNavPlanFilter() {
+  if (initialized) return;
+  initialized = true;
+
   const cachedPlan = getCachedSubscription()?.planId || "starter";
   applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
+  unifySettingsNav();
 
   const maxAttempts = 5;
   const observeWithRetry = (attempt = 0) => {
