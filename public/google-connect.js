@@ -42,6 +42,7 @@ const functionsBaseUrl =
   defaultFunctionsBase;
 const defaultGoogleAuthConfigUrl =
   "https://us-central1-reviewresq-app.cloudfunctions.net/googleAuthGetConfigV2";
+const FETCH_TIMEOUT_MS = 8000;
 const resolvedFunctionsBaseForAuth = (() => {
   const base = runtimeEnv.GOOGLE_AUTH_CONFIG_URL
     ? null
@@ -138,10 +139,16 @@ async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false
       try {
         const configEndpoint = googleAuthConfigUrl || defaultGoogleAuthConfigUrl;
         console.debug("[google-oauth][debug] fetching config from", configEndpoint);
+        const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+        const timeoutId = controller
+          ? setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+          : null;
         const response = await fetch(configEndpoint, {
           method: "GET",
           headers: { Accept: "application/json" },
+          signal: controller?.signal,
         });
+        if (timeoutId) clearTimeout(timeoutId);
         const data = (await response.json()) || {};
         console.log("[google-oauth] config response", data);
         if (data?.ok === false) {
