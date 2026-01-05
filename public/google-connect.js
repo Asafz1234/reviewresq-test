@@ -664,10 +664,10 @@ const connectGoogleBusinessByReviewLinkCallable = () =>
   httpsCallable(functions, "connectGoogleBusinessByReviewLink");
 const connectGoogleManualLinkCallable = () =>
   httpsCallable(functions, "connectGoogleManualLink");
-const exchangeGoogleAuthCodeCallable = () =>
-  httpsCallable(functions, "exchangeGoogleAuthCodeV2");
 const createGoogleOAuthStateCallable = () =>
   httpsCallable(functions, "googleAuthCreateStateV2");
+const exchangeGoogleAuthCodeEndpoint = () =>
+  `${functionsBaseUrl}/exchangeGoogleAuthCodeV2`;
 
 export async function connectPlaceOnBackend(
   place,
@@ -1800,6 +1800,7 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
     }
 
     oauthReturnHandled = true;
+    const idToken = await user.getIdToken().catch(() => null);
     const payload = {
       code,
       authCode: code,
@@ -1808,13 +1809,28 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
       origin: window.location.origin,
       canonicalRedirectUri: GOOGLE_OAUTH_CANONICAL_REDIRECT_URI,
     };
-    const call = exchangeGoogleAuthCodeCallable();
+    const exchangeUrl = exchangeGoogleAuthCodeEndpoint();
     let data = {};
     try {
-      const response = await call({
-        ...payload,
+      console.debug(
+        "[google-oauth][debug] exchanging code via",
+        exchangeUrl,
+      );
+      const response = await fetch(exchangeUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify(payload),
       });
-      data = response?.data || {};
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        const err = new Error("Unable to exchange Google authorization code.");
+        err.details = { reason: "TOKEN_EXCHANGE_FAILED", message: text || null };
+        throw err;
+      }
+      data = (await response.json()) || {};
     } catch (err) {
       console.error("[google-oauth] handle return failed", err);
       console.error("OAuth return payload:", {
