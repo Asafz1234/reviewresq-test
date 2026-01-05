@@ -4,186 +4,202 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ReviewResQ – Settings</title>
-  <link
-    rel="icon"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
-  />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
-  <link rel="stylesheet" href="dashboard-modern.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="dashboard.css" />
+  <style>
+    .settings-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid #e5e7eb;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .settings-tab {
+      border: none;
+      background: transparent;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+      border-radius: 6px 6px 0 0;
+    }
+    .settings-tab[aria-selected="true"] {
+      background: #eef2ff;
+      color: #111827;
+    }
+    .settings-panel {
+      display: none;
+    }
+    .settings-panel.active {
+      display: block;
+    }
+    .embedded-frame {
+      width: 100%;
+      min-height: 900px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .embedded-frame iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
 </head>
 <body>
-  <div class="page-shell">
-    <header class="topbar">
-      <div class="topbar-left">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
         <div class="brand-mark">RR</div>
         <div class="brand-name">ReviewResQ</div>
       </div>
-      <div class="topbar-center">Settings</div>
-      <div class="topbar-right">
-        <a
-          id="planBadge"
-          class="plan-chip plan-chip--pro"
-          href="account.html"
-          title="View and manage your subscription."
-          >Pro AI Suite</a
-        >
-        <div class="profile">RQ</div>
-      </div>
-    </header>
+      <nav class="global-nav" aria-label="Dashboard navigation">
+        <a class="nav-tab" data-route="dashboard" href="dashboard.html"><span class="nav-icon">🏠</span><span>Overview</span></a>
+        <a class="nav-tab" data-route="ask-reviews" href="ask-reviews.html"><span class="nav-icon">✉️</span><span>Ask for reviews</span></a>
+        <a class="nav-tab" data-route="inbox" href="feedback.html"><span class="nav-icon">💬</span><span>Customer Feedback</span></a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html"><span class="nav-icon">★</span><span>Google Reviews</span></a>
+        <a class="nav-tab" data-route="customers" href="customers.html"><span class="nav-icon">👥</span><span>Customers</span></a>
+        <a class="nav-tab" data-route="campaigns" href="campaigns.html"><span class="nav-icon">📢</span><span>Campaigns</span></a>
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html"><span class="nav-icon">↗</span><span>Review Funnel</span></a>
+        <a class="nav-tab" data-route="links" href="links.html"><span class="nav-icon">🔗</span><span>Review Links</span></a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html"><span class="nav-icon">🤖</span><span>AI Phone Agent</span></a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html#pro-suite"><span class="nav-icon">⚡</span><span>Pro AI Suite</span></a>
+        <a class="nav-tab" data-route="settings" href="settings.html"><span class="nav-icon">⚙️</span><span>Settings</span></a>
+      </nav>
+    </aside>
 
-    <nav class="global-nav" aria-label="Dashboard sections">
-      <div class="nav-tabs">
-        <a class="nav-tab" data-route="overview" href="dashboard.html#overview">Overview</a>
-        <a class="nav-tab" data-route="ask-reviews" href="ask-reviews.html">Ask for reviews</a>
-        <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
-        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
-        <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
-        <a class="nav-tab" data-route="customers" href="customers.html">Customers</a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
-        <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
-        <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
-        <a class="nav-tab" data-route="settings" href="settings.html">Alerts &amp; Settings</a>
-        <a class="nav-tab" data-route="account" href="account.html">Account &amp; billing</a>
-      </div>
-    </nav>
-
-    <main class="page-container">
-      <header class="section">
-        <h1 class="page-title">Settings & Branding</h1>
-        <p class="page-subtitle">Manage your business profile, brand, and notifications.</p>
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-title">Settings</div>
+        <div class="topbar-right">
+          <a class="badge" id="planBadge" href="account.html">Starter</a>
+          <div class="profile" aria-haspopup="true" aria-expanded="false"></div>
+        </div>
       </header>
 
-      <section class="section">
-        <div class="card">
-          <h3 class="section-title">Business profile</h3>
-          <div class="form-grid">
-            <label>
-              <span class="card-title">Business name</span>
-              <input class="input" type="text" placeholder="Riverstone Quality Services" />
-            </label>
-            <label>
-              <span class="card-title">Category</span>
-              <input class="input" type="text" placeholder="Handyman" />
-            </label>
-            <label>
-              <span class="card-title">Timezone</span>
-              <select class="select">
-                <option>GMT-5 (Eastern)</option>
-                <option>GMT-6 (Central)</option>
-              </select>
-            </label>
-          </div>
+      <div class="page-shell">
+        <header class="page-header">
+          <p class="page-title">Settings</p>
+          <p class="page-subtitle">Manage notifications, branding, and billing from one place.</p>
+        </header>
+
+        <div class="settings-tabs" role="tablist">
+          <button class="settings-tab" data-panel="notifications" role="tab" aria-selected="true">Alerts &amp; Notifications</button>
+          <button class="settings-tab" data-panel="business" role="tab" aria-selected="false">Business Settings</button>
+          <button class="settings-tab" data-panel="account" role="tab" aria-selected="false">Account &amp; Billing</button>
         </div>
-      </section>
 
-      <section class="section">
-        <div class="card">
-          <h3 class="section-title">Branding</h3>
-          <p class="card-sub">Upload your logo and preview how it appears.</p>
-          <div class="form-grid">
-            <label data-feature="settings_logo_upload" data-lock-message="Logo uploads unlock on Growth and Pro AI Suite.">
-              <span class="card-title">Upload logo (JPG/PNG, max 2MB)</span>
-              <input class="input" type="file" accept="image/png, image/jpeg" />
-            </label>
-            <div class="guidance-list">
-              <div class="guidance-item">
-                <p class="guidance-title">Top bar preview</p>
-                <p class="guidance-desc">32x32 circle with your initials or logo.</p>
-              </div>
-              <div class="guidance-item">
-                <p class="guidance-title">Review portal preview</p>
-                <p class="guidance-desc">Logo appears alongside your business name for customers.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="card">
-          <h3 class="section-title">Alerts & notifications</h3>
-          <p class="card-sub">Choose what you want to hear about.</p>
-          <div class="switch-row">
+        <section class="card settings-panel active" data-panel="notifications" role="tabpanel">
+          <div class="toggle-row">
             <div>
-              <p class="card-title">Email alerts for new negative feedback</p>
-              <p class="caption">Stay ahead of unhappy customers.</p>
+              <p class="strong">New private feedback</p>
+              <p class="card-subtitle">Send an email when a customer submits feedback.</p>
+              <p class="caption upgrade-hint" data-upgrade-hint="newPrivateFeedback"></p>
             </div>
-            <span class="badge">On</span>
+            <label class="switch">
+              <input type="checkbox" data-toggle="newPrivateFeedback" />
+              <span class="slider"></span>
+            </label>
           </div>
-          <div class="switch-row">
+          <div class="toggle-row">
             <div>
-              <p class="card-title">Daily summary</p>
-              <p class="caption">Performance snapshot delivered each morning.</p>
+              <p class="strong">New Google review</p>
+              <p class="card-subtitle">Notify me when a new Google review is posted.</p>
+              <p class="caption upgrade-hint" data-upgrade-hint="newGoogleReview"></p>
             </div>
-            <span class="badge">On</span>
+            <label class="switch">
+              <input type="checkbox" data-toggle="newGoogleReview" />
+              <span class="slider"></span>
+            </label>
           </div>
-          <div class="switch-row">
+          <div class="toggle-row">
             <div>
-              <p class="card-title">AI Agent escalations</p>
-              <p class="caption">Alert when the AI requires manual assistance.</p>
+              <p class="strong">Follow-up reminders</p>
+              <p class="card-subtitle">Remind me to reply when feedback has no response.</p>
+              <p class="caption upgrade-hint" data-upgrade-hint="followUpReminders"></p>
             </div>
-            <span class="badge">Off</span>
+            <label class="switch">
+              <input type="checkbox" data-toggle="followUpReminders" />
+              <span class="slider"></span>
+            </label>
           </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="card">
-          <h3 class="section-title">Google Reviews Auto-Reply</h3>
-          <p class="card-sub">Control AI reply behavior before anything is sent to Google.</p>
-
-          <div class="switch-row">
+          <div class="toggle-row">
             <div>
-              <p class="card-title">Enable AI auto-replies for Google reviews</p>
-              <p class="caption">No replies will be posted until this is enabled.</p>
+              <p class="strong">Weekly summary</p>
+              <p class="card-subtitle">Digest of reviews and sentiment changes.</p>
+              <p class="caption upgrade-hint" data-upgrade-hint="weeklySummary"></p>
             </div>
-            <span class="badge">Off</span>
+            <label class="switch">
+              <input type="checkbox" data-toggle="weeklySummary" />
+              <span class="slider"></span>
+            </label>
           </div>
 
-          <div class="form-grid" style="margin-top:12px;">
-            <label>
-              <span class="card-title">Mode</span>
-              <select class="select">
-                <option>Auto send for all reviews</option>
-                <option>Auto send for positive reviews only (4–5★)</option>
-                <option>Create drafts only (require manual approval)</option>
-              </select>
-            </label>
-            <label>
-              <span class="card-title">Tone</span>
-              <select class="select">
-                <option>Friendly</option>
-                <option>Professional</option>
-                <option>Short &amp; to the point</option>
-              </select>
-            </label>
-            <label>
-              <span class="card-title">Require approval for negative reviews (1–3★)</span>
-              <select class="select">
-                <option>Yes</option>
-                <option>No</option>
-              </select>
-            </label>
-            <label class="full-width">
-              <span class="card-title">Brand voice notes</span>
-              <textarea class="textarea" rows="3" placeholder="We’re a small family-owned handyman business. Be warm and personal."></textarea>
-            </label>
+          <div class="form-row" style="margin-top: 16px;">
+            <label class="strong" for="alertRecipients">Email recipients</label>
+            <p class="card-subtitle">Enter one email per line. Defaults to your login email.</p>
+            <textarea id="alertRecipients" rows="3" class="input" placeholder="you@example.com&#10;support@reviewresq.com"></textarea>
+            <div class="button-row" style="justify-content:flex-start; margin-top: 8px;">
+              <button type="button" class="btn btn-primary" data-save-recipients>Save recipients</button>
+              <span class="caption" data-recipient-hint></span>
+            </div>
           </div>
-          <div class="button-row" style="justify-content: flex-end; margin-top: 12px;">
-            <button class="btn btn-secondary">Cancel</button>
-            <button class="btn btn-primary">Save settings</button>
+
+          <p class="caption" data-alert-status role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="settings-panel" data-panel="business" role="tabpanel">
+          <div class="card" style="padding: 0;">
+            <div class="embedded-frame" aria-label="Business settings">
+              <iframe src="business-settings.html" title="Business settings"></iframe>
+            </div>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+
+        <section class="settings-panel" data-panel="account" role="tabpanel">
+          <div class="card" style="padding: 0;">
+            <div class="embedded-frame" aria-label="Account and billing">
+              <iframe src="account.html" title="Account and billing"></iframe>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
   </div>
   <script type="module" src="nav-access-init.js"></script>
-  <script type="module" src="topbar-menu.js"></script>
   <script src="dashboard-nav.js"></script>
+  <script type="module" src="topbar-menu.js"></script>
+  <script type="module" src="alerts.js"></script>
+  <script>
+    const tabButtons = Array.from(document.querySelectorAll('.settings-tab'));
+    const panels = Array.from(document.querySelectorAll('.settings-panel'));
+
+    function showPanel(target) {
+      panels.forEach((panel) => {
+        const isActive = panel.dataset.panel === target;
+        panel.classList.toggle('active', isActive);
+      });
+      tabButtons.forEach((btn) => {
+        const isActive = btn.dataset.panel === target;
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+    }
+
+    function handleTabClick(event) {
+      const target = event.currentTarget?.dataset?.panel;
+      if (!target) return;
+      showPanel(target);
+      history.replaceState({}, '', `#${target}`);
+    }
+
+    tabButtons.forEach((btn) => btn.addEventListener('click', handleTabClick));
+
+    const initialPanel = window.location.hash?.replace('#', '') || 'notifications';
+    showPanel(initialPanel);
+  </script>
 </body>
 </html>

@@ -45,18 +45,28 @@ const SUPPORT_EMAIL = "support@reviewresq.com";
 
 const ENTITLEMENTS = {
   starter: {
-    newPrivateFeedback: true,
+    newPrivateFeedback: false,
     newGoogleReview: false,
     followUpReminders: false,
     weeklySummary: false,
   },
-  paid: {
+  pro: {
+    newPrivateFeedback: true,
+    newGoogleReview: true,
+    followUpReminders: true,
+    weeklySummary: true,
+  },
+  pro_ai: {
     newPrivateFeedback: true,
     newGoogleReview: true,
     followUpReminders: true,
     weeklySummary: true,
   },
 };
+
+const AI_SPECIFIC_TOGGLES = new Set([
+  "aiAgentEscalations",
+]);
 
 const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/i;
 
@@ -104,12 +114,15 @@ function resolvePlanTier() {
   const normalized = normalizePlan(planId || "starter");
   if (String(planId || "").toLowerCase().includes("starter")) return "starter";
   if (normalized === "starter") return "starter";
-  return "paid";
+  if (normalized === "pro_ai") return "pro_ai";
+  return "pro";
 }
 
 function isToggleAllowed(key) {
   const tier = resolvePlanTier();
-  const matrix = tier === "starter" ? ENTITLEMENTS.starter : ENTITLEMENTS.paid;
+  const matrix = ENTITLEMENTS[tier] || ENTITLEMENTS.pro;
+  const requiresAI = AI_SPECIFIC_TOGGLES.has(key);
+  if (requiresAI && tier !== "pro_ai") return false;
   return Boolean(matrix[key]);
 }
 
@@ -123,7 +136,16 @@ function applyPlanEntitlements() {
     }
     const hintEl = upgradeHints[key];
     if (hintEl) {
-      hintEl.textContent = allowed ? "" : "Upgrade to Pro to enable.";
+      if (allowed) {
+        hintEl.textContent = "";
+      } else {
+        const requiresAI = AI_SPECIFIC_TOGGLES.has(key);
+        const targetPlan = requiresAI ? "pro_ai" : "growth";
+        hintEl.textContent =
+          resolvePlanTier() === "starter"
+            ? `Upgrade to ${PLAN_LABELS[targetPlan] || "Pro"} to enable.`
+            : `Upgrade to ${PLAN_LABELS.pro_ai} to enable.`;
+      }
     }
   });
 }
@@ -219,8 +241,9 @@ async function savePrefs(next = {}) {
   }
 }
 
-function requireUpgrade(feature) {
-  const requiredPlan = "pro_ai";
+function requireUpgrade(key, feature) {
+  const requiresAI = AI_SPECIFIC_TOGGLES.has(key);
+  const requiredPlan = requiresAI ? "pro_ai" : "growth";
   showUpgradeModal(requiredPlan, planId);
   setStatus(
     `${PLAN_LABELS[requiredPlan]} is required for ${feature}. Toggle was reverted.`,
@@ -237,6 +260,7 @@ function bindToggle(key) {
     if (targetChecked && !allowed) {
       el.checked = false;
       requireUpgrade(
+        key,
         key === "followUpReminders"
           ? "follow-up reminders"
           : key === "weeklySummary"
