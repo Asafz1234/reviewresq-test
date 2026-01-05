@@ -6,6 +6,7 @@ const sgMail = require("@sendgrid/mail");
 const crypto = require("crypto");
 const {
   getPlanCapabilities: sharedPlanCapabilities,
+  getPlanEntitlements: sharedPlanEntitlements,
   normalizePlan: sharedNormalizePlan,
 } = require("./plan-capabilities.cjs");
 
@@ -952,6 +953,10 @@ const resolveAlertPlan = (planId = "starter") => {
 };
 
 const resolveAlertEntitlements = (planId = "starter") => {
+  if (sharedPlanEntitlements) {
+    const entitlements = sharedPlanEntitlements(planId) || {};
+    return entitlements.alerts || ALERT_ENTITLEMENTS.pro;
+  }
   const planTier = resolveAlertPlan(planId);
   return ALERT_ENTITLEMENTS[planTier] || ALERT_ENTITLEMENTS.pro;
 };
@@ -1380,6 +1385,23 @@ const normalizePhoneDigits = (raw = "") => {
 };
 
 const GOOGLE_CANONICAL_REDIRECT_URI = "https://reviewresq.com/oauth/google/callback";
+const GOOGLE_REDIRECT_PATH = "/oauth-google-callback.html";
+
+const ALLOWED_REDIRECT_HOSTS = new Set([
+  "reviewresq.com",
+  "www.reviewresq.com",
+  "reviewresq-app.web.app",
+]);
+
+const isRedirectUriAllowed = (uri = "") => {
+  if (!uri) return false;
+  try {
+    const parsed = new URL(uri);
+    return ALLOWED_REDIRECT_HOSTS.has(parsed.hostname);
+  } catch (err) {
+    return false;
+  }
+};
 
 const redactOAuthUrl = (url) => {
   try {
@@ -2398,7 +2420,13 @@ const googleAuthCreateStateHandler = async (req, res) => {
     }
 
     const oauthConfig = resolveGoogleOAuthServerConfig();
-    const chosenRedirectUri = oauthConfig.canonicalRedirectUri || oauthConfig.redirectUri;
+    const requestedRedirectUri = req.body?.redirectUri;
+    const preferredRedirect =
+      isRedirectUriAllowed(requestedRedirectUri)
+        ? requestedRedirectUri
+        : oauthConfig.redirectUri || null;
+    const chosenRedirectUri =
+      preferredRedirect || oauthConfig.canonicalRedirectUri || oauthConfig.redirectUri;
     if (!oauthConfig.clientId || !chosenRedirectUri) {
       console.error("[google-oauth] Missing clientId/redirectUri. OAuth disabled.");
       return res.status(500).json({ ok: false, reason: "OAUTH_CONFIG_MISSING" });
@@ -2412,6 +2440,8 @@ const googleAuthCreateStateHandler = async (req, res) => {
       createdAt: now,
       expiresAt: now + OAUTH_STATE_TTL_MS,
       returnTo,
+      redirectUri: chosenRedirectUri,
+      origin: req.body?.origin || req.get("origin") || null,
     });
 
     const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -2477,9 +2507,16 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
     const code = req.body?.code;
     const state = req.body?.state;
     if (!code || !state) {
-      return res
-        .status(400)
-        .json({ ok: false, reason: "invalid_request", message: "Missing code or state" });
+      console.warn("[google-oauth] exchange missing code/state", {
+        hasCode: !!code,
+        hasState: !!state,
+        origin: req.get("origin"),
+      });
+      return res.status(400).json({
+        ok: false,
+        reason: "invalid_request",
+        message: "Missing code or state",
+      });
     }
 
     const envCheck = ensureGoogleEnvForRuntime(null, {
@@ -2509,16 +2546,6 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
       });
     }
 
-    if (configuredRedirectUri !== expectedRedirectUri) {
-      return res.status(400).json({
-        ok: false,
-        reason: "INVALID_REDIRECT_URI",
-        message: `Redirect URI mismatch. Expected ${expectedRedirectUri} but received ${configuredRedirectUri}.`,
-        expected: expectedRedirectUri,
-        received: configuredRedirectUri,
-      });
-    }
-
     const stateRef = oauthStateCollection().doc(state);
     const stateSnap = await stateRef.get();
     if (!stateSnap.exists) {
@@ -2539,6 +2566,33 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
       });
     }
 
+    const providedRedirectUri = req.body?.redirectUri;
+    const stateRedirectUri = stateData.redirectUri || null;
+    const activeRedirectUri =
+      providedRedirectUri && isRedirectUriAllowed(providedRedirectUri)
+        ? providedRedirectUri
+        : stateRedirectUri || configuredRedirectUri || expectedRedirectUri;
+
+    if (providedRedirectUri && stateRedirectUri && providedRedirectUri !== stateRedirectUri) {
+      return res.status(400).json({
+        ok: false,
+        reason: "REDIRECT_MISMATCH",
+        message: `Redirect URI mismatch. Expected ${stateRedirectUri} but received ${providedRedirectUri}.`,
+        expected: stateRedirectUri,
+        received: providedRedirectUri,
+      });
+    }
+
+    if (!isRedirectUriAllowed(activeRedirectUri) && configuredRedirectUri !== activeRedirectUri) {
+      return res.status(400).json({
+        ok: false,
+        reason: "INVALID_REDIRECT_URI",
+        message: `Add ${activeRedirectUri} to Google OAuth allowed redirect URIs and retry.`,
+        expected: configuredRedirectUri || expectedRedirectUri,
+        received: activeRedirectUri,
+      });
+    }
+
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -2546,7 +2600,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         code,
         client_id: oauthConfig.clientId,
         client_secret: oauthConfig.clientSecret,
-        redirect_uri: expectedRedirectUri,
+        redirect_uri: activeRedirectUri,
         grant_type: "authorization_code",
         access_type: "offline",
         prompt: "consent",

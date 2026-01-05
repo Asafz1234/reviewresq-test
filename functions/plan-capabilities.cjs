@@ -108,6 +108,87 @@ const PLAN_CAPABILITIES = {
   },
 };
 
+const PLAN_ENTITLEMENTS = {
+  starter: {
+    isStarter: true,
+    isPro: false,
+    isProAI: false,
+    allowedNavItems: {
+      overview: true,
+      askReviews: true,
+      feedback: true,
+      googleReviews: true,
+      customers: true,
+      campaigns: false,
+      reviewFunnel: true,
+      reviewLinks: true,
+      alerts: true,
+      businessSettings: false,
+      accountBilling: true,
+      aiPhoneAgent: false,
+      proAiSuite: false,
+    },
+    alerts: {
+      newPrivateFeedback: false,
+      newGoogleReview: false,
+      followUpReminders: false,
+      weeklySummary: false,
+    },
+  },
+  pro: {
+    isStarter: false,
+    isPro: true,
+    isProAI: false,
+    allowedNavItems: {
+      overview: true,
+      askReviews: true,
+      feedback: true,
+      googleReviews: true,
+      customers: true,
+      campaigns: true,
+      reviewFunnel: true,
+      reviewLinks: true,
+      alerts: true,
+      businessSettings: true,
+      accountBilling: true,
+      aiPhoneAgent: true,
+      proAiSuite: true,
+    },
+    alerts: {
+      newPrivateFeedback: true,
+      newGoogleReview: true,
+      followUpReminders: true,
+      weeklySummary: true,
+    },
+  },
+  pro_ai: {
+    isStarter: false,
+    isPro: true,
+    isProAI: true,
+    allowedNavItems: {
+      overview: true,
+      askReviews: true,
+      feedback: true,
+      googleReviews: true,
+      customers: true,
+      campaigns: true,
+      reviewFunnel: true,
+      reviewLinks: true,
+      alerts: true,
+      businessSettings: true,
+      accountBilling: true,
+      aiPhoneAgent: true,
+      proAiSuite: true,
+    },
+    alerts: {
+      newPrivateFeedback: true,
+      newGoogleReview: true,
+      followUpReminders: true,
+      weeklySummary: true,
+    },
+  },
+};
+
 function normalizePlan(planId = "starter") {
   const lowered = String(planId || "starter").toLowerCase();
   if (lowered === "pro_ai_suite" || lowered === "pro" || lowered === "advanced") return "pro_ai";
@@ -168,6 +249,19 @@ function getPlanCapabilities(planId = "starter") {
   return { plan, features, reviewFunnel };
 }
 
+function getPlanEntitlements(planId = "starter") {
+  const normalized = normalizePlan(planId);
+  const raw = String(planId || "").toLowerCase();
+  if (raw.includes("starter")) return PLAN_ENTITLEMENTS.starter;
+  if (normalized === "starter") return PLAN_ENTITLEMENTS.starter;
+  if (raw.includes("pro_ai") || raw.includes("ai_suite")) {
+    return PLAN_ENTITLEMENTS.pro_ai;
+  }
+  if (raw.includes("pro")) return PLAN_ENTITLEMENTS.pro;
+  if (normalized === "pro_ai") return PLAN_ENTITLEMENTS.pro_ai;
+  return PLAN_ENTITLEMENTS.pro;
+}
+
 function hasFeature(planOrSession, feature) {
   const planId = typeof planOrSession === "string" ? planOrSession : planOrSession?.planTier || planOrSession?.planId;
   const normalized = normalizePlan(planId);
@@ -212,10 +306,12 @@ function upgradeTargetForFeature(feature) {
 
 module.exports = {
   PLAN_CAPABILITIES,
+  PLAN_ENTITLEMENTS,
   PLAN_LABELS,
   PLAN_ORDER,
   normalizePlan,
   hasFeature,
   upgradeTargetForFeature,
   getPlanCapabilities,
+  getPlanEntitlements,
 };

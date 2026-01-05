@@ -5,7 +5,12 @@ import {
   doc,
   getDoc,
 } from "./firebase-config.js";
-import { PLAN_LABELS, normalizePlan, hasFeature } from "./plan-capabilities.js";
+import {
+  PLAN_LABELS,
+  normalizePlan,
+  hasFeature,
+  getPlanEntitlements,
+} from "./plan-capabilities.js";
 
 const DEFAULT_BRAND_COLOR = "#2563EB";
 const DEFAULT_SUPPORT_EMAIL = "support@reviewresq.com";
@@ -161,6 +166,11 @@ export async function refreshSubscription() {
 export function currentPlanTier() {
   if (cachedSubscription?.planId) return normalizePlan(cachedSubscription.planId);
   return "starter";
+}
+
+export function currentEntitlements(planId = null) {
+  const resolvedPlan = planId || cachedSubscription?.planId || "starter";
+  return getPlanEntitlements(resolvedPlan);
 }
 
 export function isStarterPlan(planId) {

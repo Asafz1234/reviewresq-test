@@ -1,18 +1,28 @@
-import { listenForUser, getCachedSubscription, isStarterPlan } from "./session-data.js";
+import {
+  listenForUser,
+  getCachedSubscription,
+  isStarterPlan,
+  currentEntitlements,
+} from "./session-data.js";
 
-const STARTER_BLOCKED_ROUTES = new Set([
-  "campaigns",
-  "ai-agent",
-  "business-settings",
-]);
-const STARTER_BLOCKED_ANCHORS = [
-  "ai-agent.html#pro-suite",
-  "ai-agent.html#phone",
-  "ai-agent.html#phone-agent",
-  "ai-agent.html#ai-phone-agent",
-  "ai-phone-agent",
-  "pro-suite",
-];
+const ROUTE_KEYS = {
+  dashboard: "overview",
+  overview: "overview",
+  "ask-reviews": "askReviews",
+  inbox: "feedback",
+  feedback: "feedback",
+  "google-reviews": "googleReviews",
+  customers: "customers",
+  campaigns: "campaigns",
+  funnel: "reviewFunnel",
+  links: "reviewLinks",
+  alerts: "alerts",
+  "business-settings": "businessSettings",
+  settings: "businessSettings",
+  account: "accountBilling",
+  billing: "accountBilling",
+  "ai-agent": "proAiSuite",
+};
 
 const SETTINGS_ROUTES = ["alerts", "business-settings", "account", "settings"];
 const SETTINGS_TARGET = "settings.html";
@@ -20,6 +30,7 @@ const SETTINGS_TARGET = "settings.html";
 let initialized = false;
 
 let currentPlan = "starter";
+let currentEntitlementState = currentEntitlements();
 let navObserver = null;
 
 function normalizeRouteFromHref(href = "") {
@@ -37,19 +48,15 @@ function normalizeRouteFromHref(href = "") {
   }
 }
 
-function isBlockedTab(tab) {
-  const route = (tab.dataset.route || "").toLowerCase();
-  const href = String(tab.getAttribute("href") || "").toLowerCase();
-  const normalizedRoute = normalizeRouteFromHref(href) || normalizeRouteFromHref(route) || route;
-
-  const routeBlocked = STARTER_BLOCKED_ROUTES.has(normalizedRoute);
-  const anchorBlocked = STARTER_BLOCKED_ANCHORS.some((anchor) => href.includes(anchor));
-
-  return routeBlocked || anchorBlocked;
+function navKeyForRoute(route = "") {
+  const normalized = normalizeRouteFromHref(route) || route;
+  return ROUTE_KEYS[normalized] || null;
 }
 
-function getBlockedTabs() {
-  return Array.from(document.querySelectorAll(".nav-tab")).filter(isBlockedTab);
+function getEntitlementForRoute(route = "", entitlements = null) {
+  const key = navKeyForRoute(route);
+  if (!key || !entitlements?.allowedNavItems) return true;
+  return entitlements.allowedNavItems[key] !== false;
 }
 
 function setTabVisibility(tab, hidden) {
@@ -59,25 +66,23 @@ function setTabVisibility(tab, hidden) {
 
 export function applyNavPlanFilter(planId = "starter", { forceRemove = false } = {}) {
   currentPlan = planId || "starter";
-  const hideBlocked = isStarterPlan(currentPlan);
+  currentEntitlementState = currentEntitlements(currentPlan);
+  const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
 
-  console.log("[plan]", currentPlan);
-  console.log("[isStarter]", hideBlocked);
-
-  getBlockedTabs().forEach((tab) => {
-    setTabVisibility(tab, hideBlocked);
-    if (hideBlocked && forceRemove) {
+  navTabs.forEach((tab) => {
+    const route = (tab.dataset.route || tab.getAttribute("href") || "").toLowerCase();
+    const allowed = getEntitlementForRoute(route, currentEntitlementState);
+    const shouldHide = allowed === false;
+    setTabVisibility(tab, shouldHide);
+    if (shouldHide && forceRemove) {
       tab.remove();
     }
   });
 
   const businessTab = document.querySelector('.settings-tab[data-panel="business"]');
   if (businessTab) {
-    setTabVisibility(businessTab, hideBlocked);
-  }
-
-  if (hideBlocked) {
-    console.log("[nav] hiding blocked items for starter");
+    const allowed = currentEntitlementState?.allowedNavItems?.businessSettings !== false;
+    setTabVisibility(businessTab, !allowed);
   }
 }
 
@@ -94,6 +99,40 @@ function ensureNavObserver() {
 
   navObserver.observe(nav, { childList: true, subtree: true });
   return true;
+}
+
+function renderUpgradeGuard(reason = "") {
+  const main = document.querySelector("main.page-container") || document.querySelector("main");
+  if (!main) return;
+  const message = reason || "This section is not available on your plan.";
+  const notice = document.createElement("section");
+  notice.className = "section";
+  notice.innerHTML = `
+    <div class="card">
+      <p class="card-title">Upgrade required</p>
+      <p class="card-sub">${message}</p>
+      <div class="button-row" style="justify-content:flex-start;">
+        <a class="btn btn-primary" href="/account.html">See upgrade options</a>
+      </div>
+    </div>
+  `;
+  if (!main.querySelector(".card")) {
+    main.innerHTML = "";
+  }
+  main.prepend(notice);
+
+  Array.from(main.querySelectorAll("button, input, select, textarea"))
+    .forEach((node) => {
+      node.disabled = true;
+      node.setAttribute("aria-disabled", "true");
+    });
+}
+
+function guardCurrentPage() {
+  const pathRoute = normalizeRouteFromHref(window.location.pathname || "");
+  const allowed = getEntitlementForRoute(pathRoute, currentEntitlementState);
+  if (allowed) return;
+  renderUpgradeGuard("This page is available on higher plans.");
 }
 
 function unifySettingsNav() {
@@ -147,12 +186,14 @@ export function initNavPlanFilter() {
   const cachedPlan = getCachedSubscription()?.planId || "starter";
   applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
   unifySettingsNav();
+  guardCurrentPage();
 
   const maxAttempts = 5;
   const observeWithRetry = (attempt = 0) => {
     const attached = ensureNavObserver();
     if (attached) {
       applyNavPlanFilter(currentPlan, { forceRemove: isStarterPlan(currentPlan) });
+      guardCurrentPage();
     }
     if (!attached && attempt < maxAttempts) {
       setTimeout(() => observeWithRetry(attempt + 1), 200);
@@ -165,5 +206,6 @@ export function initNavPlanFilter() {
     const planId = subscription?.planId || "starter";
     const forceRemoval = isStarterPlan(planId);
     applyNavPlanFilter(planId, { forceRemove: forceRemoval });
+    guardCurrentPage();
   });
 }

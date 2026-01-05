@@ -1,3 +1,3 @@
-import { initNavPlanFilter } from "./nav-access.js?v=20260105a";
+import { initNavPlanFilter } from "./nav-access-versioned.js";
 
 initNavPlanFilter();

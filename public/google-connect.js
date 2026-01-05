@@ -12,6 +12,7 @@ const GOOGLE_OAUTH_SCOPE =
 // GitHub Pages requires a real file for callbacks because deep routes 404 unless a file exists.
 const GOOGLE_OAUTH_CANONICAL_REDIRECT_URI =
   "https://reviewresq.com/oauth-google-callback.html";
+const GOOGLE_OAUTH_REDIRECT_PATH = "/oauth-google-callback.html";
 const OAUTH_CLIENT_ID =
   window.GOOGLE_OAUTH_CLIENT_ID ||
   (window.GOOGLE_OAUTH && window.GOOGLE_OAUTH.clientId) ||
@@ -159,7 +160,7 @@ async function ensureOAuthConfig({ logAvailability = false, forceRefresh = false
         if (data?.clientId) {
           cachedOAuthConfig.clientId = data.clientId;
         }
-        cachedOAuthConfig.redirectUri = GOOGLE_OAUTH_CANONICAL_REDIRECT_URI;
+        cachedOAuthConfig.redirectUri = resolveActiveRedirectUri();
         cachedOAuthConfig.configured = Boolean(
           data?.configured ?? (cachedOAuthConfig.clientId && cachedOAuthConfig.redirectUri)
         );
@@ -216,6 +217,21 @@ const NO_PROFILE_NOTICE_DISMISS_KEY = "rrq_google_no_profile_notice_dismissed";
 const OAUTH_PENDING_KEY = "google_oauth_pending";
 const OAUTH_HANDLED_KEY = "google_oauth_handled";
 
+function buildOAuthErrorMessage(payload = {}, redirectUri = "") {
+  const reason = payload?.reason || payload?.error;
+  if (reason === "INVALID_STATE" || reason === "invalid_request") {
+    return "Connection expired. Please try again.";
+  }
+  if (reason === "INVALID_REDIRECT_URI" || reason === "REDIRECT_MISMATCH") {
+    const activeRedirect = redirectUri || resolveActiveRedirectUri();
+    return `Add ${activeRedirect} to your Google OAuth Authorized redirect URIs, then retry.`;
+  }
+  if (reason === "TOKEN_EXCHANGE_FAILED") {
+    return "Google rejected the sign-in. Please retry the connection.";
+  }
+  return payload?.message || "Unable to finish Google connection.";
+}
+
 function readJson(key) {
   try {
     const value = localStorage.getItem(key);
@@ -235,6 +251,39 @@ function writeJson(key, value) {
     }
   } catch (err) {
     console.warn("[google-connect] unable to write", key, err);
+  }
+}
+
+const OAUTH_REDIRECT_CACHE_KEY = "google_oauth_redirect_uri";
+
+function resolveActiveRedirectUri() {
+  try {
+    const origin = window.location?.origin;
+    if (origin) return `${origin}${GOOGLE_OAUTH_REDIRECT_PATH}`;
+  } catch (err) {
+    // ignore
+  }
+  return GOOGLE_OAUTH_CANONICAL_REDIRECT_URI;
+}
+
+function cacheRedirectUri(uri) {
+  try {
+    if (uri) {
+      sessionStorage.setItem(OAUTH_REDIRECT_CACHE_KEY, uri);
+    } else {
+      sessionStorage.removeItem(OAUTH_REDIRECT_CACHE_KEY);
+    }
+  } catch (err) {
+    console.warn("[google-connect] unable to cache redirect", err);
+  }
+}
+
+function readCachedRedirectUri() {
+  try {
+    const value = sessionStorage.getItem(OAUTH_REDIRECT_CACHE_KEY);
+    return value || null;
+  } catch (err) {
+    return null;
   }
 }
 
@@ -349,6 +398,9 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
       throw new Error(missingConfigMessage(oauthConfig?.missing));
     }
 
+    const redirectUri = oauthConfig.redirectUri || resolveActiveRedirectUri();
+    cacheRedirectUri(redirectUri);
+
     const idToken = await getIdTokenOrThrow();
     console.debug(
       "[google-oauth][debug] creating state via",
@@ -360,7 +412,7 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${idToken}`,
       },
-      body: JSON.stringify({ returnTo }),
+      body: JSON.stringify({ returnTo, redirectUri, origin: window.location.origin }),
     });
 
     if (!response.ok) {
@@ -373,7 +425,6 @@ async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
       throw new Error(message);
     }
 
-    const redirectUri = oauthConfig.redirectUri;
     const scopesFromServer = payload?.scopes || configScopes;
     const scopeString = Array.isArray(scopesFromServer)
       ? scopesFromServer.join(" ")
@@ -1720,7 +1771,20 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
   }
   showStatus("Finishing Google connection…", "");
 
-  const redirectUri = `${window.location.origin}${window.location.pathname}`;
+  const redirectUri = readCachedRedirectUri() || resolveActiveRedirectUri();
+
+  if (!code || !state) {
+    showStatus("Connection expired. Please try again.", "var(--danger, #b00020)");
+    showToast("Connection expired. Please try again.", true);
+    cacheRedirectUri(null);
+    oauthHandlingInProgress = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText || "Retry connect";
+    }
+    cleanUpUrl();
+    return;
+  }
 
   try {
     const user = await waitForAuthReady();
@@ -1736,14 +1800,19 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
     }
 
     oauthReturnHandled = true;
-    const payload = { code, authCode: code, state, redirectUri };
+    const payload = {
+      code,
+      authCode: code,
+      state,
+      redirectUri,
+      origin: window.location.origin,
+      canonicalRedirectUri: GOOGLE_OAUTH_CANONICAL_REDIRECT_URI,
+    };
     const call = exchangeGoogleAuthCodeCallable();
     let data = {};
     try {
       const response = await call({
         ...payload,
-        redirectUri,
-        canonicalRedirectUri: GOOGLE_OAUTH_CANONICAL_REDIRECT_URI,
       });
       data = response?.data || {};
     } catch (err) {
@@ -1755,7 +1824,10 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
         hasState: !!state,
         redirectUri,
       });
-      throw err;
+      const message = buildOAuthErrorMessage(err?.details || {}, redirectUri);
+      showStatus(message, "var(--danger, #b00020)");
+      showToast(message, true);
+      return;
     }
 
     console.log("[google-oauth] exchange result", data?.ok, data?.reason);
@@ -1770,7 +1842,7 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
         redirectUri,
       });
       sessionStorage.removeItem(OAUTH_PENDING_KEY);
-      const message = data?.message || "Unable to finish Google connection.";
+      const message = buildOAuthErrorMessage(data, redirectUri);
       showStatus(message, "var(--danger, #b00020)");
       showToast(message, true);
       return;
@@ -1800,6 +1872,7 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
     }
     showStatus("Google connected.");
     showToast("Google connected.");
+    cacheRedirectUri(null);
   } catch (err) {
     const message = err?.message || "Unable to finish Google connection.";
     showStatus(message, "var(--danger, #b00020)");
@@ -1813,6 +1886,7 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
       redirectUri,
     });
     sessionStorage.removeItem(OAUTH_PENDING_KEY);
+    cacheRedirectUri(null);
   } finally {
     if (btn) {
       btn.disabled = false;
