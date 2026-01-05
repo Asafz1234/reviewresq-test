@@ -10,7 +10,7 @@ import {
 } from "./session-data.js";
 import { PLAN_LABELS, hasFeature, normalizePlan } from "./plan-capabilities.js";
 import { lockUI } from "./plan-lock.js";
-import { applyNavPlanFilter } from "./nav-access.js?v=20260105a";
+import { applyNavPlanFilter } from "./nav-access-versioned.js";
 
 const planBadge = document.getElementById("planBadge");
 const topbarRight = document.querySelector(".topbar-right");

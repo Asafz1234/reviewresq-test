@@ -5,7 +5,7 @@ import {
   setDoc,
   serverTimestamp,
 } from "./firebase-config.js";
-import { listenForUser } from "./session-data.js";
+import { listenForUser, currentEntitlements } from "./session-data.js";
 import { showUpgradeModal } from "./plan-lock.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
@@ -42,27 +42,6 @@ let prefs = {
 };
 
 const SUPPORT_EMAIL = "support@reviewresq.com";
-
-const ENTITLEMENTS = {
-  starter: {
-    newPrivateFeedback: false,
-    newGoogleReview: false,
-    followUpReminders: false,
-    weeklySummary: false,
-  },
-  pro: {
-    newPrivateFeedback: true,
-    newGoogleReview: true,
-    followUpReminders: true,
-    weeklySummary: true,
-  },
-  pro_ai: {
-    newPrivateFeedback: true,
-    newGoogleReview: true,
-    followUpReminders: true,
-    weeklySummary: true,
-  },
-};
 
 const AI_SPECIFIC_TOGGLES = new Set([
   "aiAgentEscalations",
@@ -119,10 +98,10 @@ function resolvePlanTier() {
 }
 
 function isToggleAllowed(key) {
-  const tier = resolvePlanTier();
-  const matrix = ENTITLEMENTS[tier] || ENTITLEMENTS.pro;
+  const entitlements = currentEntitlements(planId);
+  const matrix = entitlements?.alerts || {};
   const requiresAI = AI_SPECIFIC_TOGGLES.has(key);
-  if (requiresAI && tier !== "pro_ai") return false;
+  if (requiresAI && !entitlements?.isProAI) return false;
   return Boolean(matrix[key]);
 }
 
