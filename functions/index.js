@@ -2491,6 +2491,14 @@ exports.googleAuthCreateStateV2 = onRequest(
   googleAuthCreateStateHandler,
 );
 
+const extractOAuthPayload = (req) => {
+  const raw = req?.body || {};
+  if (raw && typeof raw === "object" && raw.data && typeof raw.data === "object") {
+    return raw.data;
+  }
+  return raw;
+};
+
 const exchangeGoogleAuthCodeHandler = async (req, res) => {
   const corsOk = applyOAuthCors(req, res);
   if (req.method === "OPTIONS") {
@@ -2504,13 +2512,16 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
   }
 
   try {
-    const code = req.body?.code;
-    const state = req.body?.state;
+    const payload = extractOAuthPayload(req);
+    const code = payload?.code || payload?.authCode;
+    const state = payload?.state;
+    const providedRedirectUri = payload?.redirectUri;
+    const requestOrigin = payload?.origin || req.get("origin") || null;
     if (!code || !state) {
       console.warn("[google-oauth] exchange missing code/state", {
         hasCode: !!code,
         hasState: !!state,
-        origin: req.get("origin"),
+        origin: requestOrigin,
       });
       return res.status(400).json({
         ok: false,
@@ -2566,14 +2577,15 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
       });
     }
 
-    const providedRedirectUri = req.body?.redirectUri;
     const stateRedirectUri = stateData.redirectUri || null;
-    const activeRedirectUri =
-      providedRedirectUri && isRedirectUriAllowed(providedRedirectUri)
-        ? providedRedirectUri
-        : stateRedirectUri || configuredRedirectUri || expectedRedirectUri;
+    const activeRedirectUri = stateRedirectUri || configuredRedirectUri || expectedRedirectUri;
 
     if (providedRedirectUri && stateRedirectUri && providedRedirectUri !== stateRedirectUri) {
+      console.warn("[google-oauth] redirect mismatch", {
+        providedRedirectUri,
+        stateRedirectUri,
+        configuredRedirectUri,
+      });
       return res.status(400).json({
         ok: false,
         reason: "REDIRECT_MISMATCH",
@@ -2583,7 +2595,13 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
       });
     }
 
-    if (!isRedirectUriAllowed(activeRedirectUri) && configuredRedirectUri !== activeRedirectUri) {
+    if (!isRedirectUriAllowed(activeRedirectUri)) {
+      console.warn("[google-oauth] invalid redirect uri during exchange", {
+        activeRedirectUri,
+        configuredRedirectUri,
+        providedRedirectUri,
+        expectedRedirectUri,
+      });
       return res.status(400).json({
         ok: false,
         reason: "INVALID_REDIRECT_URI",
