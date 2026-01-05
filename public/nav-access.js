@@ -27,11 +27,28 @@ const ROUTE_KEYS = {
 const SETTINGS_ROUTES = ["alerts", "business-settings", "account", "settings"];
 const SETTINGS_TARGET = "settings.html";
 
-let initialized = false;
+const globalNavAccessState = (() => {
+  if (typeof window === "undefined") return null;
+  if (!window.__navAccessState) {
+    window.__navAccessState = {
+      initialized: false,
+      currentPlan: "starter",
+      currentEntitlementState: currentEntitlements(),
+      navObserver: null,
+      version: window.__NAV_ACCESS_VERSION || "unversioned",
+    };
+  }
+  return window.__navAccessState;
+})();
 
-let currentPlan = "starter";
-let currentEntitlementState = currentEntitlements();
-let navObserver = null;
+const navState =
+  globalNavAccessState || {
+    initialized: false,
+    currentPlan: "starter",
+    currentEntitlementState: currentEntitlements(),
+    navObserver: null,
+    version: "unscoped",
+  };
 
 function normalizeRouteFromHref(href = "") {
   const lowerHref = String(href || "").toLowerCase();
@@ -65,13 +82,13 @@ function setTabVisibility(tab, hidden) {
 }
 
 export function applyNavPlanFilter(planId = "starter", { forceRemove = false } = {}) {
-  currentPlan = planId || "starter";
-  currentEntitlementState = currentEntitlements(currentPlan);
+  navState.currentPlan = planId || "starter";
+  navState.currentEntitlementState = currentEntitlements(navState.currentPlan);
   const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
 
   navTabs.forEach((tab) => {
     const route = (tab.dataset.route || tab.getAttribute("href") || "").toLowerCase();
-    const allowed = getEntitlementForRoute(route, currentEntitlementState);
+    const allowed = getEntitlementForRoute(route, navState.currentEntitlementState);
     const shouldHide = allowed === false;
     setTabVisibility(tab, shouldHide);
     if (shouldHide && forceRemove) {
@@ -81,23 +98,24 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
 
   const businessTab = document.querySelector('.settings-tab[data-panel="business"]');
   if (businessTab) {
-    const allowed = currentEntitlementState?.allowedNavItems?.businessSettings !== false;
+    const allowed =
+      navState.currentEntitlementState?.allowedNavItems?.businessSettings !== false;
     setTabVisibility(businessTab, !allowed);
   }
 }
 
 function ensureNavObserver() {
-  if (navObserver || typeof MutationObserver === "undefined") return true;
+  if (navState.navObserver || typeof MutationObserver === "undefined") return true;
   const nav = document.querySelector(".global-nav");
   if (!nav) return false;
 
-  navObserver = new MutationObserver(() => {
-    const enforceRemoval = isStarterPlan(currentPlan);
-    applyNavPlanFilter(currentPlan, { forceRemove: enforceRemoval });
+  navState.navObserver = new MutationObserver(() => {
+    const enforceRemoval = isStarterPlan(navState.currentPlan);
+    applyNavPlanFilter(navState.currentPlan, { forceRemove: enforceRemoval });
     unifySettingsNav();
   });
 
-  navObserver.observe(nav, { childList: true, subtree: true });
+  navState.navObserver.observe(nav, { childList: true, subtree: true });
   return true;
 }
 
@@ -130,7 +148,7 @@ function renderUpgradeGuard(reason = "") {
 
 function guardCurrentPage() {
   const pathRoute = normalizeRouteFromHref(window.location.pathname || "");
-  const allowed = getEntitlementForRoute(pathRoute, currentEntitlementState);
+  const allowed = getEntitlementForRoute(pathRoute, navState.currentEntitlementState);
   if (allowed) return;
   renderUpgradeGuard("This page is available on higher plans.");
 }
@@ -180,8 +198,8 @@ function unifySettingsNav() {
 }
 
 export function initNavPlanFilter() {
-  if (initialized) return;
-  initialized = true;
+  if (navState.initialized) return;
+  navState.initialized = true;
 
   const cachedPlan = getCachedSubscription()?.planId || "starter";
   applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
@@ -192,7 +210,7 @@ export function initNavPlanFilter() {
   const observeWithRetry = (attempt = 0) => {
     const attached = ensureNavObserver();
     if (attached) {
-      applyNavPlanFilter(currentPlan, { forceRemove: isStarterPlan(currentPlan) });
+      applyNavPlanFilter(navState.currentPlan, { forceRemove: isStarterPlan(navState.currentPlan) });
       guardCurrentPage();
     }
     if (!attached && attempt < maxAttempts) {
