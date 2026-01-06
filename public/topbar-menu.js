@@ -10,7 +10,7 @@ import {
 } from "./session-data.js";
 import { PLAN_LABELS, hasFeature, normalizePlan } from "./plan-capabilities.js";
 import { lockUI } from "./plan-lock.js";
-import { applyNavPlanFilter } from "./nav-access-versioned.js";
+import { applyNavPlanFilter, safeNavigate } from "./nav-access-versioned.js";
 
 const planBadge = document.getElementById("planBadge");
 const topbarRight = document.querySelector(".topbar-right");
@@ -67,7 +67,7 @@ function applyPlanBadge(planId) {
   const label = PLAN_DETAILS[safePlan]?.label || PLAN_LABELS.starter;
   planBadge.textContent = label;
   planBadge.setAttribute("data-plan", safePlan);
-  planBadge.href = planBadge.getAttribute("href") || "account.html";
+  planBadge.href = planBadge.getAttribute("href") || "/account.html";
 
   planBadge.classList.remove(...Object.values(PLAN_CLASS));
   planBadge.classList.add(PLAN_CLASS[safePlan]);
@@ -113,7 +113,7 @@ function buildUpsellCard({ title, upgradePlan, bullets }) {
           ${bullets.map((item) => `<li>• ${item}</li>`).join("")}
         </ul>
         <div class="button-row" style="justify-content:flex-start;">
-          <a class="btn btn-primary" href="account.html" aria-label="Upgrade plan">Upgrade to ${PLAN_LABELS[upgradePlan] || "Pro"}</a>
+          <a class="btn btn-primary" href="/account.html" aria-label="Upgrade plan">Upgrade to ${PLAN_LABELS[upgradePlan] || "Pro"}</a>
         </div>
       </div>
     </section>
@@ -157,11 +157,12 @@ function decorateNav(planId) {
       badgeEl.textContent = requirement.badge;
       tab.appendChild(badgeEl);
 
-      tab.addEventListener("click", (event) => {
-        event.preventDefault();
-        renderLockedFeatureView(route, normalizedPlan);
-        window.history.replaceState({}, "", tab.getAttribute("href") || window.location.href);
-      });
+      if (!tab.dataset.navBound) {
+        tab.addEventListener("click", (event) => {
+          safeNavigate(event, tab.getAttribute("href"), true, requirement.upgradePlan);
+        });
+        tab.dataset.navBound = "true";
+      }
     }
   });
 }
@@ -186,16 +187,12 @@ function buildProfileMenu() {
     const action = target.dataset.nav;
 
     if (action === "account") {
-      window.location.href = window.location.pathname.includes("ai-agent")
-        ? "../account.html"
-        : "account.html";
+      window.location.href = "/account.html";
       return;
     }
 
     if (action === "settings") {
-      window.location.href = window.location.pathname.includes("ai-agent")
-        ? "../settings.html#business"
-        : "settings.html#business";
+      window.location.href = "/business-settings.html";
       return;
     }
 
@@ -278,7 +275,7 @@ hydrateTopbar();
 
 planBadge?.addEventListener("click", (e) => {
   e.preventDefault();
-  window.location.href = planBadge.href || "account.html";
+  window.location.href = planBadge.href || "/account.html";
 });
 
 export async function refreshTopbarSubscription() {
