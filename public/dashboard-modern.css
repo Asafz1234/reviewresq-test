@@ -198,6 +198,26 @@ a {
   border: 1px solid transparent;
 }
 
+.nav-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rr-border);
+}
+
+.nav-section__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-soft);
+  margin: 6px 8px 4px;
+  letter-spacing: 0.01em;
+}
+
+.nav-section__items {
+  display: flex;
+  gap: var(--space-s);
+  flex-wrap: wrap;
+}
+
 .global-nav .nav-tab--locked {
   color: #94a3b8;
 }

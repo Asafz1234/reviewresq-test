@@ -49,8 +49,8 @@ const UPGRADE_PLAN_BY_ROUTE = {
   "ai-agent": "pro_ai",
 };
 
-const SETTINGS_ROUTES = ["alerts", "business-settings", "account", "settings"];
-const SETTINGS_TARGET = "/business-settings.html";
+const SETTINGS_ROUTES = ["account", "business-settings", "settings", "alerts"];
+const STARTER_REMOVED_ROUTES = ["alerts", "ai-agent"];
 
 const globalNavAccessState = (() => {
   if (typeof window === "undefined") return null;
@@ -158,12 +158,20 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
     navAccess.ready = true;
   }
   const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
+  const planIsStarter = isStarterPlan(navState.currentPlan);
+  const enforceRemoval = forceRemove || planIsStarter;
 
   navTabs.forEach((tab) => {
     const route = (tab.dataset.route || tab.getAttribute("href") || "").toLowerCase();
     const resolvedHref = resolveNavHref(route, tab.getAttribute("href"));
     if (resolvedHref) {
       tab.setAttribute("href", resolvedHref);
+    }
+
+    const normalizedRoute = normalizeRouteFromHref(route);
+    if (enforceRemoval && STARTER_REMOVED_ROUTES.includes(normalizedRoute)) {
+      setTabVisibility(tab, true);
+      return;
     }
 
     const allowed = getEntitlementForRoute(route, navState.currentEntitlementState);
@@ -175,7 +183,7 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
     tab.setAttribute("aria-disabled", isBlocked ? "true" : "false");
     tab.dataset.navBlocked = isBlocked ? "true" : "false";
 
-    const upgradePlan = UPGRADE_PLAN_BY_ROUTE[normalizeRouteFromHref(route)] || "growth";
+    const upgradePlan = UPGRADE_PLAN_BY_ROUTE[normalizedRoute] || "growth";
     if (!tab.dataset.navBound) {
       tab.addEventListener("click", (event) => {
         const blocked = tab.dataset.navBlocked === "true";
@@ -191,6 +199,8 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
       navState.currentEntitlementState?.allowedNavItems?.businessSettings !== false;
     setTabVisibility(businessTab, !allowed);
   }
+
+  unifySettingsNav();
 
   if (typeof window !== "undefined") {
     window.dispatchEvent(
@@ -212,7 +222,6 @@ function ensureNavObserver() {
   navState.navObserver = new MutationObserver(() => {
     const enforceRemoval = isStarterPlan(navState.currentPlan);
     applyNavPlanFilter(navState.currentPlan, { forceRemove: enforceRemoval });
-    unifySettingsNav();
   });
 
   navState.navObserver.observe(nav, { childList: true, subtree: true });
@@ -257,44 +266,86 @@ function unifySettingsNav() {
   const nav = document.querySelector(".global-nav");
   if (!nav) return;
 
-  const existingSettings = nav.querySelector('.nav-tab[data-route="settings"]');
-  const legacyTabs = SETTINGS_ROUTES.flatMap((route) =>
+  const settingsTabs = SETTINGS_ROUTES.flatMap((route) =>
     Array.from(nav.querySelectorAll(`.nav-tab[data-route="${route}"]`))
   );
 
-  const visibleLegacy = legacyTabs.filter((tab) => tab.dataset.route !== "settings");
-  const primaryTab = existingSettings || visibleLegacy[0];
+  if (!settingsTabs.length) return;
 
-  if (!existingSettings) {
-    const settingsTab = primaryTab ? primaryTab.cloneNode(true) : document.createElement("a");
-    settingsTab.classList.add("nav-tab");
-    settingsTab.dataset.route = "settings";
-    settingsTab.setAttribute("href", SETTINGS_TARGET);
-    settingsTab.textContent = "Settings";
-    const icon = settingsTab.querySelector(".nav-icon");
-    if (icon) {
-      icon.textContent = "⚙️";
-      if (!icon.nextElementSibling) {
-        const label = document.createElement("span");
-        label.textContent = "Settings";
-        icon.after(label);
-      }
-    } else {
-      settingsTab.innerHTML = `<span class="nav-icon">⚙️</span><span>Settings</span>`;
+  const setNavLabel = (tab, label) => {
+    const labelSpan = tab.querySelector("span:not(.nav-icon)");
+    if (labelSpan) {
+      labelSpan.textContent = label;
+      return;
     }
-    nav.appendChild(settingsTab);
+
+    const icon = tab.querySelector(".nav-icon");
+    if (icon) {
+      if (icon.nextElementSibling) {
+        icon.nextElementSibling.textContent = label;
+      } else {
+        const span = document.createElement("span");
+        span.textContent = label;
+        icon.after(span);
+      }
+      return;
+    }
+
+    tab.textContent = label;
+  };
+
+  let section = nav.querySelector('[data-nav-section="settings"]');
+  if (!section) {
+    section = document.createElement("div");
+    section.className = "nav-section nav-section--settings";
+    section.dataset.navSection = "settings";
+
+    const heading = document.createElement("p");
+    heading.className = "nav-section__label";
+    heading.textContent = "Settings";
+    section.appendChild(heading);
+
+    const list = document.createElement("div");
+    list.className = "nav-section__items";
+    list.dataset.navSectionItems = "settings";
+    section.appendChild(list);
+
+    nav.appendChild(section);
   }
 
-  legacyTabs.forEach((tab) => {
-    if (tab.dataset.route !== "settings") {
-      tab.style.display = "none";
-      tab.setAttribute("aria-hidden", "true");
-    }
-    if (SETTINGS_ROUTES.includes(tab.dataset.route || "")) {
-      tab.setAttribute("href", SETTINGS_TARGET);
-      tab.dataset.route = "settings";
-    }
-  });
+  const list = section.querySelector('[data-nav-section-items="settings"]');
+  if (!list) return;
+
+  const labelByRoute = {
+    account: "Account & Billing",
+    "business-settings": "Business Settings",
+    settings: "Business Settings",
+    alerts: "Alerts & Notifications",
+  };
+
+  // Preserve desired ordering
+  const orderedTabs = SETTINGS_ROUTES.flatMap((route) =>
+    settingsTabs.filter((tab) => {
+      const tabRoute = (tab.dataset.route || "").toLowerCase();
+      if (tabRoute !== route) return false;
+
+      const label = labelByRoute[tabRoute];
+      if (label) setNavLabel(tab, label);
+
+      if (tabRoute === "settings") {
+        tab.setAttribute("href", resolveNavHref("business-settings", tab.getAttribute("href")));
+      }
+
+      return true;
+    })
+  );
+
+  list.innerHTML = "";
+  orderedTabs.forEach((tab) => list.appendChild(tab));
+
+  const visibleSettings = orderedTabs.some((tab) => tab.style.display !== "none");
+  section.style.display = visibleSettings ? "" : "none";
+  section.setAttribute("aria-hidden", visibleSettings ? "false" : "true");
 }
 
 export function initNavPlanFilter() {
