@@ -60,6 +60,7 @@ const globalNavAccessState = (() => {
       currentPlan: "starter",
       currentEntitlementState: currentEntitlements(),
       navObserver: null,
+      navElement: null,
       version: window.__NAV_ACCESS_VERSION || "unversioned",
     };
   }
@@ -72,6 +73,7 @@ const navState =
     currentPlan: "starter",
     currentEntitlementState: currentEntitlements(),
     navObserver: null,
+    navElement: null,
     version: "unscoped",
   };
 
@@ -148,69 +150,86 @@ function setTabVisibility(tab, hidden) {
 }
 
 export function applyNavPlanFilter(planId = "starter", { forceRemove = false } = {}) {
-  navState.currentPlan = planId || "starter";
-  navState.currentEntitlementState = currentEntitlements(navState.currentPlan);
-  const navAccess = ensureWindowNavAccess();
-  if (navAccess) {
-    navAccess.plan = navState.currentPlan;
-    navAccess.entitlements = navState.currentEntitlementState;
-    navAccess.version = navState.version;
-    navAccess.ready = true;
-  }
-  const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
-  const planIsStarter = isStarterPlan(navState.currentPlan);
-  const enforceRemoval = forceRemove || planIsStarter;
-
-  navTabs.forEach((tab) => {
-    const route = (tab.dataset.route || tab.getAttribute("href") || "").toLowerCase();
-    const resolvedHref = resolveNavHref(route, tab.getAttribute("href"));
-    if (resolvedHref) {
-      tab.setAttribute("href", resolvedHref);
-    }
-
-    const normalizedRoute = normalizeRouteFromHref(route);
-    if (enforceRemoval && STARTER_REMOVED_ROUTES.includes(normalizedRoute)) {
-      setTabVisibility(tab, true);
-      return;
-    }
-
-    const allowed = getEntitlementForRoute(route, navState.currentEntitlementState);
-    const isBlocked = allowed === false;
-
-    tab.style.display = "";
-    tab.setAttribute("aria-hidden", "false");
-    tab.classList.toggle("nav-tab--locked", isBlocked);
-    tab.setAttribute("aria-disabled", isBlocked ? "true" : "false");
-    tab.dataset.navBlocked = isBlocked ? "true" : "false";
-
-    const upgradePlan = UPGRADE_PLAN_BY_ROUTE[normalizedRoute] || "growth";
-    if (!tab.dataset.navBound) {
-      tab.addEventListener("click", (event) => {
-        const blocked = tab.dataset.navBlocked === "true";
-        safeNavigate(event, tab.getAttribute("href"), blocked, upgradePlan);
+  const resumeNavObserver = () => {
+    if (navState.navObserver && navState.navElement) {
+      navState.navObserver.observe(navState.navElement, {
+        childList: true,
+        subtree: true,
       });
-      tab.dataset.navBound = "true";
     }
-  });
+  };
 
-  const businessTab = document.querySelector('.settings-tab[data-panel="business"]');
-  if (businessTab) {
-    const allowed =
-      navState.currentEntitlementState?.allowedNavItems?.businessSettings !== false;
-    setTabVisibility(businessTab, !allowed);
+  if (navState.navObserver) {
+    navState.navObserver.disconnect();
   }
 
-  unifySettingsNav();
+  try {
+    navState.currentPlan = planId || "starter";
+    navState.currentEntitlementState = currentEntitlements(navState.currentPlan);
+    const navAccess = ensureWindowNavAccess();
+    if (navAccess) {
+      navAccess.plan = navState.currentPlan;
+      navAccess.entitlements = navState.currentEntitlementState;
+      navAccess.version = navState.version;
+      navAccess.ready = true;
+    }
+    const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
+    const planIsStarter = isStarterPlan(navState.currentPlan);
+    const enforceRemoval = forceRemove || planIsStarter;
 
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent("navaccess:planApplied", {
-        detail: {
-          planId: navState.currentPlan,
-          entitlements: navState.currentEntitlementState,
-        },
-      })
-    );
+    navTabs.forEach((tab) => {
+      const route = (tab.dataset.route || tab.getAttribute("href") || "").toLowerCase();
+      const resolvedHref = resolveNavHref(route, tab.getAttribute("href"));
+      if (resolvedHref) {
+        tab.setAttribute("href", resolvedHref);
+      }
+
+      const normalizedRoute = normalizeRouteFromHref(route);
+      if (enforceRemoval && STARTER_REMOVED_ROUTES.includes(normalizedRoute)) {
+        setTabVisibility(tab, true);
+        return;
+      }
+
+      const allowed = getEntitlementForRoute(route, navState.currentEntitlementState);
+      const isBlocked = allowed === false;
+
+      tab.style.display = "";
+      tab.setAttribute("aria-hidden", "false");
+      tab.classList.toggle("nav-tab--locked", isBlocked);
+      tab.setAttribute("aria-disabled", isBlocked ? "true" : "false");
+      tab.dataset.navBlocked = isBlocked ? "true" : "false";
+
+      const upgradePlan = UPGRADE_PLAN_BY_ROUTE[normalizedRoute] || "growth";
+      if (!tab.dataset.navBound) {
+        tab.addEventListener("click", (event) => {
+          const blocked = tab.dataset.navBlocked === "true";
+          safeNavigate(event, tab.getAttribute("href"), blocked, upgradePlan);
+        });
+        tab.dataset.navBound = "true";
+      }
+    });
+
+    const businessTab = document.querySelector('.settings-tab[data-panel="business"]');
+    if (businessTab) {
+      const allowed =
+        navState.currentEntitlementState?.allowedNavItems?.businessSettings !== false;
+      setTabVisibility(businessTab, !allowed);
+    }
+
+    unifySettingsNav();
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("navaccess:planApplied", {
+          detail: {
+            planId: navState.currentPlan,
+            entitlements: navState.currentEntitlementState,
+          },
+        })
+      );
+    }
+  } finally {
+    resumeNavObserver();
   }
 }
 
@@ -223,6 +242,8 @@ function ensureNavObserver() {
     const enforceRemoval = isStarterPlan(navState.currentPlan);
     applyNavPlanFilter(navState.currentPlan, { forceRemove: enforceRemoval });
   });
+
+  navState.navElement = nav;
 
   navState.navObserver.observe(nav, { childList: true, subtree: true });
   return true;
