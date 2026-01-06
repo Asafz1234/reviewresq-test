@@ -167,6 +167,14 @@ function decorateNav(planId) {
   });
 }
 
+function syncNavAccessPlan(planId) {
+  const normalizedPlan = normalizePlan(planId);
+  applyPlanBadge(normalizedPlan);
+  decorateNav(normalizedPlan);
+  renderLockedFeatureView(deriveRoute(), normalizedPlan);
+  lockUI(normalizedPlan);
+}
+
 function buildProfileMenu() {
   if (!topbarRight || document.getElementById(profileMenuId)) return;
 
@@ -263,11 +271,13 @@ async function hydrateTopbar() {
 
 listenForUser(async ({ subscription, profile }) => {
   const planId = subscription?.planId || "starter";
-  applyPlanBadge(planId);
-  decorateNav(planId);
-  renderLockedFeatureView(deriveRoute(), planId);
-  lockUI(planId);
+  syncNavAccessPlan(planId);
   setProfileAvatar(profile?.businessName || profile?.name || "");
+});
+
+window.addEventListener("navaccess:planApplied", (event) => {
+  const planId = event.detail?.planId || "starter";
+  syncNavAccessPlan(planId);
 });
 
 connectProfileMenu();
