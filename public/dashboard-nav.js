@@ -45,7 +45,10 @@
     const activeRoute = deriveRoute();
     links.forEach((link) => {
       const route = link.getAttribute('data-route');
-      const isActive = route === activeRoute;
+      const isSettingsChild =
+        activeRoute === 'settings' &&
+        ['account', 'billing', 'business-settings', 'alerts', 'settings'].includes(route);
+      const isActive = route === activeRoute || isSettingsChild;
       link.classList.toggle('active', isActive);
       if (isActive) {
         link.setAttribute('aria-current', 'page');

@@ -76,6 +76,25 @@ button {
   gap: 6px;
 }
 
+.nav-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.nav-section__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 6px 4px 2px;
+}
+
+.nav-section__items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .nav-tab {
   display: flex;
   align-items: center;
