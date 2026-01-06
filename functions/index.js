@@ -1636,8 +1636,39 @@ const fetchGoogleBusinessLocationsWithToken = async (accessToken) => {
   );
 
   if (!accountsResponse.ok) {
+    let errorPayload = null;
+    try {
+      errorPayload = await accountsResponse.json();
+    } catch (err) {
+      errorPayload = null;
+    }
+
     const error = new Error("Unable to load Google Business accounts.");
     error.code = "ACCOUNTS_UNAVAILABLE";
+    error.response = {
+      status: accountsResponse.status,
+      data: errorPayload,
+    };
+
+    const errorStatus = errorPayload?.error?.status || "";
+    const detailReasons = Array.isArray(errorPayload?.error?.details)
+      ? errorPayload.error.details
+      : [];
+    const serviceDisabled = detailReasons.some(
+      (detail) => detail?.reason === "SERVICE_DISABLED"
+    );
+    const insufficientScope =
+      errorStatus === "PERMISSION_DENIED" ||
+      detailReasons.some((detail) =>
+        detail?.reason === "ACCESS_TOKEN_SCOPE_INSUFFICIENT"
+      );
+
+    if (insufficientScope) {
+      error.code = "INSUFFICIENT_SCOPE";
+    } else if (serviceDisabled) {
+      error.code = "API_DISABLED";
+    }
+
     throw error;
   }
 
@@ -2644,8 +2675,75 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         message: "Google OAuth response did not include an access token.",
       });
     }
+    const scopeString = tokenData?.scope || "";
+    const scopes = scopeString.split(/\s+/).filter(Boolean);
+    const requiredScope = "https://www.googleapis.com/auth/business.manage";
+    const hasBusinessScope = scopes.includes(requiredScope);
 
-    const { accounts, locations } = await fetchGoogleBusinessLocationsWithToken(accessToken);
+    if (!hasBusinessScope) {
+      return res.status(403).json({
+        ok: false,
+        reason: "INSUFFICIENT_SCOPE",
+        errorCode: "INSUFFICIENT_SCOPE",
+        message:
+          "Google Business Profile access requires the business.manage permission. Please retry and allow this scope.",
+        scope: scopeString || null,
+      });
+    }
+
+    let accounts;
+    let locations;
+    try {
+      ({ accounts, locations } = await fetchGoogleBusinessLocationsWithToken(accessToken));
+    } catch (error) {
+      console.error("[google-oauth] exchangeGoogleAuthCode failed to load accounts", {
+        data: error?.response?.data,
+        status: error?.response?.status,
+        message: error?.message,
+      });
+
+      const errorPayload = error?.response?.data || null;
+      const insufficientScope =
+        error?.code === "INSUFFICIENT_SCOPE" ||
+        errorPayload?.error?.details?.some((detail) =>
+          detail?.reason === "ACCESS_TOKEN_SCOPE_INSUFFICIENT"
+        );
+
+      if (insufficientScope) {
+        return res.status(403).json({
+          ok: false,
+          reason: "INSUFFICIENT_SCOPE",
+          errorCode: "INSUFFICIENT_SCOPE",
+          message:
+            "Google Business Profile access requires the business.manage permission. Please retry and allow this scope.",
+          details: errorPayload,
+        });
+      }
+
+      if (error?.code === "API_DISABLED") {
+        return res.status(403).json({
+          ok: false,
+          reason: "API_DISABLED",
+          message: "Google Business Profile API is disabled for this account.",
+          details: errorPayload,
+        });
+      }
+
+      return res.status(400).json({
+        ok: false,
+        reason: error?.code || "ACCOUNTS_UNAVAILABLE",
+        message: error?.message || "Unable to load Google Business accounts.",
+        details: errorPayload,
+      });
+    }
+
+    if (!accounts || accounts.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        reason: "NO_ACCOUNTS",
+        message: "No Google Business accounts were found for this user.",
+      });
+    }
     const connection = {
       provider: "google",
       connectedAt: admin.firestore.FieldValue.serverTimestamp(),
