@@ -41,12 +41,21 @@
     return 'overview';
   }
 
-  const activeRoute = deriveRoute();
-  links.forEach((link) => {
-    const route = link.getAttribute('data-route');
-    if (route === activeRoute) {
-      link.classList.add('active');
-      link.setAttribute('aria-current', 'page');
-    }
-  });
+  function markActiveRoute() {
+    const activeRoute = deriveRoute();
+    links.forEach((link) => {
+      const route = link.getAttribute('data-route');
+      const isActive = route === activeRoute;
+      link.classList.toggle('active', isActive);
+      if (isActive) {
+        link.setAttribute('aria-current', 'page');
+      } else {
+        link.removeAttribute('aria-current');
+      }
+    });
+  }
+
+  markActiveRoute();
+
+  window.addEventListener('navaccess:planApplied', markActiveRoute);
 })();

@@ -163,6 +163,17 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
       navState.currentEntitlementState?.allowedNavItems?.businessSettings !== false;
     setTabVisibility(businessTab, !allowed);
   }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("navaccess:planApplied", {
+        detail: {
+          planId: navState.currentPlan,
+          entitlements: navState.currentEntitlementState,
+        },
+      })
+    );
+  }
 }
 
 function ensureNavObserver() {
