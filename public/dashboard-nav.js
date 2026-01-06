@@ -1,9 +1,102 @@
+const NAV_SECTIONS = [
+  {
+    id: 'main',
+    items: [
+      { route: 'dashboard', icon: '🏠', label: 'Overview', href: 'dashboard.html' },
+      { route: 'ask-reviews', icon: '✉️', label: 'Ask for reviews', href: 'ask-reviews.html' },
+      { route: 'inbox', icon: '💬', label: 'Customer Feedback', href: 'feedback.html' },
+      { route: 'google-reviews', icon: '★', label: 'Google Reviews', href: 'pages/google-reviews.html' },
+      { route: 'customers', icon: '👥', label: 'Customers', href: 'customers.html' },
+      { route: 'campaigns', icon: '📢', label: 'Campaigns', href: 'campaigns.html' },
+      { route: 'funnel', icon: '↗', label: 'Review Funnel', href: 'funnel-settings.html' },
+      { route: 'links', icon: '🔗', label: 'Review Links', href: 'links.html' },
+      { route: 'ai-agent', icon: '🤖', label: 'AI Phone Agent', href: 'ai-agent.html', disallowStarter: true },
+      {
+        route: 'ai-agent',
+        icon: '⚡',
+        label: 'Pro AI Suite',
+        href: 'ai-agent.html#pro-suite',
+        disallowStarter: true,
+      },
+    ],
+  },
+  {
+    id: 'settings',
+    items: [
+      { route: 'account', icon: '💳', label: 'Account & Billing', href: 'billing.html' },
+      { route: 'business-settings', icon: '🎨', label: 'Business Settings', href: 'business-settings.html' },
+      {
+        route: 'alerts',
+        icon: '🔔',
+        label: 'Alerts & Notifications',
+        href: 'alerts.html',
+        disallowStarter: true,
+      },
+    ],
+  },
+];
+
 (function () {
   const nav = document.querySelector('.global-nav');
   if (!nav) return;
 
-  const links = nav.querySelectorAll('[data-route]');
   const { pathname, hash } = window.location;
+  let lastRenderedPlan = null;
+
+  function createTab({ route, icon, label, href }) {
+    const tab = document.createElement('a');
+    tab.className = 'nav-tab';
+    tab.dataset.route = route;
+    tab.href = href;
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'nav-icon';
+    iconSpan.setAttribute('aria-hidden', 'true');
+    iconSpan.textContent = icon;
+
+    const labelSpan = document.createElement('span');
+    labelSpan.textContent = label;
+
+    tab.append(iconSpan, labelSpan);
+    return tab;
+  }
+
+  function renderNav() {
+    const plan = (window.navAccess?.plan || 'starter').toLowerCase();
+    const isStarter = plan === 'starter';
+    const fragment = document.createDocumentFragment();
+
+    NAV_SECTIONS.forEach((section) => {
+      const visibleItems = section.items.filter((item) => !isStarter || !item.disallowStarter);
+      if (!visibleItems.length) return;
+
+      if (section.id === 'main') {
+        visibleItems.forEach((item) => fragment.appendChild(createTab(item)));
+        return;
+      }
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'nav-section nav-section--settings';
+      wrapper.dataset.navSection = section.id;
+
+      const heading = document.createElement('p');
+      heading.className = 'nav-section__label';
+      heading.textContent = 'Settings';
+      wrapper.appendChild(heading);
+
+      const list = document.createElement('div');
+      list.className = 'nav-section__items';
+      list.dataset.navSectionItems = section.id;
+
+      visibleItems.forEach((item) => list.appendChild(createTab(item)));
+      wrapper.appendChild(list);
+      fragment.appendChild(wrapper);
+    });
+
+    nav.innerHTML = '';
+    nav.appendChild(fragment);
+    lastRenderedPlan = plan;
+  }
 
   function deriveRoute() {
     if (hash && hash.toLowerCase().includes('inbox')) return 'inbox';
@@ -43,6 +136,7 @@
 
   function markActiveRoute() {
     const activeRoute = deriveRoute();
+    const links = nav.querySelectorAll('[data-route]');
     links.forEach((link) => {
       const route = link.getAttribute('data-route');
       const isSettingsChild =
@@ -58,7 +152,14 @@
     });
   }
 
+  renderNav();
   markActiveRoute();
 
-  window.addEventListener('navaccess:planApplied', markActiveRoute);
+  window.addEventListener('navaccess:planApplied', () => {
+    const nextPlan = (window.navAccess?.plan || 'starter').toLowerCase();
+    if (nextPlan !== lastRenderedPlan) {
+      renderNav();
+    }
+    markActiveRoute();
+  });
 })();
