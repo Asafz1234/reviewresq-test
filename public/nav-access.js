@@ -75,6 +75,27 @@ const navState =
     version: "unscoped",
   };
 
+function ensureWindowNavAccess() {
+  if (typeof window === "undefined") return null;
+  if (!window.navAccess) {
+    window.navAccess = {
+      plan: navState.currentPlan,
+      entitlements: navState.currentEntitlementState,
+      version: navState.version,
+      ready: false,
+    };
+  } else {
+    window.navAccess.plan ??= navState.currentPlan;
+    window.navAccess.entitlements ??= navState.currentEntitlementState;
+    window.navAccess.version ??= navState.version;
+    window.navAccess.ready ??= false;
+  }
+
+  return window.navAccess;
+}
+
+ensureWindowNavAccess();
+
 function normalizeRouteFromHref(href = "") {
   const lowerHref = String(href || "").toLowerCase();
 
@@ -129,6 +150,12 @@ function setTabVisibility(tab, hidden) {
 export function applyNavPlanFilter(planId = "starter", { forceRemove = false } = {}) {
   navState.currentPlan = planId || "starter";
   navState.currentEntitlementState = currentEntitlements(navState.currentPlan);
+  const navAccess = ensureWindowNavAccess();
+  if (navAccess) {
+    navAccess.plan = navState.currentPlan;
+    navAccess.entitlements = navState.currentEntitlementState;
+    navAccess.version = navState.version;
+  }
   const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
 
   navTabs.forEach((tab) => {
@@ -273,6 +300,8 @@ export function initNavPlanFilter() {
   if (navState.initialized) return;
   navState.initialized = true;
 
+  const navAccess = ensureWindowNavAccess();
+
   const cachedPlan = getCachedSubscription()?.planId || "starter";
   applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
   unifySettingsNav();
@@ -298,4 +327,10 @@ export function initNavPlanFilter() {
     applyNavPlanFilter(planId, { forceRemove: forceRemoval });
     guardCurrentPage();
   });
+
+  if (navAccess) {
+    navAccess.ready = true;
+  }
+
+  console.debug("[navAccess] ready", { plan: window.navAccess?.plan });
 }
