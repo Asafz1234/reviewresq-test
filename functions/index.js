@@ -1384,7 +1384,8 @@ const normalizePhoneDigits = (raw = "") => {
   return trimmed.slice(-10);
 };
 
-const GOOGLE_CANONICAL_REDIRECT_URI = "https://reviewresq.com/oauth/google/callback";
+const GOOGLE_CANONICAL_REDIRECT_URI =
+  "https://reviewresq.com/oauth-google-callback.html";
 const GOOGLE_REDIRECT_PATH = "/oauth-google-callback.html";
 
 const ALLOWED_REDIRECT_HOSTS = new Set([
@@ -2542,6 +2543,9 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
     return res.status(405).json({ error: "METHOD_NOT_ALLOWED" });
   }
 
+  // Manual self-check: POST an empty payload to this endpoint to confirm it
+  // returns INVALID_REQUEST with a JSON errorCode and logs sanitized request
+  // context (no secrets).
   try {
     const payload = extractOAuthPayload(req);
     const code = payload?.code || payload?.authCode;
@@ -2556,6 +2560,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
       });
       return res.status(400).json({
         ok: false,
+        errorCode: "INVALID_REQUEST",
         reason: "invalid_request",
         message: "Missing code or state",
       });
@@ -2569,6 +2574,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
     if (!envCheck.ok) {
       return res.status(500).json({
         ok: false,
+        errorCode: "MISSING_CONFIG",
         reason: "missing_config",
         message: "Google OAuth is not configured.",
         missing: envCheck.missing,
@@ -2577,12 +2583,14 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
 
     const oauthConfig = resolveGoogleOAuthServerConfig();
 
-    const expectedRedirectUri = oauthConfig.canonicalRedirectUri || GOOGLE_CANONICAL_REDIRECT_URI;
+    const expectedRedirectUri =
+      oauthConfig.canonicalRedirectUri || GOOGLE_CANONICAL_REDIRECT_URI;
     const configuredRedirectUri = oauthConfig.redirectUri;
 
     if (!oauthConfig.clientId || !oauthConfig.clientSecret || !configuredRedirectUri) {
       return res.status(500).json({
         ok: false,
+        errorCode: "OAUTH_CONFIG_MISSING",
         reason: "OAUTH_CONFIG_MISSING",
         message: "Google OAuth is not configured.",
       });
@@ -2593,6 +2601,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
     if (!stateSnap.exists) {
       return res.status(400).json({
         ok: false,
+        errorCode: "INVALID_STATE",
         reason: "INVALID_STATE",
         message: "OAuth state is invalid or has expired.",
       });
@@ -2603,22 +2612,46 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
       await stateRef.delete().catch(() => {});
       return res.status(400).json({
         ok: false,
+        errorCode: "INVALID_STATE",
         reason: "INVALID_STATE",
         message: "OAuth state is invalid or has expired.",
       });
     }
 
+    if (stateData.exchangedAt) {
+      return res.status(400).json({
+        ok: false,
+        errorCode: "STATE_ALREADY_USED",
+        reason: "STATE_ALREADY_USED",
+        message: "This authorization has already been used. Please restart Google connect.",
+      });
+    }
+
     const stateRedirectUri = stateData.redirectUri || null;
-    const activeRedirectUri = stateRedirectUri || configuredRedirectUri || expectedRedirectUri;
+    const activeRedirectUri =
+      stateRedirectUri || configuredRedirectUri || expectedRedirectUri;
+
+    const logContext = {
+      origin: requestOrigin,
+      providedRedirectUri,
+      stateRedirectUri,
+      activeRedirectUri,
+      hasCode: !!code,
+      clientIdSuffix: oauthConfig.clientId
+        ? oauthConfig.clientId.toString().slice(-6)
+        : null,
+      hasClientSecret: !!oauthConfig.clientSecret,
+    };
+
+    console.log("[google-oauth] exchange request received", logContext);
 
     if (providedRedirectUri && stateRedirectUri && providedRedirectUri !== stateRedirectUri) {
       console.warn("[google-oauth] redirect mismatch", {
-        providedRedirectUri,
-        stateRedirectUri,
-        configuredRedirectUri,
+        ...logContext,
       });
       return res.status(400).json({
         ok: false,
+        errorCode: "REDIRECT_MISMATCH",
         reason: "REDIRECT_MISMATCH",
         message: `Redirect URI mismatch. Expected ${stateRedirectUri} but received ${providedRedirectUri}.`,
         expected: stateRedirectUri,
@@ -2628,13 +2661,12 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
 
     if (!isRedirectUriAllowed(activeRedirectUri)) {
       console.warn("[google-oauth] invalid redirect uri during exchange", {
-        activeRedirectUri,
-        configuredRedirectUri,
-        providedRedirectUri,
+        ...logContext,
         expectedRedirectUri,
       });
       return res.status(400).json({
         ok: false,
+        errorCode: "INVALID_REDIRECT_URI",
         reason: "INVALID_REDIRECT_URI",
         message: `Add ${activeRedirectUri} to Google OAuth allowed redirect URIs and retry.`,
         expected: configuredRedirectUri || expectedRedirectUri,
@@ -2642,35 +2674,65 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
       });
     }
 
-    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: oauthConfig.clientId,
-        client_secret: oauthConfig.clientSecret,
-        redirect_uri: activeRedirectUri,
-        grant_type: "authorization_code",
-        access_type: "offline",
-        prompt: "consent",
-      }).toString(),
-    });
+    await stateRef.set(
+      { exchangedAt: admin.firestore.FieldValue.serverTimestamp() },
+      { merge: true },
+    );
 
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text().catch(() => "");
-      return res.status(400).json({
+    let tokenData = null;
+    try {
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: oauthConfig.clientId,
+          client_secret: oauthConfig.clientSecret,
+          redirect_uri: activeRedirectUri,
+          grant_type: "authorization_code",
+          access_type: "offline",
+          prompt: "consent",
+        }).toString(),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text().catch(() => "");
+        console.error("[google-oauth] token exchange failed", {
+          ...logContext,
+          status: tokenResponse.status,
+          response: errorText || null,
+        });
+        return res.status(400).json({
+          ok: false,
+          errorCode: "TOKEN_EXCHANGE_FAILED",
+          reason: "TOKEN_EXCHANGE_FAILED",
+          message: "Unable to exchange Google authorization code.",
+          details: errorText || null,
+        });
+      }
+
+      tokenData = await tokenResponse.json();
+    } catch (err) {
+      console.error("[google-oauth] token exchange threw", {
+        ...logContext,
+        message: err?.message,
+        responseData: err?.response?.data || null,
+        responseStatus: err?.response?.status || null,
+        stack: err?.stack || null,
+      });
+      return res.status(500).json({
         ok: false,
-        reason: "TOKEN_EXCHANGE_FAILED",
-        message: "Unable to exchange Google authorization code.",
-        details: errorText || null,
+        errorCode: "TOKEN_EXCHANGE_ERROR",
+        reason: "TOKEN_EXCHANGE_ERROR",
+        message: "Google OAuth is unavailable. Please try again.",
       });
     }
 
-    const tokenData = await tokenResponse.json();
     const accessToken = tokenData?.access_token;
     if (!accessToken) {
       return res.status(400).json({
         ok: false,
+        errorCode: "TOKEN_MISSING",
         reason: "TOKEN_MISSING",
         message: "Google OAuth response did not include an access token.",
       });
@@ -2773,7 +2835,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
           googleLocations: cleanedLocations,
           googleConnectionType: "oauth",
         },
-        { merge: true }
+        { merge: true },
       );
     }
 
@@ -2782,10 +2844,17 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
     const returnTo = stateData.returnTo || "/google-reviews.html";
     return res.json({ ok: true, accounts, locations, returnTo });
   } catch (err) {
-    console.error("[google-oauth] exchangeGoogleAuthCode failed", err);
-    return res
-      .status(500)
-      .json({ ok: false, message: err?.message || "OAuth unavailable" });
+    console.error("[google-oauth] exchangeGoogleAuthCode failed", {
+      message: err?.message,
+      responseData: err?.response?.data || null,
+      responseStatus: err?.response?.status || null,
+      stack: err?.stack || null,
+    });
+    return res.status(500).json({
+      ok: false,
+      errorCode: "OAUTH_EXCHANGE_ERROR",
+      message: err?.message || "OAuth unavailable",
+    });
   }
 };
 
