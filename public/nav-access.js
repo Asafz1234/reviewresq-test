@@ -79,14 +79,14 @@ function ensureWindowNavAccess() {
   if (typeof window === "undefined") return null;
   if (!window.navAccess) {
     window.navAccess = {
-      plan: navState.currentPlan,
-      entitlements: navState.currentEntitlementState,
+      plan: null,
+      entitlements: null,
       version: navState.version,
       ready: false,
     };
   } else {
-    window.navAccess.plan ??= navState.currentPlan;
-    window.navAccess.entitlements ??= navState.currentEntitlementState;
+    window.navAccess.plan ??= null;
+    window.navAccess.entitlements ??= null;
     window.navAccess.version ??= navState.version;
     window.navAccess.ready ??= false;
   }
@@ -155,6 +155,7 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
     navAccess.plan = navState.currentPlan;
     navAccess.entitlements = navState.currentEntitlementState;
     navAccess.version = navState.version;
+    navAccess.ready = true;
   }
   const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
 
@@ -327,10 +328,6 @@ export function initNavPlanFilter() {
     applyNavPlanFilter(planId, { forceRemove: forceRemoval });
     guardCurrentPage();
   });
-
-  if (navAccess) {
-    navAccess.ready = true;
-  }
 
   console.debug("[navAccess] ready", { plan: window.navAccess?.plan });
 }
