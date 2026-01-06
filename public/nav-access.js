@@ -4,6 +4,7 @@ import {
   isStarterPlan,
   currentEntitlements,
 } from "./session-data.js";
+import { showUpgradeModal } from "./plan-lock.js";
 
 const ROUTE_KEYS = {
   dashboard: "overview",
@@ -24,8 +25,32 @@ const ROUTE_KEYS = {
   "ai-agent": "proAiSuite",
 };
 
+const ROUTE_PATHS = {
+  dashboard: "/dashboard.html",
+  overview: "/overview.html",
+  "ask-reviews": "/pages/ask-reviews.html",
+  inbox: "/feedback.html",
+  feedback: "/feedback.html",
+  "google-reviews": "/pages/google-reviews.html",
+  customers: "/customers.html",
+  campaigns: "/campaigns.html",
+  funnel: "/funnel-settings.html",
+  links: "/links.html",
+  alerts: "/alerts.html",
+  "business-settings": "/business-settings.html",
+  settings: "/business-settings.html",
+  account: "/account.html",
+  billing: "/account.html",
+  "ai-agent": "/ai-agent.html",
+};
+
+const UPGRADE_PLAN_BY_ROUTE = {
+  alerts: "growth",
+  "ai-agent": "pro_ai",
+};
+
 const SETTINGS_ROUTES = ["alerts", "business-settings", "account", "settings"];
-const SETTINGS_TARGET = "settings.html";
+const SETTINGS_TARGET = "/business-settings.html";
 
 const globalNavAccessState = (() => {
   if (typeof window === "undefined") return null;
@@ -70,10 +95,30 @@ function navKeyForRoute(route = "") {
   return ROUTE_KEYS[normalized] || null;
 }
 
+function resolveNavHref(route = "", existingHref = "") {
+  const normalized = normalizeRouteFromHref(route) || normalizeRouteFromHref(existingHref);
+  return ROUTE_PATHS[normalized] || existingHref || "#";
+}
+
 function getEntitlementForRoute(route = "", entitlements = null) {
   const key = navKeyForRoute(route);
   if (!key || !entitlements?.allowedNavItems) return true;
   return entitlements.allowedNavItems[key] !== false;
+}
+
+export function safeNavigate(event, url, isBlocked, upgradePlan = "growth") {
+  if (isBlocked) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    showUpgradeModal(upgradePlan, navState.currentPlan);
+    return false;
+  }
+
+  if (!event && url) {
+    window.location.href = url;
+  }
+
+  return true;
 }
 
 function setTabVisibility(tab, hidden) {
@@ -88,11 +133,27 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
 
   navTabs.forEach((tab) => {
     const route = (tab.dataset.route || tab.getAttribute("href") || "").toLowerCase();
+    const resolvedHref = resolveNavHref(route, tab.getAttribute("href"));
+    if (resolvedHref) {
+      tab.setAttribute("href", resolvedHref);
+    }
+
     const allowed = getEntitlementForRoute(route, navState.currentEntitlementState);
-    const shouldHide = allowed === false;
-    setTabVisibility(tab, shouldHide);
-    if (shouldHide && forceRemove) {
-      tab.remove();
+    const isBlocked = allowed === false;
+
+    tab.style.display = "";
+    tab.setAttribute("aria-hidden", "false");
+    tab.classList.toggle("nav-tab--locked", isBlocked);
+    tab.setAttribute("aria-disabled", isBlocked ? "true" : "false");
+    tab.dataset.navBlocked = isBlocked ? "true" : "false";
+
+    const upgradePlan = UPGRADE_PLAN_BY_ROUTE[normalizeRouteFromHref(route)] || "growth";
+    if (!tab.dataset.navBound) {
+      tab.addEventListener("click", (event) => {
+        const blocked = tab.dataset.navBlocked === "true";
+        safeNavigate(event, tab.getAttribute("href"), blocked, upgradePlan);
+      });
+      tab.dataset.navBound = "true";
     }
   });
 
