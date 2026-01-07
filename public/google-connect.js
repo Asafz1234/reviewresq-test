@@ -1,5 +1,6 @@
 import { getCachedProfile, getCachedSubscription, refreshProfile } from "./session-data.js";
 import { auth, db, doc, functions, httpsCallable, setDoc } from "./firebase-config.js";
+import { getExchangeGoogleAuthCodeUrl } from "./google-oauth-utils.js";
 import {
   buildReviewUrlFromPlaceId,
   normalizeGoogleBusinessInputUrl,
@@ -673,8 +674,6 @@ const connectGoogleManualLinkCallable = () =>
   httpsCallable(functions, "connectGoogleManualLink");
 const createGoogleOAuthStateCallable = () =>
   httpsCallable(functions, "googleAuthCreateStateV2");
-const exchangeGoogleAuthCodeEndpoint = () =>
-  `${functionsBaseUrl}/exchangeGoogleAuthCodeV2`;
 
 export async function connectPlaceOnBackend(
   place,
@@ -1816,13 +1815,9 @@ async function handleGoogleOAuthReturnOnLoad(pendingParams = null) {
       origin: window.location.origin,
       canonicalRedirectUri: GOOGLE_OAUTH_CANONICAL_REDIRECT_URI,
     };
-    const exchangeUrl = exchangeGoogleAuthCodeEndpoint();
+    const exchangeUrl = getExchangeGoogleAuthCodeUrl();
     let data = {};
     try {
-      console.debug(
-        "[google-oauth][debug] exchanging code via",
-        exchangeUrl,
-      );
       const response = await fetch(exchangeUrl, {
         method: "POST",
         headers: {
