@@ -2533,11 +2533,13 @@ const extractOAuthPayload = (req) => {
 
 const exchangeGoogleAuthCodeHandler = async (req, res) => {
   const corsOk = applyOAuthCors(req, res);
+  const initialOrigin = req.get("origin") || null;
+  console.log("[google-oauth] exchange handler invoked", {
+    origin: initialOrigin,
+    hasAuthHeader: !!req.headers.authorization,
+  });
   if (req.method === "OPTIONS") {
     return res.status(204).send("");
-  }
-  if (!corsOk) {
-    return res.status(403).json({ error: "ORIGIN_NOT_ALLOWED" });
   }
   if (req.method !== "POST") {
     return res.status(405).json({ error: "METHOD_NOT_ALLOWED" });
@@ -2627,6 +2629,30 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
       });
     }
 
+    if (!corsOk) {
+      const stateOrigin = stateData.origin || null;
+      if (stateOrigin && requestOrigin && stateOrigin !== requestOrigin) {
+        console.warn("[google-oauth] internal auth rejection: origin mismatch", {
+          requestOrigin,
+          stateOrigin,
+        });
+        return res.status(403).json({
+          ok: false,
+          errorCode: "ORIGIN_NOT_ALLOWED",
+          reason: "ORIGIN_NOT_ALLOWED",
+          message: "Origin is not allowed for Google OAuth exchange.",
+        });
+      }
+
+      if (requestOrigin) {
+        res.set("Access-Control-Allow-Origin", requestOrigin);
+      }
+      console.warn("[google-oauth] internal auth bypassed for exchange", {
+        requestOrigin,
+        stateOrigin,
+      });
+    }
+
     const stateRedirectUri = stateData.redirectUri || null;
     const activeRedirectUri =
       stateRedirectUri || configuredRedirectUri || expectedRedirectUri;
@@ -2697,7 +2723,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
 
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text().catch(() => "");
-        console.error("[google-oauth] token exchange failed", {
+        console.error("[google-oauth] google-api-rejection: token exchange failed", {
           ...logContext,
           status: tokenResponse.status,
           response: errorText || null,
@@ -2713,7 +2739,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
 
       tokenData = await tokenResponse.json();
     } catch (err) {
-      console.error("[google-oauth] token exchange threw", {
+      console.error("[google-oauth] google-api-rejection: token exchange threw", {
         ...logContext,
         message: err?.message,
         responseData: err?.response?.data || null,
@@ -2758,7 +2784,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
     try {
       ({ accounts, locations } = await fetchGoogleBusinessLocationsWithToken(accessToken));
     } catch (error) {
-      console.error("[google-oauth] exchangeGoogleAuthCode failed to load accounts", {
+      console.error("[google-oauth] google-api-rejection: failed to load accounts", {
         data: error?.response?.data,
         status: error?.response?.status,
         message: error?.message,
@@ -2786,6 +2812,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         return res.status(403).json({
           ok: false,
           reason: "API_DISABLED",
+          errorCode: "API_DISABLED",
           message: "Google Business Profile API is disabled for this account.",
           details: errorPayload,
         });
