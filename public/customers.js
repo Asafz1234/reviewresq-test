@@ -12,7 +12,7 @@ import {
   httpsCallable,
 } from "./firebase-config.js";
 import { listenForUser, formatDate, initialsFromName } from "./session-data.js";
-import { applyPlanBadge } from "./topbar-menu.js";
+import { PLAN_ORDER, normalizePlan } from "./plan-capabilities.js";
 
 const statusFilters = document.getElementById("statusFilters");
 const sourceFilters = document.getElementById("sourceFilters");
@@ -25,6 +25,7 @@ const customerCount = document.getElementById("customerCount");
 const archiveSelectedBtn = document.getElementById("archiveSelectedBtn");
 const detailContainer = document.getElementById("customerDetailContent");
 const detailPlaceholder = document.getElementById("emptyCustomerState");
+const planRestrictedElements = Array.from(document.querySelectorAll("[data-plan-requires]"));
 
 let businessId = null;
 let customers = [];
@@ -35,6 +36,7 @@ let unsubscribe = null;
 let currentStatusFilter = "all";
 let currentSourceFilter = "all";
 let showArchived = false;
+let allowBulkActions = true;
 const inviteToastId = "customers-toast";
 
 function showToast(message, isError = false) {
@@ -71,6 +73,58 @@ async function copyText(text) {
   textarea.select();
   document.execCommand("copy");
   textarea.remove();
+}
+
+function planRank(planId = "starter") {
+  const normalized = normalizePlan(planId);
+  const index = PLAN_ORDER.indexOf(normalized);
+  return index === -1 ? 0 : index;
+}
+
+function setElementHidden(element, hidden) {
+  if (!element) return;
+  element.style.display = hidden ? "none" : "";
+  element.setAttribute("aria-hidden", hidden ? "true" : "false");
+}
+
+function ensureAllowedSourceFilter() {
+  if (currentSourceFilter === "all") return;
+  const button = sourceFilters?.querySelector(`[data-source="${currentSourceFilter}"]`);
+  if (!button || button.getAttribute("aria-hidden") === "true") {
+    currentSourceFilter = "all";
+    sourceFilters?.querySelectorAll(".chip").forEach((chip) => chip.classList.remove("active"));
+    const allButton = sourceFilters?.querySelector('[data-source="all"]');
+    allButton?.classList.add("active");
+  }
+}
+
+function applyPlanGating(planId = "starter") {
+  const normalizedPlan = normalizePlan(planId);
+  const activeRank = planRank(normalizedPlan);
+
+  planRestrictedElements.forEach((element) => {
+    const requiredPlan = element.dataset.planRequires || "starter";
+    const requiredRank = planRank(requiredPlan);
+    setElementHidden(element, activeRank < requiredRank);
+  });
+
+  allowBulkActions = activeRank >= planRank("growth");
+  if (!allowBulkActions) {
+    selectedRows.clear();
+    archiveSelectedBtn.disabled = true;
+    archiveSelectedBtn.setAttribute("aria-disabled", "true");
+    selectAll.checked = false;
+    selectAll.disabled = true;
+    selectAll.setAttribute("aria-disabled", "true");
+  } else {
+    archiveSelectedBtn.disabled = !selectedRows.size;
+    archiveSelectedBtn.removeAttribute("aria-disabled");
+    selectAll.disabled = false;
+    selectAll.removeAttribute("aria-disabled");
+  }
+
+  ensureAllowedSourceFilter();
+  renderTable();
 }
 
 async function generateQrBlob(url) {
@@ -286,14 +340,19 @@ function renderTable() {
     const archivedFlag = customer.archived
       ? '<span class="badge badge-muted">Archived</span>'
       : "";
-
-    return `
-      <tr class="customer-row ${active}" data-id="${customer.id}">
-        <td>
+    const checkboxCell = allowBulkActions
+      ? `
+        <td class="bulk-cell">
           <input type="checkbox" class="row-checkbox" data-id="${customer.id}" ${
             selected ? "checked" : ""
           } aria-label="Select ${customer.name}" />
         </td>
+      `
+      : '<td class="bulk-cell" style="display:none;"></td>';
+
+    return `
+      <tr class="customer-row ${active}" data-id="${customer.id}">
+        ${checkboxCell}
         <td>
           <div class="customer-cell">
             <div class="avatar">${initialsFromName(customer.name)}</div>
@@ -314,8 +373,8 @@ function renderTable() {
   tableBody.innerHTML = rows.join("");
   emptyState.style.display = rows.length ? "none" : "block";
   customerCount.textContent = `${filtered.length} customer${filtered.length === 1 ? "" : "s"}`;
-  archiveSelectedBtn.disabled = !selectedRows.size;
-  selectAll.checked = filtered.length > 0 && selectedRows.size === filtered.length;
+  archiveSelectedBtn.disabled = !allowBulkActions || !selectedRows.size;
+  selectAll.checked = allowBulkActions && filtered.length > 0 && selectedRows.size === filtered.length;
 }
 
 function applyFilters() {
@@ -374,6 +433,7 @@ function handleRowClick(event) {
 }
 
 function handleCheckboxChange(event) {
+  if (!allowBulkActions) return;
   const checkbox = event.target.closest(".row-checkbox");
   if (!checkbox) return;
   const id = checkbox.dataset.id;
@@ -441,6 +501,7 @@ function attachEvents() {
     applyFilters();
   });
   selectAll.addEventListener("change", (e) => {
+    if (!allowBulkActions) return;
     if (e.target.checked) {
       filtered.forEach((c) => selectedRows.add(c.id));
     } else {
@@ -450,6 +511,7 @@ function attachEvents() {
     renderTable();
   });
   archiveSelectedBtn.addEventListener("click", async () => {
+    if (!allowBulkActions) return;
     if (!selectedRows.size) return;
     await archiveCustomers(Array.from(selectedRows));
     selectedRows.clear();
@@ -475,9 +537,9 @@ function startCustomerFeed(uid) {
   });
 }
 
-listenForUser(({ user, profile }) => {
+listenForUser(({ user, subscription }) => {
   businessId = user.uid;
-  applyPlanBadge(profile?.planId || profile?.plan || "starter");
+  applyPlanGating(subscription?.planId || "starter");
   startCustomerFeed(user.uid);
   attachEvents();
 });
