@@ -31,7 +31,7 @@
         <div>
           <p class="badge info">AI Agent Settings</p>
           <h1>Automation & Tone</h1>
-          <p>Configure how the AI Agent greets unhappy customers, follows up, and when to share review links.</p>
+          <p>Configure how the AI Agent greets unhappy customers, follows up, and when to share review requests.</p>
         </div>
       </section>
 
@@ -52,8 +52,8 @@
         <div class="setting-card">
           <div class="switch-row">
             <div>
-              <h3>Auto-send Google review link</h3>
-              <p>Share the review link once the customer confirms satisfaction.</p>
+              <h3>Auto-send ReviewResQ review request</h3>
+              <p>Share the ReviewResQ review request once the customer confirms satisfaction.</p>
             </div>
             <label class="switch">
               <input type="checkbox" />
@@ -89,7 +89,7 @@ Was this a delivery or in-store issue so I can route it quickly?</textarea>
           <div class="template-field">
             <label for="finalMessage">Final message</label>
             <textarea id="finalMessage">Thanks for sharing all this with me. I'm glad we could sort things out.
-If you'd like, you can now share your experience publicly here: {{GoogleReviewLink}}</textarea>
+If you'd like, you can now share your experience publicly through ReviewResQ: {{ReviewResQLink}}</textarea>
           </div>
         </div>
       </div>

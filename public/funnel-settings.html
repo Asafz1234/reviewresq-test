@@ -75,7 +75,7 @@
           <div class="page-header-titles">
             <p class="page-title" data-page-title>Review Funnel – Starter (Happy Customers Only)</p>
             <p class="page-subtitle" data-page-subtitle>
-              Control how customers are routed to Google or private feedback.
+              Control how customers are routed to public reviews or private feedback.
             </p>
             <a class="ai-activity-link hidden" href="#" data-ai-activity>View AI activity</a>
           </div>
@@ -90,7 +90,7 @@
             <div>
               <p class="card-title">Review Funnel – Starter (Happy Customers Only)</p>
               <p class="card-subtitle">
-                This funnel sends satisfied customers directly to your Google review page. Upgrade to handle
+                This funnel sends satisfied customers through ReviewResQ’s public review flow. Upgrade to handle
                 unhappy customers privately.
               </p>
             </div>
@@ -101,8 +101,8 @@
               <p class="card-title">What Starter includes</p>
               <ul class="list">
                 <li>Happy Path thank-you message</li>
-                <li>Fixed button that sends 4–5 star customers to Google</li>
-                <li>Direct link to your Google review page</li>
+                <li>Fixed button that sends 4–5 star customers to a public review request</li>
+                <li>ReviewResQ-managed review routing</li>
               </ul>
             </div>
             <div class="info-block">
@@ -120,7 +120,7 @@
         <section class="card" data-card="happy">
           <div class="card-header">
             <div>
-              <p class="card-title">Happy Path – Send satisfied customers to Google</p>
+              <p class="card-title">Happy Path – Send satisfied customers to public reviews</p>
               <p class="card-subtitle" data-happy-subtitle>Only this section is editable on Starter.</p>
             </div>
           </div>
@@ -134,7 +134,7 @@
               <p class="card-title">How the Starter funnel works</p>
               <p class="card-subtitle">
                 Customers rate their experience first. Ratings 4–5 see your thank-you message and a fixed button to continue to
-                Google. Ratings 1–3 are collected privately (locked in Starter).
+                a public review request. Ratings 1–3 are collected privately (locked in Starter).
               </p>
             </div>
           </div>
@@ -142,26 +142,14 @@
             <label>
               <span class="card-title">Message shown to satisfied customers</span>
               <textarea class="input" rows="3" data-happy-prompt>Share a quick note about your experience so others know what to expect.</textarea>
-              <p class="input-hint">Displayed with the fixed “Continue to Google Review” button. This message is the only editable text on Starter.</p>
+              <p class="input-hint">Displayed with the fixed “Continue to leave a review” button. This message is the only editable text on Starter.</p>
             </label>
           </div>
           <div class="form-grid" data-happy-cta-row>
             <label>
               <span class="card-title">Call to action</span>
-              <input class="input" type="text" value="Continue to Google Review" data-happy-cta />
+              <input class="input" type="text" value="Continue to leave a review" data-happy-cta />
               <p class="input-hint">Encourage happy customers to share publicly.</p>
-            </label>
-          </div>
-          <div class="form-grid" data-google-block>
-            <label>
-              <span class="card-title">Google review link</span>
-              <input
-                class="input"
-                type="url"
-                placeholder="https://search.google.com/local/review?..."
-                data-google-url
-              />
-              <p class="input-hint">Fixed button will redirect happy customers here.</p>
             </label>
           </div>
         </section>
@@ -197,13 +185,13 @@
             <div class="card-header">
               <div>
                 <p class="card-title">Routing rules</p>
-                <p class="card-subtitle">Automatically send 4–5 star customers to Google.</p>
+                <p class="card-subtitle">Automatically send 4–5 star customers to public reviews.</p>
               </div>
               <span class="chip" data-rating-chip>Enabled</span>
             </div>
             <div class="form-grid">
               <label>
-                <span class="card-title">Minimum rating for Google</span>
+                <span class="card-title">Minimum rating for public reviews</span>
                 <input class="input" type="number" min="1" max="5" step="1" value="4" data-rating-threshold />
                 <p class="input-hint">Lower ratings are routed to private feedback.</p>
               </label>
@@ -260,7 +248,7 @@
               <p class="card-title">Unlock Advanced Review Funnel</p>
               <p class="card-subtitle">Upgrade to Growth to control routing, branding, and unhappy-path messaging.</p>
               <ul class="list">
-                <li>Manual rating rules (4–5 → Google)</li>
+                <li>Manual rating rules (4–5 → public reviews)</li>
                 <li>Custom unhappy-path messaging</li>
                 <li>Logo &amp; branding controls</li>
               </ul>
@@ -291,7 +279,7 @@
         <p class="modal-subtitle">Customize messages, set rating rules, and add branding.</p>
       </div>
       <ul class="modal-list">
-        <li>Manual rating rules (4–5 → Google)</li>
+        <li>Manual rating rules (4–5 → public reviews)</li>
         <li>Custom unhappy-path messaging</li>
         <li>Logo &amp; branding controls</li>
       </ul>

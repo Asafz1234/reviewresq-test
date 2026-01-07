@@ -351,7 +351,7 @@ async function saveManualConnection(manualResponse = {}) {
     "";
 
   if (!manualGoogleUrl) {
-    showToast("Please paste a valid Google Maps or Google Reviews link.", true);
+    showToast("Please paste a valid Google Maps business link.", true);
     return { ok: false };
   }
 

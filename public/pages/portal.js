@@ -225,7 +225,7 @@ function setGoogleLinkError(isVisible, message) {
 
   googleLinkErrorMessage.textContent =
     message ||
-    "Google review link is not configured. Please ask the owner to update their profile.";
+    "Public review link is not configured. Please ask the owner to update their profile.";
   googleLinkErrorMessage.hidden = !isVisible;
 }
 
@@ -390,7 +390,7 @@ function redirectToGoogleReview(selectedRating = null) {
 
   if (!googleUrl) {
     const missingMessage =
-      "Google review link is not configured. Please ask the owner to update their profile.";
+      "Public review link is not configured. Please ask the owner to update their profile.";
     setGoogleLinkError(true, missingMessage);
     handleMissingBusinessData(
       missingMessage

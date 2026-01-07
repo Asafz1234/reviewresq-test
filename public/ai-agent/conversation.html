@@ -94,7 +94,7 @@
           <input id="messageInput" class="input" placeholder="Add a manual note or reply" />
           <button class="btn secondary" id="sendBtn">Send</button>
           <button class="btn" id="resolveBtn">Mark as resolved</button>
-          <button class="btn secondary" id="reviewBtn">Send Google review link</button>
+          <button class="btn secondary" id="reviewBtn">Send review request</button>
         </div>
       </div>
     </main>
@@ -201,7 +201,7 @@
     async function sendReviewLink() {
       if (!id) return;
       const reviewMessage =
-        "Thanks for working with us to fix things. If you're happy with the outcome, you can share a quick Google review: https://g.page/reviewresq";
+        "Thanks for working with us to fix things. If you're happy with the outcome, you can share a review through ReviewResQ.";
       await updateDoc(doc(db, "ai_conversations", id), {
         messages: arrayUnion({
           sender: "ai",
