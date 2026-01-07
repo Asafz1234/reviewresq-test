@@ -7,7 +7,13 @@ const NAV_SECTIONS = [
       { route: 'inbox', icon: '💬', label: 'Customer Feedback', href: 'feedback.html' },
       { route: 'google-reviews', icon: '★', label: 'Google Reviews', href: 'pages/google-reviews.html' },
       { route: 'customers', icon: '👥', label: 'Customers', href: 'customers.html' },
-      { route: 'campaigns', icon: '📢', label: 'Campaigns', href: 'campaigns.html' },
+      {
+        route: 'campaigns',
+        icon: '📢',
+        label: 'Campaigns',
+        href: 'campaigns.html',
+        disallowStarter: true,
+      },
       { route: 'funnel', icon: '↗', label: 'Review Funnel', href: 'funnel-settings.html' },
       { route: 'links', icon: '🔗', label: 'Review Links', href: 'links.html' },
       { route: 'ai-agent', icon: '🤖', label: 'AI Phone Agent', href: 'ai-agent.html', disallowStarter: true },
@@ -67,6 +73,7 @@ const NAV_SECTIONS = [
     const fragment = document.createDocumentFragment();
 
     NAV_SECTIONS.forEach((section) => {
+      // Starter plan hides Campaigns in nav (feature still exists).
       const visibleItems = section.items.filter((item) => !isStarter || !item.disallowStarter);
       if (!visibleItems.length) return;
 
