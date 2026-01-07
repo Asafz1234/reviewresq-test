@@ -60,7 +60,10 @@ const thankyouBodyText = document.getElementById("thankyouBodyText");
 const portalStatus = document.getElementById("portalStatus");
 
 const urlParams = new URLSearchParams(window.location.search);
+const pathMatch = window.location.pathname.match(/^\/r\/([^/?#]+)/);
+const businessIdFromPath = pathMatch ? decodeURIComponent(pathMatch[1]) : "";
 const businessIdFromParams =
+  businessIdFromPath ||
   urlParams.get("businessId") ||
   urlParams.get("bid") ||
   urlParams.get("id") ||
@@ -585,7 +588,7 @@ async function handleFeedbackSubmit(event) {
   const currentBusinessId = businessId || getBusinessIdFromUrl();
 
   if (!currentBusinessId) {
-    console.error("[portal] Missing ?bid= in URL", window.location.href);
+    console.error("[portal] Missing business id in URL", window.location.href);
     alert(
       "We couldn’t send your feedback (missing business id in the link). Please open the review link from the email again."
     );

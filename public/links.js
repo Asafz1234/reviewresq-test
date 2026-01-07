@@ -163,15 +163,14 @@ async function loadLinks(user, profile) {
     }
   }
 
-  const shareKey = businessData?.shareKey || profile?.shareKey || "";
+  const shortId = businessData?.businessId || profile?.businessId || user?.uid || "";
   const funnelLink =
     businessData?.publicFunnelUrl ||
     businessData?.portalUrl ||
     profile?.publicFunnelUrl ||
     profile?.funnelLink ||
     profile?.portalUrl ||
-    (shareKey ? `https://reviewresq.com/portal.html?shareKey=${shareKey}` : "") ||
-    (user?.uid ? `https://reviewresq.com/portal.html?businessId=${user.uid}` : "");
+    (shortId ? `https://reviewresq.com/r/${shortId}` : "");
 
   setValue(googleInput, googleLink || "—");
   setValue(funnelInput, funnelLink || "—");

@@ -1266,7 +1266,7 @@ export function renderGoogleConnect(container, options = {}) {
           await persistGoogleReviewLink(connectedReviewUrl, parsedLink.placeId || null);
           setStatus("Connected manually.");
         } else {
-          setStatus("Saved profile link, review link will be generated after place lookup.");
+          setStatus("Saved profile link, ReviewResQ link will be generated after place lookup.");
         }
         if (typeof onSuccess === "function") {
           await onSuccess({

@@ -107,7 +107,7 @@ if (!hasRequiredElements) {
 
     const businessPayload = {
       ...timestamps,
-      portalPath: `/portal.html?businessId=${currentUser.uid}`,
+      portalPath: `/r/${currentUser.uid}`,
       brandColor: mergedBranding.color,
       branding: mergedBranding,
       ...(logoUrl !== undefined
@@ -123,7 +123,7 @@ if (!hasRequiredElements) {
 
     const profilePayload = {
       ...timestamps,
-      portalPath: `/portal.html?bid=${currentUser.uid}`,
+      portalPath: `/r/${currentUser.uid}`,
       brandColor: mergedBranding.color,
       branding: mergedBranding,
       ...(logoUrl !== undefined ? { logoUrl, logoDataUrl: logoUrl } : {}),

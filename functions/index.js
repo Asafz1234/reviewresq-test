@@ -62,6 +62,15 @@ const getStringOrEnv = (param, envKey, fallback = "") => {
   return fallback;
 };
 
+const buildReviewRequestLink = (businessId, inviteToken = null) => {
+  if (!businessId) return null;
+  const base = `https://reviewresq.com/r/${encodeURIComponent(businessId)}`;
+  if (inviteToken) {
+    return `${base}?t=${encodeURIComponent(inviteToken)}`;
+  }
+  return base;
+};
+
 const hashToken = (token = "") =>
   crypto.createHash("sha256").update(String(token)).digest("hex");
 
@@ -514,9 +523,7 @@ const createInviteToken = async ({
 
   await ref.set(invitePayload);
 
-  const portalUrl = `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(
-    businessId,
-  )}&t=${encodeURIComponent(inviteToken)}`;
+  const portalUrl = buildReviewRequestLink(businessId, inviteToken);
 
   try {
     const outboundDefaults = buildOutboundDefaults({
@@ -3152,7 +3159,7 @@ exports.connectGoogleBusinessByReviewLink = functions.https.onCall(
       return {
         ok: false,
         reason: "INVALID_REVIEW_URL",
-        message: "Please provide a valid Google review link that includes placeid=",
+        message: "Please provide a valid Google review URL that includes placeid=",
       };
     }
 
@@ -4006,9 +4013,7 @@ const extractInviteTokenFromUrl = (url = "") => {
 const resolvePortalUrl = ({ businessId, inviteToken, portalUrl }) => {
   if (portalUrl) return portalUrl;
   if (businessId && inviteToken) {
-    return `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(
-      businessId,
-    )}&t=${encodeURIComponent(inviteToken)}`;
+    return buildReviewRequestLink(businessId, inviteToken);
   }
   return null;
 };
@@ -4079,8 +4084,7 @@ async function sendReviewRequestEmailCore({
   }
 
   const requestId = explicitRequestId || crypto.randomBytes(12).toString("hex");
-  const portal =
-    portalUrl || `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(businessId)}`;
+  const portal = portalUrl || buildReviewRequestLink(businessId);
   const customerLabel = customerName || null;
 
   await enforceEmailRateLimit(businessId);
@@ -5010,13 +5014,13 @@ async function generateAIResponse({
     {
       role: "system",
       content:
-        "You are ReviewResQ, an AI agent that rescues unhappy customers. Keep messages concise, empathetic, and action-oriented. Always include one follow-up question. When the customer is satisfied, include a closing line inviting them to leave a Google review at the provided link.",
+        "You are ReviewResQ, an AI agent that rescues unhappy customers. Keep messages concise, empathetic, and action-oriented. Always include one follow-up question. When the customer is satisfied, include a closing line inviting them to leave a review at the provided ReviewResQ link.",
     },
     {
       role: "user",
       content: `Customer rating: ${rating} stars. Customer name: ${customerName}. Conversation so far: ${history
         .map((h) => `${h.sender}: ${h.message_text}`)
-        .join(" | " )}. Google review link: ${googleReviewLink}.`,
+        .join(" | " )}. ReviewResQ link: ${googleReviewLink}.`,
     },
   ];
 
