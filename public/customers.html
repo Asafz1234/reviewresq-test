@@ -8,54 +8,56 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="dashboard-modern.css" />
+  <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
-  <div class="page-shell">
-    <header class="topbar">
-      <div class="topbar-left">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
         <div class="brand-mark">RR</div>
         <div class="brand-name">ReviewResQ</div>
       </div>
-      <div class="topbar-center">Customers</div>
-      <div class="topbar-right">
-        <a id="planBadge" class="plan-chip plan-chip--pro" href="account.html" title="View and manage your subscription.">Pro AI Suite</a>
-        <div class="profile">RQ</div>
-      </div>
-    </header>
+      <nav class="global-nav" aria-label="Dashboard navigation">
+        <a class="nav-tab" data-route="dashboard" href="dashboard.html"><span class="nav-icon">🏠</span><span>Overview</span></a>
+        <a class="nav-tab" data-route="ask-reviews" href="ask-reviews.html"><span class="nav-icon">✉️</span><span>Ask for reviews</span></a>
+        <a class="nav-tab" data-route="inbox" href="feedback.html"><span class="nav-icon">💬</span><span>Customer Feedback</span></a>
+        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html"><span class="nav-icon">★</span><span>Google Reviews</span></a>
+        <a class="nav-tab" data-route="customers" href="customers.html"><span class="nav-icon">👥</span><span>Customers</span></a>
+        <a class="nav-tab" data-route="funnel" href="funnel-settings.html"><span class="nav-icon">↗</span><span>Review Funnel</span></a>
+        <a class="nav-tab" data-route="links" href="links.html"><span class="nav-icon">🔗</span><span>Review Links</span></a>
+        <a class="nav-tab" data-route="alerts" href="alerts.html"><span class="nav-icon">🔔</span><span>Alerts &amp; Notifications</span></a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html"><span class="nav-icon">🤖</span><span>AI Phone Agent</span></a>
+        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html#pro-suite"><span class="nav-icon">⚡</span><span>Pro AI Suite</span></a>
+        <a class="nav-tab" data-route="business-settings" href="business-settings.html"><span class="nav-icon">🎨</span><span>Business Settings</span></a>
+        <a class="nav-tab" data-route="account" href="billing.html"><span class="nav-icon">💳</span><span>Account &amp; Billing</span></a>
+      </nav>
+    </aside>
 
-    <nav class="global-nav" aria-label="Dashboard sections">
-      <div class="nav-tabs">
-        <a class="nav-tab" data-route="overview" href="dashboard.html#overview">Overview</a>
-        <a class="nav-tab" data-route="ask-reviews" href="ask-reviews.html">Ask for reviews</a>
-        <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
-        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
-        <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
-        <a class="nav-tab" data-route="customers" href="customers.html">Customers</a>
-        <a class="nav-tab" data-route="campaigns" href="campaigns.html">Campaigns</a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
-        <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
-        <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
-        <a class="nav-tab" data-route="settings" href="settings.html">Alerts &amp; Settings</a>
-        <a class="nav-tab" data-route="account" href="account.html">Account &amp; billing</a>
-      </div>
-    </nav>
-
-    <main class="page-container" id="customers">
-      <header class="section">
-        <div class="section-header">
-          <div>
-            <h1 class="page-title">Customers</h1>
-            <p class="page-subtitle">Unified view of every customer touchpoint, source, and timeline.</p>
-          </div>
-          <div class="button-row">
-            <button class="btn btn-secondary" id="archiveSelectedBtn" disabled>Archive selected</button>
-          </div>
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-title">Customers</div>
+        <div class="topbar-right">
+          <a class="badge" id="planBadge" href="account.html">—</a>
+          <div class="profile" aria-haspopup="true" aria-expanded="false"></div>
         </div>
       </header>
 
-      <section class="section">
-        <div class="card customers-shell">
+      <div class="page-shell" id="customers">
+        <header class="page-header">
+          <div class="page-header-titles">
+            <p class="page-title">Customers</p>
+            <p class="page-subtitle">Unified view of every customer touchpoint, source, and timeline.</p>
+          </div>
+          <div class="page-header-actions">
+            <div class="button-row">
+              <button class="btn btn-secondary" id="archiveSelectedBtn" data-plan-requires="growth" disabled>
+                Archive selected
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <section class="card customers-shell">
           <div class="customers-list">
             <div class="customers-toolbar">
               <div class="filter-chips" id="statusFilters" aria-label="Filter by review status">
@@ -68,10 +70,10 @@
               <div class="filter-chips" id="sourceFilters" aria-label="Filter by source">
                 <button class="chip chip-filter active" data-source="all">All sources</button>
                 <button class="chip chip-filter" data-source="manual">Manual</button>
-                <button class="chip chip-filter" data-source="csv">CSV</button>
-                <button class="chip chip-filter" data-source="sheet">Sheets</button>
+                <button class="chip chip-filter" data-source="csv" data-plan-requires="growth">CSV</button>
+                <button class="chip chip-filter" data-source="sheet" data-plan-requires="growth">Sheets</button>
                 <button class="chip chip-filter" data-source="funnel">Funnel</button>
-                <button class="chip chip-filter" data-source="webhook">Webhook</button>
+                <button class="chip chip-filter" data-source="webhook" data-plan-requires="growth">Webhook</button>
               </div>
               <div class="search-row">
                 <input class="input" id="customerSearch" type="search" placeholder="Search by name, phone, or email" aria-label="Search customers" />
@@ -84,7 +86,7 @@
 
             <div class="table-card">
               <div class="table-actions">
-                <label class="select-all">
+                <label class="select-all" data-plan-requires="growth">
                   <input type="checkbox" id="selectAll" />
                   <span>Select all</span>
                 </label>
@@ -93,7 +95,7 @@
               <table class="table-lite customers-table" aria-label="Customers table">
                 <thead>
                   <tr>
-                    <th style="width:44px;"></th>
+                    <th style="width:44px;" data-plan-requires="growth"></th>
                     <th>Customer</th>
                     <th>Source</th>
                     <th>Status</th>
@@ -114,14 +116,14 @@
             </div>
             <div id="customerDetailContent" style="display:none;"></div>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="nav-access-init.js"></script>
-  <script type="module" src="topbar-menu.js"></script>
   <script src="dashboard-nav.js"></script>
+  <script type="module" src="topbar-menu.js"></script>
   <script type="module" src="customers.js"></script>
 </body>
 </html>
