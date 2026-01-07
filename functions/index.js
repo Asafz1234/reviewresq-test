@@ -2531,6 +2531,25 @@ const extractOAuthPayload = (req) => {
   return raw;
 };
 
+const buildBadRequestDebugPayload = (req, payload, stateData = null) => {
+  const body = req?.body;
+  const bodyKeys = body && typeof body === "object" ? Object.keys(body) : [];
+  const uid = stateData?.uid || payload?.uid || body?.uid || null;
+  return {
+    ok: false,
+    reason: "BAD_REQUEST",
+    received: {
+      hasCode: !!(payload?.code || payload?.authCode),
+      hasState: !!payload?.state,
+      hasRedirectUri: !!payload?.redirectUri,
+      hasUid: !!uid,
+      bodyKeys,
+      method: req?.method,
+      contentType: req?.headers?.["content-type"],
+    },
+  };
+};
+
 const exchangeGoogleAuthCodeHandler = async (req, res) => {
   const corsOk = applyOAuthCors(req, res);
   const initialOrigin = req.get("origin") || null;
@@ -2565,6 +2584,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         errorCode: "INVALID_REQUEST",
         reason: "invalid_request",
         message: "Missing code or state",
+        debug: buildBadRequestDebugPayload(req, payload),
       });
     }
 
@@ -2606,6 +2626,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         errorCode: "INVALID_STATE",
         reason: "INVALID_STATE",
         message: "OAuth state is invalid or has expired.",
+        debug: buildBadRequestDebugPayload(req, payload),
       });
     }
     const stateData = stateSnap.data() || {};
@@ -2617,6 +2638,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         errorCode: "INVALID_STATE",
         reason: "INVALID_STATE",
         message: "OAuth state is invalid or has expired.",
+        debug: buildBadRequestDebugPayload(req, payload, stateData),
       });
     }
 
@@ -2626,6 +2648,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         errorCode: "STATE_ALREADY_USED",
         reason: "STATE_ALREADY_USED",
         message: "This authorization has already been used. Please restart Google connect.",
+        debug: buildBadRequestDebugPayload(req, payload, stateData),
       });
     }
 
@@ -2682,6 +2705,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         message: `Redirect URI mismatch. Expected ${stateRedirectUri} but received ${providedRedirectUri}.`,
         expected: stateRedirectUri,
         received: providedRedirectUri,
+        debug: buildBadRequestDebugPayload(req, payload, stateData),
       });
     }
 
@@ -2697,6 +2721,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         message: `Add ${activeRedirectUri} to Google OAuth allowed redirect URIs and retry.`,
         expected: configuredRedirectUri || expectedRedirectUri,
         received: activeRedirectUri,
+        debug: buildBadRequestDebugPayload(req, payload, stateData),
       });
     }
 
@@ -2734,6 +2759,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
           reason: "TOKEN_EXCHANGE_FAILED",
           message: "Unable to exchange Google authorization code.",
           details: errorText || null,
+          debug: buildBadRequestDebugPayload(req, payload, stateData),
         });
       }
 
@@ -2761,6 +2787,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         errorCode: "TOKEN_MISSING",
         reason: "TOKEN_MISSING",
         message: "Google OAuth response did not include an access token.",
+        debug: buildBadRequestDebugPayload(req, payload, stateData),
       });
     }
     const scopeString = tokenData?.scope || "";
@@ -2823,6 +2850,7 @@ const exchangeGoogleAuthCodeHandler = async (req, res) => {
         reason: error?.code || "ACCOUNTS_UNAVAILABLE",
         message: error?.message || "Unable to load Google Business accounts.",
         details: errorPayload,
+        debug: buildBadRequestDebugPayload(req, payload, stateData),
       });
     }
 
