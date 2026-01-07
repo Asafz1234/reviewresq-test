@@ -1196,7 +1196,7 @@ export function renderGoogleConnect(container, options = {}) {
       <div class="manual-modal__header">
         <div>
           <p class="manual-modal__title">Connect manually</p>
-          <p class="manual-modal__subtitle">Paste your Google Maps business link or Google Reviews link to continue.</p>
+          <p class="manual-modal__subtitle">Paste your Google Maps business link to continue.</p>
         </div>
         <button type="button" class="btn btn-link" data-manual-close aria-label="Close manual connect">✕</button>
       </div>
@@ -1241,7 +1241,7 @@ export function renderGoogleConnect(container, options = {}) {
     const value = (reviewInput?.value || "").trim();
     const businessName = (businessNameInput?.value || "").trim();
     if (!value) {
-      setStatus("Paste your Google Maps business link or Google Reviews link.", true);
+      setStatus("Paste your Google Maps business link.", true);
       return;
     }
 
@@ -1252,7 +1252,7 @@ export function renderGoogleConnect(container, options = {}) {
 
     const parsedLink = normalizeGoogleManualLink(value);
     if (!parsedLink.ok) {
-      setStatus("Please paste a valid Google Maps or Google Reviews link.", true);
+      setStatus("Please paste a valid Google Maps business link.", true);
       return;
     }
 
@@ -1620,7 +1620,7 @@ export function renderGoogleConnect(container, options = {}) {
       if (data?.reason === "NO_EXACT_MATCH") {
         messageEl.textContent =
           data?.message ||
-          "We couldn’t find your business automatically. You can connect manually by pasting your Google review link.";
+          "We couldn’t find your business automatically. You can connect manually by pasting your Google Maps business link.";
         messageEl.style.color = "var(--danger)";
       }
 

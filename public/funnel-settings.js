@@ -14,7 +14,7 @@ const DEFAULT_SETTINGS = {
   happy: {
     headline: "Thanks for your visit!",
     prompt: "Share a quick note about your experience so others know what to expect.",
-    ctaLabel: "Continue to Google Review",
+    ctaLabel: "Continue to leave a review",
     googleReviewUrl: "",
   },
   unhappy: {
@@ -200,13 +200,13 @@ function renderPlanState(planId, capabilities) {
 
   if (ui.pageSubtitle) {
     ui.pageSubtitle.textContent = isStarter
-      ? "This funnel sends satisfied customers directly to your Google review page with a fixed Google review button. Upgrade to handle unhappy customers privately."
-      : "Control how customers are routed to Google or private feedback.";
+      ? "This funnel sends satisfied customers through ReviewResQ’s public review flow with a fixed review button. Upgrade to handle unhappy customers privately."
+      : "Control how customers are routed to public reviews or private feedback.";
   }
 
   if (ui.happySubtitle) {
     ui.happySubtitle.textContent = isStarter
-      ? "Only the thank-you message and Google link are editable on Starter."
+      ? "Only the thank-you message and review CTA are editable on Starter."
       : "Edit what happy customers see before leaving a public review.";
   }
 
