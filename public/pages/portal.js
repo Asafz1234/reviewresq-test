@@ -60,13 +60,15 @@ const thankyouBodyText = document.getElementById("thankyouBodyText");
 const portalStatus = document.getElementById("portalStatus");
 
 const urlParams = new URLSearchParams(window.location.search);
+const pathTokenMatch = window.location.pathname.match(/^\/r\/([^/]+)/);
+const pathTokenParam = pathTokenMatch ? decodeURIComponent(pathTokenMatch[1]) : "";
 const businessIdFromParams =
   urlParams.get("businessId") ||
   urlParams.get("bid") ||
   urlParams.get("id") ||
   urlParams.get("portalId") ||
   urlParams.get("shareKey");
-const inviteTokenParam = urlParams.get("t") || urlParams.get("token") || "";
+const inviteTokenParam = urlParams.get("t") || urlParams.get("token") || pathTokenParam || "";
 const shareKeyParam =
   urlParams.get("shareKey") ||
   urlParams.get("portalId") ||
@@ -176,9 +178,11 @@ async function fetchJson(url, options = {}) {
 }
 
 async function fetchPortalContext(businessId, token) {
+  const payload = { t: token };
+  if (businessId) payload.businessId = businessId;
   return fetchJson(ENDPOINTS.resolveInvite, {
     method: "POST",
-    body: JSON.stringify({ businessId, t: token }),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -489,7 +493,7 @@ async function resolveInviteTokenOnLoad() {
   setPortalStatus("loading", "Loading your invite…");
 
   const requestedBusinessId = getBusinessIdFromUrl();
-  if (!requestedBusinessId || !inviteToken) {
+  if (!inviteToken) {
     handleMissingBusinessData(
       "This invite link is missing required details. Please ask the business owner to resend it."
     );
@@ -500,6 +504,12 @@ async function resolveInviteTokenOnLoad() {
     const data = await fetchPortalContext(requestedBusinessId, inviteToken);
 
     businessId = data.businessId || requestedBusinessId;
+    if (!businessId) {
+      handleMissingBusinessData(
+        "We could not find the business for this invite. Please ask the business owner to resend it."
+      );
+      return;
+    }
     businessName = (data.businessName || "Our Business").trim();
     businessTagline = data.businessTagline || "";
     businessLogoUrl =
