@@ -387,61 +387,25 @@ const assertBusinessBrandingComplete = async (businessId) => {
   return { profile, brandingState };
 };
 
-const resolveInviteRecord = async (businessId, inviteToken) => {
-  if (!businessId || !inviteToken) {
-    throw new Error("businessId and invite token are required");
+const resolveInviteTokenDocument = async (inviteToken) => {
+  if (!inviteToken) {
+    throw new Error("invite token is required");
   }
 
-  const ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
+  const ref = db.collection("inviteTokens").doc(inviteToken);
   const snap = await ref.get();
+
   if (!snap.exists) {
     throw new Error("Invite token not found");
   }
 
   const data = snap.data() || {};
-  const expiresAtMs = normalizeTimestampMs(data.expiresAt);
-  if (expiresAtMs && expiresAtMs < Date.now()) {
-    throw new Error("Invite token expired");
-  }
-
-  return { ref, data };
-};
-
-const resolveInviteRecordByToken = async (inviteToken) => {
-  if (!inviteToken) {
-    throw new Error("invite token is required");
-  }
-
-  const snap = await db
-    .collectionGroup("invites")
-    .where(admin.firestore.FieldPath.documentId(), "==", inviteToken)
-    .limit(2)
-    .get();
-
-  if (snap.empty) {
-    throw new Error("Invite token not found");
-  }
-
-  if (snap.size > 1) {
-    console.warn("[invite] multiple invite matches found", {
-      tokenPrefix: inviteToken.slice(0, 6),
-      matches: snap.size,
-    });
-  }
-
-  const doc = snap.docs[0];
-  const businessId = doc.ref.parent.parent?.id;
+  const businessId = data.businessId || null;
   if (!businessId) {
     throw new Error("Invite token missing business context");
   }
 
-  const data = doc.data() || {};
-  const expiresAtMs = normalizeTimestampMs(data.expiresAt);
-  if (expiresAtMs && expiresAtMs < Date.now()) {
-    throw new Error("Invite token expired");
-  }
-
-  return { ref: doc.ref, data, businessId };
+  return { ref, data, businessId };
 };
 
 const validatePortalInvite = async ({ businessId, inviteToken }) => {
@@ -457,35 +421,21 @@ const validatePortalInvite = async ({ businessId, inviteToken }) => {
   let data = null;
   let resolvedBusinessId = businessId || null;
 
-  if (!businessId) {
-    try {
-      const resolved = await resolveInviteRecordByToken(inviteToken);
-      ref = resolved.ref;
-      data = resolved.data || {};
-      resolvedBusinessId = resolved.businessId || null;
-    } catch (err) {
-      return {
-        ok: false,
-        code: "invalid_token",
-        message: "This feedback link is invalid.",
-      };
-    }
-  } else {
-    ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
-    const snap = await ref.get();
-
-    if (!snap.exists) {
-      return {
-        ok: false,
-        code: "invalid_token",
-        message: "This feedback link is invalid.",
-      };
-    }
-
-    data = snap.data() || {};
+  try {
+    const resolved = await resolveInviteTokenDocument(inviteToken);
+    ref = resolved.ref;
+    data = resolved.data || {};
+    resolvedBusinessId = resolved.businessId || null;
+  } catch (err) {
+    return {
+      ok: false,
+      code: "invalid_token",
+      message: "This feedback link is invalid.",
+    };
   }
   const expiresAtMs = normalizeTimestampMs(data.expiresAt);
   const usedAtMs = normalizeTimestampMs(data.usedAt);
+  const status = (data.status || "").toString().toLowerCase();
 
   if (data.businessId && resolvedBusinessId && data.businessId !== resolvedBusinessId) {
     return {
@@ -493,6 +443,33 @@ const validatePortalInvite = async ({ businessId, inviteToken }) => {
       code: "invalid_token",
       message: "This feedback link does not match this business.",
     };
+  }
+
+  if (businessId && data.businessId && data.businessId !== businessId) {
+    return {
+      ok: false,
+      code: "invalid_token",
+      message: "This feedback link does not match this business.",
+    };
+  }
+
+  if (status && status !== "active" && status !== "valid") {
+    if (status === "expired") {
+      return {
+        ok: false,
+        code: "expired",
+        message: "This feedback link has expired.",
+        tokenStatus: { state: "expired", expiresAt: expiresAtMs || null },
+      };
+    }
+    if (status === "used") {
+      return {
+        ok: false,
+        code: "used",
+        message: "This feedback link has already been used.",
+        tokenStatus: { state: "used", usedAt: usedAtMs || null },
+      };
+    }
   }
 
   if (expiresAtMs && expiresAtMs < Date.now()) {
@@ -570,6 +547,17 @@ const createInviteToken = async ({
   };
 
   await ref.set(invitePayload);
+  await db.collection("inviteTokens").doc(inviteToken).set({
+    businessId,
+    customerId: customerId || null,
+    customerName: normalizedName || null,
+    phone: normalizedPhone || null,
+    email: normalizedEmail || null,
+    expiresAt,
+    status: "active",
+    used: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
 
   const portalUrl = `https://reviewresq.com/r/${encodeURIComponent(inviteToken)}`;
 
@@ -5661,22 +5649,16 @@ exports.resolveInviteTokenCallable = functions
     const tokenPrefix = inviteToken.slice(0, 6);
 
     try {
-      let inviteData = null;
-      if (businessId) {
-        const resolved = await resolveInviteRecord(businessId, inviteToken);
-        inviteData = resolved.data;
-      } else {
-        const resolved = await resolveInviteRecordByToken(inviteToken);
-        inviteData = resolved.data;
-        businessId = resolved.businessId;
-      }
-
-      if (inviteData?.businessId && businessId && inviteData.businessId !== businessId) {
+      const validation = await validatePortalInvite({ businessId, inviteToken });
+      if (!validation.ok) {
         throw new functions.https.HttpsError(
           "permission-denied",
-          "Invite token does not belong to this business.",
+          validation.message || "Invalid invite token",
         );
       }
+
+      const inviteData = validation.data || {};
+      businessId = validation.businessId || businessId;
 
       const identity = await fetchBusinessIdentity(businessId);
       if (!identity) {
@@ -5753,16 +5735,17 @@ exports.submitPortalFeedbackCallable = functions
     let customerProfile = null;
 
     try {
-      const resolved = await resolveInviteRecord(businessId, inviteToken);
-      inviteData = resolved.data || {};
-      inviteRef = resolved.ref;
-
-      if (inviteData.businessId && inviteData.businessId !== businessId) {
+      const validation = await validatePortalInvite({ businessId, inviteToken });
+      if (!validation.ok) {
         throw new functions.https.HttpsError(
           "permission-denied",
-          "Invite token does not belong to this business.",
+          validation.message || "Invalid invite token",
         );
       }
+
+      inviteData = validation.data || {};
+      inviteRef = validation.ref;
+      businessId = validation.businessId || businessId;
 
       if (inviteData.customerId) {
         customerProfile = await fetchCustomerProfile(businessId, inviteData.customerId);
@@ -5816,7 +5799,11 @@ exports.submitPortalFeedbackCallable = functions
 
       if (inviteRef) {
         await inviteRef.set(
-          { used: true, usedAt: admin.firestore.FieldValue.serverTimestamp() },
+          {
+            used: true,
+            usedAt: admin.firestore.FieldValue.serverTimestamp(),
+            status: "used",
+          },
           { merge: true },
         );
       }
@@ -6037,7 +6024,11 @@ exports.portalSubmit = onRequest(async (req, res) => {
 
     if (validation.ref) {
       await validation.ref.set(
-        { used: true, usedAt: admin.firestore.FieldValue.serverTimestamp() },
+        {
+          used: true,
+          usedAt: admin.firestore.FieldValue.serverTimestamp(),
+          status: "used",
+        },
         { merge: true },
       );
     }
@@ -6083,17 +6074,20 @@ exports.resolveInviteToken = onRequest(async (req, res) => {
   }
 
   try {
-    let data = null;
-    let tokenStatus = null;
-    if (businessId) {
-      const resolved = await resolveInviteRecord(businessId, inviteToken);
-      data = resolved.data;
-      tokenStatus = resolved.tokenStatus;
-    } else {
-      const resolved = await resolveInviteRecordByToken(inviteToken);
-      data = resolved.data;
-      businessId = resolved.businessId;
+    const validation = await validatePortalInvite({ businessId, inviteToken });
+    if (!validation.ok) {
+      const status = validation.code === "missing_params" ? 400 : 403;
+      return res.status(status).json({
+        ok: false,
+        code: validation.code,
+        message: validation.message,
+        tokenStatus: validation.tokenStatus || null,
+      });
     }
+
+    const data = validation.data || {};
+    const tokenStatus = validation.tokenStatus || { state: "valid" };
+    businessId = validation.businessId || businessId;
 
     const identity = await fetchBusinessIdentity(businessId);
 
@@ -6135,7 +6129,7 @@ exports.resolveInviteToken = onRequest(async (req, res) => {
       customerName: data.customerName || null,
       customerEmail: data.email || null,
       customerPhone: data.phone || null,
-      tokenStatus: tokenStatus || { state: "valid" },
+      tokenStatus,
       brandingMissingFields:
         resolvedBranding.missingFields?.length
           ? resolvedBranding.missingFields
@@ -6144,7 +6138,11 @@ exports.resolveInviteToken = onRequest(async (req, res) => {
     });
   } catch (err) {
     console.error("[portal] failed to resolve invite token", err);
-    return res.status(400).json({ error: err.message || "Unable to resolve invite token" });
+    return res.status(400).json({
+      ok: false,
+      code: "invalid_token",
+      message: "Unable to resolve invite token",
+    });
   }
 });
 
@@ -6194,10 +6192,18 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
 
   try {
     if (inviteToken) {
-      const resolved = await resolveInviteRecord(businessId, inviteToken);
-      inviteData = resolved.data || {};
-      customerId = resolved.data.customerId || customerId;
-      inviteRef = resolved.ref;
+      const validation = await validatePortalInvite({ businessId, inviteToken });
+      if (!validation.ok) {
+        return res.status(403).json({
+          ok: false,
+          code: validation.code,
+          message: validation.message,
+          tokenStatus: validation.tokenStatus || null,
+        });
+      }
+      inviteData = validation.data || {};
+      customerId = inviteData.customerId || customerId;
+      inviteRef = validation.ref;
     }
 
     if (customerId) {
@@ -6244,7 +6250,11 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
 
     if (inviteRef) {
       await inviteRef.set(
-        { used: true, usedAt: admin.firestore.FieldValue.serverTimestamp() },
+        {
+          used: true,
+          usedAt: admin.firestore.FieldValue.serverTimestamp(),
+          status: "used",
+        },
         { merge: true },
       );
     }
