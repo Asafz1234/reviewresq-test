@@ -4,6 +4,7 @@ import {
   db,
   doc,
   getDoc,
+  setDoc,
 } from "./firebase-config.js";
 import {
   PLAN_LABELS,
@@ -18,13 +19,11 @@ const DEFAULT_SUPPORT_EMAIL = "support@reviewresq.com";
 export const PLAN_DETAILS = {
   starter: { label: PLAN_LABELS.starter, priceMonthly: 39 },
   growth: { label: PLAN_LABELS.growth, priceMonthly: 99 },
-  pro_ai: { label: PLAN_LABELS.pro_ai, priceMonthly: 149 },
-  // Support legacy plan ids
-  pro_ai_suite: { label: PLAN_LABELS.pro_ai, priceMonthly: 149 },
 };
 
 let cachedProfile = null;
 let cachedSubscription = null;
+let cachedBusiness = null;
 let cachedUser = null;
 
 function resolveLogo(profile = {}) {
@@ -79,6 +78,13 @@ async function fetchProfile(uid) {
   return { id: uid, ...snap.data() };
 }
 
+async function fetchBusiness(uid) {
+  const ref = doc(db, "businesses", uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return { id: uid, plan: "starter" };
+  return { id: uid, ...snap.data() };
+}
+
 function shouldBypassBrandingGate() {
   if (typeof window === "undefined") return true;
   const path = window.location.pathname || "";
@@ -124,6 +130,14 @@ export function listenForUser(callback) {
       cachedSubscription = await fetchSubscription(user.uid);
     }
 
+    if (!cachedBusiness) {
+      cachedBusiness = (await fetchBusiness(user.uid)) || { id: user.uid, plan: "starter" };
+    }
+
+    const resolvedPlan = normalizePlan(cachedBusiness?.plan || cachedSubscription?.planId || "starter");
+    cachedSubscription = { ...cachedSubscription, planId: resolvedPlan };
+    cachedBusiness = { ...cachedBusiness, plan: resolvedPlan };
+
     const brandingState = deriveBranding(cachedProfile || {});
     cachedProfile = { ...cachedProfile, brandingComplete: brandingState.complete, brandingState };
 
@@ -132,7 +146,13 @@ export function listenForUser(callback) {
       return;
     }
 
-    callback({ user, profile: cachedProfile, subscription: cachedSubscription, branding: brandingState });
+    callback({
+      user,
+      profile: cachedProfile,
+      subscription: cachedSubscription,
+      branding: brandingState,
+      business: cachedBusiness,
+    });
   });
 }
 
@@ -143,6 +163,11 @@ export function getCachedProfile() {
 export function getCachedSubscription() {
   if (!cachedSubscription) return null;
   return { ...cachedSubscription, planId: normalizePlan(cachedSubscription.planId) };
+}
+
+export function getCachedBusiness() {
+  if (!cachedBusiness) return null;
+  return { ...cachedBusiness, plan: normalizePlan(cachedBusiness.plan) };
 }
 
 export function getCachedUser() {
@@ -160,16 +185,40 @@ export async function refreshProfile() {
 export async function refreshSubscription() {
   if (!cachedUser) return null;
   cachedSubscription = await fetchSubscription(cachedUser.uid);
+  if (cachedBusiness?.plan) {
+    cachedSubscription = { ...cachedSubscription, planId: normalizePlan(cachedBusiness.plan) };
+  }
   return cachedSubscription;
 }
 
+export async function refreshBusiness() {
+  if (!cachedUser) return null;
+  cachedBusiness = (await fetchBusiness(cachedUser.uid)) || { id: cachedUser.uid, plan: "starter" };
+  cachedBusiness = { ...cachedBusiness, plan: normalizePlan(cachedBusiness.plan) };
+  if (cachedSubscription) {
+    cachedSubscription = { ...cachedSubscription, planId: cachedBusiness.plan };
+  }
+  return cachedBusiness;
+}
+
+export async function updateBusinessPlan(planId = "starter") {
+  if (!cachedUser) return null;
+  const normalizedPlan = normalizePlan(planId);
+  const ref = doc(db, "businesses", cachedUser.uid);
+  await setDoc(ref, { plan: normalizedPlan }, { merge: true });
+  cachedBusiness = { ...(cachedBusiness || { id: cachedUser.uid }), plan: normalizedPlan };
+  cachedSubscription = { ...(cachedSubscription || {}), planId: normalizedPlan };
+  return normalizedPlan;
+}
+
 export function currentPlanTier() {
+  if (cachedBusiness?.plan) return normalizePlan(cachedBusiness.plan);
   if (cachedSubscription?.planId) return normalizePlan(cachedSubscription.planId);
   return "starter";
 }
 
 export function currentEntitlements(planId = null) {
-  const resolvedPlan = planId || cachedSubscription?.planId || "starter";
+  const resolvedPlan = planId || cachedBusiness?.plan || cachedSubscription?.planId || "starter";
   return getPlanEntitlements(resolvedPlan);
 }
 

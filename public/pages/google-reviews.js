@@ -587,23 +587,13 @@ function renderUpsell(planId = "starter") {
   if (!upsellContainer) return;
   upsellContainer.innerHTML = "";
   const plan = normalizePlan(planId);
+  if (plan === "starter") return;
   const card = document.createElement("section");
   card.className = "card growth-upsell";
-  if (plan === "starter") {
-    card.innerHTML = `
-      <p class="card-title">Respond to Google reviews with AI</p>
-      <p class="card-subtitle">Keep your Starter plan for analytics, or upgrade to Growth to unlock AI-powered responses and automations directly from your dashboard.</p>
-      <div class="growth-upsell__actions">
-        <a class="btn btn-primary" href="billing.html">View plans</a>
-        <a class="btn btn-link" href="billing.html">Learn more</a>
-      </div>
-    `;
-  } else {
-    card.innerHTML = `
-      <p class="card-title">You’re on ${planLabel(plan)}</p>
-      <p class="card-subtitle">AI replies to Google reviews are enabled for your account.</p>
-    `;
-  }
+  card.innerHTML = `
+    <p class="card-title">You’re on ${planLabel(plan)}</p>
+    <p class="card-subtitle">AI replies to Google reviews are enabled for your account.</p>
+  `;
   upsellContainer.appendChild(card);
 }
 

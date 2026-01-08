@@ -4,7 +4,7 @@ import {
   isStarterPlan,
   currentEntitlements,
 } from "./session-data.js";
-import { showUpgradeModal } from "./plan-lock.js";
+import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
 const ROUTE_KEYS = {
   dashboard: "overview",
@@ -14,15 +14,16 @@ const ROUTE_KEYS = {
   feedback: "feedback",
   "google-reviews": "googleReviews",
   customers: "customers",
-  campaigns: "campaigns",
   funnel: "reviewFunnel",
   links: "reviewLinks",
-  alerts: "alerts",
+  automations: "automations",
+  "ai-agent": "aiSuite",
+  "ai-suite": "aiSuite",
+  team: "team",
   "business-settings": "businessSettings",
   settings: "businessSettings",
   account: "accountBilling",
   billing: "accountBilling",
-  "ai-agent": "proAiSuite",
 };
 
 const ROUTE_PATHS = {
@@ -33,24 +34,20 @@ const ROUTE_PATHS = {
   feedback: "/feedback.html",
   "google-reviews": "/pages/google-reviews.html",
   customers: "/customers.html",
-  campaigns: "/campaigns.html",
   funnel: "/funnel-settings.html",
   links: "/links.html",
-  alerts: "/alerts.html",
+  automations: "/automations.html",
+  "ai-agent": "/ai-suite.html",
+  "ai-suite": "/ai-suite.html",
+  team: "/team.html",
   "business-settings": "/business-settings.html",
   settings: "/business-settings.html",
   account: "/account.html",
   billing: "/account.html",
-  "ai-agent": "/ai-agent.html",
 };
 
-const UPGRADE_PLAN_BY_ROUTE = {
-  alerts: "growth",
-  "ai-agent": "pro_ai",
-};
-
-const SETTINGS_ROUTES = ["account", "business-settings", "settings", "alerts"];
-const STARTER_REMOVED_ROUTES = ["alerts", "ai-agent"];
+const SETTINGS_ROUTES = ["account", "business-settings", "settings"];
+const STARTER_REMOVED_ROUTES = ["funnel", "links", "automations", "ai-suite", "team", "ai-agent"];
 
 const globalNavAccessState = (() => {
   if (typeof window === "undefined") return null;
@@ -129,11 +126,11 @@ function getEntitlementForRoute(route = "", entitlements = null) {
   return entitlements.allowedNavItems[key] !== false;
 }
 
-export function safeNavigate(event, url, isBlocked, upgradePlan = "growth") {
+export function safeNavigate(event, url, isBlocked) {
   if (isBlocked) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
-    showUpgradeModal(upgradePlan, navState.currentPlan);
+    window.location.href = "/account.html";
     return false;
   }
 
@@ -164,7 +161,7 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
   }
 
   try {
-    navState.currentPlan = planId || "starter";
+    navState.currentPlan = normalizePlan(planId || "starter");
     navState.currentEntitlementState = currentEntitlements(navState.currentPlan);
     const navAccess = ensureWindowNavAccess();
     if (navAccess) {
@@ -177,6 +174,13 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
     const planIsStarter = isStarterPlan(navState.currentPlan);
     const enforceRemoval = forceRemove || planIsStarter;
 
+    const normalizedPlan = normalizePlan(navState.currentPlan);
+    const planLabel = PLAN_LABELS[normalizedPlan] || PLAN_LABELS.starter;
+    document.querySelectorAll("[data-plan-badge]").forEach((badge) => {
+      badge.textContent = planLabel;
+      badge.setAttribute("data-plan", normalizedPlan);
+    });
+
     navTabs.forEach((tab) => {
       const route = (tab.dataset.route || tab.getAttribute("href") || "").toLowerCase();
       const resolvedHref = resolveNavHref(route, tab.getAttribute("href"));
@@ -185,25 +189,22 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
       }
 
       const normalizedRoute = normalizeRouteFromHref(route);
-      if (enforceRemoval && STARTER_REMOVED_ROUTES.includes(normalizedRoute)) {
+      const allowed = getEntitlementForRoute(route, navState.currentEntitlementState);
+      const shouldHide =
+        (enforceRemoval && STARTER_REMOVED_ROUTES.includes(normalizedRoute)) || allowed === false;
+
+      if (shouldHide) {
         setTabVisibility(tab, true);
         return;
       }
 
-      const allowed = getEntitlementForRoute(route, navState.currentEntitlementState);
-      const isBlocked = allowed === false;
-
       tab.style.display = "";
       tab.setAttribute("aria-hidden", "false");
-      tab.classList.toggle("nav-tab--locked", isBlocked);
-      tab.setAttribute("aria-disabled", isBlocked ? "true" : "false");
-      tab.dataset.navBlocked = isBlocked ? "true" : "false";
-
-      const upgradePlan = UPGRADE_PLAN_BY_ROUTE[normalizedRoute] || "growth";
+      tab.dataset.navBlocked = "false";
       if (!tab.dataset.navBound) {
         tab.addEventListener("click", (event) => {
           const blocked = tab.dataset.navBlocked === "true";
-          safeNavigate(event, tab.getAttribute("href"), blocked, upgradePlan);
+          safeNavigate(event, tab.getAttribute("href"), blocked);
         });
         tab.dataset.navBound = "true";
       }
@@ -252,7 +253,7 @@ function ensureNavObserver() {
 function renderUpgradeGuard(reason = "") {
   const main = document.querySelector("main.page-container") || document.querySelector("main");
   if (!main) return;
-  const message = reason || "This section is not available on your plan.";
+  const message = reason || "Upgrade to Growth to access this section.";
   const notice = document.createElement("section");
   notice.className = "section";
   notice.innerHTML = `
@@ -260,13 +261,11 @@ function renderUpgradeGuard(reason = "") {
       <p class="card-title">Upgrade required</p>
       <p class="card-sub">${message}</p>
       <div class="button-row" style="justify-content:flex-start;">
-        <a class="btn btn-primary" href="/account.html">See upgrade options</a>
+        <a class="btn btn-primary" href="/account.html">Upgrade to Growth</a>
       </div>
     </div>
   `;
-  if (!main.querySelector(".card")) {
-    main.innerHTML = "";
-  }
+  main.innerHTML = "";
   main.prepend(notice);
 
   Array.from(main.querySelectorAll("button, input, select, textarea"))

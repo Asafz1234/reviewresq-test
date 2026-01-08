@@ -7,37 +7,18 @@ const NAV_SECTIONS = [
       { route: 'inbox', icon: '💬', label: 'Customer Feedback', href: 'feedback.html' },
       { route: 'google-reviews', icon: '★', label: 'Google Reviews', href: 'pages/google-reviews.html' },
       { route: 'customers', icon: '👥', label: 'Customers', href: 'customers.html' },
-      {
-        route: 'campaigns',
-        icon: '📢',
-        label: 'Campaigns',
-        href: 'campaigns.html',
-        disallowStarter: true,
-      },
-      { route: 'funnel', icon: '↗', label: 'Review Funnel', href: 'funnel-settings.html' },
-      { route: 'links', icon: '🔗', label: 'Review Links', href: 'links.html' },
-      { route: 'ai-agent', icon: '🤖', label: 'AI Phone Agent', href: 'ai-agent.html', disallowStarter: true },
-      {
-        route: 'ai-agent',
-        icon: '⚡',
-        label: 'Pro AI Suite',
-        href: 'ai-agent.html#pro-suite',
-        disallowStarter: true,
-      },
+      { route: 'funnel', icon: '↗', label: 'Review Funnel', href: 'funnel-settings.html', disallowStarter: true },
+      { route: 'links', icon: '🔗', label: 'Review Links', href: 'links.html', disallowStarter: true },
+      { route: 'automations', icon: '⚙️', label: 'Automations', href: 'automations.html', disallowStarter: true },
+      { route: 'ai-suite', icon: '✨', label: 'AI Suite', href: 'ai-suite.html', disallowStarter: true },
+      { route: 'team', icon: '🧑‍🤝‍🧑', label: 'Team & Roles', href: 'team.html', disallowStarter: true },
     ],
   },
   {
     id: 'settings',
     items: [
-      { route: 'account', icon: '💳', label: 'Account & Billing', href: 'billing.html' },
+      { route: 'account', icon: '💳', label: 'Account & Billing', href: 'account.html' },
       { route: 'business-settings', icon: '🎨', label: 'Business Settings', href: 'business-settings.html' },
-      {
-        route: 'alerts',
-        icon: '🔔',
-        label: 'Alerts & Notifications',
-        href: 'alerts.html',
-        disallowStarter: true,
-      },
     ],
   },
 ];
@@ -125,16 +106,13 @@ const NAV_SECTIONS = [
     if (pathname.includes('ask-reviews')) return 'ask-reviews';
     if (pathname.includes('feedback')) return 'inbox';
     if (pathname.includes('inbox')) return 'inbox';
-    if (pathname.includes('alerts')) return 'settings';
+    if (pathname.includes('automations')) return 'automations';
     if (pathname.includes('links')) return 'links';
     if (pathname.includes('funnel')) return 'funnel';
-    if (pathname.includes('automations')) return 'automations';
-    if (pathname.includes('follow')) return 'follow-ups';
+    if (pathname.includes('ai-suite')) return 'ai-suite';
+    if (pathname.includes('team')) return 'team';
     if (pathname.includes('google-reviews')) return 'google-reviews';
-    if (pathname.includes('leads')) return 'leads';
     if (pathname.includes('customers')) return 'customers';
-    if (pathname.includes('campaigns')) return 'campaigns';
-    if (pathname.includes('ai-agent')) return 'ai-agent';
     if (pathname.includes('business-settings')) return 'settings';
     if (pathname.includes('settings')) return 'settings';
     if (pathname.includes('account') || pathname.includes('billing')) return 'settings';

@@ -2,115 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="0; url=account.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ReviewResQ – Account & Billing</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">RR</div>
-        <div class="brand-name">ReviewResQ</div>
-      </div>
-      <nav class="global-nav" aria-label="Dashboard navigation">
-        <a class="nav-tab" data-route="dashboard" href="dashboard.html"><span class="nav-icon">🏠</span><span>Overview</span></a>
-        <a class="nav-tab" data-route="ask-reviews" href="ask-reviews.html"><span class="nav-icon">✉️</span><span>Ask for reviews</span></a>
-        <a class="nav-tab" data-route="inbox" href="feedback.html"><span class="nav-icon">💬</span><span>Customer Feedback</span></a>
-        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html"><span class="nav-icon">★</span><span>Google Reviews</span></a>
-        <a class="nav-tab" data-route="customers" href="customers.html"><span class="nav-icon">👥</span><span>Customers</span></a>
-        <a class="nav-tab" data-route="funnel" href="funnel-settings.html"><span class="nav-icon">↗</span><span>Review Funnel</span></a>
-        <a class="nav-tab" data-route="links" href="links.html"><span class="nav-icon">🔗</span><span>Review Links</span></a>
-        <a class="nav-tab" data-route="alerts" href="alerts.html"><span class="nav-icon">🔔</span><span>Alerts &amp; Notifications</span></a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html"><span class="nav-icon">🤖</span><span>AI Phone Agent</span></a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html#pro-suite"><span class="nav-icon">⚡</span><span>Pro AI Suite</span></a>
-        <a class="nav-tab" data-route="business-settings" href="business-settings.html"><span class="nav-icon">🎨</span><span>Business Settings</span></a>
-        <a class="nav-tab" data-route="account" href="billing.html"><span class="nav-icon">💳</span><span>Account &amp; Billing</span></a>
-      </nav>
-    </aside>
-
-    <div class="main">
-      <header class="topbar">
-        <div class="topbar-title">Account &amp; billing</div>
-        <div class="topbar-right">
-          <span class="badge">Starter</span>
-          <a class="btn btn-outline" href="billing.html">Account &amp; billing</a>
-          <button class="btn btn-link" type="button" onclick="window.location.href='auth.html'">Log out</button>
+    <main class="page-shell">
+      <section class="card">
+        <p class="card-title">Redirecting…</p>
+        <p class="card-subtitle">Taking you to Account &amp; Billing.</p>
+        <div class="button-row" style="justify-content:flex-start;">
+          <a class="btn btn-primary" href="account.html">Go to Account &amp; Billing</a>
         </div>
-      </header>
-
-      <div class="page-shell">
-        <header class="page-header">
-          <p class="page-title">Account &amp; Billing</p>
-          <p class="page-subtitle">Manage your subscription and invoices.</p>
-        </header>
-
-        <section class="card">
-          <p class="card-title">Plan summary</p>
-          <p class="card-subtitle">Starter plan · $49/month</p>
-          <div class="badge-row">
-            <span class="badge badge-success">Active</span>
-            <span class="badge">Next renewal: Apr 12</span>
-          </div>
-          <div class="button-row">
-            <a class="btn btn-outline" href="ai-agent.html#pro-suite">View upgrade options</a>
-            <a class="btn btn-primary" href="billing.html">Manage subscription</a>
-          </div>
-        </section>
-
-        <section class="card">
-          <p class="card-title">Payment method</p>
-          <div class="stacked">
-            <p class="strong">Visa ending in 4242</p>
-            <p class="card-subtitle">Expires 05/26 · billing@reviewresq.com</p>
-          </div>
-          <div class="button-row">
-            <button class="btn btn-outline" type="button">Update card</button>
-          </div>
-        </section>
-
-        <section class="card">
-          <p class="card-title">Invoices</p>
-          <div class="table-wrapper">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Invoice</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Mar 12, 2024</td>
-                  <td>#00213</td>
-                  <td>$49.00</td>
-                  <td><span class="badge badge-success">Paid</span></td>
-                </tr>
-                <tr>
-                  <td>Feb 12, 2024</td>
-                  <td>#00197</td>
-                  <td>$49.00</td>
-                  <td><span class="badge badge-success">Paid</span></td>
-                </tr>
-                <tr>
-                  <td>Jan 12, 2024</td>
-                  <td>#00178</td>
-                  <td>$49.00</td>
-                  <td><span class="badge badge-success">Paid</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
-  <script type="module" src="nav-access-init.js"></script>
-  <script src="dashboard-nav.js"></script>
+  <script>
+    window.location.replace("account.html");
+  </script>
 </body>
 </html>

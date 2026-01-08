@@ -25,6 +25,7 @@ const customerCount = document.getElementById("customerCount");
 const archiveSelectedBtn = document.getElementById("archiveSelectedBtn");
 const detailContainer = document.getElementById("customerDetailContent");
 const detailPlaceholder = document.getElementById("emptyCustomerState");
+const customersShell = document.getElementById("customers");
 const planRestrictedElements = Array.from(document.querySelectorAll("[data-plan-requires]"));
 
 let businessId = null;
@@ -108,6 +109,11 @@ function ensureAllowedSourceFilter() {
 function applyPlanGating(planId = "starter") {
   const normalizedPlan = normalizePlan(planId);
   const activeRank = planRank(normalizedPlan);
+  const isGrowth = activeRank >= planRank("growth");
+
+  if (customersShell) {
+    customersShell.classList.toggle("customers--starter", !isGrowth);
+  }
 
   planRestrictedElements.forEach((element) => {
     const requiredPlan = element.dataset.planRequires || "starter";
@@ -115,7 +121,7 @@ function applyPlanGating(planId = "starter") {
     setElementHidden(element, activeRank < requiredRank);
   });
 
-  allowBulkActions = activeRank >= planRank("growth");
+  allowBulkActions = isGrowth;
   if (!allowBulkActions) {
     selectedRows.clear();
     archiveSelectedBtn.disabled = true;
