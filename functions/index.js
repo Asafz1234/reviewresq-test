@@ -4061,15 +4061,11 @@ const extractInviteTokenFromUrl = (url = "") => {
   }
 };
 
-const resolvePortalUrl = ({ businessId, inviteToken, portalUrl }) => {
-  if (portalUrl) return portalUrl;
-  if (inviteToken) {
-    return `https://reviewresq.com/r/${encodeURIComponent(inviteToken)}`;
-  }
-  if (businessId) {
-    return `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(businessId)}`;
-  }
-  return null;
+const resolveCanonicalInviteUrl = ({ inviteToken, portalUrl }) => {
+  const extractedToken = extractInviteTokenFromUrl(portalUrl || "");
+  const normalizedToken = (inviteToken || extractedToken || "").toString().trim();
+  if (!normalizedToken) return null;
+  return `https://reviewresq.com/r/${encodeURIComponent(normalizedToken)}`;
 };
 
 async function enforceEmailRateLimit(businessId) {
@@ -4101,6 +4097,7 @@ async function sendReviewRequestEmailCore({
   toEmail,
   customerName,
   portalUrl,
+  inviteToken = null,
   customerPhone = null,
   source = "manual",
   requestId: explicitRequestId = null,
@@ -4138,8 +4135,13 @@ async function sendReviewRequestEmailCore({
   }
 
   const requestId = explicitRequestId || crypto.randomBytes(12).toString("hex");
-  const portal =
-    portalUrl || `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(businessId)}`;
+  const portal = resolveCanonicalInviteUrl({ inviteToken, portalUrl });
+  if (!portal) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "A valid invite token is required to send a review request email.",
+    );
+  }
   const customerLabel = customerName || null;
 
   await enforceEmailRateLimit(businessId);
@@ -4230,7 +4232,7 @@ async function sendReviewRequestEmailCore({
       "List-Unsubscribe": `<mailto:${supportEmail}?subject=unsubscribe>`,
     },
     trackingSettings: {
-      clickTracking: { enable: true, enableText: true },
+      clickTracking: { enable: false, enableText: false },
       openTracking: { enable: true },
     },
   };
@@ -4251,6 +4253,12 @@ async function sendReviewRequestEmailCore({
     hasHtml: Boolean(msg.html),
     hasText: Boolean(msg.text),
     hasTemplateId: Boolean(msg.templateId),
+  });
+  console.log("[email] canonical invite link", {
+    businessId,
+    requestId,
+    portalUrl: portal,
+    isCanonical: portal.startsWith("https://reviewresq.com/r/"),
   });
 
   console.log("[email] sending review request", {
@@ -4359,12 +4367,37 @@ exports.sendReviewRequestEmail = functions
       );
     }
 
+    const customerName = data?.customerName;
+    const email = data?.email || data?.toEmail || data?.customerEmail;
+    const phone = data?.customerPhone || data?.phone;
+    const rawPortalUrl = data?.portalUrl || data?.portalLink;
+    const providedInviteToken = data?.inviteToken || data?.token || data?.t;
+    let portalUrl = resolveCanonicalInviteUrl({
+      portalUrl: rawPortalUrl,
+      inviteToken: providedInviteToken,
+    });
+    let inviteToken = extractInviteTokenFromUrl(portalUrl || "");
+
+    if (!portalUrl) {
+      const invite = await createInviteToken({
+        businessId,
+        customerName,
+        phone,
+        email,
+        channel: "email",
+        source: data?.source || "ask-reviews",
+      });
+      portalUrl = invite.portalUrl;
+      inviteToken = invite.inviteToken;
+    }
+
     return sendReviewRequestEmailCore({
       businessId,
-      toEmail: data?.email || data?.toEmail || data?.customerEmail,
-      customerName: data?.customerName,
-      portalUrl: data?.portalUrl,
-      customerPhone: data?.customerPhone || data?.phone,
+      toEmail: email,
+      customerName,
+      portalUrl,
+      inviteToken,
+      customerPhone: phone,
       source: data?.source || "ask-reviews",
     });
   });
@@ -4380,6 +4413,7 @@ exports.sendReviewRequestEmailCallable = functions
       const email = (data.email || data.toEmail || data.customerEmail || "").toString().trim();
       const phone = (data.customerPhone || data.phone || "").toString().trim();
       let portalLink = data.portalLink || data.portalUrl || null;
+      const providedInviteToken = data.inviteToken || data.token || data.t || null;
       let requestId = data.requestId || null;
       const source = data.source || "ask-reviews";
       logContext = {
@@ -4447,6 +4481,14 @@ exports.sendReviewRequestEmailCallable = functions
         );
       }
 
+      const canonicalPortal = resolveCanonicalInviteUrl({
+        portalUrl: portalLink,
+        inviteToken: providedInviteToken,
+      });
+      if (canonicalPortal) {
+        portalLink = canonicalPortal;
+      }
+
       if (!portalLink) {
         const invite = await createInviteToken({
           businessId,
@@ -4459,12 +4501,14 @@ exports.sendReviewRequestEmailCallable = functions
         portalLink = invite.portalUrl;
         requestId = requestId || invite.requestId;
       }
+      const inviteToken = extractInviteTokenFromUrl(portalLink || "");
 
       const sendResult = await sendReviewRequestEmailCore({
         businessId,
         toEmail: email,
         customerName,
         portalUrl: portalLink,
+        inviteToken,
         customerPhone: phone,
         source,
         requestId,
@@ -4512,12 +4556,37 @@ exports.sendReviewRequestEmailHttp = functions
         return res.status(403).json({ ok: false, error: "permission_denied" });
       }
 
+      const customerName = req.body?.customerName;
+      const email = req.body?.email || req.body?.to || req.body?.customerEmail;
+      const phone = req.body?.customerPhone || req.body?.phone;
+      const rawPortalUrl = req.body?.portalUrl || req.body?.portalLink;
+      const providedInviteToken = req.body?.inviteToken || req.body?.token || req.body?.t;
+      let portalUrl = resolveCanonicalInviteUrl({
+        portalUrl: rawPortalUrl,
+        inviteToken: providedInviteToken,
+      });
+      let inviteToken = extractInviteTokenFromUrl(portalUrl || "");
+
+      if (!portalUrl) {
+        const invite = await createInviteToken({
+          businessId,
+          customerName,
+          phone,
+          email,
+          channel: "email",
+          source: req.body?.source || "ask-for-reviews",
+        });
+        portalUrl = invite.portalUrl;
+        inviteToken = invite.inviteToken;
+      }
+
       const result = await sendReviewRequestEmailCore({
         businessId,
-        toEmail: req.body?.email || req.body?.to || req.body?.customerEmail,
-        customerName: req.body?.customerName,
-        portalUrl: req.body?.portalUrl || req.body?.portalLink,
-        customerPhone: req.body?.customerPhone || req.body?.phone,
+        toEmail: email,
+        customerName,
+        portalUrl,
+        inviteToken,
+        customerPhone: phone,
         source: req.body?.source || "ask-for-reviews",
       });
 
