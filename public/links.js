@@ -1,6 +1,7 @@
 import { db, doc, getDoc, setDoc } from "./firebase-config.js";
 import { onSession } from "./dashboard-data.js";
 import { resolveCanonicalReviewUrl } from "./google-link-utils.js";
+import { APP_ORIGIN } from "./app-config.js";
 
 const googleInput = document.querySelector("[data-google-link]");
 const funnelInput = document.querySelector("[data-funnel-link]");
@@ -170,8 +171,8 @@ async function loadLinks(user, profile) {
     profile?.publicFunnelUrl ||
     profile?.funnelLink ||
     profile?.portalUrl ||
-    (shareKey ? `https://reviewresq.com/portal.html?shareKey=${shareKey}` : "") ||
-    (user?.uid ? `https://reviewresq.com/portal.html?businessId=${user.uid}` : "");
+    (shareKey ? `${APP_ORIGIN}/portal.html?shareKey=${shareKey}` : "") ||
+    (user?.uid ? `${APP_ORIGIN}/portal.html?businessId=${user.uid}` : "");
 
   setValue(googleInput, googleLink || "—");
   setValue(funnelInput, funnelLink || "—");

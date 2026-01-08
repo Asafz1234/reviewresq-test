@@ -1043,7 +1043,7 @@ const fetchBusinessPlanTier = async (businessId) => {
 };
 
 const buildDashboardLink = (section = "") => {
-  const baseUrl = "https://reviewresq.web.app";
+  const baseUrl = process.env.APP_BASE_URL || "https://reviewresq.com";
   if (!section) return `${baseUrl}/dashboard.html`;
   return `${baseUrl}/${section}.html`;
 };
@@ -1482,7 +1482,6 @@ const GOOGLE_REDIRECT_PATH = "/oauth-google-callback.html";
 const ALLOWED_REDIRECT_HOSTS = new Set([
   "reviewresq.com",
   "www.reviewresq.com",
-  "reviewresq-app.web.app",
 ]);
 
 const isRedirectUriAllowed = (uri = "") => {
