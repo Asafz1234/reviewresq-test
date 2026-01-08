@@ -5,14 +5,14 @@ import {
   buildReviewUrlFromPlaceId,
   normalizeGoogleBusinessInputUrl,
 } from "./google-link-utils.js";
+import { APP_ORIGIN, resolveFunctionsBaseUrl } from "./app-config.js";
 
 const runtimeEnv = window.RUNTIME_ENV || {};
 const toastId = "feedback-toast";
 const GOOGLE_OAUTH_SCOPE =
   runtimeEnv.GOOGLE_OAUTH_SCOPES || "https://www.googleapis.com/auth/business.manage";
 // GitHub Pages requires a real file for callbacks because deep routes 404 unless a file exists.
-const GOOGLE_OAUTH_CANONICAL_REDIRECT_URI =
-  "https://reviewresq.com/oauth-google-callback.html";
+const GOOGLE_OAUTH_CANONICAL_REDIRECT_URI = `${APP_ORIGIN}/oauth-google-callback.html`;
 const GOOGLE_OAUTH_REDIRECT_PATH = "/oauth-google-callback.html";
 const OAUTH_CLIENT_ID =
   window.GOOGLE_OAUTH_CLIENT_ID ||
@@ -25,44 +25,14 @@ const baseOAuthConfig = {
   redirectUri: GOOGLE_OAUTH_CANONICAL_REDIRECT_URI,
   scopes: GOOGLE_OAUTH_SCOPE,
 };
+const functionsBaseUrl = resolveFunctionsBaseUrl();
 const placesProxyUrl =
   (runtimeEnv && runtimeEnv.GOOGLE_PLACES_PROXY_URL) ||
-  "https://us-central1-reviewresq-app.cloudfunctions.net/googlePlacesSearch";
-
-const defaultFunctionsBase = (() => {
-  try {
-    return new URL(placesProxyUrl).origin;
-  } catch (err) {
-    return "https://us-central1-reviewresq-app.cloudfunctions.net";
-  }
-})();
-
-const functionsBaseUrl =
-  runtimeEnv.FUNCTIONS_BASE_URL ||
-  runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL ||
-  defaultFunctionsBase;
-const defaultGoogleAuthConfigUrl =
-  "https://us-central1-reviewresq-app.cloudfunctions.net/googleAuthGetConfigV2";
+  `${functionsBaseUrl}/googlePlacesSearch`;
+const defaultGoogleAuthConfigUrl = `${functionsBaseUrl}/googleAuthGetConfigV2`;
 const FETCH_TIMEOUT_MS = 8000;
-const resolvedFunctionsBaseForAuth = (() => {
-  const base = runtimeEnv.GOOGLE_AUTH_CONFIG_URL
-    ? null
-    : runtimeEnv.FUNCTIONS_BASE_URL || runtimeEnv.GOOGLE_FUNCTIONS_BASE_URL;
-  if (!base) return null;
-  try {
-    const parsed = new URL(base);
-    return parsed.origin;
-  } catch (err) {
-    console.warn("[google-oauth] invalid FUNCTIONS_BASE_URL for auth", base, err);
-    return null;
-  }
-})();
 const googleAuthConfigUrl =
-  runtimeEnv.GOOGLE_AUTH_CONFIG_URL ||
-  (resolvedFunctionsBaseForAuth
-    ? `${resolvedFunctionsBaseForAuth}/googleAuthGetConfigV2`
-    : null) ||
-  defaultGoogleAuthConfigUrl;
+  runtimeEnv.GOOGLE_AUTH_CONFIG_URL || defaultGoogleAuthConfigUrl;
 let cachedOAuthConfig = { ...baseOAuthConfig, configured: false, missing: [] };
 let oauthConfigPromise = null;
 let oauthAvailabilityLogged = false;
