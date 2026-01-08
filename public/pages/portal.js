@@ -76,6 +76,9 @@ const shareKeyParam =
   urlParams.get("bid");
 const ownerPreviewParam =
   urlParams.get("ownerPreview") ?? urlParams.get("owner") ?? "";
+const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const isDebugParamEnabled = urlParams.get("debug") === "1";
+const shouldShowDebugBanner = isLocalhost || isDebugParamEnabled;
 
 // ----- STATE -----
 let currentRating = 0;
@@ -117,6 +120,10 @@ function setPortalStatus(status, message = "") {
 }
 
 function updateDebugBannerEndpoints() {
+  if (!shouldShowDebugBanner) {
+    if (debugBanner) debugBanner.hidden = true;
+    return;
+  }
   if (debugResolveEndpoint) debugResolveEndpoint.textContent = ENDPOINTS.resolveInvite;
   if (debugSubmitEndpoint) debugSubmitEndpoint.textContent = ENDPOINTS.submitFeedback;
   if (debugTrackEndpoint) debugTrackEndpoint.textContent = ENDPOINTS.trackReviewLink;
@@ -124,6 +131,7 @@ function updateDebugBannerEndpoints() {
 }
 
 function showDebugError(error) {
+  if (!shouldShowDebugBanner) return;
   if (!debugErrorMessage) return;
 
   const payload =
@@ -141,6 +149,7 @@ function showDebugError(error) {
 }
 
 function clearDebugError() {
+  if (!shouldShowDebugBanner) return;
   if (!debugErrorMessage) return;
   debugErrorMessage.textContent = "";
   debugErrorMessage.hidden = true;
