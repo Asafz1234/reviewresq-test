@@ -76,9 +76,20 @@ const shareKeyParam =
   urlParams.get("bid");
 const ownerPreviewParam =
   urlParams.get("ownerPreview") ?? urlParams.get("owner") ?? "";
-const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
 const isDebugParamEnabled = urlParams.get("debug") === "1";
-const shouldShowDebugBanner = isLocalhost || isDebugParamEnabled;
+const shouldShowDebugBanner = isDebugParamEnabled;
+
+const submissionId = (() => {
+  const storageKey = "rr_submissionId";
+  try {
+    const existing = sessionStorage.getItem(storageKey);
+    const resolved = existing || crypto.randomUUID();
+    sessionStorage.setItem(storageKey, resolved);
+    return resolved;
+  } catch (err) {
+    return crypto.randomUUID();
+  }
+})();
 
 // ----- STATE -----
 let currentRating = 0;
@@ -93,6 +104,8 @@ let inviteToken = inviteTokenParam || "";
 let resolvedCustomerId = null;
 let brandingColor = "#2563eb";
 let businessSnapshot = null;
+let isSubmittingFeedback = false;
+let hasSubmittedFeedback = false;
 const isOwnerPreview = ["1", "true", "yes", "on"].includes(
   ownerPreviewParam.toString().toLowerCase()
 );
@@ -601,6 +614,10 @@ if (changeRatingLink) {
 async function handleFeedbackSubmit(event) {
   event.preventDefault();
 
+  if (isSubmittingFeedback || hasSubmittedFeedback) {
+    return;
+  }
+
   const currentBusinessId = businessId || getBusinessIdFromUrl();
 
   if (!currentBusinessId) {
@@ -631,6 +648,7 @@ async function handleFeedbackSubmit(event) {
   }
 
   try {
+    isSubmittingFeedback = true;
     if (sendFeedbackBtn) {
       sendFeedbackBtn.disabled = true;
       sendFeedbackBtn.textContent = "Sending…";
@@ -648,6 +666,7 @@ async function handleFeedbackSubmit(event) {
       businessId: currentBusinessId,
       rating,
       message,
+      submissionId,
     };
 
     if (inviteToken) payload.inviteToken = inviteToken;
@@ -661,6 +680,7 @@ async function handleFeedbackSubmit(event) {
 
     console.log("[portal] Feedback submitted successfully");
     showThankYouState();
+    hasSubmittedFeedback = true;
   } catch (err) {
     console.error("[portal] Error while submitting feedback", err);
     alert(
@@ -669,9 +689,15 @@ async function handleFeedbackSubmit(event) {
         "). Please try again in a moment."
     );
   } finally {
+    isSubmittingFeedback = false;
     if (sendFeedbackBtn) {
-      sendFeedbackBtn.disabled = false;
-      sendFeedbackBtn.textContent = "Send feedback";
+      if (hasSubmittedFeedback) {
+        sendFeedbackBtn.disabled = true;
+        sendFeedbackBtn.textContent = "Sent";
+      } else {
+        sendFeedbackBtn.disabled = false;
+        sendFeedbackBtn.textContent = "Send feedback";
+      }
     }
   }
 }

@@ -594,12 +594,6 @@ const createInviteToken = async ({
 const fetchCustomerProfile = async (businessId, customerId) => {
   if (!businessId || !customerId) return null;
 
-  const primaryRef = db.collection("customers").doc(customerId);
-  const primarySnap = await primaryRef.get();
-  if (primarySnap.exists && primarySnap.data()?.businessId === businessId) {
-    return { ref: primaryRef, data: primarySnap.data() };
-  }
-
   const nestedRef = db
     .collection("businesses")
     .doc(businessId)
@@ -610,15 +604,48 @@ const fetchCustomerProfile = async (businessId, customerId) => {
     return { ref: nestedRef, data: nestedSnap.data() };
   }
 
+  const primaryRef = db.collection("customers").doc(customerId);
+  const primarySnap = await primaryRef.get();
+  if (primarySnap.exists && primarySnap.data()?.businessId === businessId) {
+    return { ref: primaryRef, data: primarySnap.data() };
+  }
+
   return null;
 };
 
-const writeFeedbackDocuments = async (businessId, payload) => {
+const writeFeedbackDocuments = async (businessId, payload, { docId } = {}) => {
   if (!businessId) {
     throw new Error("businessId is required for feedback persistence");
   }
 
   const canonicalRef = db.collection("businesses").doc(businessId).collection("feedback");
+  if (docId) {
+    const docRef = canonicalRef.doc(docId);
+    await db.runTransaction(async (transaction) => {
+      const existing = await transaction.get(docRef);
+      if (existing.exists) return;
+      transaction.set(docRef, payload);
+    });
+
+    const legacyWrites = [
+      db.collection("feedback").doc(docId).set(payload, { merge: true }),
+      db
+        .collection("businessProfiles")
+        .doc(businessId)
+        .collection("feedback")
+        .doc(docId)
+        .set(payload, { merge: true }),
+    ];
+    const legacyResults = await Promise.allSettled(legacyWrites);
+    legacyResults.forEach((outcome, index) => {
+      if (outcome.status === "rejected") {
+        console.warn(`[portal-feedback] legacy write ${index} failed`, outcome.reason);
+      }
+    });
+
+    return docRef;
+  }
+
   const primaryWrite = canonicalRef.add(payload);
   const legacyWrites = [
     db.collection("feedback").add(payload),
@@ -1131,8 +1158,18 @@ const buildCustomerDocId = (businessId, identifier) => {
   return crypto.createHash("sha256").update(base).digest("hex").slice(0, 20);
 };
 
+const derivePortalCustomerId = ({ businessId, email, phone, token }) => {
+  if (!businessId) return null;
+  const normalizedEmail = normalizeEmail(email || "");
+  const normalizedPhone = normalizePhone(phone || "");
+  const identifier = normalizedEmail || normalizedPhone || token || "";
+  if (!identifier) return null;
+  return buildCustomerDocId(businessId, identifier);
+};
+
 async function upsertCustomerRecord({
   businessId,
+  customerId = null,
   name,
   phone,
   email,
@@ -1147,9 +1184,14 @@ async function upsertCustomerRecord({
   }
 
   const identifier = email || phone || name || Date.now().toString();
-  const customerId = buildCustomerDocId(businessId, identifier);
-  const ref = db.collection("customers").doc(customerId);
-  const snap = await ref.get();
+  const resolvedCustomerId = customerId || buildCustomerDocId(businessId, identifier);
+  const rootRef = db.collection("customers").doc(resolvedCustomerId);
+  const nestedRef = db
+    .collection("businesses")
+    .doc(businessId)
+    .collection("customers")
+    .doc(resolvedCustomerId);
+  const [rootSnap, nestedSnap] = await Promise.all([rootRef.get(), nestedRef.get()]);
 
   const payload = {
     businessId,
@@ -1176,12 +1218,18 @@ async function upsertCustomerRecord({
     payload.timeline = admin.firestore.FieldValue.arrayUnion(entry);
   }
 
-  if (!snap.exists || !snap.data()?.createdAt) {
+  const hasCreatedAt = Boolean(
+    rootSnap.data()?.createdAt || nestedSnap.data()?.createdAt
+  );
+  if (!hasCreatedAt) {
     payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
   }
 
-  await ref.set(payload, { merge: true });
-  return customerId;
+  const batch = db.batch();
+  batch.set(rootRef, payload, { merge: true });
+  batch.set(nestedRef, payload, { merge: true });
+  await batch.commit();
+  return resolvedCustomerId;
 }
 
 async function findExistingCustomerContacts({
@@ -5700,11 +5748,13 @@ exports.resolveInviteTokenCallable = functions
 exports.submitPortalFeedbackCallable = functions
   .region("us-central1")
   .https.onCall(async (data, context) => {
-    const businessId = (data?.businessId || "").toString().trim();
+    let businessId = (data?.businessId || "").toString().trim();
     const inviteToken = (data?.token || data?.t || data?.inviteToken || "").toString().trim();
+    const submissionId = (data?.submissionId || data?.submission_id || "").toString().trim();
     const rating = Number(data?.rating || 0);
     const feedbackText = (data?.feedbackText || data?.message || "").toString().trim();
     const providedEmail = normalizeEmail(data?.customerEmail || data?.email || "");
+    const providedPhone = normalizePhone(data?.customerPhone || data?.phone || "");
     const providedName = (data?.customerName || data?.name || "").toString().trim();
 
     if (!businessId || !inviteToken) {
@@ -5732,7 +5782,6 @@ exports.submitPortalFeedbackCallable = functions
     const tokenPrefix = inviteToken.slice(0, 6);
     let inviteRef = null;
     let inviteData = null;
-    let customerProfile = null;
 
     try {
       const validation = await validatePortalInvite({ businessId, inviteToken });
@@ -5746,10 +5795,6 @@ exports.submitPortalFeedbackCallable = functions
       inviteData = validation.data || {};
       inviteRef = validation.ref;
       businessId = validation.businessId || businessId;
-
-      if (inviteData.customerId) {
-        customerProfile = await fetchCustomerProfile(businessId, inviteData.customerId);
-      }
     } catch (err) {
       console.warn("[portal.submitPortalFeedbackCallable] token validation failed", {
         businessId,
@@ -5763,17 +5808,26 @@ exports.submitPortalFeedbackCallable = functions
       );
     }
 
-    const customerData = customerProfile?.data || {};
+    const resolvedEmail = providedEmail || inviteData?.email || "";
+    const resolvedPhone = providedPhone || inviteData?.phone || "";
+    const derivedCustomerId = derivePortalCustomerId({
+      businessId,
+      email: resolvedEmail,
+      phone: resolvedPhone,
+      token: inviteToken,
+    });
+    const customerName = providedName || inviteData?.customerName || "Anonymous";
     const createdAtMs = Date.now();
     const feedbackPayload = {
       businessId,
-      customerId: inviteData?.customerId || null,
+      customerId: derivedCustomerId || null,
       requestId: inviteToken,
-      customerName: providedName || customerData.name || inviteData?.customerName || "Anonymous",
-      phone: inviteData?.phone || customerData.phone || null,
-      customerPhone: inviteData?.phone || customerData.phone || null,
-      email: providedEmail || inviteData?.email || customerData.email || null,
-      customerEmail: providedEmail || inviteData?.email || customerData.email || null,
+      submissionId: submissionId || null,
+      customerName,
+      phone: resolvedPhone || null,
+      customerPhone: resolvedPhone || null,
+      email: resolvedEmail || null,
+      customerEmail: resolvedEmail || null,
       rating,
       message: feedbackText,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -5785,17 +5839,22 @@ exports.submitPortalFeedbackCallable = functions
     };
 
     try {
-      const docRef = await writeFeedbackDocuments(businessId, feedbackPayload);
-
-      if (customerProfile?.ref) {
-        await customerProfile.ref.set(
-          {
-            lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
-            reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
-          },
-          { merge: true },
-        );
-      }
+      const feedbackDocId = submissionId ? `${businessId}_${submissionId}` : null;
+      const docRef = await writeFeedbackDocuments(
+        businessId,
+        feedbackPayload,
+        { docId: feedbackDocId },
+      );
+      const customerId = await upsertCustomerRecord({
+        businessId,
+        customerId: derivedCustomerId || null,
+        name: customerName || null,
+        phone: resolvedPhone || null,
+        email: resolvedEmail || null,
+        source: "Funnel",
+        reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
+        lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
       if (inviteRef) {
         await inviteRef.set(
@@ -5814,7 +5873,7 @@ exports.submitPortalFeedbackCallable = functions
         feedbackId: docRef.id,
       });
 
-      return { ok: true, feedbackId: docRef.id, customerId: inviteData?.customerId || null };
+      return { ok: true, feedbackId: docRef.id, customerId: customerId || null };
     } catch (err) {
       console.error("[portal.submitPortalFeedbackCallable] failed", err);
       throw new functions.https.HttpsError(
@@ -5941,6 +6000,7 @@ exports.portalSubmit = onRequest(async (req, res) => {
 
   const businessId = (payload.businessId || payload.bid || "").toString().trim();
   const inviteToken = (payload.t || payload.token || payload.inviteToken || "").toString().trim();
+  const submissionId = (payload.submissionId || payload.submission_id || "").toString().trim();
   const rating = Number(payload.rating || 0);
   const message = (payload.comment || payload.message || payload.feedback || "").toString().trim();
   const providedEmail = normalizeEmail(payload.email || payload.customerEmail || "");
@@ -5985,16 +6045,25 @@ exports.portalSubmit = onRequest(async (req, res) => {
     const resolvedBusinessId = validation.businessId || businessId;
     const inviteData = validation.data || {};
     const createdAtMs = Date.now();
-    const customerId = inviteData.customerId || null;
+    const resolvedEmail = providedEmail || inviteData?.email || "";
+    const resolvedPhone = providedPhone || inviteData?.phone || "";
+    const derivedCustomerId = derivePortalCustomerId({
+      businessId: resolvedBusinessId,
+      email: resolvedEmail,
+      phone: resolvedPhone,
+      token: inviteToken,
+    });
+    const customerName = providedName || inviteData?.customerName || "Anonymous";
     const feedbackPayload = {
       businessId: resolvedBusinessId,
-      customerId,
+      customerId: derivedCustomerId || null,
       requestId: inviteToken,
-      customerName: providedName || inviteData.customerName || "Anonymous",
-      phone: providedPhone || inviteData.phone || null,
-      customerPhone: providedPhone || inviteData.phone || null,
-      email: providedEmail || inviteData.email || null,
-      customerEmail: providedEmail || inviteData.email || null,
+      submissionId: submissionId || null,
+      customerName,
+      phone: resolvedPhone || null,
+      customerPhone: resolvedPhone || null,
+      email: resolvedEmail || null,
+      customerEmail: resolvedEmail || null,
       rating,
       message,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -6005,22 +6074,22 @@ exports.portalSubmit = onRequest(async (req, res) => {
       env: payload.env || "portal",
     };
 
-    let customerProfile = null;
-    if (customerId) {
-      customerProfile = await fetchCustomerProfile(resolvedBusinessId, customerId);
-    }
-
-    const docRef = await writeFeedbackDocuments(resolvedBusinessId, feedbackPayload);
-
-    if (customerProfile?.ref) {
-      await customerProfile.ref.set(
-        {
-          lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
-          reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
-        },
-        { merge: true },
-      );
-    }
+    const feedbackDocId = submissionId ? `${resolvedBusinessId}_${submissionId}` : null;
+    const docRef = await writeFeedbackDocuments(
+      resolvedBusinessId,
+      feedbackPayload,
+      { docId: feedbackDocId },
+    );
+    const customerId = await upsertCustomerRecord({
+      businessId: resolvedBusinessId,
+      customerId: derivedCustomerId || null,
+      name: customerName || null,
+      phone: resolvedPhone || null,
+      email: resolvedEmail || null,
+      source: "Funnel",
+      reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
+      lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     if (validation.ref) {
       await validation.ref.set(
@@ -6168,8 +6237,10 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
   const rating = Number(payload.rating || 0);
   const message = (payload.message || payload.feedback || "").toString().trim();
   const inviteToken = (payload.t || payload.inviteToken || "").toString().trim();
+  const submissionId = (payload.submissionId || payload.submission_id || "").toString().trim();
   const providedEmail = normalizeEmail(payload.email || payload.customerEmail || "");
   const providedName = (payload.customerName || payload.name || "").toString().trim();
+  const providedPhone = normalizePhone(payload.customerPhone || payload.phone || "");
 
   if (!businessId) {
     return res.status(400).json({ error: "businessId is required" });
@@ -6183,8 +6254,7 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
     return res.status(400).json({ error: "message is required for low ratings" });
   }
 
-  let customerProfile = null;
-  let customerId = payload.customerId || null;
+  let customerId = null;
   let inviteRef = null;
   let inviteData = null;
   const requestId =
@@ -6202,29 +6272,34 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
         });
       }
       inviteData = validation.data || {};
-      customerId = inviteData.customerId || customerId;
+      customerId = null;
       inviteRef = validation.ref;
-    }
-
-    if (customerId) {
-      customerProfile = await fetchCustomerProfile(businessId, customerId);
     }
   } catch (err) {
     console.error("[portal] invite validation failed", err);
     return res.status(400).json({ error: err.message || "Invalid invite token" });
   }
 
-  const customerData = customerProfile?.data || {};
+  const resolvedEmail = providedEmail || inviteData?.email || "";
+  const resolvedPhone = providedPhone || inviteData?.phone || "";
+  const derivedCustomerId = derivePortalCustomerId({
+    businessId,
+    email: resolvedEmail,
+    phone: resolvedPhone,
+    token: inviteToken || requestId,
+  });
+  const customerName = providedName || inviteData?.customerName || "Anonymous";
   const createdAtMs = Date.now();
   const feedbackPayload = {
     businessId,
-    customerId: customerId || null,
+    customerId: derivedCustomerId || null,
     requestId: requestId || inviteToken || null,
-    customerName: providedName || customerData.name || inviteData?.customerName || "Anonymous",
-    phone: inviteData?.phone || customerData.phone || null,
-    customerPhone: inviteData?.phone || customerData.phone || null,
-    email: providedEmail || inviteData?.email || customerData.email || null,
-    customerEmail: providedEmail || inviteData?.email || customerData.email || null,
+    submissionId: submissionId || null,
+    customerName,
+    phone: resolvedPhone || null,
+    customerPhone: resolvedPhone || null,
+    email: resolvedEmail || null,
+    customerEmail: resolvedEmail || null,
     rating,
     message,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -6236,17 +6311,22 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
   };
 
   try {
-    const docRef = await writeFeedbackDocuments(businessId, feedbackPayload);
-
-    if (customerProfile?.ref) {
-      await customerProfile.ref.set(
-        {
-          lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
-          reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
-        },
-        { merge: true },
-      );
-    }
+    const feedbackDocId = submissionId ? `${businessId}_${submissionId}` : null;
+    const docRef = await writeFeedbackDocuments(
+      businessId,
+      feedbackPayload,
+      { docId: feedbackDocId },
+    );
+    customerId = await upsertCustomerRecord({
+      businessId,
+      customerId: derivedCustomerId || null,
+      name: customerName || null,
+      phone: resolvedPhone || null,
+      email: resolvedEmail || null,
+      source: "Funnel",
+      reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
+      lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     if (inviteRef) {
       await inviteRef.set(

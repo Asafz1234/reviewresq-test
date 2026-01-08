@@ -39,6 +39,13 @@ let showArchived = false;
 let allowBulkActions = true;
 const inviteToastId = "customers-toast";
 
+function getCustomersCollection() {
+  if (!businessId) {
+    throw new Error("Missing business id for customers");
+  }
+  return collection(db, "businesses", businessId, "customers");
+}
+
 function showToast(message, isError = false) {
   let toast = document.getElementById(inviteToastId);
   if (!toast) {
@@ -448,7 +455,7 @@ function handleCheckboxChange(event) {
 
 async function archiveCustomers(ids = [], archived = true) {
   const updates = ids.map((id) =>
-    updateDoc(doc(db, "customers", id), {
+    updateDoc(doc(getCustomersCollection(), id), {
       archived,
       updatedAt: serverTimestamp(),
     })
@@ -521,9 +528,9 @@ function attachEvents() {
 }
 
 function startCustomerFeed(uid) {
+  businessId = uid;
   const q = query(
-    collection(db, "customers"),
-    where("businessId", "==", uid),
+    getCustomersCollection(),
     orderBy("createdAt", "desc")
   );
 
