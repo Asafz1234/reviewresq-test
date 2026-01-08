@@ -407,31 +407,87 @@ const resolveInviteRecord = async (businessId, inviteToken) => {
   return { ref, data };
 };
 
+const resolveInviteRecordByToken = async (inviteToken) => {
+  if (!inviteToken) {
+    throw new Error("invite token is required");
+  }
+
+  const snap = await db
+    .collectionGroup("invites")
+    .where(admin.firestore.FieldPath.documentId(), "==", inviteToken)
+    .limit(2)
+    .get();
+
+  if (snap.empty) {
+    throw new Error("Invite token not found");
+  }
+
+  if (snap.size > 1) {
+    console.warn("[invite] multiple invite matches found", {
+      tokenPrefix: inviteToken.slice(0, 6),
+      matches: snap.size,
+    });
+  }
+
+  const doc = snap.docs[0];
+  const businessId = doc.ref.parent.parent?.id;
+  if (!businessId) {
+    throw new Error("Invite token missing business context");
+  }
+
+  const data = doc.data() || {};
+  const expiresAtMs = normalizeTimestampMs(data.expiresAt);
+  if (expiresAtMs && expiresAtMs < Date.now()) {
+    throw new Error("Invite token expired");
+  }
+
+  return { ref: doc.ref, data, businessId };
+};
+
 const validatePortalInvite = async ({ businessId, inviteToken }) => {
-  if (!businessId || !inviteToken) {
+  if (!inviteToken) {
     return {
       ok: false,
       code: "missing_params",
-      message: "businessId and token are required.",
+      message: "token is required.",
     };
   }
 
-  const ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
-  const snap = await ref.get();
+  let ref = null;
+  let data = null;
+  let resolvedBusinessId = businessId || null;
 
-  if (!snap.exists) {
-    return {
-      ok: false,
-      code: "invalid_token",
-      message: "This feedback link is invalid.",
-    };
+  if (!businessId) {
+    try {
+      const resolved = await resolveInviteRecordByToken(inviteToken);
+      ref = resolved.ref;
+      data = resolved.data || {};
+      resolvedBusinessId = resolved.businessId || null;
+    } catch (err) {
+      return {
+        ok: false,
+        code: "invalid_token",
+        message: "This feedback link is invalid.",
+      };
+    }
+  } else {
+    ref = db.collection("businesses").doc(businessId).collection("invites").doc(inviteToken);
+    const snap = await ref.get();
+
+    if (!snap.exists) {
+      return {
+        ok: false,
+        code: "invalid_token",
+        message: "This feedback link is invalid.",
+      };
+    }
+
+    data = snap.data() || {};
   }
-
-  const data = snap.data() || {};
   const expiresAtMs = normalizeTimestampMs(data.expiresAt);
   const usedAtMs = normalizeTimestampMs(data.usedAt);
 
-  if (data.businessId && data.businessId !== businessId) {
+  if (data.businessId && resolvedBusinessId && data.businessId !== resolvedBusinessId) {
     return {
       ok: false,
       code: "invalid_token",
@@ -461,6 +517,7 @@ const validatePortalInvite = async ({ businessId, inviteToken }) => {
     ok: true,
     ref,
     data,
+    businessId: resolvedBusinessId || data.businessId || null,
     tokenStatus: {
       state: "valid",
       expiresAt: expiresAtMs || null,
@@ -514,9 +571,7 @@ const createInviteToken = async ({
 
   await ref.set(invitePayload);
 
-  const portalUrl = `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(
-    businessId,
-  )}&t=${encodeURIComponent(inviteToken)}`;
+  const portalUrl = `https://reviewresq.com/r/${encodeURIComponent(inviteToken)}`;
 
   try {
     const outboundDefaults = buildOutboundDefaults({
@@ -3997,7 +4052,10 @@ exports.ingestCustomerWebhook = functions.https.onRequest(async (req, res) => {
 const extractInviteTokenFromUrl = (url = "") => {
   try {
     const parsed = new URL(url);
-    return parsed.searchParams.get("t");
+    const tokenParam = parsed.searchParams.get("t") || parsed.searchParams.get("token");
+    if (tokenParam) return tokenParam;
+    const pathMatch = parsed.pathname.match(/^\/r\/([^/]+)/);
+    return pathMatch ? decodeURIComponent(pathMatch[1]) : null;
   } catch (err) {
     return null;
   }
@@ -4005,10 +4063,11 @@ const extractInviteTokenFromUrl = (url = "") => {
 
 const resolvePortalUrl = ({ businessId, inviteToken, portalUrl }) => {
   if (portalUrl) return portalUrl;
-  if (businessId && inviteToken) {
-    return `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(
-      businessId,
-    )}&t=${encodeURIComponent(inviteToken)}`;
+  if (inviteToken) {
+    return `https://reviewresq.com/r/${encodeURIComponent(inviteToken)}`;
+  }
+  if (businessId) {
+    return `https://reviewresq.com/portal.html?businessId=${encodeURIComponent(businessId)}`;
   }
   return null;
 };
@@ -5516,13 +5575,13 @@ exports.recordReviewLinkClick = onRequest(async (req, res) => {
 exports.resolveInviteTokenCallable = functions
   .region("us-central1")
   .https.onCall(async (data, context) => {
-    const businessId = (data?.businessId || "").toString().trim();
+    let businessId = (data?.businessId || "").toString().trim();
     const inviteToken = (data?.token || data?.t || data?.inviteToken || "").toString().trim();
 
-    if (!businessId || !inviteToken) {
+    if (!inviteToken) {
       throw new functions.https.HttpsError(
         "invalid-argument",
-        "businessId and token are required.",
+        "token is required.",
       );
     }
 
@@ -5533,8 +5592,17 @@ exports.resolveInviteTokenCallable = functions
     const tokenPrefix = inviteToken.slice(0, 6);
 
     try {
-      const { data: inviteData } = await resolveInviteRecord(businessId, inviteToken);
-      if (inviteData.businessId && inviteData.businessId !== businessId) {
+      let inviteData = null;
+      if (businessId) {
+        const resolved = await resolveInviteRecord(businessId, inviteToken);
+        inviteData = resolved.data;
+      } else {
+        const resolved = await resolveInviteRecordByToken(inviteToken);
+        inviteData = resolved.data;
+        businessId = resolved.businessId;
+      }
+
+      if (inviteData?.businessId && businessId && inviteData.businessId !== businessId) {
         throw new functions.https.HttpsError(
           "permission-denied",
           "Invite token does not belong to this business.",
@@ -5741,9 +5809,13 @@ exports.portalContext = onRequest(async (req, res) => {
   }
 
   try {
-    const identity = await fetchBusinessIdentity(businessId);
+    const resolvedBusinessId = validation.businessId || businessId;
+    const identity = await fetchBusinessIdentity(resolvedBusinessId);
     if (!identity) {
-      console.error("[portal.api.context] business_not_found", { businessId, tokenHash });
+      console.error("[portal.api.context] business_not_found", {
+        businessId: resolvedBusinessId,
+        tokenHash,
+      });
       return res.status(404).json({
         ok: false,
         code: "business_not_found",
@@ -5751,7 +5823,7 @@ exports.portalContext = onRequest(async (req, res) => {
       });
     }
 
-    const portalSettings = await fetchPortalSettings(businessId);
+    const portalSettings = await fetchPortalSettings(resolvedBusinessId);
     const inviteData = validation.data || {};
     const brandingColor =
       portalSettings?.primaryColor ||
@@ -5762,7 +5834,7 @@ exports.portalContext = onRequest(async (req, res) => {
 
     return res.status(200).json({
       ok: true,
-      businessId,
+      businessId: resolvedBusinessId,
       businessName: identity.businessName || "Our Business",
       businessLogoUrl: identity.logoUrl || null,
       logoUrl: identity.logoUrl || null,
@@ -5854,11 +5926,12 @@ exports.portalSubmit = onRequest(async (req, res) => {
   }
 
   try {
+    const resolvedBusinessId = validation.businessId || businessId;
     const inviteData = validation.data || {};
     const createdAtMs = Date.now();
     const customerId = inviteData.customerId || null;
     const feedbackPayload = {
-      businessId,
+      businessId: resolvedBusinessId,
       customerId,
       requestId: inviteToken,
       customerName: providedName || inviteData.customerName || "Anonymous",
@@ -5878,10 +5951,10 @@ exports.portalSubmit = onRequest(async (req, res) => {
 
     let customerProfile = null;
     if (customerId) {
-      customerProfile = await fetchCustomerProfile(businessId, customerId);
+      customerProfile = await fetchCustomerProfile(resolvedBusinessId, customerId);
     }
 
-    const docRef = await writeFeedbackDocuments(businessId, feedbackPayload);
+    const docRef = await writeFeedbackDocuments(resolvedBusinessId, feedbackPayload);
 
     if (customerProfile?.ref) {
       await customerProfile.ref.set(
@@ -5901,7 +5974,7 @@ exports.portalSubmit = onRequest(async (req, res) => {
     }
 
     console.log("[portal.api.submit] feedback_submitted", {
-      businessId,
+      businessId: resolvedBusinessId,
       tokenHash,
       feedbackId: docRef.id,
     });
@@ -5931,15 +6004,28 @@ exports.resolveInviteToken = onRequest(async (req, res) => {
   if (applyCors(req, res, "GET, POST, OPTIONS")) return;
 
   const payload = req.method === "GET" ? req.query : req.body || {};
-  const businessId = (payload.businessId || payload.bid || "").toString().trim();
-  const inviteToken = (payload.t || payload.inviteToken || "").toString().trim();
+  let businessId = (payload.businessId || payload.bid || "").toString().trim();
+  const inviteToken = (payload.t || payload.token || payload.inviteToken || "")
+    .toString()
+    .trim();
 
-  if (!businessId || !inviteToken) {
-    return res.status(400).json({ error: "businessId and invite token are required" });
+  if (!inviteToken) {
+    return res.status(400).json({ error: "invite token is required" });
   }
 
   try {
-    const { data, tokenStatus } = await resolveInviteRecord(businessId, inviteToken);
+    let data = null;
+    let tokenStatus = null;
+    if (businessId) {
+      const resolved = await resolveInviteRecord(businessId, inviteToken);
+      data = resolved.data;
+      tokenStatus = resolved.tokenStatus;
+    } else {
+      const resolved = await resolveInviteRecordByToken(inviteToken);
+      data = resolved.data;
+      businessId = resolved.businessId;
+    }
+
     const identity = await fetchBusinessIdentity(businessId);
 
     if (!identity) {
