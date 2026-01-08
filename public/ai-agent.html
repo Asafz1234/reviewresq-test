@@ -2,82 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="0; url=ai-suite.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewResQ – AI Phone Agent</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <title>ReviewResQ – AI Suite</title>
   <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">RR</div>
-        <div class="brand-name">ReviewResQ</div>
-      </div>
-      <nav class="global-nav" aria-label="Dashboard navigation">
-        <a class="nav-tab" data-route="dashboard" href="dashboard.html"><span class="nav-icon">🏠</span><span>Overview</span></a>
-        <a class="nav-tab" data-route="ask-reviews" href="ask-reviews.html"><span class="nav-icon">✉️</span><span>Ask for reviews</span></a>
-        <a class="nav-tab" data-route="inbox" href="feedback.html"><span class="nav-icon">💬</span><span>Customer Feedback</span></a>
-        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html"><span class="nav-icon">★</span><span>Google Reviews</span></a>
-        <a class="nav-tab" data-route="customers" href="customers.html"><span class="nav-icon">👥</span><span>Customers</span></a>
-        <a class="nav-tab" data-route="funnel" href="funnel-settings.html"><span class="nav-icon">↗</span><span>Review Funnel</span></a>
-        <a class="nav-tab" data-route="links" href="links.html"><span class="nav-icon">🔗</span><span>Review Links</span></a>
-        <a class="nav-tab" data-route="alerts" href="alerts.html"><span class="nav-icon">🔔</span><span>Alerts &amp; Notifications</span></a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html"><span class="nav-icon">🤖</span><span>AI Phone Agent</span></a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html#pro-suite"><span class="nav-icon">⚡</span><span>Pro AI Suite</span></a>
-        <a class="nav-tab" data-route="business-settings" href="business-settings.html"><span class="nav-icon">🎨</span><span>Business Settings</span></a>
-        <a class="nav-tab" data-route="account" href="billing.html"><span class="nav-icon">💳</span><span>Account &amp; Billing</span></a>
-      </nav>
-    </aside>
-
-    <div class="main">
-      <header class="topbar">
-        <div class="topbar-title">AI Phone Agent</div>
-        <div class="topbar-right">
-          <span class="badge">Starter</span>
-          <a class="btn btn-outline" href="billing.html">Account &amp; billing</a>
-          <button class="btn btn-link" type="button" onclick="window.location.href='auth.html'">Log out</button>
+    <main class="page-shell">
+      <section class="card">
+        <p class="card-title">Redirecting…</p>
+        <p class="card-subtitle">Taking you to the AI Suite.</p>
+        <div class="button-row" style="justify-content:flex-start;">
+          <a class="btn btn-primary" href="ai-suite.html">Go to AI Suite</a>
         </div>
-      </header>
-
-      <div class="page-shell">
-        <header class="page-header">
-          <p class="page-title">AI Phone Agent</p>
-          <p class="page-subtitle">Turn missed calls into booked jobs with automated follow-up.</p>
-        </header>
-
-        <section class="card">
-          <div class="notice">
-            <p class="strong">AI Phone Agent is available on Pro AI Suite plans.</p>
-            <a class="btn btn-outline" href="billing.html">View plans</a>
-          </div>
-          <p class="card-subtitle">The AI Phone Agent answers calls, triages customer intent, and keeps you informed with transcripts and tasks.</p>
-          <ul class="list">
-            <li>Capture callers when you're busy and schedule follow-ups automatically.</li>
-            <li>Sync call notes into your inbox so you never miss context.</li>
-            <li>Route urgent calls to your team with clear summaries.</li>
-          </ul>
-        </section>
-
-        <section id="pro-suite" class="card">
-          <p class="card-title">Pro AI Suite</p>
-          <p class="card-subtitle">Unlock advanced AI insights, automation, and outreach.</p>
-          <ul class="list">
-            <li>AI-generated responses for feedback and Google reviews.</li>
-            <li>Churn risk alerts and sentiment trends.</li>
-            <li>Multi-step outreach sequences for follow-ups.</li>
-          </ul>
-          <div class="button-row">
-            <a class="btn btn-primary" href="billing.html">View plans</a>
-          </div>
-        </section>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
-  <script type="module" src="nav-access-init.js"></script>
-  <script src="dashboard-nav.js"></script>
-  <script type="module" src="./ai-agent-gate.js"></script>
+  <script>
+    window.location.replace("ai-suite.html");
+  </script>
 </body>
 </html>

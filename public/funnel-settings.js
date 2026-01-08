@@ -167,7 +167,7 @@ function bindUpgradeModal() {
 
   ui.upgradeModalDismiss?.addEventListener("click", hideUpgradeModal);
   ui.upgradeModalUpgrade?.addEventListener("click", () => {
-    window.location.href = "/billing.html?plan=growth";
+    window.location.href = "/account.html";
   });
 
   document.addEventListener("keydown", (event) => {

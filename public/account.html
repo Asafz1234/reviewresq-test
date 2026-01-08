@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewResQ – Account & billing</title>
+  <title>ReviewResQ – Account & Billing</title>
   <link
     rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
@@ -14,240 +14,90 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="dashboard-modern.css" />
+  <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
-  <div class="page-shell">
-    <header class="topbar">
-      <div class="topbar-left">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
         <div class="brand-mark">RR</div>
         <div class="brand-name">ReviewResQ</div>
       </div>
-      <div class="topbar-center">Account &amp; billing</div>
-      <div class="topbar-right">
-        <a
-          id="planBadge"
-          class="plan-chip plan-chip--pro"
-          href="account.html"
-          title="View and manage your subscription."
-          >Pro AI Suite</a
-        >
-        <div class="profile">RQ</div>
-      </div>
-    </header>
+      <nav class="global-nav" aria-label="Dashboard navigation"></nav>
+    </aside>
 
-    <nav class="global-nav" aria-label="Dashboard sections">
-      <div class="nav-tabs">
-        <a class="nav-tab" data-route="overview" href="dashboard.html#overview">Overview</a>
-        <a class="nav-tab" data-route="ask-reviews" href="ask-reviews.html">Ask for reviews</a>
-        <a class="nav-tab" data-route="inbox" href="inbox.html">Inbox</a>
-        <a class="nav-tab" data-route="google-reviews" href="google-reviews.html">Google Reviews</a>
-        <a class="nav-tab" data-route="leads" href="leads.html">Leads</a>
-        <a class="nav-tab" data-route="customers" href="customers.html">Customers</a>
-        <a class="nav-tab" data-route="campaigns" href="campaigns.html">Campaigns</a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent/index.html">AI Agent</a>
-        <a class="nav-tab" data-route="follow-ups" href="follow-ups.html">Follow-ups</a>
-        <a class="nav-tab" data-route="automations" href="automations.html">Automations</a>
-        <a class="nav-tab" data-route="settings" href="settings.html">Alerts &amp; Settings</a>
-        <a class="nav-tab active" data-route="account" href="account.html" aria-current="page">Account &amp; billing</a>
-      </div>
-    </nav>
-
-    <main class="page-container billing-page">
-      <header class="section">
-        <h1 class="page-title">Account &amp; billing</h1>
-        <p class="page-subtitle">Manage your subscription, upgrades, and billing details in one place.</p>
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-title">Account &amp; Billing</div>
+        <div class="topbar-right">
+          <span class="badge" data-plan-badge>Starter</span>
+          <button class="btn btn-link" type="button" onclick="window.location.href='auth.html'">Log out</button>
+        </div>
       </header>
 
-      <section class="section">
-        <div class="card billing-hero">
-          <div class="billing-hero__header">
-            <div>
-              <div class="pill-accent" id="currentPlanPill">Current plan</div>
-              <div class="plan-name" id="currentPlan">Starter</div>
-              <p class="plan-tagline" id="planTagline">Essentials to collect and reply to reviews.</p>
-            </div>
-            <div class="plan-price-stack">
-              <div class="plan-price" id="currentPrice">$39 / month</div>
-              <p class="muted-text" id="billingPeriod">Monthly</p>
-            </div>
-          </div>
-          <div class="billing-hero__meta">
-            <div>
-              <p class="card-title">Next renewal</p>
-              <p class="muted-text" id="nextBilling">—</p>
-            </div>
-            <div>
-              <p class="card-title">Status</p>
-              <p class="muted-text" id="subscriptionStatus">Active</p>
-            </div>
-            <div>
-              <p class="card-title">Payment method</p>
-              <p class="muted-text" id="paymentMethod">Card on file</p>
-            </div>
-            <div>
-              <p class="card-title">Plan status</p>
-              <span class="pill-ghost" id="planStatusPill">Up to date</span>
-            </div>
-          </div>
-          <div class="billing-hero__actions">
-            <button class="btn btn-primary" data-plan-target="growth" id="primaryHeroCta">Upgrade to Growth</button>
-            <button class="btn btn-secondary" data-plan-target="pro_ai" id="secondaryHeroCta">View Pro AI Suite</button>
-          </div>
-        </div>
-      </section>
+      <div class="page-shell">
+        <header class="page-header">
+          <p class="page-title">Account &amp; Billing</p>
+          <p class="page-subtitle">Manage your plan details and billing info.</p>
+        </header>
 
-      <section class="section">
-        <div class="section-header">
-          <div>
-            <p class="badge info">Plans</p>
-            <h2 class="section-title">Choose the plan that fits</h2>
-            <p class="muted-text">Compare features across Starter, Growth, and Pro AI Suite.</p>
-          </div>
-        </div>
-        <div class="plan-comparison" id="planComparison"></div>
-      </section>
-
-      <section class="section billing-details">
-        <div class="card">
+        <section class="card plan-summary">
           <div class="card-header">
             <div>
-              <p class="badge info">Billing details</p>
-              <h3 class="section-title">Subscription &amp; invoices</h3>
-              <p class="muted-text">Update payment methods, view invoices, and keep your account in good standing.</p>
+              <p class="card-title">Plan summary</p>
+              <p class="card-subtitle" id="planSummary">Starter plan · $39/month</p>
+              <div class="badge-row">
+                <span class="badge badge-success" id="planStatus">Active</span>
+                <span class="badge" id="planRenewal">Next renewal: —</span>
+                <span class="badge badge-success" id="growthEnabledBadge" style="display:none;">Growth enabled</span>
+              </div>
             </div>
-            <div class="chip-outline" id="currentPlanSummary">Starter · $39 / month</div>
-          </div>
-          <div class="billing-detail-grid">
-            <div>
-              <p class="card-title">Current plan</p>
-              <p class="muted-text" id="billingDetailPlan">Starter</p>
-            </div>
-            <div>
-              <p class="card-title">Billing cadence</p>
-              <p class="muted-text" id="billingDetailCadence">Monthly</p>
-            </div>
-            <div>
-              <p class="card-title">Next invoice</p>
-              <p class="muted-text" id="billingDetailInvoice">—</p>
-            </div>
-            <div>
-              <p class="card-title">Payment method</p>
-              <p class="muted-text" id="billingDetailPayment">Card on file</p>
+            <div class="button-row">
+              <button class="btn btn-primary" type="button" id="upgradeButton">Upgrade to Growth</button>
             </div>
           </div>
-          <div class="card-actions">
-            <button class="btn btn-secondary" id="managePlan">Manage plan</button>
-            <button class="btn btn-ghost" id="changePlan">Change plan</button>
-            <button class="btn btn-ghost" id="managePayment">Manage payment method</button>
-          </div>
-          <div class="notice-box" id="cancelNotice" style="display: none;"></div>
-          <div class="cancel-block">
-            <div>
-              <p class="card-title">Cancel your subscription</p>
-              <p class="muted-text">
-                Your plan will remain active until the end of your current billing period. You won’t be charged again unless you
-                reactivate.
-              </p>
-            </div>
-            <button class="btn btn-danger" id="cancelLink">Cancel subscription</button>
-          </div>
-        </div>
+        </section>
 
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <p class="badge info" style="margin: 0;">Billing history</p>
-              <h3 class="section-title">Invoice history</h3>
-            </div>
+        <section class="card">
+          <p class="card-title">Payment method</p>
+          <div class="stacked">
+            <p class="strong" id="paymentMethod">Card on file</p>
+            <p class="card-subtitle" id="billingEmail">billing@reviewresq.com</p>
           </div>
-          <table class="table-lite">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="invoicesBody">
-              <tr>
-                <td colspan="4" class="table-empty">No invoices yet. Your first invoice will appear here after your initial payment.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+          <div class="button-row">
+            <button class="btn btn-outline" type="button">Update card</button>
+          </div>
+        </section>
 
-      <section class="section account-grid">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="section-title">Business profile</h3>
-            <span class="pill-ghost" id="profileStatus">Live</span>
+        <section class="card">
+          <p class="card-title">Invoices</p>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Invoice</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="invoiceTable">
+                <tr>
+                  <td>—</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td><span class="badge">No invoices yet</span></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div class="form-grid">
-            <label>
-              <span class="card-title">Business name</span>
-              <input class="input" id="profileName" type="text" placeholder="Your business" />
-            </label>
-            <label>
-              <span class="card-title">Industry</span>
-              <input class="input" id="profileIndustry" type="text" placeholder="Handyman" />
-            </label>
-            <label>
-              <span class="card-title">Timezone</span>
-              <input class="input" id="profileTimezone" type="text" placeholder="e.g., GMT-5 (Eastern)" />
-            </label>
-            <label>
-              <span class="card-title">Phone</span>
-              <input class="input" id="profilePhone" type="tel" placeholder="(555) 555-0123" />
-            </label>
-            <label>
-              <span class="card-title">Owner email</span>
-              <input class="input" id="profileEmail" type="email" placeholder="you@business.com" />
-            </label>
-            <label>
-              <span class="card-title">Logo</span>
-              <input class="input" id="profileLogo" type="file" accept="image/png, image/jpeg" />
-            </label>
-          </div>
-          <div class="card-actions" style="justify-content: flex-end;">
-            <button class="btn btn-primary" id="saveProfile">Save changes</button>
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <div class="modal-backdrop" id="cancelModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
-      <h3 id="cancelTitle">Cancel subscription?</h3>
-      <p class="helper-text">
-        If you cancel now, your subscription will remain active until the end of the current billing period. We don’t provide
-        partial refunds for unused days.
-      </p>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" id="keepSubscription">Keep my subscription</button>
-        <button class="btn btn-danger" id="confirmCancellation">Confirm cancellation</button>
+        </section>
       </div>
     </div>
   </div>
 
-  <div class="modal-backdrop" id="planChangeModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="planChangeTitle">
-      <h3 id="planChangeTitle">Change plan</h3>
-      <p class="helper-text" id="planChangeCopy">Upgrades apply immediately. Downgrades take effect at renewal.</p>
-      <div class="plan-change-summary" id="planChangeSummary"></div>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" id="closePlanChange">Keep current plan</button>
-        <button class="btn btn-primary" id="confirmPlanChange">Confirm</button>
-      </div>
-    </div>
-  </div>
-
-  <script type="module" src="nav-access-init.js"></script>
-  <script type="module" src="topbar-menu.js"></script>
   <script type="module" src="account.js"></script>
+  <script type="module" src="nav-access-init.js"></script>
   <script src="dashboard-nav.js"></script>
 </body>
 </html>
