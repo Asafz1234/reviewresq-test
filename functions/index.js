@@ -621,10 +621,11 @@ const writeFeedbackDocuments = async (businessId, payload, { docId } = {}) => {
   const canonicalRef = db.collection("businesses").doc(businessId).collection("feedback");
   if (docId) {
     const docRef = canonicalRef.doc(docId);
-    await db.runTransaction(async (transaction) => {
+    const wasDuplicate = await db.runTransaction(async (transaction) => {
       const existing = await transaction.get(docRef);
-      if (existing.exists) return;
-      transaction.set(docRef, payload);
+      if (existing.exists) return true;
+      transaction.set(docRef, payload, { merge: true });
+      return false;
     });
 
     const legacyWrites = [
@@ -643,7 +644,7 @@ const writeFeedbackDocuments = async (businessId, payload, { docId } = {}) => {
       }
     });
 
-    return docRef;
+    return { docRef, wasDuplicate };
   }
 
   const primaryWrite = canonicalRef.add(payload);
@@ -664,7 +665,7 @@ const writeFeedbackDocuments = async (businessId, payload, { docId } = {}) => {
     throw primaryResult.reason;
   }
 
-  return primaryResult.value;
+  return { docRef: primaryResult.value, wasDuplicate: false };
 };
 
 const ALLOWED_ORIGINS = new Set([
@@ -1166,6 +1167,76 @@ const derivePortalCustomerId = ({ businessId, email, phone, token }) => {
   if (!identifier) return null;
   return buildCustomerDocId(businessId, identifier);
 };
+
+const buildPortalCustomerKey = ({ email, phone, token }) => {
+  const normalizedEmail = normalizeEmail(email || "");
+  if (normalizedEmail) return normalizedEmail;
+  const normalizedPhone = normalizePhone(phone || "");
+  if (normalizedPhone) return normalizedPhone;
+  return (token || "").toString().trim();
+};
+
+const buildPortalSubmissionId = ({ businessId, inviteToken, rating, message }) => {
+  const normalizedMessage = (message || "").toString().trim().toLowerCase();
+  const messageHash = crypto
+    .createHash("sha256")
+    .update(normalizedMessage)
+    .digest("hex")
+    .slice(0, 12);
+  const base = [
+    businessId || "",
+    inviteToken || "",
+    String(rating || 0),
+    messageHash,
+  ].join("|");
+  return crypto.createHash("sha256").update(base).digest("hex").slice(0, 24);
+};
+
+async function upsertPortalCustomerRecord({
+  businessId,
+  name,
+  phone,
+  email,
+  inviteToken,
+  rating = null,
+}) {
+  if (!businessId) {
+    throw new Error("businessId is required to create a customer record");
+  }
+
+  const customerKey = buildPortalCustomerKey({ email, phone, token: inviteToken });
+  const customerId = `${businessId}_${customerKey || crypto.randomUUID()}`;
+  const rootRef = db.collection("customers").doc(customerId);
+  const nestedRef = db
+    .collection("businesses")
+    .doc(businessId)
+    .collection("customers")
+    .doc(customerId);
+  const [rootSnap, nestedSnap] = await Promise.all([rootRef.get(), nestedRef.get()]);
+  const hasCreatedAt = Boolean(rootSnap.data()?.createdAt || nestedSnap.data()?.createdAt);
+  const payload = {
+    businessId,
+    name: name || null,
+    phone: phone || null,
+    email: email || null,
+    source: "funnel",
+    reviewStatus: rating ? deriveReviewStatusFromFeedback({ rating }) : "none",
+    lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastFeedbackAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastRating: rating || null,
+    lastSource: "portal",
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (!hasCreatedAt) {
+    payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+  }
+
+  const batch = db.batch();
+  batch.set(rootRef, payload, { merge: true });
+  batch.set(nestedRef, payload, { merge: true });
+  await batch.commit();
+  return customerId;
+}
 
 async function upsertCustomerRecord({
   businessId,
@@ -5815,13 +5886,20 @@ exports.submitPortalFeedbackCallable = functions
       phone: resolvedPhone,
       token: inviteToken,
     });
+    const portalSubmissionId = buildPortalSubmissionId({
+      businessId,
+      inviteToken,
+      rating,
+      message: feedbackText,
+    });
+    const feedbackDocId = `${businessId}_${portalSubmissionId}`;
     const customerName = providedName || inviteData?.customerName || "Anonymous";
     const createdAtMs = Date.now();
     const feedbackPayload = {
       businessId,
       customerId: derivedCustomerId || null,
       requestId: inviteToken,
-      submissionId: submissionId || null,
+      submissionId: submissionId || portalSubmissionId,
       customerName,
       phone: resolvedPhone || null,
       customerPhone: resolvedPhone || null,
@@ -5838,21 +5916,18 @@ exports.submitPortalFeedbackCallable = functions
     };
 
     try {
-      const feedbackDocId = submissionId ? `${businessId}_${submissionId}` : null;
-      const docRef = await writeFeedbackDocuments(
+      const { docRef, wasDuplicate } = await writeFeedbackDocuments(
         businessId,
         feedbackPayload,
         { docId: feedbackDocId },
       );
-      const customerId = await upsertCustomerRecord({
+      const customerId = await upsertPortalCustomerRecord({
         businessId,
-        customerId: derivedCustomerId || null,
         name: customerName || null,
         phone: resolvedPhone || null,
         email: resolvedEmail || null,
-        source: "Funnel",
-        reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
-        lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+        inviteToken,
+        rating,
       });
 
       if (inviteRef) {
@@ -5864,6 +5939,14 @@ exports.submitPortalFeedbackCallable = functions
           },
           { merge: true },
         );
+      }
+
+      if (wasDuplicate) {
+        console.log("[portal.submitPortalFeedbackCallable] duplicate submission ignored", {
+          businessId,
+          tokenPrefix,
+          feedbackId: docRef.id,
+        });
       }
 
       console.log("[portal.submitPortalFeedbackCallable] feedback submitted", {
@@ -6052,12 +6135,19 @@ exports.portalSubmit = onRequest(async (req, res) => {
       phone: resolvedPhone,
       token: inviteToken,
     });
+    const portalSubmissionId = buildPortalSubmissionId({
+      businessId: resolvedBusinessId,
+      inviteToken,
+      rating,
+      message,
+    });
+    const feedbackDocId = `${resolvedBusinessId}_${portalSubmissionId}`;
     const customerName = providedName || inviteData?.customerName || "Anonymous";
     const feedbackPayload = {
       businessId: resolvedBusinessId,
       customerId: derivedCustomerId || null,
       requestId: inviteToken,
-      submissionId: submissionId || null,
+      submissionId: submissionId || portalSubmissionId,
       customerName,
       phone: resolvedPhone || null,
       customerPhone: resolvedPhone || null,
@@ -6073,21 +6163,18 @@ exports.portalSubmit = onRequest(async (req, res) => {
       env: payload.env || "portal",
     };
 
-    const feedbackDocId = submissionId ? `${resolvedBusinessId}_${submissionId}` : null;
-    const docRef = await writeFeedbackDocuments(
+    const { docRef, wasDuplicate } = await writeFeedbackDocuments(
       resolvedBusinessId,
       feedbackPayload,
       { docId: feedbackDocId },
     );
-    const customerId = await upsertCustomerRecord({
+    const customerId = await upsertPortalCustomerRecord({
       businessId: resolvedBusinessId,
-      customerId: derivedCustomerId || null,
       name: customerName || null,
       phone: resolvedPhone || null,
       email: resolvedEmail || null,
-      source: "Funnel",
-      reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
-      lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+      inviteToken,
+      rating,
     });
 
     if (validation.ref) {
@@ -6106,6 +6193,13 @@ exports.portalSubmit = onRequest(async (req, res) => {
       tokenHash,
       feedbackId: docRef.id,
     });
+    if (wasDuplicate) {
+      console.log("[portal.api.submit] duplicate submission ignored", {
+        businessId: resolvedBusinessId,
+        tokenHash,
+        feedbackId: docRef.id,
+      });
+    }
 
     return res.status(200).json({
       ok: true,
@@ -6287,13 +6381,20 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
     phone: resolvedPhone,
     token: inviteToken || requestId,
   });
+  const portalSubmissionId = buildPortalSubmissionId({
+    businessId,
+    inviteToken: inviteToken || requestId,
+    rating,
+    message,
+  });
+  const feedbackDocId = `${businessId}_${portalSubmissionId}`;
   const customerName = providedName || inviteData?.customerName || "Anonymous";
   const createdAtMs = Date.now();
   const feedbackPayload = {
     businessId,
     customerId: derivedCustomerId || null,
     requestId: requestId || inviteToken || null,
-    submissionId: submissionId || null,
+    submissionId: submissionId || portalSubmissionId,
     customerName,
     phone: resolvedPhone || null,
     customerPhone: resolvedPhone || null,
@@ -6310,21 +6411,18 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
   };
 
   try {
-    const feedbackDocId = submissionId ? `${businessId}_${submissionId}` : null;
-    const docRef = await writeFeedbackDocuments(
+    const { docRef, wasDuplicate } = await writeFeedbackDocuments(
       businessId,
       feedbackPayload,
       { docId: feedbackDocId },
     );
-    customerId = await upsertCustomerRecord({
+    customerId = await upsertPortalCustomerRecord({
       businessId,
-      customerId: derivedCustomerId || null,
       name: customerName || null,
       phone: resolvedPhone || null,
       email: resolvedEmail || null,
-      source: "Funnel",
-      reviewStatus: deriveReviewStatusFromFeedback(feedbackPayload),
-      lastInteractionAt: admin.firestore.FieldValue.serverTimestamp(),
+      inviteToken: inviteToken || requestId,
+      rating,
     });
 
     if (inviteRef) {
@@ -6336,6 +6434,13 @@ exports.submitPortalFeedback = onRequest(async (req, res) => {
         },
         { merge: true },
       );
+    }
+
+    if (wasDuplicate) {
+      console.log("[portal] duplicate submission ignored", {
+        businessId,
+        feedbackId: docRef.id,
+      });
     }
 
     return res.status(200).json({ ok: true, feedbackId: docRef.id, customerId: customerId || null });

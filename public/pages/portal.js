@@ -618,6 +618,12 @@ async function handleFeedbackSubmit(event) {
     return;
   }
 
+  isSubmittingFeedback = true;
+  if (sendFeedbackBtn) {
+    sendFeedbackBtn.disabled = true;
+    sendFeedbackBtn.textContent = "Sending…";
+  }
+
   const currentBusinessId = businessId || getBusinessIdFromUrl();
 
   if (!currentBusinessId) {
@@ -629,6 +635,11 @@ async function handleFeedbackSubmit(event) {
       "error",
       "We couldn’t send your feedback because this link is missing the business id. Please try the original link again."
     );
+    isSubmittingFeedback = false;
+    if (sendFeedbackBtn) {
+      sendFeedbackBtn.disabled = false;
+      sendFeedbackBtn.textContent = "Send feedback";
+    }
     return;
   }
 
@@ -639,21 +650,25 @@ async function handleFeedbackSubmit(event) {
 
   if (!rating) {
     alert("Please select a rating before sending your feedback.");
+    isSubmittingFeedback = false;
+    if (sendFeedbackBtn) {
+      sendFeedbackBtn.disabled = false;
+      sendFeedbackBtn.textContent = "Send feedback";
+    }
     return;
   }
 
   if (rating <= 2 && !message) {
     alert("Please share a few details so we can make things right.");
+    isSubmittingFeedback = false;
+    if (sendFeedbackBtn) {
+      sendFeedbackBtn.disabled = false;
+      sendFeedbackBtn.textContent = "Send feedback";
+    }
     return;
   }
 
   try {
-    isSubmittingFeedback = true;
-    if (sendFeedbackBtn) {
-      sendFeedbackBtn.disabled = true;
-      sendFeedbackBtn.textContent = "Sending…";
-    }
-
     console.log("[portal] Submitting feedback", {
       businessId: currentBusinessId,
       rating,
