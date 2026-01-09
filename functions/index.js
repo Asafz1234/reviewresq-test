@@ -566,10 +566,12 @@ const createInviteToken = async ({
       businessId,
       requestId: inviteToken,
       channel: resolvedChannel,
+      customerId: customerId || null,
       customerName: normalizedName || null,
       customerEmail: normalizedEmail || null,
       customerPhone: normalizedPhone || null,
       reviewLink: portalUrl,
+      inviteToken,
       status: "draft",
       provider: resolvedChannel === "email" ? "sendgrid" : null,
     });
@@ -580,6 +582,7 @@ const createInviteToken = async ({
       updates: {
         createdAtMs,
         inviteToken,
+        customerId: customerId || null,
         source,
         channel: resolvedChannel,
       },
@@ -1107,10 +1110,12 @@ const buildOutboundDefaults = ({
   businessId,
   requestId,
   channel,
+  customerId = null,
   customerName,
   customerEmail,
   customerPhone,
   reviewLink,
+  inviteToken = null,
   status = "draft",
   provider = null,
 }) => {
@@ -1118,11 +1123,13 @@ const buildOutboundDefaults = ({
   return {
     requestId,
     businessId,
+    customerId: customerId || null,
     channel,
     customerName: customerName || null,
     customerEmail: customerEmail || null,
     customerPhone: customerPhone || null,
     reviewLink: reviewLink || null,
+    inviteToken: inviteToken || null,
     status,
     provider,
     providerMessageId: null,
@@ -1134,6 +1141,8 @@ const buildOutboundDefaults = ({
     openedAtMs: null,
     clickedAtMs: null,
     error: null,
+    locale: "en-US",
+    tz: "America/New_York",
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
@@ -4205,6 +4214,7 @@ async function sendReviewRequestEmailCore({
   portalUrl,
   inviteToken = null,
   customerPhone = null,
+  customerId = null,
   source = "manual",
   requestId: explicitRequestId = null,
 }) {
@@ -4249,6 +4259,8 @@ async function sendReviewRequestEmailCore({
     );
   }
   const customerLabel = customerName || null;
+  const resolvedCustomerId =
+    customerId || buildCustomerDocId(businessId, email || customerPhone || customerName || requestId);
 
   await enforceEmailRateLimit(businessId);
 
@@ -4296,10 +4308,12 @@ async function sendReviewRequestEmailCore({
     businessId,
     requestId,
     channel: "email",
+    customerId: resolvedCustomerId,
     customerName: customerLabel,
     customerEmail: email,
     customerPhone: customerPhone || null,
     reviewLink: portal,
+    inviteToken: inviteToken || requestId,
     status: "sending",
     provider: "sendgrid",
   });
@@ -4312,10 +4326,12 @@ async function sendReviewRequestEmailCore({
     defaults: outboundDefaults,
     updates: {
       status: "sending",
+      customerId: resolvedCustomerId,
       customerName: customerLabel,
       customerEmail: email,
       customerPhone: customerPhone || null,
       reviewLink: portal,
+      inviteToken: inviteToken || requestId,
       provider: "sendgrid",
       source,
       error: null,
@@ -4391,6 +4407,7 @@ async function sendReviewRequestEmailCore({
       defaults: outboundDefaults,
       updates: {
         status: "sent",
+        customerId: resolvedCustomerId,
         providerMessageId: providerMessageId || null,
         sentAtMs: Date.now(),
         error: null,
@@ -4412,6 +4429,7 @@ async function sendReviewRequestEmailCore({
       defaults: outboundDefaults,
       updates: {
         status: "failed",
+        customerId: resolvedCustomerId,
         error: { message: err?.message || "Send failed" },
       },
     });
@@ -4429,6 +4447,7 @@ async function sendReviewRequestEmailCore({
   try {
     await upsertCustomerRecord({
       businessId,
+      customerId: resolvedCustomerId,
       name: customerLabel || null,
       phone: customerPhone || null,
       email,
@@ -4474,6 +4493,7 @@ exports.sendReviewRequestEmail = functions
     }
 
     const customerName = data?.customerName;
+    const customerId = data?.customerId || null;
     const email = data?.email || data?.toEmail || data?.customerEmail;
     const phone = data?.customerPhone || data?.phone;
     const rawPortalUrl = data?.portalUrl || data?.portalLink;
@@ -4487,6 +4507,7 @@ exports.sendReviewRequestEmail = functions
     if (!portalUrl) {
       const invite = await createInviteToken({
         businessId,
+        customerId,
         customerName,
         phone,
         email,
@@ -4504,6 +4525,7 @@ exports.sendReviewRequestEmail = functions
       portalUrl,
       inviteToken,
       customerPhone: phone,
+      customerId,
       source: data?.source || "ask-reviews",
     });
   });
@@ -4515,6 +4537,7 @@ exports.sendReviewRequestEmailCallable = functions
     try {
       const caller = context.auth?.uid;
       const businessId = (data.businessId || caller || "").toString().trim();
+      const customerId = (data.customerId || "").toString().trim() || null;
       const customerName = (data.customerName || data.name || "").toString().trim();
       const email = (data.email || data.toEmail || data.customerEmail || "").toString().trim();
       const phone = (data.customerPhone || data.phone || "").toString().trim();
@@ -4598,6 +4621,7 @@ exports.sendReviewRequestEmailCallable = functions
       if (!portalLink) {
         const invite = await createInviteToken({
           businessId,
+          customerId,
           customerName,
           phone,
           email,
@@ -4616,6 +4640,7 @@ exports.sendReviewRequestEmailCallable = functions
         portalUrl: portalLink,
         inviteToken,
         customerPhone: phone,
+        customerId,
         source,
         requestId,
       });
@@ -4663,6 +4688,7 @@ exports.sendReviewRequestEmailHttp = functions
       }
 
       const customerName = req.body?.customerName;
+      const customerId = req.body?.customerId || null;
       const email = req.body?.email || req.body?.to || req.body?.customerEmail;
       const phone = req.body?.customerPhone || req.body?.phone;
       const rawPortalUrl = req.body?.portalUrl || req.body?.portalLink;
@@ -4676,6 +4702,7 @@ exports.sendReviewRequestEmailHttp = functions
       if (!portalUrl) {
         const invite = await createInviteToken({
           businessId,
+          customerId,
           customerName,
           phone,
           email,
@@ -4693,6 +4720,7 @@ exports.sendReviewRequestEmailHttp = functions
         portalUrl,
         inviteToken,
         customerPhone: phone,
+        customerId,
         source: req.body?.source || "ask-for-reviews",
       });
 

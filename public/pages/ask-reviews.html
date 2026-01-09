@@ -66,6 +66,7 @@
             <div>
               <p class="card-title">Single request</p>
               <p class="card-subtitle">Create a one-off request for any customer.</p>
+              <p class="card-subtitle text-muted">Customer will be saved for future follow-ups.</p>
             </div>
           </div>
           <form id="singleRequestForm" class="stack" novalidate>
@@ -113,20 +114,108 @@
           <div class="card-header">
             <div>
               <p class="card-title">Bulk requests</p>
-              <p class="card-subtitle">Select multiple customers to generate links for each.</p>
+              <p class="card-subtitle">Send review requests to multiple customers at once.</p>
             </div>
           </div>
-          <form id="bulkRequestForm" class="stack" novalidate>
-            <label class="label">
-              <span>Customers</span>
-              <select class="input" id="bulkCustomerList" multiple size="6"></select>
-            </label>
-            <div class="button-row">
-              <button class="btn btn-primary" type="submit" id="generateBulkBtn" disabled>Generate links</button>
-              <button class="btn btn-outline" type="button" id="downloadCsvBtn" disabled>Download CSV</button>
+          <div class="stack">
+            <div class="card muted-card">
+              <div class="card-header">
+                <div>
+                  <p class="card-title">Select existing customers</p>
+                  <p class="card-subtitle text-muted">Select customers and send in one click.</p>
+                </div>
+              </div>
+              <div class="stack">
+                <label class="label">
+                  <span>Search customers</span>
+                  <input class="input" type="search" id="bulkExistingSearch" placeholder="Search by name, phone, or email" />
+                </label>
+                <div class="table-wrapper">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th style="width: 40px;"></th>
+                        <th>Customer</th>
+                        <th>Contact</th>
+                      </tr>
+                    </thead>
+                    <tbody id="bulkExistingTableBody"></tbody>
+                  </table>
+                </div>
+                <div class="button-row" style="justify-content: space-between;">
+                  <p class="text-muted">Selected: <span id="bulkExistingSelectedCount">0</span></p>
+                  <div class="button-row">
+                    <button class="btn btn-primary" type="button" id="bulkExistingSendBtn" disabled>Send review requests (0 selected)</button>
+                  </div>
+                </div>
+                <div class="card muted-card" id="bulkExistingChannelPanel" hidden>
+                  <div class="input-grid">
+                    <label class="label">
+                      <span>Channel</span>
+                      <select class="input" id="bulkExistingChannelSelect">
+                        <option value="email">Email</option>
+                        <option value="link">Link</option>
+                        <option value="sms" disabled>SMS (coming soon)</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="button-row">
+                    <button class="btn btn-primary" type="button" id="bulkExistingConfirmBtn">Confirm send</button>
+                    <button class="btn btn-outline" type="button" id="bulkExistingCancelBtn">Cancel</button>
+                  </div>
+                </div>
+                <div class="pill pill-success" id="bulkExistingSuccess" hidden></div>
+                <div class="pill pill-error" id="bulkExistingError" hidden></div>
+              </div>
             </div>
-            <div class="card muted-card" id="bulkResults" hidden>
-              <p class="card-title">Generated links</p>
+
+            <div class="card muted-card">
+              <div class="card-header">
+                <div>
+                  <p class="card-title">Add customers and send requests</p>
+                  <p class="card-subtitle text-muted">Paste rows: Name, Email, Phone. We’ll save them and send.</p>
+                </div>
+              </div>
+              <div class="stack">
+                <label class="label">
+                  <span>Channel</span>
+                  <select class="input" id="bulkAddChannelSelect">
+                    <option value="email">Email</option>
+                    <option value="link">Link</option>
+                    <option value="sms" disabled>SMS (coming soon)</option>
+                  </select>
+                </label>
+                <label class="label">
+                  <span>Paste customer rows</span>
+                  <textarea class="input" id="bulkAddInput" rows="5" placeholder="Jane Doe, jane@email.com, (555) 123-4567"></textarea>
+                </label>
+                <div class="table-wrapper">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="bulkAddPreviewBody"></tbody>
+                  </table>
+                </div>
+                <div class="button-row">
+                  <button class="btn btn-primary" type="button" id="bulkAddSendBtn" disabled>Create customers &amp; send requests</button>
+                </div>
+                <div class="pill pill-success" id="bulkAddSuccess" hidden></div>
+                <div class="pill pill-error" id="bulkAddError" hidden></div>
+              </div>
+            </div>
+
+            <div class="card muted-card" id="bulkLinkOutput" hidden>
+              <p class="card-title">Bulk links</p>
+              <div class="button-row">
+                <button class="btn btn-outline" type="button" id="bulkCopyLinksBtn">Copy all links</button>
+                <button class="btn btn-outline" type="button" id="bulkDownloadLinksBtn">Download CSV</button>
+              </div>
               <div class="table-wrapper">
                 <table class="table">
                   <thead>
@@ -136,11 +225,11 @@
                       <th>Link</th>
                     </tr>
                   </thead>
-                  <tbody id="bulkResultsBody"></tbody>
+                  <tbody id="bulkLinkResultsBody"></tbody>
                 </table>
               </div>
             </div>
-          </form>
+          </div>
         </section>
 
         <section class="card">
