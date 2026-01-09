@@ -49,6 +49,7 @@
           </div>
           <div class="page-header-actions">
             <div class="button-row">
+              <button class="btn btn-primary" id="addCustomerBtn">Add Customer</button>
               <button class="btn btn-secondary" id="archiveSelectedBtn" data-plan-requires="growth" disabled>
                 Archive selected
               </button>
@@ -120,7 +121,48 @@
     </div>
   </div>
 
+  <div class="modal" id="addCustomerModal" aria-hidden="true" role="dialog" aria-labelledby="addCustomerTitle">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <p class="modal-eyebrow">Customers</p>
+          <h2 class="modal-title" id="addCustomerTitle">Add customer</h2>
+        </div>
+        <button class="btn btn-outline" type="button" data-modal-close>Close</button>
+      </div>
+      <div class="modal-body">
+        <form id="addCustomerForm" class="stack" novalidate>
+          <div class="input-grid">
+            <label class="label">
+              <span>Name <span class="text-muted">(required)</span></span>
+              <input class="input" type="text" id="addCustomerName" required placeholder="Jane Doe" />
+            </label>
+            <label class="label">
+              <span>Email</span>
+              <input class="input" type="email" id="addCustomerEmail" placeholder="jane@email.com" />
+            </label>
+            <label class="label">
+              <span>Phone</span>
+              <input class="input" type="tel" id="addCustomerPhone" placeholder="(555) 123-4567" />
+            </label>
+            <label class="label">
+              <span>Notes</span>
+              <input class="input" type="text" id="addCustomerNotes" placeholder="Optional notes" />
+            </label>
+          </div>
+          <div class="pill pill-success" id="addCustomerSuccess" hidden></div>
+          <div class="pill pill-error" id="addCustomerError" hidden></div>
+          <div class="modal-actions">
+            <button class="btn btn-outline" type="button" data-modal-close>Cancel</button>
+            <button class="btn btn-primary" type="submit" id="addCustomerSubmit">Save customer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="nav-access-init.js"></script>
+  <script src="modal-utils.js"></script>
   <script src="dashboard-nav.js"></script>
   <script type="module" src="topbar-menu.js"></script>
   <script type="module" src="customers.js"></script>

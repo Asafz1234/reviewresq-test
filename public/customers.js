@@ -2,17 +2,15 @@ import {
   db,
   collection,
   query,
-  where,
   orderBy,
   onSnapshot,
   doc,
   updateDoc,
   serverTimestamp,
-  functions,
-  httpsCallable,
 } from "./firebase-config.js";
 import { listenForUser, formatDate, initialsFromName } from "./session-data.js";
 import { PLAN_ORDER, normalizePlan } from "./plan-capabilities.js";
+import { createCustomer } from "./js/customersApi.js";
 
 const statusFilters = document.getElementById("statusFilters");
 const sourceFilters = document.getElementById("sourceFilters");
@@ -27,6 +25,16 @@ const detailContainer = document.getElementById("customerDetailContent");
 const detailPlaceholder = document.getElementById("emptyCustomerState");
 const customersShell = document.getElementById("customers");
 const planRestrictedElements = Array.from(document.querySelectorAll("[data-plan-requires]"));
+const addCustomerBtn = document.getElementById("addCustomerBtn");
+const addCustomerModal = document.getElementById("addCustomerModal");
+const addCustomerForm = document.getElementById("addCustomerForm");
+const addCustomerName = document.getElementById("addCustomerName");
+const addCustomerEmail = document.getElementById("addCustomerEmail");
+const addCustomerPhone = document.getElementById("addCustomerPhone");
+const addCustomerNotes = document.getElementById("addCustomerNotes");
+const addCustomerSuccess = document.getElementById("addCustomerSuccess");
+const addCustomerError = document.getElementById("addCustomerError");
+const addCustomerSubmit = document.getElementById("addCustomerSubmit");
 
 let businessId = null;
 let customers = [];
@@ -39,6 +47,7 @@ let currentSourceFilter = "all";
 let showArchived = false;
 let allowBulkActions = true;
 const inviteToastId = "customers-toast";
+let addCustomerModalController = null;
 
 function getCustomersCollection() {
   if (!businessId) {
@@ -63,6 +72,14 @@ function showToast(message, isError = false) {
   toast.classList.add("visible");
   clearTimeout(showToast.hideTimer);
   showToast.hideTimer = setTimeout(() => toast.classList.remove("visible"), 2400);
+}
+
+function setInlineMessage(element, message, isError = false) {
+  if (!element) return;
+  element.textContent = message || "";
+  element.hidden = !message;
+  element.classList.toggle("pill-error", isError);
+  element.classList.toggle("pill-success", !isError);
 }
 
 async function copyText(text) {
@@ -93,6 +110,18 @@ function setElementHidden(element, hidden) {
   if (!element) return;
   element.style.display = hidden ? "none" : "";
   element.setAttribute("aria-hidden", hidden ? "true" : "false");
+}
+
+function resetAddCustomerForm() {
+  if (addCustomerForm) addCustomerForm.reset();
+  setInlineMessage(addCustomerSuccess, "");
+  setInlineMessage(addCustomerError, "");
+}
+
+function openAddCustomerModal() {
+  if (!addCustomerModalController) return;
+  resetAddCustomerForm();
+  addCustomerModalController.open();
 }
 
 function ensureAllowedSourceFilter() {
@@ -185,6 +214,54 @@ async function downloadInviteQr(customer) {
   const link = await requestInviteLink(customer.id);
   await downloadQrCode(link);
   showToast("QR code downloaded");
+}
+
+async function handleAddCustomerSubmit(event) {
+  event.preventDefault();
+  if (!businessId) return;
+
+  const name = (addCustomerName?.value || "").trim();
+  const email = (addCustomerEmail?.value || "").trim().toLowerCase();
+  const phone = (addCustomerPhone?.value || "").trim();
+  const notes = (addCustomerNotes?.value || "").trim();
+
+  setInlineMessage(addCustomerSuccess, "");
+  setInlineMessage(addCustomerError, "");
+
+  if (!name) {
+    setInlineMessage(addCustomerError, "Customer name is required.", true);
+    return;
+  }
+
+  if (!email && !phone) {
+    setInlineMessage(addCustomerError, "Provide at least an email or phone number.", true);
+    return;
+  }
+
+  const defaultLabel = addCustomerSubmit.textContent;
+  addCustomerSubmit.disabled = true;
+  addCustomerSubmit.textContent = "Saving…";
+
+  try {
+    await createCustomer({
+      businessId,
+      name,
+      email,
+      phone,
+      notes,
+      reviewStatus: "none",
+    });
+    setInlineMessage(addCustomerSuccess, "Customer added.");
+    showToast("Customer saved");
+    resetAddCustomerForm();
+    addCustomerModalController?.close();
+  } catch (err) {
+    console.error("[customers] add customer failed", err);
+    setInlineMessage(addCustomerError, "We couldn’t save that customer. Please try again.", true);
+  } finally {
+    addCustomerSubmit.disabled = false;
+    addCustomerSubmit.textContent = defaultLabel;
+  }
 }
 
 function formatTimeline(timeline = []) {
@@ -504,6 +581,9 @@ function attachDetailActions() {
 }
 
 function attachEvents() {
+  if (window.ModalManager && addCustomerModal) {
+    addCustomerModalController = window.ModalManager.register(addCustomerModal);
+  }
   statusFilters.addEventListener("click", handleStatusClick);
   sourceFilters.addEventListener("click", handleSourceClick);
   tableBody.addEventListener("click", handleRowClick);
@@ -530,6 +610,8 @@ function attachEvents() {
     selectedRows.clear();
     archiveSelectedBtn.disabled = true;
   });
+  addCustomerBtn?.addEventListener("click", openAddCustomerModal);
+  addCustomerForm?.addEventListener("submit", handleAddCustomerSubmit);
   attachDetailActions();
 }
 
