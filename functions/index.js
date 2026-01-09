@@ -852,6 +852,13 @@ const normalizePhone = (phone = "") => {
   return digits;
 };
 
+const isValidPhone = (phone = "") => {
+  const digits = phone.toString().trim().replace(/\D+/g, "");
+  if (!digits) return false;
+  if (digits.length === 10) return true;
+  return digits.length === 11 && digits.startsWith("1");
+};
+
 const normalizeChannel = (channel = "link") => {
   if (channel === "email" || channel === "sms" || channel === "link") return channel;
   return "link";
@@ -1253,6 +1260,7 @@ async function upsertCustomerRecord({
   name,
   phone,
   email,
+  notes = null,
   source = "manual",
   reviewStatus = "none",
   lastInteractionAt = null,
@@ -1284,6 +1292,11 @@ async function upsertCustomerRecord({
       lastInteractionAt || admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+
+  if (typeof notes === "string") {
+    const trimmedNotes = notes.trim();
+    payload.notes = trimmedNotes || null;
+  }
 
   if (typeof archived === "boolean") {
     payload.archived = archived;
@@ -1340,6 +1353,47 @@ async function findExistingCustomerContacts({
   ]);
 
   return matches;
+}
+
+async function findExistingCustomerId({ businessId, email, phone }) {
+  if (!businessId) return null;
+  const normalizedEmail = normalizeEmail(email || "");
+  const normalizedPhone = normalizePhone(phone || "");
+  const customerRef = db.collection("businesses").doc(businessId).collection("customers");
+
+  if (normalizedEmail) {
+    const emailSnap = await customerRef.where("email", "==", normalizedEmail).limit(1).get();
+    if (!emailSnap.empty) {
+      return emailSnap.docs[0].id;
+    }
+  }
+
+  if (normalizedPhone) {
+    const phoneSnap = await customerRef.where("phone", "==", normalizedPhone).limit(1).get();
+    if (!phoneSnap.empty) {
+      return phoneSnap.docs[0].id;
+    }
+  }
+
+  return null;
+}
+
+const BULK_SEND_WINDOW_MS = 5 * 60 * 1000;
+
+async function hasRecentOutboundRequest({ businessId, customerId, channel }) {
+  if (!businessId || !customerId) return false;
+  const windowStart = admin.firestore.Timestamp.fromMillis(Date.now() - BULK_SEND_WINDOW_MS);
+  const snap = await db
+    .collection("businesses")
+    .doc(businessId)
+    .collection("outboundRequests")
+    .where("customerId", "==", customerId)
+    .where("channel", "==", channel)
+    .where("createdAt", ">", windowStart)
+    .orderBy("createdAt", "desc")
+    .limit(1)
+    .get();
+  return !snap.empty;
 }
 
 const deriveReviewStatusFromFeedback = (feedbackData = {}) => {
@@ -3825,6 +3879,7 @@ exports.createCustomerManual = functions.https.onCall(async (data, context) => {
   const name = (data?.name || "").toString().trim();
   const phone = (data?.phone || "").toString().trim();
   const email = (data?.email || "").toString().trim();
+  const notes = (data?.notes || "").toString();
   const reviewStatus = normalizeReviewStatus(data?.reviewStatus || "none");
 
   if (!name && !phone && !email) {
@@ -3839,11 +3894,172 @@ exports.createCustomerManual = functions.https.onCall(async (data, context) => {
     name: name || null,
     phone: phone || null,
     email: email || null,
+    notes,
     source: "manual",
     reviewStatus,
   });
 
   return { ok: true, customerId };
+});
+
+exports.bulkCreateCustomersAndSend = functions.https.onCall(async (data, context) => {
+  if (!context.auth?.uid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Authentication required to send bulk requests.",
+    );
+  }
+
+  const caller = context.auth.uid;
+  const businessId = data?.businessId || caller;
+  if (!businessId || caller !== businessId) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Only business owners can send bulk review requests.",
+    );
+  }
+
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
+  if (!rows.length) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Provide at least one customer row.",
+    );
+  }
+
+  const excludeInvalid = data?.excludeInvalid !== false;
+  const defaultChannel = normalizeChannel(data?.channel || "email");
+  const source = (data?.source || "bulk_upload").toString();
+  const results = [];
+
+  for (const row of rows) {
+    const rawName = (row?.name || "").toString();
+    const rawEmail = (row?.email || "").toString();
+    const rawPhone = (row?.phone || "").toString();
+    const notes = (row?.notes || "").toString();
+
+    const name = rawName.trim();
+    const email = normalizeEmail(rawEmail);
+    const phone = normalizePhone(rawPhone);
+
+    const hasEmail = Boolean(email);
+    const hasPhone = Boolean(phone);
+    const validEmail = hasEmail && basicEmailRegex.test(email);
+    const validPhone = hasPhone && isValidPhone(phone);
+
+    const errors = [];
+    if (!name) errors.push("Missing name");
+    if (!validEmail && !validPhone) errors.push("Missing email/phone");
+    if (hasEmail && !validEmail && !validPhone) errors.push("Invalid email");
+    if (hasPhone && !validPhone && !validEmail) errors.push("Invalid phone");
+
+    if (errors.length) {
+      results.push({
+        name: name || rawName || "—",
+        contact: email || phone || "",
+        ok: false,
+        message: errors.join("; "),
+      });
+      if (excludeInvalid) {
+        continue;
+      }
+      continue;
+    }
+
+    try {
+      let channel = defaultChannel;
+      if (channel === "email" && validEmail) {
+        channel = "email";
+      } else if (channel === "sms" && validPhone) {
+        channel = "link";
+      } else if (validEmail) {
+        channel = "email";
+      } else {
+        channel = "link";
+      }
+
+      const existingCustomerId = await findExistingCustomerId({
+        businessId,
+        email: validEmail ? email : "",
+        phone: validPhone ? phone : "",
+      });
+
+      const customerId = await upsertCustomerRecord({
+        businessId,
+        customerId: existingCustomerId,
+        name: name || null,
+        phone: validPhone ? phone : null,
+        email: validEmail ? email : null,
+        notes,
+        source: "csv",
+        reviewStatus: "requested",
+      });
+
+      const recentlySent = await hasRecentOutboundRequest({
+        businessId,
+        customerId,
+        channel,
+      });
+
+      if (recentlySent) {
+        results.push({
+          name,
+          contact: email || phone || "",
+          ok: false,
+          message: "Recently sent. Please wait a few minutes before retrying.",
+        });
+        continue;
+      }
+
+      const invite = await createInviteToken({
+        businessId,
+        customerId,
+        customerName: name,
+        phone: validPhone ? phone : "",
+        email: validEmail ? email : "",
+        channel,
+        source,
+      });
+
+      if (channel === "email") {
+        await sendReviewRequestEmailCore({
+          businessId,
+          toEmail: email,
+          customerName: name,
+          portalUrl: invite.portalUrl,
+          inviteToken: invite.inviteToken,
+          customerPhone: phone || null,
+          customerId,
+          source,
+          requestId: invite.requestId,
+        });
+        results.push({
+          name,
+          contact: email || phone || "",
+          ok: true,
+          message: "Email sent.",
+        });
+      } else {
+        results.push({
+          name,
+          contact: email || phone || "",
+          ok: true,
+          message: "Link generated.",
+          portalUrl: invite.portalUrl,
+        });
+      }
+    } catch (err) {
+      console.error("[bulkUpload] row failed", err);
+      results.push({
+        name: name || rawName || "—",
+        contact: email || phone || "",
+        ok: false,
+        message: err?.message || "Unable to send request.",
+      });
+    }
+  }
+
+  return { ok: true, results };
 });
 
 exports.createInviteToken = functions.https.onCall(async (data = {}, context) => {

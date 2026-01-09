@@ -587,6 +587,82 @@ label span.card-title {
   overflow-x: auto;
 }
 
+.bulk-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  position: sticky;
+  bottom: 0;
+}
+
+.bulk-action-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.upload-card {
+  border: 1px dashed #cbd5f5;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #f8fafc;
+}
+
+.bulk-preview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bulk-preview-counts {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #475569;
+}
+
+.bulk-advanced {
+  padding: 0;
+}
+
+.bulk-advanced-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.bulk-advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.bulk-advanced-body {
+  padding: 0 16px 16px;
+}
+
+.bulk-advanced[open] .bulk-advanced-summary {
+  border-bottom: 1px solid #e2e8f0;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;

@@ -11,20 +11,14 @@ import {
 import { functions, httpsCallable } from "../firebase-config.js";
 import { deriveBranding, listenForUser } from "../session-data.js";
 import { PLAN_LABELS, normalizePlan } from "../plan-capabilities.js";
+import {
+  parseCustomerFile,
+  buildPreviewRows,
+  renderPreviewTable,
+  countPreviewRows,
+} from "../js/bulkUpload.js";
+import { subscribeCustomers, bulkCreateCustomersAndSend } from "../js/customersApi.js";
 
-const singleForm = document.getElementById("singleRequestForm");
-const singleNameInput = document.getElementById("singleName");
-const singlePhoneInput = document.getElementById("singlePhone");
-const singleEmailInput = document.getElementById("singleEmail");
-const singleEmailHint = document.getElementById("singleEmailHint");
-const channelSelect = document.getElementById("channelSelect");
-const generateSingleBtn = document.getElementById("generateSingleBtn");
-const singleResult = document.getElementById("singleResult");
-const singleLinkOutput = document.getElementById("singleLinkOutput");
-const copySingleLinkBtn = document.getElementById("copySingleLink");
-const downloadSingleQrBtn = document.getElementById("downloadSingleQr");
-const emailSuccessBanner = document.getElementById("emailSuccess");
-const emailErrorBanner = document.getElementById("emailError");
 const planBadge = document.querySelector("[data-plan-label]");
 const brandingBlocker = document.getElementById("brandingBlocker");
 const brandingBlockerMessage = document.getElementById("brandingBlockerMessage");
@@ -55,6 +49,22 @@ const bulkCopyLinksBtn = document.getElementById("bulkCopyLinksBtn");
 const bulkDownloadLinksBtn = document.getElementById("bulkDownloadLinksBtn");
 const bulkLinkResultsBody = document.getElementById("bulkLinkResultsBody");
 
+const bulkUploadInput = document.getElementById("bulkUploadInput");
+const bulkUploadBtn = document.getElementById("bulkUploadBtn");
+const bulkUploadFileName = document.getElementById("bulkUploadFileName");
+const bulkUploadError = document.getElementById("bulkUploadError");
+const bulkUploadSuccess = document.getElementById("bulkUploadSuccess");
+const bulkUploadPreview = document.getElementById("bulkUploadPreview");
+const bulkUploadPreviewBody = document.getElementById("bulkUploadPreviewBody");
+const bulkUploadTotalCount = document.getElementById("bulkUploadTotalCount");
+const bulkUploadValidCount = document.getElementById("bulkUploadValidCount");
+const bulkUploadInvalidCount = document.getElementById("bulkUploadInvalidCount");
+const bulkUploadExcludeInvalid = document.getElementById("bulkUploadExcludeInvalid");
+const bulkUploadSendBtn = document.getElementById("bulkUploadSendBtn");
+const bulkUploadResults = document.getElementById("bulkUploadResults");
+const bulkUploadResultsSummary = document.getElementById("bulkUploadResultsSummary");
+const bulkUploadResultsBody = document.getElementById("bulkUploadResultsBody");
+
 const outboundTableBody = document.getElementById("outboundTableBody");
 const outboundEmptyRow = document.getElementById("outboundEmptyRow");
 const requestRange = document.getElementById("requestRange");
@@ -78,18 +88,17 @@ let customers = [];
 let unsubscribe = null;
 let outboundUnsub = null;
 let bulkLinks = [];
-let emailSuccessTimer = null;
 let outboundRequests = [];
 let currentUser = null;
 let brandingState = { complete: true };
 let eventsBound = false;
 let bulkSelectedIds = new Set();
 let bulkPreviewRows = [];
-let singleRequestId = null;
 
 const createInviteTokenCallable = httpsCallable(functions, "createInviteTokenCallable");
 const sendReviewRequestEmailCallable = httpsCallable(functions, "sendReviewRequestEmailCallable");
 const createCustomerManualCallable = httpsCallable(functions, "createCustomerManual");
+let bulkUploadRows = [];
 
 function showToast(message, isError = false) {
   if (!toastEl) return alert(message);
@@ -116,27 +125,6 @@ async function copyText(text) {
   textarea.select();
   document.execCommand("copy");
   textarea.remove();
-}
-
-async function generateQrBlob(url) {
-  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(url)}`;
-  const response = await fetch(qrApiUrl);
-  if (!response.ok) {
-    throw new Error("QR service unavailable");
-  }
-  return response.blob();
-}
-
-async function downloadQrCode(url) {
-  const blob = await generateQrBlob(url);
-  const objectUrl = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = objectUrl;
-  anchor.download = "reviewresq-portal-qr.png";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(objectUrl);
 }
 
 function setPlan(planId) {
@@ -223,17 +211,19 @@ function renderExistingCustomers() {
 
 function startCustomerFeed(uid) {
   if (!uid || !bulkExistingTableBody) return;
-  const q = query(collection(db, "businesses", uid, "customers"));
-  unsubscribe = onSnapshot(q, (snapshot) => {
-    customers = snapshot.docs
-      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
-      .sort((a, b) => {
-        const aTime = a?.createdAt?.toMillis?.() || 0;
-        const bTime = b?.createdAt?.toMillis?.() || 0;
-        return bTime - aTime;
-      });
-    renderExistingCustomers();
-    updateBulkSelectedCount();
+  unsubscribe = subscribeCustomers({
+    businessId: uid,
+    onChange: (snapshot) => {
+      customers = snapshot.docs
+        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+        .sort((a, b) => {
+          const aTime = a?.createdAt?.toMillis?.() || 0;
+          const bTime = b?.createdAt?.toMillis?.() || 0;
+          return bTime - aTime;
+        });
+      renderExistingCustomers();
+      updateBulkSelectedCount();
+    },
   });
 }
 
@@ -241,50 +231,6 @@ function getSelectedCustomers() {
   return customers.filter((c) => bulkSelectedIds.has(c.id));
 }
 
-function updateChannelUi() {
-  const channel = channelSelect?.value || "link";
-  const emailRequired = channel === "email";
-
-  if (singleEmailInput) singleEmailInput.required = emailRequired;
-  if (singleEmailHint)
-    singleEmailHint.textContent = emailRequired ? "(required for email)" : "(optional)";
-  if (generateSingleBtn)
-    generateSingleBtn.textContent = emailRequired ? "Send email request" : "Generate & Copy Link";
-  resetStatusBanners();
-}
-
-function hideEmailBanners() {
-  if (emailSuccessTimer) {
-    clearTimeout(emailSuccessTimer);
-    emailSuccessTimer = null;
-  }
-
-  if (emailSuccessBanner) {
-    emailSuccessBanner.hidden = true;
-    emailSuccessBanner.style.display = "none";
-    emailSuccessBanner.textContent = "";
-  }
-
-  if (emailErrorBanner) {
-    emailErrorBanner.hidden = true;
-    emailErrorBanner.style.display = "none";
-    emailErrorBanner.textContent = "";
-  }
-}
-
-function showEmailSuccess() {
-  if (!emailSuccessBanner) return;
-  emailSuccessBanner.textContent = "Email sent";
-  emailSuccessBanner.hidden = false;
-  emailSuccessBanner.style.removeProperty("display");
-  emailSuccessTimer = setTimeout(() => {
-    if (emailSuccessBanner) emailSuccessBanner.hidden = true;
-  }, 5000);
-}
-
-function resetStatusBanners() {
-  hideEmailBanners();
-}
 
 function updateSetupStatus(isComplete) {
   if (!setupStatus) return;
@@ -296,13 +242,6 @@ function updateSetupStatus(isComplete) {
 function toggleRequestForms(enabled) {
   const disabled = !enabled;
   [
-    singleNameInput,
-    singlePhoneInput,
-    singleEmailInput,
-    channelSelect,
-    generateSingleBtn,
-    copySingleLinkBtn,
-    downloadSingleQrBtn,
     bulkExistingSearch,
     bulkExistingSendBtn,
     bulkExistingConfirmBtn,
@@ -311,6 +250,10 @@ function toggleRequestForms(enabled) {
     bulkAddChannelSelect,
     bulkAddInput,
     bulkAddSendBtn,
+    bulkUploadInput,
+    bulkUploadBtn,
+    bulkUploadExcludeInvalid,
+    bulkUploadSendBtn,
     bulkCopyLinksBtn,
     bulkDownloadLinksBtn,
     requestRange,
@@ -335,15 +278,12 @@ function applyBrandingGate(branding) {
 
   toggleRequestForms(isComplete);
   if (!isComplete) {
-    setErrorBanner("");
-    if (singleResult) singleResult.hidden = true;
     if (bulkLinkOutput) bulkLinkOutput.hidden = true;
   }
 }
 
 function requireBrandingOrNotify() {
   if (brandingState.complete) return true;
-  setErrorBanner(BRANDING_REQUIRED_MESSAGE);
   showToast(BRANDING_REQUIRED_MESSAGE, true);
   redirectToBrandingSetup();
   return false;
@@ -358,16 +298,6 @@ function redirectToBrandingSetup() {
   const redirectUrl = new URL("/business-settings.html", window.location.origin);
   redirectUrl.searchParams.set("return", "ask-reviews");
   window.location.href = redirectUrl.toString();
-}
-
-function setErrorBanner(message = "") {
-  if (!emailErrorBanner) return;
-  emailErrorBanner.textContent = message || "";
-  emailErrorBanner.hidden = !message;
-  emailErrorBanner.style.display = message ? "" : "none";
-  if (message && emailSuccessBanner && !emailSuccessBanner.hidden) {
-    emailSuccessBanner.hidden = true;
-  }
 }
 
 function formatDateLabel(timestampMs) {
@@ -512,183 +442,170 @@ function handleRangeChange() {
   renderOutboundTable();
 }
 
-async function handleSingleSubmit(event) {
-  event.preventDefault();
-  if (!businessId) return;
-  if (!requireBrandingOrNotify()) return;
-
-  const name = singleNameInput?.value.trim();
-  const phone = singlePhoneInput?.value.trim();
-  const email = singleEmailInput?.value.trim();
-  const channel = channelSelect?.value || "link";
-  const isEmailChannel = channel === "email";
-
-  resetStatusBanners();
-
-  if (!name) {
-    showToast("Customer name is required", true);
-    setErrorBanner("Customer name is required");
-    return;
-  }
-
-  if (isEmailChannel && !email) {
-    showToast("Email is required for email requests", true);
-    setErrorBanner("Email is required for email requests");
-    return;
-  }
-
-  if (isEmailChannel && email && !emailRegex.test(email)) {
-    showToast("Enter a valid email address", true);
-    setErrorBanner("Enter a valid email address");
-    return;
-  }
-
-  const defaultLabel = generateSingleBtn.textContent;
-  generateSingleBtn.disabled = true;
-  generateSingleBtn.setAttribute("aria-busy", "true");
-  generateSingleBtn.textContent = isEmailChannel ? "Sending…" : "Generating…";
-
-  try {
-    const customerId = await ensureCustomerRecord({ name, phone, email });
-
-    if (isEmailChannel) {
-      const invitePayload = {
-        businessId,
-        customerId,
-        customerName: name,
-        phone,
-        email,
-        channel,
-        source: "ask-for-reviews",
-      };
-
-      const inviteResponse = await createInviteTokenCallable(invitePayload);
-      const inviteData = inviteResponse?.data || {};
-      const portalLink = inviteData.portalLink || inviteData.portalUrl;
-      const requestId = inviteData.requestId || inviteData.inviteToken;
-
-      if (!inviteData?.ok || !portalLink) {
-        throw new Error(inviteData?.error || "Unable to create invite link");
-      }
-
-      const sendPayload = {
-        businessId,
-        customerId,
-        customerName: name,
-        customerEmail: email,
-        email,
-        customerPhone: phone,
-        portalLink,
-        requestId,
-        source: "ask-for-reviews",
-      };
-
-      const sendResponse = await sendReviewRequestEmailCallable(sendPayload);
-      const sendData = sendResponse?.data || {};
-      const sendSuccess = Boolean(sendData?.ok);
-      if (!sendSuccess) {
-        throw new Error(sendData?.error || "Email send failed");
-      }
-
-      singleRequestId = requestId || null;
-      if (singleLinkOutput) singleLinkOutput.value = "";
-      if (singleResult) singleResult.hidden = true;
-      showEmailSuccess();
-      showToast("Email sent");
-    } else {
-      const inviteResponse = await createInviteTokenCallable({
-        businessId,
-        customerId,
-        customerName: name,
-        phone,
-        email,
-        channel,
-        source: "ask-reviews",
-      });
-      const inviteData = inviteResponse?.data || {};
-      const portalUrl = inviteData.portalLink || inviteData.portalUrl;
-      const requestId = inviteData.requestId || inviteData.inviteToken;
-      if (!inviteData?.ok || !portalUrl) throw new Error("No portal URL returned");
-      if (singleLinkOutput) singleLinkOutput.value = portalUrl;
-      if (singleResult) singleResult.hidden = false;
-      singleRequestId = requestId || null;
-      await copyText(portalUrl);
-      await markOutboundSent(requestId);
-      showToast("Link generated and copied");
-    }
-  } catch (err) {
-    console.error(
-      "[ask-reviews] single generate failed",
-      err?.code || err?.name || "unknown",
-      err?.message,
-      err?.details,
-    );
-    const configMissing =
-      err?.code === "failed-precondition" ||
-      err?.message?.includes("email_sending_not_configured");
-    const explicitMessage = err?.details?.message || err?.message || err?.details;
-    const fallback = isEmailChannel ? "Unable to send email" : "Unable to generate link";
-    const brandingBlocked = err?.details?.code === "BRANDING_INCOMPLETE";
-    const friendlyMessage = brandingBlocked
-      ? BRANDING_REQUIRED_MESSAGE
-      : configMissing
-        ? "Email sending isn’t configured. Please contact support."
-        : explicitMessage || fallback;
-
-    setErrorBanner(friendlyMessage);
-
-    if (brandingBlocked) {
-      applyBrandingGate({ complete: false });
-    }
-
-    if (configMissing) {
-      showToast("Email sending isn’t configured. Please contact support.", true);
-    } else {
-      showToast(friendlyMessage || fallback, true);
-    }
-  } finally {
-    generateSingleBtn.disabled = false;
-    generateSingleBtn.setAttribute("aria-busy", "false");
-    generateSingleBtn.textContent = defaultLabel;
-  }
-}
-
-async function handleCopySingle() {
-  const link = singleLinkOutput?.value || "";
-  if (!link) return;
-  try {
-    await copyText(link);
-    await markOutboundSent(singleRequestId);
-    showToast("Link copied");
-  } catch (err) {
-    showToast("Copy failed", true);
-  }
-}
-
-async function handleSingleQr() {
-  const link = singleLinkOutput?.value || "";
-  if (!link) return;
-  const defaultLabel = downloadSingleQrBtn.textContent;
-  downloadSingleQrBtn.disabled = true;
-  downloadSingleQrBtn.textContent = "Preparing…";
-  try {
-    await downloadQrCode(link);
-    await markOutboundSent(singleRequestId);
-    showToast("QR code downloaded");
-  } catch (err) {
-    console.error("[ask-reviews] QR download failed", err);
-    showToast("QR download failed", true);
-  } finally {
-    downloadSingleQrBtn.disabled = false;
-    downloadSingleQrBtn.textContent = defaultLabel;
-  }
-}
-
 function resetBulkFeedback() {
   setInlineMessage(bulkExistingSuccess, "");
   setInlineMessage(bulkExistingError, "");
   setInlineMessage(bulkAddSuccess, "");
   setInlineMessage(bulkAddError, "");
+  setInlineMessage(bulkUploadError, "");
+  setInlineMessage(bulkUploadSuccess, "");
+}
+
+function updateBulkUploadCounts() {
+  const counts = countPreviewRows(bulkUploadRows);
+  if (bulkUploadTotalCount) bulkUploadTotalCount.textContent = String(counts.total);
+  if (bulkUploadValidCount) bulkUploadValidCount.textContent = String(counts.valid);
+  if (bulkUploadInvalidCount) bulkUploadInvalidCount.textContent = String(counts.invalid);
+}
+
+function getBulkUploadSendCount() {
+  if (!bulkUploadRows.length) return 0;
+  if (bulkUploadExcludeInvalid?.checked) {
+    return bulkUploadRows.filter((row) => row.isValid).length;
+  }
+  return bulkUploadRows.length;
+}
+
+function updateBulkUploadCta() {
+  const count = getBulkUploadSendCount();
+  if (bulkUploadSendBtn) {
+    bulkUploadSendBtn.disabled = count === 0;
+    bulkUploadSendBtn.textContent = `Create customers & send requests (${count})`;
+  }
+}
+
+function renderBulkUploadPreview() {
+  if (bulkUploadPreview) {
+    bulkUploadPreview.hidden = bulkUploadRows.length === 0;
+  }
+  renderPreviewTable(bulkUploadRows, bulkUploadPreviewBody);
+  updateBulkUploadCounts();
+  updateBulkUploadCta();
+}
+
+async function handleBulkUploadSelection(file) {
+  if (!file) return;
+  resetBulkFeedback();
+  if (bulkUploadResults) bulkUploadResults.hidden = true;
+  if (bulkUploadResultsBody) bulkUploadResultsBody.innerHTML = "";
+  if (bulkUploadResultsSummary) bulkUploadResultsSummary.textContent = "";
+  if (bulkUploadFileName) {
+    bulkUploadFileName.textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} KB`;
+  }
+
+  try {
+    const rows = await parseCustomerFile(file);
+    bulkUploadRows = buildPreviewRows(rows);
+    if (!bulkUploadRows.length) {
+      setInlineMessage(bulkUploadError, "No rows detected. Please check your file.", true);
+    }
+    renderBulkUploadPreview();
+    if (bulkUploadRows.length) {
+      setInlineMessage(bulkUploadSuccess, `Loaded ${bulkUploadRows.length} row(s).`);
+    }
+  } catch (err) {
+    console.error("[ask-reviews] bulk upload parse failed", err);
+    bulkUploadRows = [];
+    renderBulkUploadPreview();
+    setInlineMessage(
+      bulkUploadError,
+      err?.message || "We couldn’t parse that file. Please try again.",
+      true,
+    );
+  }
+}
+
+function renderBulkUploadResults(results = []) {
+  if (!bulkUploadResultsBody) return;
+  bulkUploadResultsBody.innerHTML = "";
+  results.forEach((result) => {
+    const row = document.createElement("tr");
+    const nameCell = document.createElement("td");
+    const contactCell = document.createElement("td");
+    const resultCell = document.createElement("td");
+    const messageCell = document.createElement("td");
+
+    nameCell.textContent = result.name || "—";
+    contactCell.textContent = result.contact || "—";
+    resultCell.textContent = result.ok ? "Sent" : "Failed";
+    resultCell.style.color = result.ok ? "#047857" : "#b91c1c";
+    messageCell.textContent = result.message || "";
+
+    row.appendChild(nameCell);
+    row.appendChild(contactCell);
+    row.appendChild(resultCell);
+    row.appendChild(messageCell);
+    bulkUploadResultsBody.appendChild(row);
+  });
+}
+
+async function handleBulkUploadSend() {
+  if (!businessId || !bulkSection || plan === "starter") return;
+  if (!requireBrandingOrNotify()) return;
+
+  const excludeInvalid = bulkUploadExcludeInvalid?.checked ?? true;
+  const rowsToSend = excludeInvalid
+    ? bulkUploadRows.filter((row) => row.isValid)
+    : bulkUploadRows;
+
+  if (!rowsToSend.length) {
+    showToast("Add at least one valid customer row", true);
+    return;
+  }
+
+  resetBulkFeedback();
+  bulkUploadSendBtn.disabled = true;
+  bulkUploadSendBtn.setAttribute("aria-busy", "true");
+
+  if (bulkUploadResults) bulkUploadResults.hidden = false;
+  if (bulkUploadResultsSummary) {
+    bulkUploadResultsSummary.textContent = "Processing…";
+  }
+
+  try {
+    const payloadRows = rowsToSend.map((row) => ({
+      name: row.name,
+      email: row.email,
+      phone: row.phone,
+      notes: row.notes,
+    }));
+
+    const response = await bulkCreateCustomersAndSend({
+      businessId,
+      rows: payloadRows,
+      channel: "email",
+      excludeInvalid,
+      source: "bulk_upload",
+    });
+
+    const results = response.results || [];
+    const successCount = results.filter((result) => result.ok).length;
+    const failureCount = results.length - successCount;
+
+    renderBulkUploadResults(results);
+    if (bulkUploadResultsSummary) {
+      bulkUploadResultsSummary.textContent = `Sent ${successCount} · Failed ${failureCount}`;
+    }
+    if (successCount) {
+      setInlineMessage(bulkUploadSuccess, `Sent ${successCount} request(s).`);
+    }
+    if (failureCount) {
+      setInlineMessage(bulkUploadError, `${failureCount} request(s) failed.`, true);
+    }
+  } catch (err) {
+    console.error("[ask-reviews] bulk upload send failed", err);
+    setInlineMessage(
+      bulkUploadError,
+      err?.message || "We couldn’t send those requests. Please try again.",
+      true,
+    );
+    if (bulkUploadResultsSummary) {
+      bulkUploadResultsSummary.textContent = "Processing failed.";
+    }
+  } finally {
+    bulkUploadSendBtn.disabled = false;
+    bulkUploadSendBtn.removeAttribute("aria-busy");
+  }
 }
 
 function renderBulkLinkResults() {
@@ -1051,16 +968,15 @@ function attachEvents() {
   bulkAddInput?.addEventListener("input", updateBulkAddPreview);
   bulkAddChannelSelect?.addEventListener("change", updateBulkAddPreview);
   bulkAddSendBtn?.addEventListener("click", handleBulkAddSend);
+  bulkUploadBtn?.addEventListener("click", () => bulkUploadInput?.click());
+  bulkUploadInput?.addEventListener("change", (event) => {
+    const file = event.target?.files?.[0];
+    handleBulkUploadSelection(file);
+  });
+  bulkUploadExcludeInvalid?.addEventListener("change", updateBulkUploadCta);
+  bulkUploadSendBtn?.addEventListener("click", handleBulkUploadSend);
   bulkCopyLinksBtn?.addEventListener("click", handleBulkCopyLinks);
   bulkDownloadLinksBtn?.addEventListener("click", handleBulkDownloadLinks);
-  [singleNameInput, singlePhoneInput, singleEmailInput, channelSelect].forEach((input) => {
-    input?.addEventListener("input", resetStatusBanners);
-    input?.addEventListener("change", resetStatusBanners);
-  });
-  channelSelect?.addEventListener("change", updateChannelUi);
-  singleForm?.addEventListener("submit", handleSingleSubmit);
-  copySingleLinkBtn?.addEventListener("click", handleCopySingle);
-  downloadSingleQrBtn?.addEventListener("click", handleSingleQr);
   requestRange?.addEventListener("change", handleRangeChange);
   customStartInput?.addEventListener("change", renderOutboundTable);
   customEndInput?.addEventListener("change", renderOutboundTable);
@@ -1072,10 +988,9 @@ function attachEvents() {
     }
     window.location.href = "/business-settings.html?return=dashboard";
   });
-  resetStatusBanners();
-  updateChannelUi();
   updateBulkAddPreview();
   updateBulkSelectedCount();
+  updateBulkUploadCta();
 }
 
 function initApp() {
@@ -1093,8 +1008,6 @@ function initApp() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  hideEmailBanners();
-  updateChannelUi();
   initApp();
 });
 
