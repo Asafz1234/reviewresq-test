@@ -4,6 +4,7 @@ import {
   query,
   orderBy,
   onSnapshot,
+  where,
   doc,
   updateDoc,
   serverTimestamp,
@@ -42,6 +43,10 @@ let filtered = [];
 let selectedCustomerId = null;
 const selectedRows = new Set();
 let unsubscribe = null;
+let requestActivityUnsub = null;
+let requestActivity = [];
+let activityCustomerId = null;
+const deepLinkedCustomerId = new URLSearchParams(window.location.search).get("customerId");
 let currentStatusFilter = "all";
 let currentSourceFilter = "all";
 let showArchived = false;
@@ -317,6 +322,59 @@ function formatSourceLabel(source) {
   return map[source] || "Unknown";
 }
 
+function resolveTimestampMs(value) {
+  if (!value) return null;
+  if (typeof value === "number") return value;
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  if (typeof value?.seconds === "number") return value.seconds * 1000;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function formatNYDateTime(value) {
+  if (!value) return "—";
+  const timestamp = typeof value === "number" ? value : resolveTimestampMs(value);
+  if (!timestamp) return "—";
+  return new Date(timestamp).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/New_York",
+  });
+}
+
+function inferChannel(entry) {
+  const explicit = (entry?.channel || entry?.sendChannel || "").toString().trim().toLowerCase();
+  if (explicit) return explicit;
+  const hasEmailSignals = Boolean(
+    entry?.provider ||
+      entry?.providerMessageId ||
+      entry?.messageId ||
+      entry?.emailId ||
+      entry?.emailStatus ||
+      entry?.deliveredAtMs ||
+      entry?.processedAtMs,
+  );
+  return hasEmailSignals ? "email" : "link";
+}
+
+function deriveActivityStatus(entry) {
+  const clicked = resolveTimestampMs(entry.clickedAt || entry.clickedAtMs);
+  if (clicked) return "Clicked";
+  const opened = resolveTimestampMs(entry.openedAt || entry.openedAtMs);
+  if (opened) return "Opened";
+  const sent = resolveTimestampMs(
+    entry.sentAtMs ||
+      entry.sentAt ||
+      entry.deliveredAtMs ||
+      entry.processedAtMs,
+  );
+  if (sent) return "Sent";
+  return "Draft";
+}
+
 function statusBadge(status) {
   const labels = {
     none: "No request",
@@ -338,6 +396,7 @@ function renderTimeline(customer) {
     detailPlaceholder.style.display = "block";
     detailContainer.style.display = "none";
     detailContainer.innerHTML = "";
+    startCustomerActivityFeed(null);
     return;
   }
 
@@ -409,7 +468,7 @@ function renderTimeline(customer) {
           <div class="card-title">${customer.archived ? "Yes" : "No"}</div>
         </div>
       </div>
-      <div class="card-title">Timeline</div>
+      <div class="card-title">Customer timeline</div>
       <div class="timeline">${timelineHtml}</div>
       <div class="detail-actions">
         <button class="btn" data-action="copy-link" data-id="${customer.id}">Copy portal link</button>
@@ -419,7 +478,79 @@ function renderTimeline(customer) {
         </button>
       </div>
     </div>
+    <div class="card">
+      <div class="card-title">Request activity</div>
+      <div class="timeline" id="customerRequestTimeline"></div>
+    </div>
   `;
+  renderCustomerRequestTimeline();
+}
+
+function renderCustomerRequestTimeline() {
+  const container = document.getElementById("customerRequestTimeline");
+  if (!container) return;
+  if (!requestActivity.length) {
+    container.innerHTML = '<p class="caption">No request activity yet.</p>';
+    return;
+  }
+
+  container.innerHTML = requestActivity
+    .map((entry) => {
+      const createdAt = resolveTimestampMs(
+        entry.createdAtMs || entry.createdAt || entry.updatedAtMs || entry.updatedAt,
+      );
+      const sentAt = resolveTimestampMs(
+        entry.sentAtMs ||
+          entry.sentAt ||
+          entry.deliveredAtMs ||
+          entry.processedAtMs,
+      );
+      const openedAt = resolveTimestampMs(entry.openedAtMs || entry.openedAt);
+      const clickedAt = resolveTimestampMs(entry.clickedAtMs || entry.clickedAt);
+      const status = deriveActivityStatus(entry);
+      const channel = inferChannel(entry) === "email" ? "Email" : "Link";
+      const link = entry.portalLink || entry.portalUrl || entry.linkUrl || "";
+      const archivedBadge = entry.archived ? '<span class="badge badge-muted">Archived</span>' : "";
+
+      return `
+        <div class="timeline-item">
+          <div class="timeline-meta">
+            <span class="badge">${status}</span>
+            ${archivedBadge}
+            <span class="caption">${createdAt ? formatNYDateTime(createdAt) : "Unknown date"}</span>
+          </div>
+          <p class="timeline-text">Channel: ${channel}</p>
+          <p class="caption">Sent: ${formatNYDateTime(sentAt)} · Opened: ${formatNYDateTime(openedAt)} · Clicked: ${formatNYDateTime(clickedAt)}</p>
+          ${
+            link
+              ? `<a class="helper-link" href="${link}" target="_blank" rel="noopener">Open request link</a>`
+              : ""
+          }
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function startCustomerActivityFeed(customerId) {
+  if (activityCustomerId === customerId && requestActivityUnsub) {
+    renderCustomerRequestTimeline();
+    return;
+  }
+  if (typeof requestActivityUnsub === "function") {
+    requestActivityUnsub();
+  }
+  activityCustomerId = customerId || null;
+  requestActivity = [];
+  renderCustomerRequestTimeline();
+
+  if (!businessId || !customerId) return;
+  const outboundRef = collection(db, "businesses", businessId, "outboundRequests");
+  const q = query(outboundRef, where("customerId", "==", customerId), orderBy("createdAtMs", "desc"));
+  requestActivityUnsub = onSnapshot(q, (snapshot) => {
+    requestActivity = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    renderCustomerRequestTimeline();
+  });
 }
 
 function renderTable() {
@@ -519,6 +650,7 @@ function handleRowClick(event) {
   const customer = filtered.find((c) => c.id === id);
   selectedCustomerId = id;
   renderTimeline(customer);
+  startCustomerActivityFeed(id);
   renderTable();
 }
 
@@ -625,9 +757,20 @@ function startCustomerFeed(uid) {
   unsubscribe = onSnapshot(q, (snapshot) => {
     customers = snapshot.docs.map(normalizeCustomer);
     applyFilters();
+    if (deepLinkedCustomerId && !selectedCustomerId) {
+      const deepLinkedCustomer = customers.find((c) => c.id === deepLinkedCustomerId);
+      if (deepLinkedCustomer) {
+        selectedCustomerId = deepLinkedCustomerId;
+        renderTimeline(deepLinkedCustomer);
+        startCustomerActivityFeed(deepLinkedCustomerId);
+        renderTable();
+        return;
+      }
+    }
     if (selectedCustomerId) {
       const current = customers.find((c) => c.id === selectedCustomerId);
       renderTimeline(current);
+      startCustomerActivityFeed(selectedCustomerId);
     }
   });
 }
@@ -641,4 +784,5 @@ listenForUser(({ user, subscription }) => {
 
 window.addEventListener("beforeunload", () => {
   if (typeof unsubscribe === "function") unsubscribe();
+  if (typeof requestActivityUnsub === "function") requestActivityUnsub();
 });
