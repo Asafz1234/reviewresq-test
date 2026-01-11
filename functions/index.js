@@ -1147,6 +1147,10 @@ const buildOutboundDefaults = ({
     deliveredAtMs: null,
     openedAtMs: null,
     clickedAtMs: null,
+    openedAt: null,
+    clickedAt: null,
+    openCount: 0,
+    clickCount: 0,
     error: null,
     locale: "en-US",
     tz: "America/New_York",
@@ -4466,7 +4470,7 @@ async function sendReviewRequestEmailCore({
     );
   }
 
-  const requestId = explicitRequestId || crypto.randomBytes(12).toString("hex");
+  const requestId = explicitRequestId || inviteToken || crypto.randomBytes(12).toString("hex");
   const portal = resolveCanonicalInviteUrl({ inviteToken, portalUrl });
   if (!portal) {
     throw new functions.https.HttpsError(
@@ -4565,6 +4569,7 @@ async function sendReviewRequestEmailCore({
     customArgs: {
       businessId,
       requestId,
+      inviteToken: inviteToken || null,
     },
     headers: {
       "List-Unsubscribe": `<mailto:${supportEmail}?subject=unsubscribe>`,
@@ -5135,10 +5140,18 @@ async function applySendGridEvent(event = {}) {
       case "open":
         nextStatus = resolveStatusProgression(currentStatus, "opened");
         updates.openedAtMs = existing.openedAtMs || eventMs;
+        if (!existing.openedAt) {
+          updates.openedAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+        updates.openCount = admin.firestore.FieldValue.increment(1);
         break;
       case "click":
         nextStatus = resolveStatusProgression(currentStatus, "clicked");
         updates.clickedAtMs = existing.clickedAtMs || eventMs;
+        if (!existing.clickedAt) {
+          updates.clickedAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+        updates.clickCount = admin.firestore.FieldValue.increment(1);
         if (!existing.openedAtMs) updates.openedAtMs = eventMs;
         break;
       case "bounce":
@@ -5958,17 +5971,82 @@ exports.recordReviewLinkClick = onRequest(async (req, res) => {
           }
         })();
 
-  const businessId = (payload.businessId || "").toString().trim();
+  let businessId = (payload.businessId || "").toString().trim();
+  const inviteToken = (payload.inviteToken || payload.token || payload.t || "").toString().trim();
+  const requestId = (payload.requestId || inviteToken || "").toString().trim();
   const rating = Number(payload.rating || 0);
   const customerName = (payload.customerName || "").toString().trim();
   const customerEmail = normalizeEmail(payload.customerEmail || "");
   const customerPhone = normalizePhone(payload.customerPhone || "");
 
-  if (!businessId) {
-    return res.status(400).json({ error: "businessId is required" });
-  }
-
   try {
+    if (!businessId && inviteToken) {
+      const resolved = await resolveInviteTokenDocument(inviteToken);
+      businessId = resolved.businessId || businessId;
+    }
+
+    if (!businessId) {
+      return res.status(400).json({ error: "businessId is required" });
+    }
+
+    if (!requestId) {
+      return res.status(400).json({ error: "inviteToken is required" });
+    }
+
+    const requestRef = db
+      .collection("businesses")
+      .doc(String(businessId))
+      .collection("outboundRequests")
+      .doc(String(requestId));
+    const eventMs = Date.now();
+
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(requestRef);
+      const existing = snap.exists ? snap.data() : {};
+      const currentStatus = existing.status || "draft";
+      const updates = {
+        status: resolveStatusProgression(currentStatus, "clicked"),
+        clickedAtMs: existing.clickedAtMs || eventMs,
+        updatedAtMs: eventMs,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        clickCount: admin.firestore.FieldValue.increment(1),
+      };
+      if (!existing.clickedAt) {
+        updates.clickedAt = admin.firestore.FieldValue.serverTimestamp();
+      }
+
+      const defaults = snap.exists
+        ? {
+            businessId: String(businessId),
+            requestId: String(requestId),
+            channel: existing.channel || "link",
+            provider: existing.provider || null,
+            processedAtMs: existing.processedAtMs ?? null,
+            sentAtMs: existing.sentAtMs ?? null,
+            deliveredAtMs: existing.deliveredAtMs ?? null,
+            openedAtMs: existing.openedAtMs ?? null,
+            clickedAtMs: existing.clickedAtMs ?? null,
+            openedAt: existing.openedAt ?? null,
+            clickedAt: existing.clickedAt ?? null,
+            openCount: existing.openCount ?? 0,
+            clickCount: existing.clickCount ?? 0,
+          }
+        : buildOutboundDefaults({
+            businessId,
+            requestId: String(requestId),
+            channel: "link",
+            customerName: existing.customerName || null,
+            customerEmail: existing.customerEmail || null,
+            customerPhone: existing.customerPhone || null,
+            reviewLink: existing.reviewLink || null,
+            inviteToken: inviteToken || requestId,
+            status: currentStatus,
+            provider: null,
+          });
+
+      tx.set(requestRef, { ...defaults, ...updates }, { merge: true });
+    });
+
     const reviewStatus = rating >= 4 ? "requested" : "none";
     const customerId = await upsertCustomerRecord({
       businessId,
