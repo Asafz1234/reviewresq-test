@@ -8,24 +8,77 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "redirects": [
       {
+        "source": "/pages/feedback.html",
+        "destination": "/feedback",
+        "type": 301
+      },
+      {
+        "source": "/pages/feedback",
+        "destination": "/feedback",
+        "type": 301
+      },
+      {
+        "source": "/feedback.html",
+        "destination": "/feedback",
+        "type": 301
+      },
+      {
+        "source": "/feedback/",
+        "destination": "/feedback",
+        "type": 301
+      },
+      {
+        "source": "/customers.html",
+        "destination": "/customers",
+        "type": 301
+      },
+      {
+        "source": "/customers/",
+        "destination": "/customers",
+        "type": 301
+      },
+      {
+        "source": "/pages/ask-reviews.html",
+        "destination": "/ask-reviews",
+        "type": 301
+      },
+      {
+        "source": "/pages/ask-reviews",
+        "destination": "/ask-reviews",
+        "type": 301
+      },
+      {
         "source": "/ask-reviews.html",
-        "destination": "/pages/ask-reviews.html",
-        "type": 302
+        "destination": "/ask-reviews",
+        "type": 301
+      },
+      {
+        "source": "/ask-reviews/",
+        "destination": "/ask-reviews",
+        "type": 301
+      },
+      {
+        "source": "/portal.html",
+        "destination": "/portal",
+        "type": 301
+      },
+      {
+        "source": "/pages/portal.html",
+        "destination": "/portal",
+        "type": 301
       }
     ],
     "rewrites": [
       { "source": "/r/**", "destination": "/pages/portal.html" },
       { "source": "/portal", "destination": "/pages/portal.html" },
       { "source": "/portal/**", "destination": "/pages/portal.html" },
+      { "source": "/ask-reviews", "destination": "/pages/ask-reviews.html" },
+      { "source": "/ask-reviews/**", "destination": "/pages/ask-reviews.html" },
       { "source": "/customers", "destination": "/customers.html" },
       { "source": "/customers/**", "destination": "/customers.html" },
       { "source": "/feedback", "destination": "/feedback.html" },
       { "source": "/feedback/**", "destination": "/feedback.html" },
-      { "source": "/pages/feedback", "destination": "/feedback.html" },
-      { "source": "/pages/feedback.html", "destination": "/feedback.html" },
-      { "source": "/pages/feedback/**", "destination": "/feedback.html" },
       { "source": "/google-reviews.html", "destination": "/pages/google-reviews.html" },
-      { "source": "/portal.html", "destination": "/pages/portal.html" },
       { "source": "/googleAuthGetConfigV2", "function": "googleAuthGetConfigV2" },
       { "source": "/googleAuthCreateStateV2", "function": "googleAuthCreateStateV2" },
       { "source": "/googlePlacesSearch", "function": "googlePlacesSearch" },

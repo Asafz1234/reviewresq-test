@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /customers
+Disallow: /feedback
+Disallow: /ask-reviews
+Disallow: /portal
+Disallow: /pages/
+Disallow: /r/
