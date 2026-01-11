@@ -61,68 +61,62 @@
           </div>
         </div>
 
+        <section class="card" id="singleRequestSection">
+          <div class="card-header">
+            <div>
+              <p class="card-title">Single request</p>
+              <p class="card-subtitle">Send a review request to one customer.</p>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="input-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+              <label class="label">
+                <span>Customer name</span>
+                <input class="input" id="singleCustomerName" type="text" placeholder="Jane Doe" required />
+              </label>
+              <label class="label">
+                <span>Email</span>
+                <input class="input" id="singleCustomerEmail" type="email" placeholder="jane@email.com" />
+              </label>
+              <label class="label">
+                <span>Phone</span>
+                <input class="input" id="singleCustomerPhone" type="tel" placeholder="(555) 123-4567" />
+              </label>
+              <label class="label">
+                <span>Channel</span>
+                <select class="input" id="singleChannelSelect">
+                  <option value="email">Email</option>
+                  <option value="link">Link</option>
+                  <option value="sms" disabled>SMS (coming soon)</option>
+                  <option value="whatsapp" disabled>WhatsApp (coming soon)</option>
+                </select>
+              </label>
+            </div>
+            <div class="button-row">
+              <button class="btn btn-primary" type="button" id="singleSendBtn" disabled>Send review request</button>
+            </div>
+            <div class="pill pill-success" id="singleSuccess" hidden></div>
+            <div class="pill pill-error" id="singleError" hidden></div>
+            <div class="card muted-card" id="singleLinkOutput" hidden>
+              <p class="card-title">Review link</p>
+              <p class="card-subtitle text-muted">Share this link with your customer.</p>
+              <div class="button-row">
+                <button class="btn btn-outline" type="button" id="singleCopyLinkBtn">Copy link</button>
+                <button class="btn btn-outline" type="button" id="singleOpenLinkBtn">Open link</button>
+              </div>
+              <div class="caption" id="singleLinkValue"></div>
+            </div>
+          </div>
+        </section>
+
         <section class="card" id="bulkSection" hidden>
           <div class="card-header">
             <div>
-              <p class="card-title">Bulk requests</p>
+              <p class="card-title">Bulk upload</p>
               <p class="card-subtitle">Send review requests to multiple customers at once.</p>
             </div>
           </div>
           <div class="stack">
-            <div class="card muted-card">
-              <div class="card-header">
-                <div>
-                  <p class="card-title">Select existing customers</p>
-                  <p class="card-subtitle text-muted">Select customers and send in one click.</p>
-                </div>
-              </div>
-              <div class="stack">
-                <label class="label">
-                  <span>Search customers</span>
-                  <input class="input" type="search" id="bulkExistingSearch" placeholder="Search by name, phone, or email" />
-                </label>
-                <div class="table-wrapper">
-                  <table class="table">
-                    <thead>
-                      <tr>
-                        <th style="width: 40px;"></th>
-                        <th>Customer</th>
-                        <th>Contact</th>
-                      </tr>
-                    </thead>
-                    <tbody id="bulkExistingTableBody"></tbody>
-                  </table>
-                </div>
-                <div class="bulk-action-bar">
-                  <div class="bulk-action-meta">
-                    <p class="text-muted">Selected: <span id="bulkExistingSelectedCount">0</span></p>
-                    <span class="caption">Tip: select one customer for a single request.</span>
-                  </div>
-                  <div class="button-row">
-                    <button class="btn btn-primary" type="button" id="bulkExistingSendBtn" disabled>Send review requests (0 selected)</button>
-                  </div>
-                </div>
-                <div class="card muted-card" id="bulkExistingChannelPanel" hidden>
-                  <div class="input-grid">
-                    <label class="label">
-                      <span>Channel</span>
-                      <select class="input" id="bulkExistingChannelSelect">
-                        <option value="email">Email</option>
-                        <option value="link">Link</option>
-                        <option value="sms" disabled>SMS (coming soon)</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div class="button-row">
-                    <button class="btn btn-primary" type="button" id="bulkExistingConfirmBtn">Confirm send</button>
-                    <button class="btn btn-outline" type="button" id="bulkExistingCancelBtn">Cancel</button>
-                  </div>
-                </div>
-                <div class="pill pill-success" id="bulkExistingSuccess" hidden></div>
-                <div class="pill pill-error" id="bulkExistingError" hidden></div>
-              </div>
-            </div>
-
             <div class="card muted-card">
               <div class="card-header">
                 <div>
@@ -132,16 +126,23 @@
               </div>
               <div class="stack">
                 <div class="upload-card">
-                  <div>
-                    <p class="card-title">Upload customer file</p>
-                    <p class="card-subtitle text-muted">Upload CSV or Excel (.xlsx). We’ll preview and validate before sending.</p>
-                  </div>
                   <div class="button-row">
                     <input type="file" id="bulkUploadInput" accept=".csv, .xlsx, .xls" hidden />
                     <button class="btn btn-primary" type="button" id="bulkUploadBtn">Upload File</button>
                     <a class="btn btn-outline" href="/assets/templates/ReviewResq_Customers_Template.csv" download>Download Template</a>
                   </div>
                   <div class="caption" id="bulkUploadFileName">No file uploaded yet.</div>
+                </div>
+                <div class="input-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                  <label class="label">
+                    <span>Channel</span>
+                    <select class="input" id="bulkUploadChannelSelect">
+                      <option value="email">Email</option>
+                      <option value="link">Link</option>
+                      <option value="sms" disabled>SMS (coming soon)</option>
+                      <option value="whatsapp" disabled>WhatsApp (coming soon)</option>
+                    </select>
+                  </label>
                 </div>
                 <div class="pill pill-error" id="bulkUploadError" hidden></div>
                 <div class="pill pill-success" id="bulkUploadSuccess" hidden></div>
@@ -178,7 +179,7 @@
                   <div class="button-row" style="justify-content: space-between;">
                     <span class="caption" id="bulkUploadPreviewHint">Ready to create customers and send requests.</span>
                     <button class="btn btn-primary" type="button" id="bulkUploadSendBtn" disabled>
-                      Create customers &amp; send requests (0)
+                      Send bulk requests (0)
                     </button>
                   </div>
                 </div>
@@ -196,6 +197,7 @@
                         <tr>
                           <th>Name</th>
                           <th>Contact</th>
+                          <th>Channel</th>
                           <th>Result</th>
                           <th>Message</th>
                         </tr>
@@ -207,41 +209,103 @@
               </div>
             </div>
 
-            <details class="card muted-card bulk-advanced" id="bulkPasteAdvanced">
-              <summary class="bulk-advanced-summary">
-                Advanced: paste rows
-              </summary>
+            <details class="card muted-card bulk-advanced" id="bulkAdvanced">
+              <summary class="bulk-advanced-summary">Advanced</summary>
               <div class="stack bulk-advanced-body">
-                <label class="label">
-                  <span>Channel</span>
-                  <select class="input" id="bulkAddChannelSelect">
-                    <option value="email">Email</option>
-                    <option value="link">Link</option>
-                    <option value="sms" disabled>SMS (coming soon)</option>
-                  </select>
-                </label>
-                <label class="label">
-                  <span>Paste customer rows</span>
-                  <textarea class="input" id="bulkAddInput" rows="5" placeholder="Jane Doe, jane@email.com, (555) 123-4567"></textarea>
-                </label>
-                <div class="table-wrapper">
-                  <table class="table">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody id="bulkAddPreviewBody"></tbody>
-                  </table>
+                <div class="card muted-card">
+                  <div class="card-header">
+                    <div>
+                      <p class="card-title">Advanced: Select existing customers</p>
+                      <p class="card-subtitle text-muted">Select customers and send in one click.</p>
+                    </div>
+                  </div>
+                  <div class="stack">
+                    <label class="label">
+                      <span>Search customers</span>
+                      <input class="input" type="search" id="bulkExistingSearch" placeholder="Search by name, phone, or email" />
+                    </label>
+                    <div class="table-wrapper">
+                      <table class="table">
+                        <thead>
+                          <tr>
+                            <th style="width: 40px;"></th>
+                            <th>Customer</th>
+                            <th>Contact</th>
+                          </tr>
+                        </thead>
+                        <tbody id="bulkExistingTableBody"></tbody>
+                      </table>
+                    </div>
+                    <div class="bulk-action-bar">
+                      <div class="bulk-action-meta">
+                        <p class="text-muted">Selected: <span id="bulkExistingSelectedCount">0</span></p>
+                        <span class="caption">Tip: select one customer for a single request.</span>
+                      </div>
+                      <div class="button-row">
+                        <button class="btn btn-primary" type="button" id="bulkExistingSendBtn" disabled>Send review requests (0 selected)</button>
+                      </div>
+                    </div>
+                    <div class="card muted-card" id="bulkExistingChannelPanel" hidden>
+                      <div class="input-grid">
+                        <label class="label">
+                          <span>Channel</span>
+                          <select class="input" id="bulkExistingChannelSelect">
+                            <option value="email">Email</option>
+                            <option value="link">Link</option>
+                            <option value="sms" disabled>SMS (coming soon)</option>
+                          </select>
+                        </label>
+                      </div>
+                      <div class="button-row">
+                        <button class="btn btn-primary" type="button" id="bulkExistingConfirmBtn">Confirm send</button>
+                        <button class="btn btn-outline" type="button" id="bulkExistingCancelBtn">Cancel</button>
+                      </div>
+                    </div>
+                    <div class="pill pill-success" id="bulkExistingSuccess" hidden></div>
+                    <div class="pill pill-error" id="bulkExistingError" hidden></div>
+                  </div>
                 </div>
-                <div class="button-row">
-                  <button class="btn btn-primary" type="button" id="bulkAddSendBtn" disabled>Create customers &amp; send requests</button>
+
+                <div class="card muted-card">
+                  <div class="card-header">
+                    <div>
+                      <p class="card-title">Advanced: Paste rows</p>
+                      <p class="card-subtitle text-muted">Paste rows to quickly create multiple requests.</p>
+                    </div>
+                  </div>
+                  <div class="stack">
+                    <label class="label">
+                      <span>Channel</span>
+                      <select class="input" id="bulkAddChannelSelect">
+                        <option value="email">Email</option>
+                        <option value="link">Link</option>
+                        <option value="sms" disabled>SMS (coming soon)</option>
+                      </select>
+                    </label>
+                    <label class="label">
+                      <span>Paste customer rows</span>
+                      <textarea class="input" id="bulkAddInput" rows="5" placeholder="Jane Doe, jane@email.com, (555) 123-4567"></textarea>
+                    </label>
+                    <div class="table-wrapper">
+                      <table class="table">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody id="bulkAddPreviewBody"></tbody>
+                      </table>
+                    </div>
+                    <div class="button-row">
+                      <button class="btn btn-primary" type="button" id="bulkAddSendBtn" disabled>Create customers &amp; send requests</button>
+                    </div>
+                    <div class="pill pill-success" id="bulkAddSuccess" hidden></div>
+                    <div class="pill pill-error" id="bulkAddError" hidden></div>
+                  </div>
                 </div>
-                <div class="pill pill-success" id="bulkAddSuccess" hidden></div>
-                <div class="pill pill-error" id="bulkAddError" hidden></div>
               </div>
             </details>
 
