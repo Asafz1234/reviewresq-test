@@ -37,7 +37,22 @@ const addCustomerSuccess = document.getElementById("addCustomerSuccess");
 const addCustomerError = document.getElementById("addCustomerError");
 const addCustomerSubmit = document.getElementById("addCustomerSubmit");
 
+const CUSTOMERS_ROUTE = "/customers";
 const FEEDBACK_ROUTE = "/feedback";
+
+if (typeof window !== "undefined" && typeof window.__RR_DEBUG === "undefined") {
+  window.__RR_DEBUG = false;
+}
+
+function isDebugEnabled() {
+  return typeof window !== "undefined" && window.__RR_DEBUG === true;
+}
+
+function debugLog(...args) {
+  if (isDebugEnabled()) {
+    console.log("[customers]", ...args);
+  }
+}
 
 let businessId = null;
 let customers = [];
@@ -89,17 +104,79 @@ function setInlineMessage(element, message, isError = false) {
   element.classList.toggle("pill-success", !isError);
 }
 
-function normalizeFeedbackLinks() {
+function splitHref(href = "") {
+  const match = href.match(/^[^?#]+/);
+  const path = match ? match[0] : href;
+  const suffix = href.slice(path.length);
+  return { path, suffix };
+}
+
+function normalizeRouteHref(href = "") {
+  const { path, suffix } = splitHref(href);
+  const lowerPath = path.toLowerCase();
+  if (
+    lowerPath.endsWith("/pages/customers.html") ||
+    lowerPath.endsWith("/pages/customers") ||
+    lowerPath.endsWith("/customers.html") ||
+    lowerPath.endsWith("customers.html")
+  ) {
+    return `${CUSTOMERS_ROUTE}${suffix}`;
+  }
+  if (
+    lowerPath.endsWith("/pages/feedback.html") ||
+    lowerPath.endsWith("/pages/feedback") ||
+    lowerPath.endsWith("/feedback.html") ||
+    lowerPath.endsWith("feedback.html")
+  ) {
+    return `${FEEDBACK_ROUTE}${suffix}`;
+  }
+  return "";
+}
+
+function setHrefIfNeeded(link, href) {
+  if (!link || !href) return false;
+  const current = link.getAttribute("href");
+  if (current === href) return false;
+  link.setAttribute("href", href);
+  return true;
+}
+
+function normalizeNavLinks() {
   const nav = document.querySelector(".global-nav");
-  if (!nav) return;
+  if (!nav) return 0;
+  let updates = 0;
+
+  nav.querySelectorAll('.nav-tab[data-route="customers"]').forEach((tab) => {
+    if (setHrefIfNeeded(tab, CUSTOMERS_ROUTE)) updates += 1;
+  });
   nav
     .querySelectorAll('.nav-tab[data-route="inbox"], .nav-tab[data-route="feedback"]')
     .forEach((tab) => {
-      tab.setAttribute("href", FEEDBACK_ROUTE);
+      if (setHrefIfNeeded(tab, FEEDBACK_ROUTE)) updates += 1;
     });
-  nav.querySelectorAll('a[href*="/pages/feedback"]').forEach((tab) => {
-    tab.setAttribute("href", FEEDBACK_ROUTE);
+
+  nav.querySelectorAll("a[href]").forEach((link) => {
+    const href = link.getAttribute("href") || "";
+    const normalized = normalizeRouteHref(href);
+    if (normalized && normalized !== href) {
+      link.setAttribute("href", normalized);
+      updates += 1;
+    }
   });
+
+  if (updates) {
+    debugLog("normalized nav links", { updates });
+  }
+
+  return updates;
+}
+
+function safeNormalizeNavLinks() {
+  try {
+    normalizeNavLinks();
+  } catch (err) {
+    console.error("[customers] nav normalization failed", err);
+  }
 }
 
 async function copyText(text) {
@@ -795,7 +872,8 @@ listenForUser(({ user, subscription }) => {
   applyPlanGating(subscription?.planId || "starter");
   startCustomerFeed(user.uid);
   attachEvents();
-  normalizeFeedbackLinks();
+  safeNormalizeNavLinks();
+  setTimeout(safeNormalizeNavLinks, 500);
 });
 
 window.addEventListener("beforeunload", () => {
