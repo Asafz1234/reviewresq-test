@@ -17,13 +17,25 @@ import {
   renderPreviewTable,
   countPreviewRows,
 } from "../js/bulkUpload.js";
-import { subscribeCustomers, bulkCreateCustomersAndSend } from "../js/customersApi.js";
+import { subscribeCustomers } from "../js/customersApi.js";
 
 const planBadge = document.querySelector("[data-plan-label]");
 const brandingBlocker = document.getElementById("brandingBlocker");
 const brandingBlockerMessage = document.getElementById("brandingBlockerMessage");
 const completeSettingsBtn = document.getElementById("completeSettingsBtn");
 const setupStatus = document.getElementById("setupStatus");
+
+const singleCustomerName = document.getElementById("singleCustomerName");
+const singleCustomerEmail = document.getElementById("singleCustomerEmail");
+const singleCustomerPhone = document.getElementById("singleCustomerPhone");
+const singleChannelSelect = document.getElementById("singleChannelSelect");
+const singleSendBtn = document.getElementById("singleSendBtn");
+const singleSuccess = document.getElementById("singleSuccess");
+const singleError = document.getElementById("singleError");
+const singleLinkOutput = document.getElementById("singleLinkOutput");
+const singleCopyLinkBtn = document.getElementById("singleCopyLinkBtn");
+const singleOpenLinkBtn = document.getElementById("singleOpenLinkBtn");
+const singleLinkValue = document.getElementById("singleLinkValue");
 
 const bulkSection = document.getElementById("bulkSection");
 const bulkExistingSearch = document.getElementById("bulkExistingSearch");
@@ -52,6 +64,7 @@ const bulkLinkResultsBody = document.getElementById("bulkLinkResultsBody");
 const bulkUploadInput = document.getElementById("bulkUploadInput");
 const bulkUploadBtn = document.getElementById("bulkUploadBtn");
 const bulkUploadFileName = document.getElementById("bulkUploadFileName");
+const bulkUploadChannelSelect = document.getElementById("bulkUploadChannelSelect");
 const bulkUploadError = document.getElementById("bulkUploadError");
 const bulkUploadSuccess = document.getElementById("bulkUploadSuccess");
 const bulkUploadPreview = document.getElementById("bulkUploadPreview");
@@ -94,6 +107,10 @@ let brandingState = { complete: true };
 let eventsBound = false;
 let bulkSelectedIds = new Set();
 let bulkPreviewRows = [];
+let bulkUploadBaseRows = [];
+let bulkUploadFileMeta = null;
+let lastBulkRun = null;
+let lastSingleLink = null;
 
 const createInviteTokenCallable = httpsCallable(functions, "createInviteTokenCallable");
 const sendReviewRequestEmailCallable = httpsCallable(functions, "sendReviewRequestEmailCallable");
@@ -127,6 +144,28 @@ async function copyText(text) {
   textarea.remove();
 }
 
+function normalizeEmail(value = "") {
+  return value.toString().trim().toLowerCase();
+}
+
+function normalizePhone(value = "") {
+  const digits = value.toString().replace(/\D+/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) return digits;
+  if (digits.length === 10) return digits;
+  return digits ? digits : "";
+}
+
+function isValidEmail(value = "") {
+  return emailRegex.test(normalizeEmail(value));
+}
+
+function isValidPhone(value = "") {
+  const digits = normalizePhone(value);
+  if (!digits) return false;
+  if (digits.length === 10) return true;
+  return digits.length === 11 && digits.startsWith("1");
+}
+
 function setPlan(planId) {
   plan = normalizePlan(planId || "starter");
   if (planBadge) {
@@ -139,6 +178,26 @@ function setPlan(planId) {
 
 function getCustomerContact(customer) {
   return customer.email || customer.phone || "—";
+}
+
+function buildCustomerLookup(list = []) {
+  const byEmail = new Map();
+  const byPhone = new Map();
+  list.forEach((customer) => {
+    const email = normalizeEmail(customer.email || "");
+    const phone = normalizePhone(customer.phone || "");
+    if (email) byEmail.set(email, customer);
+    if (phone) byPhone.set(phone, customer);
+  });
+  return { byEmail, byPhone };
+}
+
+function findExistingCustomer({ email = "", phone = "" }, lookup) {
+  const emailKey = normalizeEmail(email);
+  const phoneKey = normalizePhone(phone);
+  if (emailKey && lookup.byEmail.has(emailKey)) return lookup.byEmail.get(emailKey);
+  if (phoneKey && lookup.byPhone.has(phoneKey)) return lookup.byPhone.get(phoneKey);
+  return null;
 }
 
 function updateBulkSelectedCount() {
@@ -242,6 +301,13 @@ function updateSetupStatus(isComplete) {
 function toggleRequestForms(enabled) {
   const disabled = !enabled;
   [
+    singleCustomerName,
+    singleCustomerEmail,
+    singleCustomerPhone,
+    singleChannelSelect,
+    singleSendBtn,
+    singleCopyLinkBtn,
+    singleOpenLinkBtn,
     bulkExistingSearch,
     bulkExistingSendBtn,
     bulkExistingConfirmBtn,
@@ -252,6 +318,7 @@ function toggleRequestForms(enabled) {
     bulkAddSendBtn,
     bulkUploadInput,
     bulkUploadBtn,
+    bulkUploadChannelSelect,
     bulkUploadExcludeInvalid,
     bulkUploadSendBtn,
     bulkCopyLinksBtn,
@@ -279,6 +346,7 @@ function applyBrandingGate(branding) {
   toggleRequestForms(isComplete);
   if (!isComplete) {
     if (bulkLinkOutput) bulkLinkOutput.hidden = true;
+    if (singleLinkOutput) singleLinkOutput.hidden = true;
   }
 }
 
@@ -345,12 +413,26 @@ async function ensureCustomerRecord({ name, phone, email }) {
   if (!businessId) return null;
   const response = await createCustomerManualCallable({
     businessId,
-    name: name || "",
-    phone: phone || "",
-    email: email || "",
+    name: (name || "").toString().trim(),
+    phone: normalizePhone(phone || ""),
+    email: normalizeEmail(email || ""),
     reviewStatus: "requested",
   });
   return response?.data?.customerId || null;
+}
+
+async function updateOutboundLocale(requestId) {
+  if (!businessId || !requestId) return;
+  try {
+    const outboundRef = doc(db, "businesses", businessId, "outboundRequests", String(requestId));
+    await updateDoc(outboundRef, {
+      locale: "en-US",
+      tz: "America/New_York",
+      updatedAtMs: Date.now(),
+    });
+  } catch (err) {
+    console.warn("[ask-reviews] unable to update outbound locale", err);
+  }
 }
 
 function setInlineMessage(element, message, isError = false) {
@@ -407,7 +489,9 @@ function renderOutboundTable() {
     const statusCell = document.createElement("td");
     const dateCell = document.createElement("td");
 
-    customerCell.textContent = entry.customerName || entry.customerEmail || "Link visitor";
+    customerCell.textContent = entry.customerId
+      ? entry.customerName || entry.customerEmail || "Link visitor"
+      : "Link visitor";
     channelCell.textContent = entry.channel || "link";
     const sentTimestamp = entry.sentAtMs || entry.deliveredAtMs || entry.processedAtMs;
     sentCell.textContent = sentTimestamp ? formatDateLabel(sentTimestamp) : "—";
@@ -443,6 +527,8 @@ function handleRangeChange() {
 }
 
 function resetBulkFeedback() {
+  setInlineMessage(singleSuccess, "");
+  setInlineMessage(singleError, "");
   setInlineMessage(bulkExistingSuccess, "");
   setInlineMessage(bulkExistingError, "");
   setInlineMessage(bulkAddSuccess, "");
@@ -451,11 +537,201 @@ function resetBulkFeedback() {
   setInlineMessage(bulkUploadSuccess, "");
 }
 
+function updateSingleCta() {
+  if (!singleSendBtn) return;
+  const name = (singleCustomerName?.value || "").trim();
+  const email = normalizeEmail(singleCustomerEmail?.value || "");
+  const phone = normalizePhone(singleCustomerPhone?.value || "");
+  const channel = singleChannelSelect?.value || "email";
+
+  let canSend = false;
+  if (channel === "email") {
+    canSend = Boolean(name) && isValidEmail(email);
+  } else {
+    canSend = Boolean(name);
+  }
+
+  singleSendBtn.disabled = !canSend;
+}
+
+function setSingleLinkOutput(link, requestId = null) {
+  lastSingleLink = link ? { link, requestId } : null;
+  if (singleLinkValue) singleLinkValue.textContent = link || "";
+  if (singleLinkOutput) singleLinkOutput.hidden = !link;
+  if (singleCopyLinkBtn) singleCopyLinkBtn.disabled = !link;
+  if (singleOpenLinkBtn) singleOpenLinkBtn.disabled = !link;
+}
+
+async function handleSingleSend() {
+  if (!businessId) return;
+  if (!requireBrandingOrNotify()) return;
+
+  const name = (singleCustomerName?.value || "").trim();
+  const channel = singleChannelSelect?.value || "email";
+  const emailInput = singleCustomerEmail?.value || "";
+  const phoneInput = singleCustomerPhone?.value || "";
+  const email = normalizeEmail(emailInput);
+  const phone = normalizePhone(phoneInput);
+
+  resetBulkFeedback();
+  setSingleLinkOutput("");
+
+  if (!name) {
+    setInlineMessage(singleError, "Customer name is required.", true);
+    return;
+  }
+
+  if (emailInput && !isValidEmail(email)) {
+    setInlineMessage(singleError, "Enter a valid email address.", true);
+    return;
+  }
+
+  if (phoneInput && !isValidPhone(phone)) {
+    setInlineMessage(singleError, "Enter a valid US phone number.", true);
+    return;
+  }
+
+  if (channel === "email" && !email) {
+    setInlineMessage(singleError, "Email is required for email requests.", true);
+    return;
+  }
+
+  singleSendBtn.disabled = true;
+  singleSendBtn.setAttribute("aria-busy", "true");
+
+  try {
+    const lookup = buildCustomerLookup(customers);
+    const existingCustomer = findExistingCustomer({ email, phone }, lookup);
+    const customerId = existingCustomer?.id
+      ? existingCustomer.id
+      : await ensureCustomerRecord({ name, phone, email });
+
+    if (!customerId) {
+      throw new Error("Unable to create customer record");
+    }
+
+    const inviteResponse = await createInviteTokenCallable({
+      businessId,
+      customerId,
+      customerName: name,
+      phone,
+      email,
+      channel,
+      source: "ask-reviews-single",
+    });
+    const inviteData = inviteResponse?.data || {};
+    const portalLink = inviteData.portalLink || inviteData.portalUrl;
+    const requestId = inviteData.requestId || inviteData.inviteToken;
+
+    if (!inviteData?.ok || !portalLink) {
+      throw new Error(inviteData?.error || "Unable to create invite link");
+    }
+
+    await updateOutboundLocale(requestId);
+
+    if (channel === "email") {
+      const sendResponse = await sendReviewRequestEmailCallable({
+        businessId,
+        customerId,
+        customerName: name,
+        customerEmail: email,
+        email,
+        customerPhone: phone,
+        portalLink,
+        requestId,
+        source: "ask-reviews-single",
+      });
+      if (!sendResponse?.data?.ok) {
+        throw new Error(sendResponse?.data?.error || "Email send failed");
+      }
+      setInlineMessage(singleSuccess, "Email request sent.");
+    } else {
+      setSingleLinkOutput(portalLink, requestId);
+      setInlineMessage(singleSuccess, "Link ready to share.");
+    }
+  } catch (err) {
+    console.error("[ask-reviews] single send failed", err);
+    setInlineMessage(singleError, err?.message || "Unable to send request.", true);
+  } finally {
+    singleSendBtn.disabled = false;
+    singleSendBtn.removeAttribute("aria-busy");
+  }
+}
+
+async function handleSingleCopyLink() {
+  if (!lastSingleLink?.link) return;
+  try {
+    await copyText(lastSingleLink.link);
+    if (singleLinkOutput?.hidden === false && lastSingleLink.requestId) {
+      await markOutboundSent(lastSingleLink.requestId);
+    }
+    showToast("Link copied");
+  } catch (err) {
+    showToast("Copy failed", true);
+  }
+}
+
+function handleSingleOpenLink() {
+  if (!lastSingleLink?.link) return;
+  window.open(lastSingleLink.link, "_blank", "noopener,noreferrer");
+}
+
 function updateBulkUploadCounts() {
   const counts = countPreviewRows(bulkUploadRows);
   if (bulkUploadTotalCount) bulkUploadTotalCount.textContent = String(counts.total);
   if (bulkUploadValidCount) bulkUploadValidCount.textContent = String(counts.valid);
   if (bulkUploadInvalidCount) bulkUploadInvalidCount.textContent = String(counts.invalid);
+}
+
+function buildBulkUploadRowsForChannel(rows = [], channel = "email") {
+  return rows.map((row) => {
+    const name = (row.name || "").toString().trim();
+    const email = normalizeEmail(row.email || "");
+    const phone = normalizePhone(row.phone || "");
+    const errors = [];
+    const hasEmail = Boolean(email);
+    const hasPhone = Boolean(phone);
+    const validEmail = hasEmail ? isValidEmail(email) : false;
+    const validPhone = hasPhone ? isValidPhone(phone) : false;
+
+    if (!name) {
+      errors.push("Missing name");
+    }
+
+    if (channel === "email") {
+      if (!hasEmail) {
+        errors.push("Email required");
+      } else if (!validEmail) {
+        errors.push("Invalid email");
+      }
+    } else {
+      if (!hasEmail && !hasPhone) {
+        errors.push("Missing email/phone");
+      }
+      if (hasEmail && !validEmail && !validPhone) {
+        errors.push("Invalid email");
+      }
+      if (hasPhone && !validPhone && !validEmail) {
+        errors.push("Invalid phone");
+      }
+    }
+
+    const isValid = errors.length === 0;
+    return {
+      ...row,
+      name,
+      email,
+      phone,
+      isValid,
+      status: isValid ? "Ready" : errors.join("; "),
+    };
+  });
+}
+
+function updateBulkUploadPreview() {
+  const channel = bulkUploadChannelSelect?.value || "email";
+  bulkUploadRows = buildBulkUploadRowsForChannel(bulkUploadBaseRows, channel);
+  renderBulkUploadPreview();
 }
 
 function getBulkUploadSendCount() {
@@ -470,7 +746,7 @@ function updateBulkUploadCta() {
   const count = getBulkUploadSendCount();
   if (bulkUploadSendBtn) {
     bulkUploadSendBtn.disabled = count === 0;
-    bulkUploadSendBtn.textContent = `Create customers & send requests (${count})`;
+    bulkUploadSendBtn.textContent = `Send bulk requests (${count})`;
   }
 }
 
@@ -486,6 +762,13 @@ function renderBulkUploadPreview() {
 async function handleBulkUploadSelection(file) {
   if (!file) return;
   resetBulkFeedback();
+  bulkUploadFileMeta = file
+    ? {
+        name: file.name,
+        size: file.size,
+        lastModified: file.lastModified,
+      }
+    : null;
   if (bulkUploadResults) bulkUploadResults.hidden = true;
   if (bulkUploadResultsBody) bulkUploadResultsBody.innerHTML = "";
   if (bulkUploadResultsSummary) bulkUploadResultsSummary.textContent = "";
@@ -495,17 +778,18 @@ async function handleBulkUploadSelection(file) {
 
   try {
     const rows = await parseCustomerFile(file);
-    bulkUploadRows = buildPreviewRows(rows);
-    if (!bulkUploadRows.length) {
+    bulkUploadBaseRows = buildPreviewRows(rows);
+    if (!bulkUploadBaseRows.length) {
       setInlineMessage(bulkUploadError, "No rows detected. Please check your file.", true);
     }
-    renderBulkUploadPreview();
-    if (bulkUploadRows.length) {
-      setInlineMessage(bulkUploadSuccess, `Loaded ${bulkUploadRows.length} row(s).`);
+    updateBulkUploadPreview();
+    if (bulkUploadBaseRows.length) {
+      setInlineMessage(bulkUploadSuccess, `Loaded ${bulkUploadBaseRows.length} row(s).`);
     }
   } catch (err) {
     console.error("[ask-reviews] bulk upload parse failed", err);
     bulkUploadRows = [];
+    bulkUploadBaseRows = [];
     renderBulkUploadPreview();
     setInlineMessage(
       bulkUploadError,
@@ -522,17 +806,20 @@ function renderBulkUploadResults(results = []) {
     const row = document.createElement("tr");
     const nameCell = document.createElement("td");
     const contactCell = document.createElement("td");
+    const channelCell = document.createElement("td");
     const resultCell = document.createElement("td");
     const messageCell = document.createElement("td");
 
     nameCell.textContent = result.name || "—";
     contactCell.textContent = result.contact || "—";
+    channelCell.textContent = result.channel || "—";
     resultCell.textContent = result.ok ? "Sent" : "Failed";
     resultCell.style.color = result.ok ? "#047857" : "#b91c1c";
     messageCell.textContent = result.message || "";
 
     row.appendChild(nameCell);
     row.appendChild(contactCell);
+    row.appendChild(channelCell);
     row.appendChild(resultCell);
     row.appendChild(messageCell);
     bulkUploadResultsBody.appendChild(row);
@@ -543,6 +830,7 @@ async function handleBulkUploadSend() {
   if (!businessId || !bulkSection || plan === "starter") return;
   if (!requireBrandingOrNotify()) return;
 
+  const channel = bulkUploadChannelSelect?.value || "email";
   const excludeInvalid = bulkUploadExcludeInvalid?.checked ?? true;
   const rowsToSend = excludeInvalid
     ? bulkUploadRows.filter((row) => row.isValid)
@@ -553,32 +841,135 @@ async function handleBulkUploadSend() {
     return;
   }
 
+  const now = Date.now();
+  const runHash = JSON.stringify({ file: bulkUploadFileMeta, channel });
+  if (lastBulkRun && lastBulkRun.hash === runHash && now - lastBulkRun.timestamp < 120000) {
+    const confirmed = window.confirm(
+      "You just sent this file with the same channel. Do you want to send it again?",
+    );
+    if (!confirmed) return;
+  }
+  lastBulkRun = { hash: runHash, timestamp: now };
+
   resetBulkFeedback();
   bulkUploadSendBtn.disabled = true;
   bulkUploadSendBtn.setAttribute("aria-busy", "true");
 
   if (bulkUploadResults) bulkUploadResults.hidden = false;
   if (bulkUploadResultsSummary) {
-    bulkUploadResultsSummary.textContent = "Processing…";
+    bulkUploadResultsSummary.textContent = `Processing 0 of ${rowsToSend.length}…`;
   }
+  if (bulkUploadResultsBody) {
+    bulkUploadResultsBody.innerHTML = "";
+  }
+  if (bulkLinkOutput) bulkLinkOutput.hidden = true;
+  bulkLinks = [];
 
   try {
-    const payloadRows = rowsToSend.map((row) => ({
-      name: row.name,
-      email: row.email,
-      phone: row.phone,
-      notes: row.notes,
-    }));
+    const results = [];
+    let processed = 0;
+    const lookup = buildCustomerLookup(customers);
 
-    const response = await bulkCreateCustomersAndSend({
-      businessId,
-      rows: payloadRows,
-      channel: "email",
-      excludeInvalid,
-      source: "bulk_upload",
-    });
+    for (const row of rowsToSend) {
+      processed += 1;
+      const result = {
+        name: row.name,
+        contact: row.email || row.phone || "",
+        channel,
+        ok: false,
+        message: "",
+      };
 
-    const results = response.results || [];
+      if (!row.isValid) {
+        result.message = "Invalid row";
+        results.push(result);
+        if (bulkUploadResultsSummary) {
+          bulkUploadResultsSummary.textContent = `Processing ${processed} of ${rowsToSend.length}…`;
+        }
+        continue;
+      }
+
+      try {
+        const existingCustomer = findExistingCustomer(
+          { email: row.email, phone: row.phone },
+          lookup,
+        );
+        const customerId = existingCustomer?.id
+          ? existingCustomer.id
+          : await ensureCustomerRecord({
+              name: row.name,
+              phone: row.phone,
+              email: row.email,
+            });
+
+        if (!customerId) {
+          throw new Error("Unable to create customer record");
+        }
+
+        if (!existingCustomer) {
+          if (row.email) lookup.byEmail.set(normalizeEmail(row.email), { id: customerId });
+          if (row.phone) lookup.byPhone.set(normalizePhone(row.phone), { id: customerId });
+        }
+
+        const inviteResponse = await createInviteTokenCallable({
+          businessId,
+          customerId,
+          customerName: row.name,
+          phone: row.phone,
+          email: row.email,
+          channel,
+          source: "ask-reviews-bulk-upload",
+        });
+        const inviteData = inviteResponse?.data || {};
+        const portalLink = inviteData.portalLink || inviteData.portalUrl;
+        const requestId = inviteData.requestId || inviteData.inviteToken;
+
+        if (!inviteData?.ok || !portalLink) {
+          throw new Error(inviteData?.error || "Unable to create invite link");
+        }
+
+        await updateOutboundLocale(requestId);
+
+        if (channel === "email") {
+          const sendResponse = await sendReviewRequestEmailCallable({
+            businessId,
+            customerId,
+            customerName: row.name,
+            customerEmail: row.email,
+            email: row.email,
+            customerPhone: row.phone,
+            portalLink,
+            requestId,
+            source: "ask-reviews-bulk-upload",
+          });
+          if (!sendResponse?.data?.ok) {
+            throw new Error(sendResponse?.data?.error || "Email send failed");
+          }
+          result.ok = true;
+          result.message = "Sent";
+        } else {
+          bulkLinks.push({
+            name: row.name,
+            contact: row.email || row.phone || "",
+            link: portalLink,
+            requestId,
+            customerId,
+            createdAtMs: Date.now(),
+          });
+          result.ok = true;
+          result.message = "Link created";
+        }
+      } catch (err) {
+        console.error("[ask-reviews] bulk upload send failed", err);
+        result.message = err?.message || "Send failed";
+      }
+
+      results.push(result);
+      if (bulkUploadResultsSummary) {
+        bulkUploadResultsSummary.textContent = `Processing ${processed} of ${rowsToSend.length}…`;
+      }
+    }
+
     const successCount = results.filter((result) => result.ok).length;
     const failureCount = results.length - successCount;
 
@@ -591,6 +982,12 @@ async function handleBulkUploadSend() {
     }
     if (failureCount) {
       setInlineMessage(bulkUploadError, `${failureCount} request(s) failed.`, true);
+    }
+
+    if (channel === "link") {
+      renderBulkLinkResults();
+    } else if (bulkLinkOutput) {
+      bulkLinkOutput.hidden = true;
     }
   } catch (err) {
     console.error("[ask-reviews] bulk upload send failed", err);
@@ -741,6 +1138,8 @@ async function handleBulkExistingConfirm() {
       if (!inviteData?.ok || !portalLink) {
         throw new Error(inviteData?.error || "Unable to create invite link");
       }
+
+      await updateOutboundLocale(requestId);
 
       if (channel === "email") {
         const sendResponse = await sendReviewRequestEmailCallable({
@@ -904,6 +1303,8 @@ async function handleBulkAddSend() {
         throw new Error(inviteData?.error || "Unable to create invite link");
       }
 
+      await updateOutboundLocale(requestId);
+
       if (channel === "email") {
         const sendResponse = await sendReviewRequestEmailCallable({
           businessId,
@@ -961,6 +1362,16 @@ async function handleBulkAddSend() {
 function attachEvents() {
   if (eventsBound) return;
   eventsBound = true;
+  singleCustomerName?.addEventListener("input", updateSingleCta);
+  singleCustomerEmail?.addEventListener("input", updateSingleCta);
+  singleCustomerPhone?.addEventListener("input", updateSingleCta);
+  singleChannelSelect?.addEventListener("change", () => {
+    updateSingleCta();
+    setSingleLinkOutput("");
+  });
+  singleSendBtn?.addEventListener("click", handleSingleSend);
+  singleCopyLinkBtn?.addEventListener("click", handleSingleCopyLink);
+  singleOpenLinkBtn?.addEventListener("click", handleSingleOpenLink);
   bulkExistingSearch?.addEventListener("input", renderExistingCustomers);
   bulkExistingSendBtn?.addEventListener("click", openBulkExistingChannelPanel);
   bulkExistingConfirmBtn?.addEventListener("click", handleBulkExistingConfirm);
@@ -973,6 +1384,7 @@ function attachEvents() {
     const file = event.target?.files?.[0];
     handleBulkUploadSelection(file);
   });
+  bulkUploadChannelSelect?.addEventListener("change", updateBulkUploadPreview);
   bulkUploadExcludeInvalid?.addEventListener("change", updateBulkUploadCta);
   bulkUploadSendBtn?.addEventListener("click", handleBulkUploadSend);
   bulkCopyLinksBtn?.addEventListener("click", handleBulkCopyLinks);
@@ -991,6 +1403,7 @@ function attachEvents() {
   updateBulkAddPreview();
   updateBulkSelectedCount();
   updateBulkUploadCta();
+  updateSingleCta();
 }
 
 function initApp() {
