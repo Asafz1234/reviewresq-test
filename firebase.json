@@ -6,6 +6,13 @@
     "target": "prod",
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "redirects": [
+      {
+        "source": "/ask-reviews.html",
+        "destination": "/pages/ask-reviews.html",
+        "type": 302
+      }
+    ],
     "rewrites": [
       { "source": "/r/**", "destination": "/pages/portal.html" },
       { "source": "/portal", "destination": "/pages/portal.html" },
@@ -15,7 +22,6 @@
       { "source": "/feedback", "destination": "/feedback.html" },
       { "source": "/feedback/**", "destination": "/feedback.html" },
       { "source": "/google-reviews.html", "destination": "/pages/google-reviews.html" },
-      { "source": "/ask-reviews.html", "destination": "/pages/ask-reviews.html" },
       { "source": "/portal.html", "destination": "/pages/portal.html" },
       { "source": "/googleAuthGetConfigV2", "function": "googleAuthGetConfigV2" },
       { "source": "/googleAuthCreateStateV2", "function": "googleAuthCreateStateV2" },
