@@ -437,6 +437,7 @@ function redirectToGoogleReview(selectedRating = null) {
   if (currentBusinessId) {
     const payload = {
       businessId: currentBusinessId,
+      inviteToken: inviteToken || null,
       rating: selectedRating,
       customerName: (customerNameInput?.value || "").trim(),
       customerEmail: (customerEmailInput?.value || "").trim(),

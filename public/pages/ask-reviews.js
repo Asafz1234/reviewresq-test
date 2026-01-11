@@ -401,9 +401,19 @@ function formatNY(timestampMs) {
   return `${dateLabel} · ${timeLabel}`;
 }
 
-function formatStatus(status) {
-  const normalized = (status || "draft").toString();
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+function deriveActivityStatus(entry) {
+  const clicked = resolveTimestampMs(entry.clickedAt || entry.clickedAtMs);
+  if (clicked) return "Clicked";
+  const opened = resolveTimestampMs(entry.openedAt || entry.openedAtMs);
+  if (opened) return "Opened";
+  const sent = resolveTimestampMs(
+    entry.sentAtMs ||
+      entry.sentAt ||
+      entry.deliveredAtMs ||
+      entry.processedAtMs,
+  );
+  if (sent) return "Sent";
+  return "Draft";
 }
 
 async function markOutboundSent(requestId) {
@@ -563,7 +573,7 @@ function renderOutboundTable() {
     openedCell.textContent = openedTimestamp ? formatNY(openedTimestamp) : "—";
     const clickedTimestamp = resolveTimestampMs(entry.clickedAtMs || entry.clickedAt);
     clickedCell.textContent = clickedTimestamp ? formatNY(clickedTimestamp) : "—";
-    statusCell.textContent = formatStatus(entry.status);
+    statusCell.textContent = deriveActivityStatus(entry);
     const createdTimestamp = resolveTimestampMs(
       entry.createdAtMs || entry.createdAt || entry.updatedAtMs || entry.updatedAt,
     );
