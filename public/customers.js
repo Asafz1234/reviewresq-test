@@ -37,6 +37,8 @@ const addCustomerSuccess = document.getElementById("addCustomerSuccess");
 const addCustomerError = document.getElementById("addCustomerError");
 const addCustomerSubmit = document.getElementById("addCustomerSubmit");
 
+const FEEDBACK_ROUTE = "/feedback";
+
 let businessId = null;
 let customers = [];
 let filtered = [];
@@ -85,6 +87,19 @@ function setInlineMessage(element, message, isError = false) {
   element.hidden = !message;
   element.classList.toggle("pill-error", isError);
   element.classList.toggle("pill-success", !isError);
+}
+
+function normalizeFeedbackLinks() {
+  const nav = document.querySelector(".global-nav");
+  if (!nav) return;
+  nav
+    .querySelectorAll('.nav-tab[data-route="inbox"], .nav-tab[data-route="feedback"]')
+    .forEach((tab) => {
+      tab.setAttribute("href", FEEDBACK_ROUTE);
+    });
+  nav.querySelectorAll('a[href*="/pages/feedback"]').forEach((tab) => {
+    tab.setAttribute("href", FEEDBACK_ROUTE);
+  });
 }
 
 async function copyText(text) {
@@ -780,6 +795,7 @@ listenForUser(({ user, subscription }) => {
   applyPlanGating(subscription?.planId || "starter");
   startCustomerFeed(user.uid);
   attachEvents();
+  normalizeFeedbackLinks();
 });
 
 window.addEventListener("beforeunload", () => {

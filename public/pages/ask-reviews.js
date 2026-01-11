@@ -94,6 +94,8 @@ const BRANDING_REQUIRED_MESSAGE =
   "Before sending review requests, please complete your business details (takes under 1 minute).";
 
 const BRANDING_REDIRECT_NOTICE_KEY = "brandingRedirectNotice";
+const CUSTOMERS_ROUTE = "/customers";
+const FEEDBACK_ROUTE = "/feedback";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
@@ -145,6 +147,40 @@ async function copyText(text) {
   textarea.select();
   document.execCommand("copy");
   textarea.remove();
+}
+
+function normalizeNavLinkHrefs() {
+  const nav = document.querySelector(".global-nav");
+  if (!nav) return;
+
+  nav.querySelectorAll('.nav-tab[data-route="customers"]').forEach((tab) => {
+    tab.setAttribute("href", CUSTOMERS_ROUTE);
+  });
+  nav
+    .querySelectorAll('.nav-tab[data-route="inbox"], .nav-tab[data-route="feedback"]')
+    .forEach((tab) => {
+      tab.setAttribute("href", FEEDBACK_ROUTE);
+    });
+
+  nav
+    .querySelectorAll('a[href*="/pages/customers"], a[href*="/pages/feedback"]')
+    .forEach((link) => {
+      const href = link.getAttribute("href") || "";
+      if (href.includes("/pages/customers")) {
+        link.setAttribute("href", CUSTOMERS_ROUTE);
+      } else if (href.includes("/pages/feedback")) {
+        link.setAttribute("href", FEEDBACK_ROUTE);
+      }
+    });
+}
+
+function watchNavLinkChanges() {
+  normalizeNavLinkHrefs();
+  if (typeof MutationObserver === "undefined") return;
+  const nav = document.querySelector(".global-nav");
+  if (!nav) return;
+  const observer = new MutationObserver(() => normalizeNavLinkHrefs());
+  observer.observe(nav, { childList: true, subtree: true, attributes: true });
 }
 
 function normalizeEmail(value = "") {
@@ -1579,6 +1615,7 @@ function initApp() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  watchNavLinkChanges();
   initApp();
 });
 
