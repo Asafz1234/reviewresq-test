@@ -29,6 +29,11 @@ let currentPlan = normalizePlan(currentPlanTier());
 let currentBusinessId = null;
 let activeFeedbackId = null;
 let allFeedback = [];
+const feedbackInitDone =
+  typeof window !== "undefined" && Boolean(window.__rrFeedbackInitDone);
+if (typeof window !== "undefined" && !window.__rrFeedbackInitDone) {
+  window.__rrFeedbackInitDone = true;
+}
 
 function updatePlanUI() {
   if (upgradeHint) {
@@ -347,70 +352,72 @@ function applyFilters() {
   renderFeedback(filtered);
 }
 
-onSession(async ({ user, subscription, profile }) => {
-  if (!user) return;
-  currentBusinessId = profile?.id || user.uid;
-  currentPlan = normalizePlan(subscription?.planId || currentPlanTier());
-  updatePlanUI();
-  if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
+if (!feedbackInitDone) {
+  onSession(async ({ user, subscription, profile }) => {
+    if (!user) return;
+    currentBusinessId = profile?.id || user.uid;
+    currentPlan = normalizePlan(subscription?.planId || currentPlanTier());
+    updatePlanUI();
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
+    }
+    const reviews = await fetchAllReviews(currentBusinessId || user.uid);
+    const feedbackOnly = reviews.filter((r) => r.source !== "google").map(describeReview);
+    allFeedback = feedbackOnly;
+    applyFilters();
+  });
+
+  if (toggleStatusButton) {
+    toggleStatusButton.addEventListener("click", async () => {
+      const activeFeedback = activeFeedbackId ? feedbackCache.get(activeFeedbackId) : null;
+      if (!activeFeedback) {
+        showToast("We couldn’t load this feedback. Please try again.", true);
+        return;
+      }
+      const nextStatus = toggleStatusButton.dataset.nextStatus || "resolved";
+      toggleStatusButton.disabled = true;
+      const success = await updateStatus(activeFeedback, nextStatus);
+      toggleStatusButton.disabled = false;
+      if (success) {
+        activeFeedback.status = nextStatus;
+        feedbackCache.set(activeFeedback.id, activeFeedback);
+        populateDetails(activeFeedback);
+        showToast(`Marked as ${displayStatus(nextStatus).toLowerCase()}.`);
+      } else {
+        showToast("We couldn’t update the status. Please try again.", true);
+      }
+    });
   }
-  const reviews = await fetchAllReviews(currentBusinessId || user.uid);
-  const feedbackOnly = reviews.filter((r) => r.source !== "google").map(describeReview);
-  allFeedback = feedbackOnly;
-  applyFilters();
-});
 
-if (toggleStatusButton) {
-  toggleStatusButton.addEventListener("click", async () => {
-    const activeFeedback = activeFeedbackId ? feedbackCache.get(activeFeedbackId) : null;
-    if (!activeFeedback) {
-      showToast("We couldn’t load this feedback. Please try again.", true);
-      return;
-    }
-    const nextStatus = toggleStatusButton.dataset.nextStatus || "resolved";
-    toggleStatusButton.disabled = true;
-    const success = await updateStatus(activeFeedback, nextStatus);
-    toggleStatusButton.disabled = false;
-    if (success) {
-      activeFeedback.status = nextStatus;
-      feedbackCache.set(activeFeedback.id, activeFeedback);
-      populateDetails(activeFeedback);
-      showToast(`Marked as ${displayStatus(nextStatus).toLowerCase()}.`);
-    } else {
-      showToast("We couldn’t update the status. Please try again.", true);
-    }
-  });
-}
-
-if (emailLink) {
-  emailLink.addEventListener("click", (event) => {
-    const href = emailLink.dataset.linkHref;
-    if (!href) {
+  if (emailLink) {
+    emailLink.addEventListener("click", (event) => {
+      const href = emailLink.dataset.linkHref;
+      if (!href) {
+        event.preventDefault();
+        return;
+      }
       event.preventDefault();
-      return;
-    }
-    event.preventDefault();
-    window.location.href = href;
-  });
-}
+      window.location.href = href;
+    });
+  }
 
-if (callLink) {
-  callLink.addEventListener("click", (event) => {
-    const href = callLink.dataset.linkHref;
-    if (!href) {
+  if (callLink) {
+    callLink.addEventListener("click", (event) => {
+      const href = callLink.dataset.linkHref;
+      if (!href) {
+        event.preventDefault();
+        return;
+      }
       event.preventDefault();
-      return;
-    }
-    event.preventDefault();
-    window.location.href = href;
-  });
-}
+      window.location.href = href;
+    });
+  }
 
-if (dateFilter) {
-  dateFilter.addEventListener("change", applyFilters);
-}
+  if (dateFilter) {
+    dateFilter.addEventListener("change", applyFilters);
+  }
 
-if (searchInput) {
-  searchInput.addEventListener("input", applyFilters);
+  if (searchInput) {
+    searchInput.addEventListener("input", applyFilters);
+  }
 }

@@ -9,7 +9,7 @@ import {
   updateDoc,
   serverTimestamp,
 } from "./firebase-config.js";
-import { listenForUser, formatDate, initialsFromName } from "./session-data.js";
+import { listenForUser, refreshSubscription, formatDate, initialsFromName } from "./session-data.js";
 import { PLAN_ORDER, normalizePlan } from "./plan-capabilities.js";
 import { createCustomer } from "./js/customersApi.js";
 
@@ -39,17 +39,14 @@ const addCustomerSubmit = document.getElementById("addCustomerSubmit");
 
 const CUSTOMERS_ROUTE = "/customers";
 const FEEDBACK_ROUTE = "/feedback";
-
-if (typeof window !== "undefined" && typeof window.__RR_DEBUG === "undefined") {
-  window.__RR_DEBUG = false;
-}
-
-function isDebugEnabled() {
-  return typeof window !== "undefined" && window.__RR_DEBUG === true;
-}
+const PLAN_CACHE_KEY = "rrPlanCache";
+const PLAN_WARNING_ID = "rr-plan-warning";
+const PLAN_RETRY_LIMIT = 2;
+const PLAN_RETRY_BASE_DELAY_MS = 800;
+const DEBUG = new URLSearchParams(window.location.search).has("debug");
 
 function debugLog(...args) {
-  if (isDebugEnabled()) {
+  if (DEBUG) {
     console.log("[customers]", ...args);
   }
 }
@@ -70,6 +67,12 @@ let showArchived = false;
 let allowBulkActions = true;
 const inviteToastId = "customers-toast";
 let addCustomerModalController = null;
+let eventsBound = false;
+let planSource = "fresh";
+let planRetryCount = 0;
+let planRetryTimer = null;
+let navNormalized = false;
+let planWarningBanner = null;
 
 function getCustomersCollection() {
   if (!businessId) {
@@ -111,6 +114,49 @@ function splitHref(href = "") {
   return { path, suffix };
 }
 
+function readCachedPlan() {
+  try {
+    const cached = localStorage.getItem(PLAN_CACHE_KEY);
+    return cached ? normalizePlan(cached) : null;
+  } catch (err) {
+    debugLog("unable to read cached plan", err);
+    return null;
+  }
+}
+
+function writeCachedPlan(value) {
+  if (!value) return;
+  try {
+    localStorage.setItem(PLAN_CACHE_KEY, normalizePlan(value));
+  } catch (err) {
+    debugLog("unable to cache plan", err);
+  }
+}
+
+function ensurePlanWarningBanner() {
+  if (planWarningBanner) return planWarningBanner;
+  planWarningBanner = document.getElementById(PLAN_WARNING_ID);
+  if (planWarningBanner) return planWarningBanner;
+  planWarningBanner = document.createElement("div");
+  planWarningBanner.id = PLAN_WARNING_ID;
+  planWarningBanner.textContent = "Unable to refresh plan status. Retrying…";
+  planWarningBanner.style.background = "#fef3c7";
+  planWarningBanner.style.color = "#92400e";
+  planWarningBanner.style.padding = "8px 12px";
+  planWarningBanner.style.fontSize = "12px";
+  planWarningBanner.style.borderRadius = "8px";
+  planWarningBanner.style.margin = "12px 0";
+  planWarningBanner.style.display = "none";
+  const target = document.querySelector(".page-content") || document.body;
+  target.prepend(planWarningBanner);
+  return planWarningBanner;
+}
+
+function setPlanWarningVisible(visible) {
+  const banner = ensurePlanWarningBanner();
+  banner.style.display = visible ? "block" : "none";
+}
+
 function normalizeRouteHref(href = "") {
   const { path, suffix } = splitHref(href);
   const lowerPath = path.toLowerCase();
@@ -147,19 +193,29 @@ function normalizeNavLinks() {
   let updates = 0;
 
   nav.querySelectorAll('.nav-tab[data-route="customers"]').forEach((tab) => {
-    if (setHrefIfNeeded(tab, CUSTOMERS_ROUTE)) updates += 1;
+    if (tab.dataset.rrNormalized === "1") return;
+    if (setHrefIfNeeded(tab, CUSTOMERS_ROUTE)) {
+      tab.dataset.rrNormalized = "1";
+      updates += 1;
+    }
   });
   nav
     .querySelectorAll('.nav-tab[data-route="inbox"], .nav-tab[data-route="feedback"]')
     .forEach((tab) => {
-      if (setHrefIfNeeded(tab, FEEDBACK_ROUTE)) updates += 1;
+      if (tab.dataset.rrNormalized === "1") return;
+      if (setHrefIfNeeded(tab, FEEDBACK_ROUTE)) {
+        tab.dataset.rrNormalized = "1";
+        updates += 1;
+      }
     });
 
   nav.querySelectorAll("a[href]").forEach((link) => {
+    if (link.dataset.rrNormalized === "1") return;
     const href = link.getAttribute("href") || "";
     const normalized = normalizeRouteHref(href);
     if (normalized && normalized !== href) {
       link.setAttribute("href", normalized);
+      link.dataset.rrNormalized = "1";
       updates += 1;
     }
   });
@@ -173,9 +229,10 @@ function normalizeNavLinks() {
 
 function safeNormalizeNavLinks() {
   try {
-    normalizeNavLinks();
+    return normalizeNavLinks();
   } catch (err) {
     console.error("[customers] nav normalization failed", err);
+    return 0;
   }
 }
 
@@ -201,6 +258,39 @@ function planRank(planId = "starter") {
   const normalized = normalizePlan(planId);
   const index = PLAN_ORDER.indexOf(normalized);
   return index === -1 ? 0 : index;
+}
+
+function setPlanWithSource(planId, source) {
+  planSource = source;
+  applyPlanGating(planId);
+  if (source === "fresh") {
+    writeCachedPlan(planId);
+  }
+}
+
+function schedulePlanRetry() {
+  if (planRetryCount >= PLAN_RETRY_LIMIT) return;
+  const attempt = planRetryCount + 1;
+  const delay = PLAN_RETRY_BASE_DELAY_MS * Math.pow(2, planRetryCount);
+  planRetryCount = attempt;
+  clearTimeout(planRetryTimer);
+  planRetryTimer = setTimeout(async () => {
+    try {
+      const refreshed = await refreshSubscription();
+      const refreshedPlan = normalizePlan(refreshed?.planId || "");
+      const cachedPlan = readCachedPlan();
+      if (refreshedPlan && (refreshedPlan !== "starter" || !cachedPlan)) {
+        setPlanWithSource(refreshedPlan, "fresh");
+        setPlanWarningVisible(false);
+        return;
+      }
+    } catch (err) {
+      debugLog("plan refresh failed", err);
+    }
+    if (planRetryCount < PLAN_RETRY_LIMIT) {
+      schedulePlanRetry();
+    }
+  }, delay);
 }
 
 function setElementHidden(element, hidden) {
@@ -805,6 +895,8 @@ function attachDetailActions() {
 }
 
 function attachEvents() {
+  if (eventsBound) return;
+  eventsBound = true;
   if (window.ModalManager && addCustomerModal) {
     addCustomerModalController = window.ModalManager.register(addCustomerModal);
   }
@@ -867,16 +959,43 @@ function startCustomerFeed(uid) {
   });
 }
 
-listenForUser(({ user, subscription }) => {
-  businessId = user.uid;
-  applyPlanGating(subscription?.planId || "starter");
-  startCustomerFeed(user.uid);
-  attachEvents();
-  safeNormalizeNavLinks();
-  setTimeout(safeNormalizeNavLinks, 500);
-});
+function initCustomers() {
+  if (window.__rrCustomersInitDone) {
+    debugLog("init skipped (already initialized)");
+    return;
+  }
+  window.__rrCustomersInitDone = true;
+  listenForUser(({ user, subscription }) => {
+    businessId = user.uid;
+    const cachedPlan = readCachedPlan();
+    const incomingPlan = normalizePlan(subscription?.planId || "");
+    const shouldUseCached =
+      cachedPlan && (!incomingPlan || (incomingPlan === "starter" && cachedPlan !== "starter"));
+    if (shouldUseCached) {
+      setPlanWithSource(cachedPlan, "cached");
+      setPlanWarningVisible(true);
+      schedulePlanRetry();
+    } else {
+      setPlanWithSource(incomingPlan || cachedPlan || "starter", "fresh");
+      setPlanWarningVisible(false);
+    }
+    startCustomerFeed(user.uid);
+    attachEvents();
+    navNormalized = true;
+    safeNormalizeNavLinks();
+    setTimeout(safeNormalizeNavLinks, 500);
+    debugLog("Diagnostics", {
+      initGuard: window.__rrCustomersInitDone,
+      navNormalized,
+      planSource,
+    });
+  });
+}
+
+initCustomers();
 
 window.addEventListener("beforeunload", () => {
   if (typeof unsubscribe === "function") unsubscribe();
   if (typeof requestActivityUnsub === "function") requestActivityUnsub();
+  if (planRetryTimer) clearTimeout(planRetryTimer);
 });

@@ -10,7 +10,7 @@ import {
   serverTimestamp,
 } from "../firebase-config.js";
 import { functions, httpsCallable } from "../firebase-config.js";
-import { deriveBranding, listenForUser } from "../session-data.js";
+import { deriveBranding, listenForUser, refreshSubscription } from "../session-data.js";
 import { PLAN_LABELS, normalizePlan } from "../plan-capabilities.js";
 import {
   parseCustomerFile,
@@ -96,17 +96,14 @@ const BRANDING_REQUIRED_MESSAGE =
 const BRANDING_REDIRECT_NOTICE_KEY = "brandingRedirectNotice";
 const CUSTOMERS_ROUTE = "/customers";
 const FEEDBACK_ROUTE = "/feedback";
-
-if (typeof window !== "undefined" && typeof window.__RR_DEBUG === "undefined") {
-  window.__RR_DEBUG = false;
-}
-
-function isDebugEnabled() {
-  return typeof window !== "undefined" && window.__RR_DEBUG === true;
-}
+const PLAN_CACHE_KEY = "rrPlanCache";
+const PLAN_WARNING_ID = "rr-plan-warning";
+const PLAN_RETRY_LIMIT = 2;
+const PLAN_RETRY_BASE_DELAY_MS = 800;
+const DEBUG = new URLSearchParams(window.location.search).has("debug");
 
 function debugLog(...args) {
-  if (isDebugEnabled()) {
+  if (DEBUG) {
     console.log("[ask-reviews]", ...args);
   }
 }
@@ -130,6 +127,11 @@ let bulkUploadBaseRows = [];
 let bulkUploadFileMeta = null;
 let lastBulkRun = null;
 let lastSingleLink = null;
+let planSource = "fresh";
+let planRetryCount = 0;
+let planRetryTimer = null;
+let navNormalized = false;
+let planWarningBanner = null;
 
 const createInviteTokenCallable = httpsCallable(functions, "createInviteTokenCallable");
 const sendReviewRequestEmailCallable = httpsCallable(functions, "sendReviewRequestEmailCallable");
@@ -170,6 +172,49 @@ function splitHref(href = "") {
   return { path, suffix };
 }
 
+function readCachedPlan() {
+  try {
+    const cached = localStorage.getItem(PLAN_CACHE_KEY);
+    return cached ? normalizePlan(cached) : null;
+  } catch (err) {
+    debugLog("unable to read cached plan", err);
+    return null;
+  }
+}
+
+function writeCachedPlan(value) {
+  if (!value) return;
+  try {
+    localStorage.setItem(PLAN_CACHE_KEY, normalizePlan(value));
+  } catch (err) {
+    debugLog("unable to cache plan", err);
+  }
+}
+
+function ensurePlanWarningBanner() {
+  if (planWarningBanner) return planWarningBanner;
+  planWarningBanner = document.getElementById(PLAN_WARNING_ID);
+  if (planWarningBanner) return planWarningBanner;
+  planWarningBanner = document.createElement("div");
+  planWarningBanner.id = PLAN_WARNING_ID;
+  planWarningBanner.textContent = "Unable to refresh plan status. Retrying…";
+  planWarningBanner.style.background = "#fef3c7";
+  planWarningBanner.style.color = "#92400e";
+  planWarningBanner.style.padding = "8px 12px";
+  planWarningBanner.style.fontSize = "12px";
+  planWarningBanner.style.borderRadius = "8px";
+  planWarningBanner.style.margin = "12px 0";
+  planWarningBanner.style.display = "none";
+  const target = document.querySelector(".page-content") || document.body;
+  target.prepend(planWarningBanner);
+  return planWarningBanner;
+}
+
+function setPlanWarningVisible(visible) {
+  const banner = ensurePlanWarningBanner();
+  banner.style.display = visible ? "block" : "none";
+}
+
 function normalizeRouteHref(href = "") {
   const { path, suffix } = splitHref(href);
   const lowerPath = path.toLowerCase();
@@ -206,19 +251,29 @@ function normalizeNavLinkHrefs() {
   let updates = 0;
 
   nav.querySelectorAll('.nav-tab[data-route="customers"]').forEach((tab) => {
-    if (setHrefIfNeeded(tab, CUSTOMERS_ROUTE)) updates += 1;
+    if (tab.dataset.rrNormalized === "1") return;
+    if (setHrefIfNeeded(tab, CUSTOMERS_ROUTE)) {
+      tab.dataset.rrNormalized = "1";
+      updates += 1;
+    }
   });
   nav
     .querySelectorAll('.nav-tab[data-route="inbox"], .nav-tab[data-route="feedback"]')
     .forEach((tab) => {
-      if (setHrefIfNeeded(tab, FEEDBACK_ROUTE)) updates += 1;
+      if (tab.dataset.rrNormalized === "1") return;
+      if (setHrefIfNeeded(tab, FEEDBACK_ROUTE)) {
+        tab.dataset.rrNormalized = "1";
+        updates += 1;
+      }
     });
 
   nav.querySelectorAll("a[href]").forEach((link) => {
+    if (link.dataset.rrNormalized === "1") return;
     const href = link.getAttribute("href") || "";
     const normalized = normalizeRouteHref(href);
     if (normalized && normalized !== href) {
       link.setAttribute("href", normalized);
+      link.dataset.rrNormalized = "1";
       updates += 1;
     }
   });
@@ -232,9 +287,10 @@ function normalizeNavLinkHrefs() {
 
 function safeNormalizeNavLinks() {
   try {
-    normalizeNavLinkHrefs();
+    return normalizeNavLinkHrefs();
   } catch (err) {
     console.error("[ask-reviews] nav normalization failed", err);
+    return 0;
   }
 }
 
@@ -268,6 +324,39 @@ function setPlan(planId) {
   if (bulkSection) {
     bulkSection.hidden = plan === "starter";
   }
+}
+
+function setPlanWithSource(planId, source) {
+  planSource = source;
+  setPlan(planId);
+  if (source === "fresh") {
+    writeCachedPlan(planId);
+  }
+}
+
+function schedulePlanRetry() {
+  if (planRetryCount >= PLAN_RETRY_LIMIT) return;
+  const attempt = planRetryCount + 1;
+  const delay = PLAN_RETRY_BASE_DELAY_MS * Math.pow(2, planRetryCount);
+  planRetryCount = attempt;
+  clearTimeout(planRetryTimer);
+  planRetryTimer = setTimeout(async () => {
+    try {
+      const refreshed = await refreshSubscription();
+      const refreshedPlan = normalizePlan(refreshed?.planId || "");
+      const cachedPlan = readCachedPlan();
+      if (refreshedPlan && (refreshedPlan !== "starter" || !cachedPlan)) {
+        setPlanWithSource(refreshedPlan, "fresh");
+        setPlanWarningVisible(false);
+        return;
+      }
+    } catch (err) {
+      debugLog("plan refresh failed", err);
+    }
+    if (planRetryCount < PLAN_RETRY_LIMIT) {
+      schedulePlanRetry();
+    }
+  }, delay);
 }
 
 function getCustomerContact(customer) {
@@ -1656,20 +1745,42 @@ function attachEvents() {
 }
 
 function initApp() {
+  if (window.__rrAskReviewsInitDone) {
+    debugLog("init skipped (already initialized)");
+    return;
+  }
+  window.__rrAskReviewsInitDone = true;
   listenForUser(({ user, profile, subscription, branding }) => {
     if (!user) return;
     currentUser = user;
     businessId = user.uid;
-    setPlan(subscription?.planId || subscription?.planTier);
+    const cachedPlan = readCachedPlan();
+    const incomingPlan = normalizePlan(subscription?.planId || subscription?.planTier || "");
+    const shouldUseCached =
+      cachedPlan && (!incomingPlan || (incomingPlan === "starter" && cachedPlan !== "starter"));
+    if (shouldUseCached) {
+      setPlanWithSource(cachedPlan, "cached");
+      setPlanWarningVisible(true);
+      schedulePlanRetry();
+    } else {
+      setPlanWithSource(incomingPlan || cachedPlan || "starter", "fresh");
+      setPlanWarningVisible(false);
+    }
     const brandingDetails = branding || deriveBranding(profile || {});
     applyBrandingGate(brandingDetails);
     attachEvents();
     startCustomerFeed(user.uid);
     startOutboundFeed(user.uid);
+    debugLog("Diagnostics", {
+      initGuard: window.__rrAskReviewsInitDone,
+      navNormalized,
+      planSource,
+    });
   });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  navNormalized = true;
   safeNormalizeNavLinks();
   setTimeout(safeNormalizeNavLinks, 500);
   initApp();
@@ -1678,4 +1789,5 @@ document.addEventListener("DOMContentLoaded", () => {
 window.addEventListener("beforeunload", () => {
   if (typeof unsubscribe === "function") unsubscribe();
   if (typeof outboundUnsub === "function") outboundUnsub();
+  if (planRetryTimer) clearTimeout(planRetryTimer);
 });
