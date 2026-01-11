@@ -4,6 +4,7 @@ import {
   query,
   onSnapshot,
   orderBy,
+  getDoc,
   doc,
   updateDoc,
   serverTimestamp,
@@ -103,6 +104,7 @@ let outboundUnsub = null;
 let bulkLinks = [];
 let outboundRequests = [];
 let currentUser = null;
+let outboundCustomerCache = new Map();
 let brandingState = { complete: true };
 let eventsBound = false;
 let bulkSelectedIds = new Set();
@@ -280,6 +282,9 @@ function startCustomerFeed(uid) {
           const bTime = b?.createdAt?.toMillis?.() || 0;
           return bTime - aTime;
         });
+      customers.forEach((customer) => {
+        outboundCustomerCache.set(customer.id, customer);
+      });
       renderExistingCustomers();
       updateBulkSelectedCount();
     },
@@ -368,7 +373,15 @@ function redirectToBrandingSetup() {
   window.location.href = redirectUrl.toString();
 }
 
-function formatDateLabel(timestampMs) {
+function resolveTimestampMs(value) {
+  if (!value) return null;
+  if (typeof value === "number") return value;
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  if (typeof value?.seconds === "number") return value.seconds * 1000;
+  return null;
+}
+
+function formatNY(timestampMs) {
   if (!timestampMs) return "—";
   const date = new Date(timestampMs);
   if (Number.isNaN(date.getTime())) return "—";
@@ -445,6 +458,49 @@ function setInlineMessage(element, message, isError = false) {
   }
 }
 
+async function hydrateOutboundCustomers() {
+  if (!businessId) return;
+  const ids = Array.from(
+    new Set(outboundRequests.map((entry) => entry.customerId).filter(Boolean)),
+  ).filter((id) => !outboundCustomerCache.has(id));
+  if (!ids.length) return;
+
+  await Promise.allSettled(
+    ids.map(async (id) => {
+      try {
+        const customerRef = doc(db, "businesses", businessId, "customers", String(id));
+        const snap = await getDoc(customerRef);
+        outboundCustomerCache.set(id, snap.exists() ? { id, ...snap.data() } : null);
+      } catch (err) {
+        console.warn("[ask-reviews] unable to fetch customer", err);
+        outboundCustomerCache.set(id, null);
+      }
+    }),
+  );
+}
+
+function getCustomerDisplay(entry) {
+  if (!entry?.customerId) return "Link visitor";
+  const customer = outboundCustomerCache.get(entry.customerId);
+  if (customer) return customer.name || customer.email || customer.phone || "—";
+  return entry.customerName || entry.customerEmail || entry.customerPhone || "—";
+}
+
+function inferChannel(entry) {
+  const explicit = (entry?.channel || entry?.sendChannel || "").toString().trim().toLowerCase();
+  if (explicit) return explicit;
+  const hasEmailSignals = Boolean(
+    entry?.provider ||
+      entry?.providerMessageId ||
+      entry?.messageId ||
+      entry?.emailId ||
+      entry?.emailStatus ||
+      entry?.deliveredAtMs ||
+      entry?.processedAtMs,
+  );
+  return hasEmailSignals ? "email" : "link";
+}
+
 function renderOutboundTable() {
   if (!outboundTableBody) return;
   const range = requestRange?.value || "thisMonth";
@@ -489,16 +545,29 @@ function renderOutboundTable() {
     const statusCell = document.createElement("td");
     const dateCell = document.createElement("td");
 
-    customerCell.textContent = entry.customerId
-      ? entry.customerName || entry.customerEmail || "Link visitor"
-      : "Link visitor";
-    channelCell.textContent = entry.channel || "link";
-    const sentTimestamp = entry.sentAtMs || entry.deliveredAtMs || entry.processedAtMs;
-    sentCell.textContent = sentTimestamp ? formatDateLabel(sentTimestamp) : "—";
-    openedCell.textContent = entry.openedAtMs ? formatDateLabel(entry.openedAtMs) : "—";
-    clickedCell.textContent = entry.clickedAtMs ? formatDateLabel(entry.clickedAtMs) : "—";
+    customerCell.textContent = getCustomerDisplay(entry);
+    const resolvedChannel = inferChannel(entry);
+    channelCell.textContent = resolvedChannel === "email" ? "Email" : "Link";
+    const sentTimestamp = resolveTimestampMs(
+      entry.sentAtMs ||
+        entry.sentAt ||
+        entry.deliveredAtMs ||
+        entry.processedAtMs ||
+        entry.createdAtMs ||
+        entry.createdAt ||
+        entry.updatedAtMs ||
+        entry.updatedAt,
+    );
+    sentCell.textContent = sentTimestamp ? formatNY(sentTimestamp) : "—";
+    const openedTimestamp = resolveTimestampMs(entry.openedAtMs || entry.openedAt);
+    openedCell.textContent = openedTimestamp ? formatNY(openedTimestamp) : "—";
+    const clickedTimestamp = resolveTimestampMs(entry.clickedAtMs || entry.clickedAt);
+    clickedCell.textContent = clickedTimestamp ? formatNY(clickedTimestamp) : "—";
     statusCell.textContent = formatStatus(entry.status);
-    dateCell.textContent = formatDateLabel(entry.createdAtMs || entry.updatedAtMs);
+    const createdTimestamp = resolveTimestampMs(
+      entry.createdAtMs || entry.createdAt || entry.updatedAtMs || entry.updatedAt,
+    );
+    dateCell.textContent = createdTimestamp ? formatNY(createdTimestamp) : "—";
 
     row.appendChild(customerCell);
     row.appendChild(channelCell);
@@ -518,7 +587,7 @@ function startOutboundFeed(uid) {
   if (typeof outboundUnsub === "function") outboundUnsub();
   outboundUnsub = onSnapshot(q, (snapshot) => {
     outboundRequests = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-    renderOutboundTable();
+    hydrateOutboundCustomers().then(renderOutboundTable);
   });
 }
 
@@ -1037,7 +1106,7 @@ function buildBulkCsvContent() {
     entry.name,
     entry.contact,
     entry.link,
-    formatDateLabel(entry.createdAtMs),
+    formatNY(resolveTimestampMs(entry.createdAtMs)),
   ]);
   return [header, ...rows]
     .map((cols) =>
