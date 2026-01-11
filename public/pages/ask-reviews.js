@@ -82,6 +82,7 @@ const bulkUploadResultsBody = document.getElementById("bulkUploadResultsBody");
 const outboundTableBody = document.getElementById("outboundTableBody");
 const outboundEmptyRow = document.getElementById("outboundEmptyRow");
 const requestRange = document.getElementById("requestRange");
+const requestArchiveFilter = document.getElementById("requestArchiveFilter");
 const customStartWrapper = document.getElementById("customStartWrapper");
 const customEndWrapper = document.getElementById("customEndWrapper");
 const customStartInput = document.getElementById("requestStart");
@@ -511,9 +512,26 @@ function inferChannel(entry) {
   return hasEmailSignals ? "email" : "link";
 }
 
+async function archiveOutboundRequest(requestId) {
+  if (!businessId || !requestId) return;
+  try {
+    const outboundRef = doc(db, "businesses", businessId, "outboundRequests", String(requestId));
+    await updateDoc(outboundRef, {
+      archived: true,
+      archivedAt: serverTimestamp(),
+      archivedAtMs: Date.now(),
+    });
+    showToast("Archived");
+  } catch (err) {
+    console.error("[ask-reviews] unable to archive request", err);
+    showToast("Unable to archive this request.", true);
+  }
+}
+
 function renderOutboundTable() {
   if (!outboundTableBody) return;
   const range = requestRange?.value || "thisMonth";
+  const archiveFilter = requestArchiveFilter?.value || "active";
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   let startMs = range === "thisMonth" ? startOfMonth : null;
@@ -537,15 +555,29 @@ function renderOutboundTable() {
     return true;
   });
 
+  const archiveFiltered = filtered.filter((item) => {
+    const isArchived = Boolean(item.archived);
+    if (archiveFilter === "all") return true;
+    if (archiveFilter === "archived") return isArchived;
+    return !isArchived;
+  });
+
   outboundTableBody.innerHTML = "";
-  if (!filtered.length) {
+  if (!archiveFiltered.length) {
+    const emptyCell = outboundEmptyRow?.querySelector("td");
+    if (emptyCell) {
+      emptyCell.textContent =
+        archiveFilter === "archived"
+          ? "No archived requests yet"
+          : "No requests yet";
+    }
     outboundEmptyRow?.removeAttribute("hidden");
     outboundTableBody.appendChild(outboundEmptyRow);
     return;
   }
 
   outboundEmptyRow?.setAttribute("hidden", "true");
-  filtered.forEach((entry) => {
+  archiveFiltered.forEach((entry) => {
     const row = document.createElement("tr");
     const customerCell = document.createElement("td");
     const channelCell = document.createElement("td");
@@ -554,8 +586,18 @@ function renderOutboundTable() {
     const clickedCell = document.createElement("td");
     const statusCell = document.createElement("td");
     const dateCell = document.createElement("td");
+    const actionCell = document.createElement("td");
 
-    customerCell.textContent = getCustomerDisplay(entry);
+    const customerName = getCustomerDisplay(entry);
+    if (entry.customerId) {
+      const link = document.createElement("a");
+      link.href = `/customers?customerId=${encodeURIComponent(entry.customerId)}`;
+      link.className = "helper-link";
+      link.textContent = customerName;
+      customerCell.appendChild(link);
+    } else {
+      customerCell.textContent = customerName;
+    }
     const resolvedChannel = inferChannel(entry);
     channelCell.textContent = resolvedChannel === "email" ? "Email" : "Link";
     const sentTimestamp = resolveTimestampMs(
@@ -574,10 +616,32 @@ function renderOutboundTable() {
     const clickedTimestamp = resolveTimestampMs(entry.clickedAtMs || entry.clickedAt);
     clickedCell.textContent = clickedTimestamp ? formatNY(clickedTimestamp) : "—";
     statusCell.textContent = deriveActivityStatus(entry);
+    if (entry.archived) {
+      const badge = document.createElement("span");
+      badge.className = "badge badge-muted";
+      badge.style.marginLeft = "6px";
+      badge.textContent = "Archived";
+      statusCell.appendChild(badge);
+    }
     const createdTimestamp = resolveTimestampMs(
       entry.createdAtMs || entry.createdAt || entry.updatedAtMs || entry.updatedAt,
     );
     dateCell.textContent = createdTimestamp ? formatNY(createdTimestamp) : "—";
+
+    if (entry.archived) {
+      actionCell.textContent = "Archived";
+      actionCell.style.color = "#6b7280";
+    } else {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn btn-outline";
+      button.style.padding = "4px 10px";
+      button.style.fontSize = "12px";
+      button.textContent = "Archive";
+      button.dataset.action = "archive";
+      button.dataset.id = entry.id;
+      actionCell.appendChild(button);
+    }
 
     row.appendChild(customerCell);
     row.appendChild(channelCell);
@@ -586,6 +650,7 @@ function renderOutboundTable() {
     row.appendChild(clickedCell);
     row.appendChild(statusCell);
     row.appendChild(dateCell);
+    row.appendChild(actionCell);
     outboundTableBody.appendChild(row);
   });
 }
@@ -603,6 +668,18 @@ function startOutboundFeed(uid) {
 
 function handleRangeChange() {
   renderOutboundTable();
+}
+
+function handleOutboundTableClick(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+  const action = button.dataset.action;
+  if (action !== "archive") return;
+  const requestId = button.dataset.id;
+  button.disabled = true;
+  archiveOutboundRequest(requestId).finally(() => {
+    button.disabled = false;
+  });
 }
 
 function resetBulkFeedback() {
@@ -1469,8 +1546,10 @@ function attachEvents() {
   bulkCopyLinksBtn?.addEventListener("click", handleBulkCopyLinks);
   bulkDownloadLinksBtn?.addEventListener("click", handleBulkDownloadLinks);
   requestRange?.addEventListener("change", handleRangeChange);
+  requestArchiveFilter?.addEventListener("change", renderOutboundTable);
   customStartInput?.addEventListener("change", renderOutboundTable);
   customEndInput?.addEventListener("change", renderOutboundTable);
+  outboundTableBody?.addEventListener("click", handleOutboundTableClick);
   completeSettingsBtn?.addEventListener("click", () => {
     try {
       sessionStorage.setItem(BRANDING_REDIRECT_NOTICE_KEY, BRANDING_REQUIRED_MESSAGE);
