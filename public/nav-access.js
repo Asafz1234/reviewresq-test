@@ -31,7 +31,7 @@ const ROUTE_KEYS = {
 const ROUTE_PATHS = {
   dashboard: "/dashboard.html",
   overview: "/overview.html",
-  "ask-reviews": "/pages/ask-reviews.html",
+  "ask-reviews": "/ask-reviews",
   inbox: "/feedback.html",
   feedback: "/feedback.html",
   "google-reviews": "/pages/google-reviews.html",
@@ -77,6 +77,10 @@ const navState =
     version: "unscoped",
     planPending: false,
   };
+
+const isDevEnv =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname);
 
 function ensureWindowNavAccess() {
   if (typeof window === "undefined") return null;
@@ -188,7 +192,7 @@ export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
     const enforceRemoval = forceRemove || planIsStarter;
 
     const normalizedPlan = normalizePlan(navState.currentPlan);
-    const planLabel = PLAN_LABELS[normalizedPlan] || normalizedPlan || "Loading...";
+    const planLabel = PLAN_LABELS[normalizedPlan] || normalizedPlan || "Loading…";
     document.querySelectorAll("[data-plan-badge]").forEach((badge) => {
       badge.textContent = planLabel;
       badge.setAttribute("data-plan", normalizedPlan);
@@ -235,6 +239,14 @@ export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
 
     if (typeof document !== "undefined") {
       document.documentElement.classList.remove("rr-plan-pending");
+      if (isDevEnv) {
+        console.debug("[rr] plan pending end");
+      }
+    }
+
+    if (typeof window !== "undefined" && isDevEnv && !window.__rrPlanLogged) {
+      console.debug("[rr] plan resolved", navState.currentPlan);
+      window.__rrPlanLogged = true;
     }
 
     if (typeof window !== "undefined") {
@@ -272,7 +284,7 @@ function ensureNavObserver() {
 
 function renderPlanLoadingState() {
   document.querySelectorAll("[data-plan-badge]").forEach((badge) => {
-    badge.textContent = "Loading...";
+    badge.textContent = "Loading…";
     badge.setAttribute("data-plan", "loading");
     badge.setAttribute("data-plan-loading", "true");
   });
@@ -284,6 +296,9 @@ function applyNavPendingState() {
   navState.currentEntitlementState = null;
   if (typeof document !== "undefined") {
     document.documentElement.classList.add("rr-plan-pending");
+    if (isDevEnv) {
+      console.debug("[rr] plan pending start");
+    }
   }
   const navAccess = ensureWindowNavAccess();
   if (navAccess) {

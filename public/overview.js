@@ -38,13 +38,13 @@ function setLoadingState() {
     if (value) value.textContent = "—";
   });
   if (timelineContainer) {
-    timelineContainer.textContent = "Loading...";
+    timelineContainer.textContent = "Loading…";
   }
 }
 
 function renderPlanLoadingState() {
   if (businessElements.plan) {
-    businessElements.plan.textContent = "Loading...";
+    businessElements.plan.textContent = "Loading…";
     businessElements.plan.setAttribute("data-plan-loading", "true");
   }
 }
@@ -56,7 +56,7 @@ function applyPlan(planId) {
     return;
   }
   const normalized = normalizePlan(planId);
-  businessElements.plan.textContent = PLAN_LABELS[normalized] || "Loading...";
+  businessElements.plan.textContent = PLAN_LABELS[normalized] || "Loading…";
   businessElements.plan.removeAttribute("data-plan-loading");
   setCachedPlan(normalized);
 }

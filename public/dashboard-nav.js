@@ -3,7 +3,7 @@ const NAV_SECTIONS = [
     id: 'main',
     items: [
       { route: 'dashboard', icon: '🏠', label: 'Overview', href: 'dashboard.html' },
-      { route: 'ask-reviews', icon: '✉️', label: 'Ask for reviews', href: 'ask-reviews.html' },
+      { route: 'ask-reviews', icon: '✉️', label: 'Ask for reviews', href: '/ask-reviews' },
       { route: 'inbox', icon: '💬', label: 'Customer Feedback', href: 'feedback.html' },
       { route: 'google-reviews', icon: '★', label: 'Google Reviews', href: 'pages/google-reviews.html' },
       { route: 'customers', icon: '👥', label: 'Customers', href: '/customers' },

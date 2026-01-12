@@ -256,7 +256,7 @@ function ensurePlanLoadingNotice() {
 
 function renderPlanLoadingState() {
   if (planBadge) {
-    planBadge.textContent = "Loading...";
+    planBadge.textContent = "Loading…";
     planBadge.setAttribute("data-plan-loading", "true");
   }
   if (bulkSection) {
@@ -386,7 +386,7 @@ function applyPlan(planId) {
   }
   plan = normalizePlan(planId);
   if (planBadge) {
-    planBadge.textContent = PLAN_LABELS[plan] || "Loading...";
+    planBadge.textContent = PLAN_LABELS[plan] || "Loading…";
   }
   if (bulkSection) {
     bulkSection.hidden = plan === "starter";
