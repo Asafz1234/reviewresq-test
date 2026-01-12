@@ -169,8 +169,8 @@ export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
   try {
     if (!planId) return;
     if (typeof window !== "undefined") {
-      if (window.__rrPlanAppliedOnce) return;
-      window.__rrPlanAppliedOnce = true;
+      if (window.__rrPlanApplied) return;
+      window.__rrPlanApplied = true;
     }
     navState.currentPlan = normalizePlan(planId);
     navState.planPending = false;
@@ -293,26 +293,6 @@ function applyNavPendingState() {
     navAccess.planPending = true;
   }
   renderPlanLoadingState();
-
-  const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
-  navTabs.forEach((tab) => {
-    const route = (tab.dataset.route || tab.getAttribute("href") || "").toLowerCase();
-    const resolvedHref = resolveNavHref(route, tab.getAttribute("href"));
-    if (resolvedHref) {
-      tab.setAttribute("href", resolvedHref);
-    }
-    const normalizedRoute = normalizeRouteFromHref(route);
-    const shouldHide = STARTER_REMOVED_ROUTES.includes(normalizedRoute);
-    if (shouldHide) {
-      setTabVisibility(tab, true);
-      return;
-    }
-    tab.style.display = "";
-    tab.setAttribute("aria-hidden", "false");
-    tab.dataset.navBlocked = "false";
-  });
-
-  unifySettingsNav();
 }
 
 function renderUpgradeGuard(reason = "") {
@@ -436,9 +416,13 @@ function unifySettingsNav() {
 
 export function initNavPlanFilter() {
   if (navState.initialized) return;
+  if (typeof window !== "undefined") {
+    if (window.__rrNavPlanInit) return;
+    window.__rrNavPlanInit = true;
+  }
   navState.initialized = true;
 
-  const cachedPlan = getCachedSubscription()?.planId;
+  const cachedPlan = getCachedPlan() || getCachedSubscription()?.planId;
   if (cachedPlan) {
     applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
     unifySettingsNav();
@@ -446,8 +430,9 @@ export function initNavPlanFilter() {
   }
 
   let planResolved = false;
-  getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }).then(({ planId }) => {
+  getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }).then((planResult = {}) => {
     planResolved = true;
+    const planId = planResult?.planId;
     if (!planId) return;
     applyNavPlanFilter(planId, { forceRemove: isStarterPlan(planId) });
     guardCurrentPage();

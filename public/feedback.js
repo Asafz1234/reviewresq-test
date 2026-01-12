@@ -516,8 +516,10 @@ function applyFilters() {
 if (shouldInit) {
   debugLog("init start");
   let initialResolved = false;
-  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then(({ planId, source }) => {
+  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((planResult = {}) => {
     initialResolved = true;
+    const planId = planResult?.planId;
+    const source = planResult?.source;
     if (planId) {
       setPlanWithSource(planId, source);
       return;

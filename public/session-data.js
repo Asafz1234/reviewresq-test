@@ -29,10 +29,39 @@ let cachedSubscription = null;
 let cachedBusiness = null;
 let cachedUser = null;
 
-let planPromise = null;
-let planPromiseResolve = null;
-let planPromiseReject = null;
-let planResolved = null;
+const globalPlanState = (() => {
+  if (typeof window === "undefined") return null;
+  if (!window.__rrPlanState) {
+    window.__rrPlanState = {
+      planPromise: null,
+      planPromiseResolve: null,
+      planPromiseReject: null,
+      planResolved: null,
+    };
+  }
+  return window.__rrPlanState;
+})();
+
+let planPromise = globalPlanState?.planPromise ?? null;
+let planPromiseResolve = globalPlanState?.planPromiseResolve ?? null;
+let planPromiseReject = globalPlanState?.planPromiseReject ?? null;
+let planResolved = globalPlanState?.planResolved ?? null;
+
+function syncPlanState() {
+  if (!globalPlanState) return;
+  globalPlanState.planPromise = planPromise;
+  globalPlanState.planPromiseResolve = planPromiseResolve;
+  globalPlanState.planPromiseReject = planPromiseReject;
+  globalPlanState.planResolved = planResolved;
+}
+
+function hydratePlanState() {
+  if (!globalPlanState) return;
+  planPromise ??= globalPlanState.planPromise ?? null;
+  planPromiseResolve ??= globalPlanState.planPromiseResolve ?? null;
+  planPromiseReject ??= globalPlanState.planPromiseReject ?? null;
+  planResolved ??= globalPlanState.planResolved ?? null;
+}
 
 function resolveLogo(profile = {}) {
   return (
@@ -195,6 +224,7 @@ export function setCachedPlan(planId) {
 }
 
 function resolvePlanPromise(planId, source = "auth") {
+  hydratePlanState();
   const normalized = normalizePlan(planId || "");
   if (!normalized) return null;
   const payload = { planId: normalized, source };
@@ -205,21 +235,25 @@ function resolvePlanPromise(planId, source = "auth") {
     planPromiseReject = null;
   }
   planPromise = Promise.resolve(payload);
+  syncPlanState();
   debugPlanCache("resolved", payload);
   return payload;
 }
 
 function ensurePlanPromise() {
+  hydratePlanState();
   if (!planPromise) {
     planPromise = new Promise((resolve, reject) => {
       planPromiseResolve = resolve;
       planPromiseReject = reject;
     });
+    syncPlanState();
   }
   return planPromise;
 }
 
 export function getEffectivePlan({ forceRefresh = false, maxAgeMs = 5 * 60 * 1000 } = {}) {
+  hydratePlanState();
   if (!forceRefresh && planResolved?.planId) {
     debugPlanCache("effective-resolved", planResolved);
     return Promise.resolve(planResolved);
@@ -229,7 +263,11 @@ export function getEffectivePlan({ forceRefresh = false, maxAgeMs = 5 * 60 * 100
   const cacheAgeMs = getCacheAgeMs(cache, maxAgeMs);
   if (cache?.planId && cacheAgeMs !== null) {
     const payload = resolvePlanPromise(cache.planId, "cache");
-    debugPlanCache("effective-hit", { planId: payload.planId, ageMs: cacheAgeMs, maxAgeMs });
+    debugPlanCache("effective-hit", {
+      planId: payload?.planId,
+      ageMs: cacheAgeMs,
+      maxAgeMs,
+    });
     return Promise.resolve(payload);
   }
 
@@ -238,10 +276,11 @@ export function getEffectivePlan({ forceRefresh = false, maxAgeMs = 5 * 60 * 100
     planPromiseResolve = null;
     planPromiseReject = null;
     planResolved = null;
+    syncPlanState();
   }
 
   debugPlanCache("effective-pending", { forceRefresh });
-  return ensurePlanPromise();
+  return Promise.resolve(ensurePlanPromise());
 }
 
 export function listenForUser(callback) {
