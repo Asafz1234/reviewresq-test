@@ -126,8 +126,9 @@ function renderTimeline(timeline = []) {
 setLoadingState();
 
 let initialResolved = false;
-getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }).then(({ planId }) => {
+getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }).then((planResult = {}) => {
   initialResolved = true;
+  const planId = planResult?.planId;
   if (planId) {
     applyPlan(planId);
   } else {

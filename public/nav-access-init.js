@@ -14,6 +14,11 @@ if (typeof window !== "undefined") {
   };
 }
 
-import("./nav-access-versioned.js").then(({ initNavPlanFilter }) => {
-  initNavPlanFilter();
-});
+if (typeof window === "undefined" || !window.__rrNavInitRequested) {
+  if (typeof window !== "undefined") {
+    window.__rrNavInitRequested = true;
+  }
+  import("./nav-access-versioned.js").then(({ initNavPlanFilter }) => {
+    initNavPlanFilter();
+  });
+}

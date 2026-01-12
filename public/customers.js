@@ -1051,8 +1051,10 @@ function startCustomerFeed(uid) {
 function initCustomers() {
   debugLog("init start");
   let initialResolved = false;
-  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then(({ planId, source }) => {
+  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((planResult = {}) => {
     initialResolved = true;
+    const planId = planResult?.planId;
+    const source = planResult?.source;
     if (planId) {
       setPlanWithSource(planId, source);
       return;
@@ -1066,7 +1068,7 @@ function initCustomers() {
   });
   listenForUser(({ user, subscription }) => {
     businessId = user.uid;
-    getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((cachedPlanResult) => {
+    getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((cachedPlanResult = {}) => {
       const cachedPlan = cachedPlanResult?.planId || getCachedSubscription()?.planId;
       const incomingPlan = normalizePlan(subscription?.planId || "");
       const hasIncomingPlan = Boolean(subscription?.planId);
