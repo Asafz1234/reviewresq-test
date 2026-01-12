@@ -13,6 +13,11 @@ import { listenForUser, refreshSubscription, formatDate, initialsFromName } from
 import { PLAN_ORDER, normalizePlan } from "./plan-capabilities.js";
 import { createCustomer } from "./js/customersApi.js";
 
+const shouldInit = typeof window === "undefined" || !window.__rrCustomersInit;
+if (typeof window !== "undefined" && shouldInit) {
+  window.__rrCustomersInit = true;
+}
+
 const statusFilters = document.getElementById("statusFilters");
 const sourceFilters = document.getElementById("sourceFilters");
 const searchInput = document.getElementById("customerSearch");
@@ -41,9 +46,15 @@ const CUSTOMERS_ROUTE = "/customers";
 const FEEDBACK_ROUTE = "/feedback";
 const PLAN_CACHE_KEY = "rrPlanCache";
 const PLAN_WARNING_ID = "rr-plan-warning";
-const PLAN_RETRY_LIMIT = 2;
+const PLAN_RETRY_LIMIT = 3;
 const PLAN_RETRY_BASE_DELAY_MS = 800;
-const DEBUG = new URLSearchParams(window.location.search).has("debug");
+const DEBUG = (() => {
+  try {
+    return localStorage.getItem("rrDebug") === "1";
+  } catch (err) {
+    return false;
+  }
+})();
 
 function debugLog(...args) {
   if (DEBUG) {
@@ -73,6 +84,7 @@ let planRetryCount = 0;
 let planRetryTimer = null;
 let navNormalized = false;
 let planWarningBanner = null;
+let listenerCount = 0;
 
 function getCustomersCollection() {
   if (!businessId) {
@@ -139,7 +151,7 @@ function ensurePlanWarningBanner() {
   if (planWarningBanner) return planWarningBanner;
   planWarningBanner = document.createElement("div");
   planWarningBanner.id = PLAN_WARNING_ID;
-  planWarningBanner.textContent = "Unable to refresh plan status. Retrying…";
+  planWarningBanner.textContent = "Unable to load plan. Retrying...";
   planWarningBanner.style.background = "#fef3c7";
   planWarningBanner.style.color = "#92400e";
   planWarningBanner.style.padding = "8px 12px";
@@ -266,6 +278,7 @@ function setPlanWithSource(planId, source) {
   if (source === "fresh") {
     writeCachedPlan(planId);
   }
+  debugLog("plan set", { plan: normalizePlan(planId), source });
 }
 
 function schedulePlanRetry() {
@@ -727,11 +740,13 @@ function startCustomerActivityFeed(customerId) {
   renderCustomerRequestTimeline();
 
   if (!businessId || !customerId) return;
+  debugLog("activity feed start", { businessId, customerId });
   const outboundRef = collection(db, "businesses", businessId, "outboundRequests");
   const q = query(outboundRef, where("customerId", "==", customerId), orderBy("createdAtMs", "desc"));
   requestActivityUnsub = onSnapshot(q, (snapshot) => {
     requestActivity = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
     renderCustomerRequestTimeline();
+    debugLog("activity feed update", { count: requestActivity.length });
   });
 }
 
@@ -897,19 +912,25 @@ function attachDetailActions() {
 function attachEvents() {
   if (eventsBound) return;
   eventsBound = true;
+  let added = 0;
+  const bindListener = (target, event, handler) => {
+    if (!target) return 0;
+    target.addEventListener(event, handler);
+    return 1;
+  };
   if (window.ModalManager && addCustomerModal) {
     addCustomerModalController = window.ModalManager.register(addCustomerModal);
   }
-  statusFilters.addEventListener("click", handleStatusClick);
-  sourceFilters.addEventListener("click", handleSourceClick);
-  tableBody.addEventListener("click", handleRowClick);
-  tableBody.addEventListener("change", handleCheckboxChange);
-  searchInput.addEventListener("input", applyFilters);
-  archivedToggle.addEventListener("change", (e) => {
+  added += bindListener(statusFilters, "click", handleStatusClick);
+  added += bindListener(sourceFilters, "click", handleSourceClick);
+  added += bindListener(tableBody, "click", handleRowClick);
+  added += bindListener(tableBody, "change", handleCheckboxChange);
+  added += bindListener(searchInput, "input", applyFilters);
+  added += bindListener(archivedToggle, "change", (e) => {
     showArchived = e.target.checked;
     applyFilters();
   });
-  selectAll.addEventListener("change", (e) => {
+  added += bindListener(selectAll, "change", (e) => {
     if (!allowBulkActions) return;
     if (e.target.checked) {
       filtered.forEach((c) => selectedRows.add(c.id));
@@ -919,28 +940,33 @@ function attachEvents() {
     archiveSelectedBtn.disabled = !selectedRows.size;
     renderTable();
   });
-  archiveSelectedBtn.addEventListener("click", async () => {
+  added += bindListener(archiveSelectedBtn, "click", async () => {
     if (!allowBulkActions) return;
     if (!selectedRows.size) return;
     await archiveCustomers(Array.from(selectedRows));
     selectedRows.clear();
     archiveSelectedBtn.disabled = true;
   });
-  addCustomerBtn?.addEventListener("click", openAddCustomerModal);
-  addCustomerForm?.addEventListener("submit", handleAddCustomerSubmit);
+  added += bindListener(addCustomerBtn, "click", openAddCustomerModal);
+  added += bindListener(addCustomerForm, "submit", handleAddCustomerSubmit);
   attachDetailActions();
+  listenerCount = added;
+  debugLog("listeners attached", { count: listenerCount });
 }
 
 function startCustomerFeed(uid) {
   businessId = uid;
+  if (typeof unsubscribe === "function") unsubscribe();
   const q = query(
     getCustomersCollection(),
     orderBy("createdAt", "desc")
   );
 
+  debugLog("customer feed start", { businessId: uid });
   unsubscribe = onSnapshot(q, (snapshot) => {
     customers = snapshot.docs.map(normalizeCustomer);
     applyFilters();
+    debugLog("customer feed update", { count: customers.length });
     if (deepLinkedCustomerId && !selectedCustomerId) {
       const deepLinkedCustomer = customers.find((c) => c.id === deepLinkedCustomerId);
       if (deepLinkedCustomer) {
@@ -960,42 +986,48 @@ function startCustomerFeed(uid) {
 }
 
 function initCustomers() {
-  if (window.__rrCustomersInitDone) {
-    debugLog("init skipped (already initialized)");
-    return;
-  }
-  window.__rrCustomersInitDone = true;
+  debugLog("init start");
   listenForUser(({ user, subscription }) => {
     businessId = user.uid;
     const cachedPlan = readCachedPlan();
     const incomingPlan = normalizePlan(subscription?.planId || "");
-    const shouldUseCached =
-      cachedPlan && (!incomingPlan || (incomingPlan === "starter" && cachedPlan !== "starter"));
-    if (shouldUseCached) {
+    const hasIncomingPlan = Boolean(subscription?.planId);
+    if (hasIncomingPlan) {
+      if (cachedPlan && incomingPlan === "starter" && cachedPlan !== "starter") {
+        setPlanWithSource(cachedPlan, "cached");
+        setPlanWarningVisible(true);
+        schedulePlanRetry();
+      } else {
+        setPlanWithSource(incomingPlan || "starter", "fresh");
+        setPlanWarningVisible(false);
+      }
+    } else if (cachedPlan) {
       setPlanWithSource(cachedPlan, "cached");
       setPlanWarningVisible(true);
       schedulePlanRetry();
     } else {
-      setPlanWithSource(incomingPlan || cachedPlan || "starter", "fresh");
-      setPlanWarningVisible(false);
+      setPlanWarningVisible(true);
+      schedulePlanRetry();
     }
     startCustomerFeed(user.uid);
     attachEvents();
     navNormalized = true;
     safeNormalizeNavLinks();
     setTimeout(safeNormalizeNavLinks, 500);
-    debugLog("Diagnostics", {
-      initGuard: window.__rrCustomersInitDone,
+    debugLog("init end", {
+      initGuard: window.__rrCustomersInit,
       navNormalized,
       planSource,
     });
   });
 }
 
-initCustomers();
+if (shouldInit) {
+  initCustomers();
 
-window.addEventListener("beforeunload", () => {
-  if (typeof unsubscribe === "function") unsubscribe();
-  if (typeof requestActivityUnsub === "function") requestActivityUnsub();
-  if (planRetryTimer) clearTimeout(planRetryTimer);
-});
+  window.addEventListener("beforeunload", () => {
+    if (typeof unsubscribe === "function") unsubscribe();
+    if (typeof requestActivityUnsub === "function") requestActivityUnsub();
+    if (planRetryTimer) clearTimeout(planRetryTimer);
+  });
+}

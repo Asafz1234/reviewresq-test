@@ -1,7 +1,12 @@
 import { db, doc, updateDoc } from "./firebase-config.js";
 import { onSession, fetchAllReviews, describeReview } from "./dashboard-data.js";
-import { currentPlanTier, formatDate } from "./session-data.js";
+import { currentPlanTier, formatDate, refreshSubscription } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
+
+const shouldInit = typeof window === "undefined" || !window.__rrFeedbackInit;
+if (typeof window !== "undefined" && shouldInit) {
+  window.__rrFeedbackInit = true;
+}
 
 const tbody = document.querySelector("[data-feedback-table]");
 const modalEl = document.querySelector("[data-feedback-modal]");
@@ -23,16 +28,110 @@ const planBadge = document.querySelector(".topbar-right .badge");
 const toastId = "feedback-toast";
 const dateFilter = document.querySelector(".filter-row select");
 const searchInput = document.querySelector('.filter-row input[type="search"]');
+const PLAN_CACHE_KEY = "rrPlanCache";
+const PLAN_WARNING_ID = "rr-plan-warning";
+const PLAN_RETRY_LIMIT = 3;
+const PLAN_RETRY_BASE_DELAY_MS = 800;
+const DEBUG = (() => {
+  try {
+    return localStorage.getItem("rrDebug") === "1";
+  } catch (err) {
+    return false;
+  }
+})();
+
+function debugLog(...args) {
+  if (DEBUG) {
+    console.log("[feedback]", ...args);
+  }
+}
 
 const feedbackCache = new Map();
-let currentPlan = normalizePlan(currentPlanTier());
+let currentPlan = readCachedPlan() || normalizePlan(currentPlanTier());
 let currentBusinessId = null;
 let activeFeedbackId = null;
 let allFeedback = [];
-const feedbackInitDone =
-  typeof window !== "undefined" && Boolean(window.__rrFeedbackInitDone);
-if (typeof window !== "undefined" && !window.__rrFeedbackInitDone) {
-  window.__rrFeedbackInitDone = true;
+let planSource = "fresh";
+let planRetryCount = 0;
+let planRetryTimer = null;
+let planWarningBanner = null;
+let listenerCount = 0;
+
+function readCachedPlan() {
+  try {
+    const cached = localStorage.getItem(PLAN_CACHE_KEY);
+    return cached ? normalizePlan(cached) : null;
+  } catch (err) {
+    debugLog("unable to read cached plan", err);
+    return null;
+  }
+}
+
+function writeCachedPlan(value) {
+  if (!value) return;
+  try {
+    localStorage.setItem(PLAN_CACHE_KEY, normalizePlan(value));
+  } catch (err) {
+    debugLog("unable to cache plan", err);
+  }
+}
+
+function ensurePlanWarningBanner() {
+  if (planWarningBanner) return planWarningBanner;
+  planWarningBanner = document.getElementById(PLAN_WARNING_ID);
+  if (planWarningBanner) return planWarningBanner;
+  planWarningBanner = document.createElement("div");
+  planWarningBanner.id = PLAN_WARNING_ID;
+  planWarningBanner.textContent = "Unable to load plan. Retrying...";
+  planWarningBanner.style.background = "#fef3c7";
+  planWarningBanner.style.color = "#92400e";
+  planWarningBanner.style.padding = "8px 12px";
+  planWarningBanner.style.fontSize = "12px";
+  planWarningBanner.style.borderRadius = "8px";
+  planWarningBanner.style.margin = "12px 0";
+  planWarningBanner.style.display = "none";
+  const target = document.querySelector(".page-content") || document.body;
+  target.prepend(planWarningBanner);
+  return planWarningBanner;
+}
+
+function setPlanWarningVisible(visible) {
+  const banner = ensurePlanWarningBanner();
+  banner.style.display = visible ? "block" : "none";
+}
+
+function setPlanWithSource(planId, source) {
+  planSource = source;
+  currentPlan = normalizePlan(planId || "starter");
+  updatePlanUI();
+  if (source === "fresh") {
+    writeCachedPlan(currentPlan);
+  }
+  debugLog("plan set", { plan: currentPlan, source });
+}
+
+function schedulePlanRetry() {
+  if (planRetryCount >= PLAN_RETRY_LIMIT) return;
+  const delay = PLAN_RETRY_BASE_DELAY_MS * Math.pow(2, planRetryCount);
+  planRetryCount += 1;
+  clearTimeout(planRetryTimer);
+  planRetryTimer = setTimeout(async () => {
+    try {
+      const refreshed = await refreshSubscription();
+      const refreshedPlan = normalizePlan(refreshed?.planId || "");
+      const cachedPlan = readCachedPlan();
+      if (refreshedPlan && (refreshedPlan !== "starter" || !cachedPlan)) {
+        setPlanWithSource(refreshedPlan, "fresh");
+        setPlanWarningVisible(false);
+        return;
+      }
+    } catch (err) {
+      debugLog("plan refresh failed", err);
+    }
+    if (planRetryCount < PLAN_RETRY_LIMIT) {
+      schedulePlanRetry();
+    }
+  }, delay);
 }
 
 function updatePlanUI() {
@@ -352,72 +451,106 @@ function applyFilters() {
   renderFeedback(filtered);
 }
 
-if (!feedbackInitDone) {
+if (shouldInit) {
+  debugLog("init start");
   onSession(async ({ user, subscription, profile }) => {
     if (!user) return;
     currentBusinessId = profile?.id || user.uid;
-    currentPlan = normalizePlan(subscription?.planId || currentPlanTier());
-    updatePlanUI();
+    const cachedPlan = readCachedPlan();
+    const incomingPlan = normalizePlan(subscription?.planId || "");
+    const hasIncomingPlan = Boolean(subscription?.planId);
+    if (hasIncomingPlan) {
+      if (cachedPlan && incomingPlan === "starter" && cachedPlan !== "starter") {
+        setPlanWithSource(cachedPlan, "cached");
+        setPlanWarningVisible(true);
+        schedulePlanRetry();
+      } else {
+        setPlanWithSource(incomingPlan || "starter", "fresh");
+        setPlanWarningVisible(false);
+      }
+    } else if (cachedPlan) {
+      setPlanWithSource(cachedPlan, "cached");
+      setPlanWarningVisible(true);
+      schedulePlanRetry();
+    } else {
+      setPlanWarningVisible(true);
+      schedulePlanRetry();
+    }
     if (tbody) {
       tbody.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
     }
-    const reviews = await fetchAllReviews(currentBusinessId || user.uid);
-    const feedbackOnly = reviews.filter((r) => r.source !== "google").map(describeReview);
-    allFeedback = feedbackOnly;
-    applyFilters();
+    debugLog("feedback fetch start", { businessId: currentBusinessId });
+    try {
+      const reviews = await fetchAllReviews(currentBusinessId || user.uid);
+      const feedbackOnly = reviews.filter((r) => r.source !== "google").map(describeReview);
+      allFeedback = feedbackOnly;
+      applyFilters();
+      debugLog("feedback fetch end", { count: allFeedback.length });
+    } catch (err) {
+      console.error("[feedback] load failed", err);
+      showToast("We couldn’t load feedback. Please try again.", true);
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="6">Unable to load feedback.</td></tr>`;
+      }
+    }
+    debugLog("init end", { plan: currentPlan, planSource });
   });
 
-  if (toggleStatusButton) {
-    toggleStatusButton.addEventListener("click", async () => {
-      const activeFeedback = activeFeedbackId ? feedbackCache.get(activeFeedbackId) : null;
-      if (!activeFeedback) {
-        showToast("We couldn’t load this feedback. Please try again.", true);
-        return;
-      }
-      const nextStatus = toggleStatusButton.dataset.nextStatus || "resolved";
-      toggleStatusButton.disabled = true;
-      const success = await updateStatus(activeFeedback, nextStatus);
-      toggleStatusButton.disabled = false;
-      if (success) {
-        activeFeedback.status = nextStatus;
-        feedbackCache.set(activeFeedback.id, activeFeedback);
-        populateDetails(activeFeedback);
-        showToast(`Marked as ${displayStatus(nextStatus).toLowerCase()}.`);
-      } else {
-        showToast("We couldn’t update the status. Please try again.", true);
-      }
-    });
-  }
+  let added = 0;
+  const bindListener = (target, event, handler) => {
+    if (!target) return 0;
+    target.addEventListener(event, handler);
+    return 1;
+  };
 
-  if (emailLink) {
-    emailLink.addEventListener("click", (event) => {
-      const href = emailLink.dataset.linkHref;
-      if (!href) {
-        event.preventDefault();
-        return;
-      }
+  added += bindListener(toggleStatusButton, "click", async () => {
+    const activeFeedback = activeFeedbackId ? feedbackCache.get(activeFeedbackId) : null;
+    if (!activeFeedback) {
+      showToast("We couldn’t load this feedback. Please try again.", true);
+      return;
+    }
+    const nextStatus = toggleStatusButton.dataset.nextStatus || "resolved";
+    toggleStatusButton.disabled = true;
+    const success = await updateStatus(activeFeedback, nextStatus);
+    toggleStatusButton.disabled = false;
+    if (success) {
+      activeFeedback.status = nextStatus;
+      feedbackCache.set(activeFeedback.id, activeFeedback);
+      populateDetails(activeFeedback);
+      showToast(`Marked as ${displayStatus(nextStatus).toLowerCase()}.`);
+    } else {
+      showToast("We couldn’t update the status. Please try again.", true);
+    }
+  });
+
+  added += bindListener(emailLink, "click", (event) => {
+    const href = emailLink.dataset.linkHref;
+    if (!href) {
       event.preventDefault();
-      window.location.href = href;
-    });
-  }
+      return;
+    }
+    event.preventDefault();
+    window.location.href = href;
+  });
 
-  if (callLink) {
-    callLink.addEventListener("click", (event) => {
-      const href = callLink.dataset.linkHref;
-      if (!href) {
-        event.preventDefault();
-        return;
-      }
+  added += bindListener(callLink, "click", (event) => {
+    const href = callLink.dataset.linkHref;
+    if (!href) {
       event.preventDefault();
-      window.location.href = href;
-    });
-  }
+      return;
+    }
+    event.preventDefault();
+    window.location.href = href;
+  });
 
-  if (dateFilter) {
-    dateFilter.addEventListener("change", applyFilters);
-  }
+  added += bindListener(dateFilter, "change", applyFilters);
+  added += bindListener(searchInput, "input", applyFilters);
+  listenerCount = added;
+  debugLog("listeners attached", { count: listenerCount });
+}
 
-  if (searchInput) {
-    searchInput.addEventListener("input", applyFilters);
-  }
+if (shouldInit) {
+  window.addEventListener("beforeunload", () => {
+    if (planRetryTimer) clearTimeout(planRetryTimer);
+  });
 }

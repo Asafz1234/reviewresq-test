@@ -20,6 +20,11 @@ import {
 } from "../js/bulkUpload.js";
 import { subscribeCustomers } from "../js/customersApi.js";
 
+const shouldInit = typeof window === "undefined" || !window.__rrAskReviewsInit;
+if (typeof window !== "undefined" && shouldInit) {
+  window.__rrAskReviewsInit = true;
+}
+
 const planBadge = document.querySelector("[data-plan-label]");
 const brandingBlocker = document.getElementById("brandingBlocker");
 const brandingBlockerMessage = document.getElementById("brandingBlockerMessage");
@@ -98,9 +103,15 @@ const CUSTOMERS_ROUTE = "/customers";
 const FEEDBACK_ROUTE = "/feedback";
 const PLAN_CACHE_KEY = "rrPlanCache";
 const PLAN_WARNING_ID = "rr-plan-warning";
-const PLAN_RETRY_LIMIT = 2;
+const PLAN_RETRY_LIMIT = 3;
 const PLAN_RETRY_BASE_DELAY_MS = 800;
-const DEBUG = new URLSearchParams(window.location.search).has("debug");
+const DEBUG = (() => {
+  try {
+    return localStorage.getItem("rrDebug") === "1";
+  } catch (err) {
+    return false;
+  }
+})();
 
 function debugLog(...args) {
   if (DEBUG) {
@@ -111,7 +122,7 @@ function debugLog(...args) {
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
 let businessId = null;
-let plan = "starter";
+let plan = readCachedPlan() || "starter";
 let customers = [];
 let unsubscribe = null;
 let outboundUnsub = null;
@@ -132,6 +143,7 @@ let planRetryCount = 0;
 let planRetryTimer = null;
 let navNormalized = false;
 let planWarningBanner = null;
+let listenerCount = 0;
 
 const createInviteTokenCallable = httpsCallable(functions, "createInviteTokenCallable");
 const sendReviewRequestEmailCallable = httpsCallable(functions, "sendReviewRequestEmailCallable");
@@ -197,7 +209,7 @@ function ensurePlanWarningBanner() {
   if (planWarningBanner) return planWarningBanner;
   planWarningBanner = document.createElement("div");
   planWarningBanner.id = PLAN_WARNING_ID;
-  planWarningBanner.textContent = "Unable to refresh plan status. Retrying…";
+  planWarningBanner.textContent = "Unable to load plan. Retrying...";
   planWarningBanner.style.background = "#fef3c7";
   planWarningBanner.style.color = "#92400e";
   planWarningBanner.style.padding = "8px 12px";
@@ -332,6 +344,7 @@ function setPlanWithSource(planId, source) {
   if (source === "fresh") {
     writeCachedPlan(planId);
   }
+  debugLog("plan set", { plan, source });
 }
 
 function schedulePlanRetry() {
@@ -453,6 +466,8 @@ function renderExistingCustomers() {
 
 function startCustomerFeed(uid) {
   if (!uid || !bulkExistingTableBody) return;
+  if (typeof unsubscribe === "function") unsubscribe();
+  debugLog("customer feed start", { businessId: uid });
   unsubscribe = subscribeCustomers({
     businessId: uid,
     onChange: (snapshot) => {
@@ -468,6 +483,7 @@ function startCustomerFeed(uid) {
       });
       renderExistingCustomers();
       updateBulkSelectedCount();
+      debugLog("customer feed update", { count: customers.length });
     },
   });
 }
@@ -840,9 +856,11 @@ function startOutboundFeed(uid) {
   const outboundRef = collection(db, "businesses", uid, "outboundRequests");
   const q = query(outboundRef, orderBy("createdAtMs", "desc"));
   if (typeof outboundUnsub === "function") outboundUnsub();
+  debugLog("outbound feed start", { businessId: uid });
   outboundUnsub = onSnapshot(q, (snapshot) => {
     outboundRequests = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
     hydrateOutboundCustomers().then(renderOutboundTable);
+    debugLog("outbound feed update", { count: outboundRequests.length });
   });
 }
 
@@ -1698,39 +1716,45 @@ async function handleBulkAddSend() {
 function attachEvents() {
   if (eventsBound) return;
   eventsBound = true;
-  singleCustomerName?.addEventListener("input", updateSingleCta);
-  singleCustomerEmail?.addEventListener("input", updateSingleCta);
-  singleCustomerPhone?.addEventListener("input", updateSingleCta);
-  singleChannelSelect?.addEventListener("change", () => {
+  let added = 0;
+  const bindListener = (target, event, handler) => {
+    if (!target) return 0;
+    target.addEventListener(event, handler);
+    return 1;
+  };
+  added += bindListener(singleCustomerName, "input", updateSingleCta);
+  added += bindListener(singleCustomerEmail, "input", updateSingleCta);
+  added += bindListener(singleCustomerPhone, "input", updateSingleCta);
+  added += bindListener(singleChannelSelect, "change", () => {
     updateSingleCta();
     setSingleLinkOutput("");
   });
-  singleSendBtn?.addEventListener("click", handleSingleSend);
-  singleCopyLinkBtn?.addEventListener("click", handleSingleCopyLink);
-  singleOpenLinkBtn?.addEventListener("click", handleSingleOpenLink);
-  bulkExistingSearch?.addEventListener("input", renderExistingCustomers);
-  bulkExistingSendBtn?.addEventListener("click", openBulkExistingChannelPanel);
-  bulkExistingConfirmBtn?.addEventListener("click", handleBulkExistingConfirm);
-  bulkExistingCancelBtn?.addEventListener("click", closeBulkExistingChannelPanel);
-  bulkAddInput?.addEventListener("input", updateBulkAddPreview);
-  bulkAddChannelSelect?.addEventListener("change", updateBulkAddPreview);
-  bulkAddSendBtn?.addEventListener("click", handleBulkAddSend);
-  bulkUploadBtn?.addEventListener("click", () => bulkUploadInput?.click());
-  bulkUploadInput?.addEventListener("change", (event) => {
+  added += bindListener(singleSendBtn, "click", handleSingleSend);
+  added += bindListener(singleCopyLinkBtn, "click", handleSingleCopyLink);
+  added += bindListener(singleOpenLinkBtn, "click", handleSingleOpenLink);
+  added += bindListener(bulkExistingSearch, "input", renderExistingCustomers);
+  added += bindListener(bulkExistingSendBtn, "click", openBulkExistingChannelPanel);
+  added += bindListener(bulkExistingConfirmBtn, "click", handleBulkExistingConfirm);
+  added += bindListener(bulkExistingCancelBtn, "click", closeBulkExistingChannelPanel);
+  added += bindListener(bulkAddInput, "input", updateBulkAddPreview);
+  added += bindListener(bulkAddChannelSelect, "change", updateBulkAddPreview);
+  added += bindListener(bulkAddSendBtn, "click", handleBulkAddSend);
+  added += bindListener(bulkUploadBtn, "click", () => bulkUploadInput?.click());
+  added += bindListener(bulkUploadInput, "change", (event) => {
     const file = event.target?.files?.[0];
     handleBulkUploadSelection(file);
   });
-  bulkUploadChannelSelect?.addEventListener("change", updateBulkUploadPreview);
-  bulkUploadExcludeInvalid?.addEventListener("change", updateBulkUploadCta);
-  bulkUploadSendBtn?.addEventListener("click", handleBulkUploadSend);
-  bulkCopyLinksBtn?.addEventListener("click", handleBulkCopyLinks);
-  bulkDownloadLinksBtn?.addEventListener("click", handleBulkDownloadLinks);
-  requestRange?.addEventListener("change", handleRangeChange);
-  requestArchiveFilter?.addEventListener("change", renderOutboundTable);
-  customStartInput?.addEventListener("change", renderOutboundTable);
-  customEndInput?.addEventListener("change", renderOutboundTable);
-  outboundTableBody?.addEventListener("click", handleOutboundTableClick);
-  completeSettingsBtn?.addEventListener("click", () => {
+  added += bindListener(bulkUploadChannelSelect, "change", updateBulkUploadPreview);
+  added += bindListener(bulkUploadExcludeInvalid, "change", updateBulkUploadCta);
+  added += bindListener(bulkUploadSendBtn, "click", handleBulkUploadSend);
+  added += bindListener(bulkCopyLinksBtn, "click", handleBulkCopyLinks);
+  added += bindListener(bulkDownloadLinksBtn, "click", handleBulkDownloadLinks);
+  added += bindListener(requestRange, "change", handleRangeChange);
+  added += bindListener(requestArchiveFilter, "change", renderOutboundTable);
+  added += bindListener(customStartInput, "change", renderOutboundTable);
+  added += bindListener(customEndInput, "change", renderOutboundTable);
+  added += bindListener(outboundTableBody, "click", handleOutboundTableClick);
+  added += bindListener(completeSettingsBtn, "click", () => {
     try {
       sessionStorage.setItem(BRANDING_REDIRECT_NOTICE_KEY, BRANDING_REQUIRED_MESSAGE);
     } catch (err) {
@@ -1742,52 +1766,61 @@ function attachEvents() {
   updateBulkSelectedCount();
   updateBulkUploadCta();
   updateSingleCta();
+  listenerCount = added;
+  debugLog("listeners attached", { count: listenerCount });
 }
 
 function initApp() {
-  if (window.__rrAskReviewsInitDone) {
-    debugLog("init skipped (already initialized)");
-    return;
-  }
-  window.__rrAskReviewsInitDone = true;
+  debugLog("init start");
   listenForUser(({ user, profile, subscription, branding }) => {
     if (!user) return;
     currentUser = user;
     businessId = user.uid;
     const cachedPlan = readCachedPlan();
     const incomingPlan = normalizePlan(subscription?.planId || subscription?.planTier || "");
-    const shouldUseCached =
-      cachedPlan && (!incomingPlan || (incomingPlan === "starter" && cachedPlan !== "starter"));
-    if (shouldUseCached) {
+    const hasIncomingPlan = Boolean(subscription?.planId || subscription?.planTier);
+    if (hasIncomingPlan) {
+      if (cachedPlan && incomingPlan === "starter" && cachedPlan !== "starter") {
+        setPlanWithSource(cachedPlan, "cached");
+        setPlanWarningVisible(true);
+        schedulePlanRetry();
+      } else {
+        setPlanWithSource(incomingPlan || "starter", "fresh");
+        setPlanWarningVisible(false);
+      }
+    } else if (cachedPlan) {
       setPlanWithSource(cachedPlan, "cached");
       setPlanWarningVisible(true);
       schedulePlanRetry();
     } else {
-      setPlanWithSource(incomingPlan || cachedPlan || "starter", "fresh");
-      setPlanWarningVisible(false);
+      setPlanWarningVisible(true);
+      schedulePlanRetry();
     }
     const brandingDetails = branding || deriveBranding(profile || {});
     applyBrandingGate(brandingDetails);
     attachEvents();
     startCustomerFeed(user.uid);
     startOutboundFeed(user.uid);
-    debugLog("Diagnostics", {
-      initGuard: window.__rrAskReviewsInitDone,
+    debugLog("init end", {
+      initGuard: window.__rrAskReviewsInit,
       navNormalized,
       planSource,
+      plan,
     });
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  navNormalized = true;
-  safeNormalizeNavLinks();
-  setTimeout(safeNormalizeNavLinks, 500);
-  initApp();
-});
+if (shouldInit) {
+  document.addEventListener("DOMContentLoaded", () => {
+    navNormalized = true;
+    safeNormalizeNavLinks();
+    setTimeout(safeNormalizeNavLinks, 500);
+    initApp();
+  });
 
-window.addEventListener("beforeunload", () => {
-  if (typeof unsubscribe === "function") unsubscribe();
-  if (typeof outboundUnsub === "function") outboundUnsub();
-  if (planRetryTimer) clearTimeout(planRetryTimer);
-});
+  window.addEventListener("beforeunload", () => {
+    if (typeof unsubscribe === "function") unsubscribe();
+    if (typeof outboundUnsub === "function") outboundUnsub();
+    if (planRetryTimer) clearTimeout(planRetryTimer);
+  });
+}
