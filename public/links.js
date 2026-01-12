@@ -7,6 +7,14 @@ const googleInput = document.querySelector("[data-google-link]");
 const funnelInput = document.querySelector("[data-funnel-link]");
 const toastEl = document.getElementById("copyToast");
 const qrButton = document.querySelector("[data-download-qr]");
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 
 function setValue(input, value) {
   if (!input) return;
@@ -177,6 +185,7 @@ async function loadLinks(user, profile) {
   setValue(googleInput, googleLink || "—");
   setValue(funnelInput, funnelLink || "—");
   setQrButtonEnabled(Boolean(funnelLink));
+  signalPageDataReady();
 }
 
 document.addEventListener("DOMContentLoaded", () => {

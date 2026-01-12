@@ -18,6 +18,14 @@ const businessElements = {
 
 const ratingRows = document.querySelectorAll("[data-rating-row]");
 const timelineContainer = document.querySelector("[data-reviews-timeline]");
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 
 function setLoadingState() {
   Object.values(statElements).forEach((el) => {
@@ -127,11 +135,15 @@ onSession(async ({ user, profile, subscription }) => {
   if (!user) return;
   setLoadingState();
   renderBusinessCard(profile, subscription);
-  const reviews = await fetchAllReviews(user.uid);
-  const metrics = calculateMetrics(reviews);
-  const breakdown = buildRatingBreakdown(reviews);
-  const timeline = buildTimeline(reviews);
-  renderMetrics(metrics);
-  renderRatingBreakdown(breakdown);
-  renderTimeline(timeline);
+  try {
+    const reviews = await fetchAllReviews(user.uid);
+    const metrics = calculateMetrics(reviews);
+    const breakdown = buildRatingBreakdown(reviews);
+    const timeline = buildTimeline(reviews);
+    renderMetrics(metrics);
+    renderRatingBreakdown(breakdown);
+    renderTimeline(timeline);
+  } finally {
+    signalPageDataReady();
+  }
 });

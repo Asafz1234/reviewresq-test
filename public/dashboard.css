@@ -1807,22 +1807,34 @@ textarea.input {
 }
 
 html.rr-plan-pending [data-plan-badge],
+html.rr-data-pending [data-plan-badge],
 html.rr-plan-pending [data-plan-label],
+html.rr-data-pending [data-plan-label],
 html.rr-plan-pending [data-business="plan"],
+html.rr-data-pending [data-business="plan"],
 html.rr-plan-pending [data-page-title],
+html.rr-data-pending [data-page-title],
 html.rr-plan-pending #planBadge,
-html.rr-plan-pending .plan-chip {
+html.rr-data-pending #planBadge,
+html.rr-plan-pending .plan-chip,
+html.rr-data-pending .plan-chip {
   color: transparent;
   position: relative;
 }
 
 html.rr-plan-pending [data-plan-badge]::after,
+html.rr-data-pending [data-plan-badge]::after,
 html.rr-plan-pending [data-plan-label]::after,
+html.rr-data-pending [data-plan-label]::after,
 html.rr-plan-pending [data-business="plan"]::after,
+html.rr-data-pending [data-business="plan"]::after,
 html.rr-plan-pending [data-page-title]::after,
+html.rr-data-pending [data-page-title]::after,
 html.rr-plan-pending #planBadge::after,
-html.rr-plan-pending .plan-chip::after {
-  content: "Loading...";
+html.rr-data-pending #planBadge::after,
+html.rr-plan-pending .plan-chip::after,
+html.rr-data-pending .plan-chip::after {
+  content: "Loading…";
   color: #9ca3af;
   position: absolute;
   inset: 0;
@@ -1832,19 +1844,30 @@ html.rr-plan-pending .plan-chip::after {
 }
 
 html.rr-plan-pending [data-plan-requires],
+html.rr-data-pending [data-plan-requires],
 html.rr-plan-pending [data-plan-gated],
+html.rr-data-pending [data-plan-gated],
 html.rr-plan-pending [data-plan-upgrade],
+html.rr-data-pending [data-plan-upgrade],
 html.rr-plan-pending [data-upgrade-open],
+html.rr-data-pending [data-upgrade-open],
 html.rr-plan-pending .plan-callout,
-html.rr-plan-pending #campaignPlanNotice {
+html.rr-data-pending .plan-callout,
+html.rr-plan-pending #campaignPlanNotice,
+html.rr-data-pending #campaignPlanNotice {
   display: none !important;
 }
 
 html.rr-plan-pending .page-shell .card,
+html.rr-data-pending .page-shell .card,
 html.rr-plan-pending .page-shell .stat-card,
+html.rr-data-pending .page-shell .stat-card,
 html.rr-plan-pending .page-shell .table-card,
+html.rr-data-pending .page-shell .table-card,
 html.rr-plan-pending .page-shell .table,
-html.rr-plan-pending .page-shell .chart-placeholder {
+html.rr-data-pending .page-shell .table,
+html.rr-plan-pending .page-shell .chart-placeholder,
+html.rr-data-pending .page-shell .chart-placeholder {
   position: relative;
   color: transparent;
   border-color: transparent;
@@ -1853,10 +1876,15 @@ html.rr-plan-pending .page-shell .chart-placeholder {
 }
 
 html.rr-plan-pending .page-shell .card::after,
+html.rr-data-pending .page-shell .card::after,
 html.rr-plan-pending .page-shell .stat-card::after,
+html.rr-data-pending .page-shell .stat-card::after,
 html.rr-plan-pending .page-shell .table-card::after,
+html.rr-data-pending .page-shell .table-card::after,
 html.rr-plan-pending .page-shell .table::after,
-html.rr-plan-pending .page-shell .chart-placeholder::after {
+html.rr-data-pending .page-shell .table::after,
+html.rr-plan-pending .page-shell .chart-placeholder::after,
+html.rr-data-pending .page-shell .chart-placeholder::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -1866,10 +1894,16 @@ html.rr-plan-pending .page-shell .chart-placeholder::after {
 }
 
 html.rr-plan-pending .nav-tab[data-route="funnel"],
+html.rr-data-pending .nav-tab[data-route="funnel"],
 html.rr-plan-pending .nav-tab[data-route="links"],
+html.rr-data-pending .nav-tab[data-route="links"],
 html.rr-plan-pending .nav-tab[data-route="automations"],
+html.rr-data-pending .nav-tab[data-route="automations"],
 html.rr-plan-pending .nav-tab[data-route="ai-suite"],
+html.rr-data-pending .nav-tab[data-route="ai-suite"],
 html.rr-plan-pending .nav-tab[data-route="ai-agent"],
-html.rr-plan-pending .nav-tab[data-route="team"] {
+html.rr-data-pending .nav-tab[data-route="ai-agent"],
+html.rr-plan-pending .nav-tab[data-route="team"],
+html.rr-data-pending .nav-tab[data-route="team"] {
   display: none !important;
 }

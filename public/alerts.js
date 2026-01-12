@@ -27,6 +27,14 @@ const recipientsInput = document.getElementById("alertRecipients");
 const saveRecipientsButton = document.querySelector("[data-save-recipients]");
 const statusEl = document.querySelector("[data-alert-status]");
 const hintEl = document.querySelector("[data-recipient-hint]");
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 
 let businessId = null;
 let currentUserId = "";
@@ -184,6 +192,8 @@ async function loadPrefs() {
     prefs = { ...prefs, ...defaultPrefs };
     renderPrefs();
     setStatus("Unable to load your alert preferences right now.", true);
+  } finally {
+    signalPageDataReady();
   }
 }
 

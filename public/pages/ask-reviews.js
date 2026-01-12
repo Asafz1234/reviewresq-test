@@ -107,6 +107,21 @@ const BRANDING_REQUIRED_MESSAGE =
   "Before sending review requests, please complete your business details (takes under 1 minute).";
 
 const BRANDING_REDIRECT_NOTICE_KEY = "brandingRedirectNotice";
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
+let customerFeedReady = false;
+let outboundFeedReady = false;
+const signalDataReadyIfComplete = () => {
+  if (customerFeedReady && outboundFeedReady) {
+    signalPageDataReady();
+  }
+};
 const CUSTOMERS_ROUTE = "/customers";
 const FEEDBACK_ROUTE = "/feedback";
 const PLAN_WARNING_ID = "rr-plan-warning";
@@ -520,12 +535,14 @@ function startCustomerFeed(uid) {
           const aTime = a?.createdAt?.toMillis?.() || 0;
           const bTime = b?.createdAt?.toMillis?.() || 0;
           return bTime - aTime;
-        });
+      });
       customers.forEach((customer) => {
         outboundCustomerCache.set(customer.id, customer);
       });
       renderExistingCustomers();
       updateBulkSelectedCount();
+      customerFeedReady = true;
+      signalDataReadyIfComplete();
       debugLog("customer feed update", { count: customers.length });
     },
   });
@@ -902,7 +919,11 @@ function startOutboundFeed(uid) {
   debugLog("outbound feed start", { businessId: uid });
   outboundUnsub = onSnapshot(q, (snapshot) => {
     outboundRequests = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-    hydrateOutboundCustomers().then(renderOutboundTable);
+    hydrateOutboundCustomers().then(() => {
+      renderOutboundTable();
+      outboundFeedReady = true;
+      signalDataReadyIfComplete();
+    });
     debugLog("outbound feed update", { count: outboundRequests.length });
   });
 }

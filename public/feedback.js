@@ -37,6 +37,14 @@ const dateFilter = document.querySelector(".filter-row select");
 const searchInput = document.querySelector('.filter-row input[type="search"]');
 const PLAN_WARNING_ID = "rr-plan-warning";
 const PLAN_LOADING_ID = "rr-plan-loading";
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 const PLAN_RETRY_LIMIT = 3;
 const PLAN_RETRY_BASE_DELAY_MS = 800;
 const PLAN_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
@@ -550,6 +558,8 @@ if (shouldInit) {
       if (tbody) {
         tbody.innerHTML = `<tr><td colspan="6">Unable to load feedback.</td></tr>`;
       }
+    } finally {
+      signalPageDataReady();
     }
     debugLog("init end", { plan: currentPlan, planSource });
   });
