@@ -83,12 +83,12 @@
         "type": 301
       },
       {
-        "source": "/overview/",
+        "source": "/pages/overview.html",
         "destination": "/overview",
         "type": 301
       },
       {
-        "source": "/pages/overview.html",
+        "source": "/overview/",
         "destination": "/overview",
         "type": 301
       },
