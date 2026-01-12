@@ -44,7 +44,7 @@ function applyPlanBadge(planId) {
 
 function renderPlanBadgeLoading() {
   if (!planBadge) return;
-  planBadge.textContent = "Loading...";
+  planBadge.textContent = "Loading…";
   planBadge.setAttribute("data-plan", "loading");
   planBadge.setAttribute("data-plan-loading", "true");
   planBadge.classList.remove(...Object.values(PLAN_CLASS));

@@ -121,7 +121,7 @@ function ensurePlanLoadingNotice() {
 function renderPlanLoadingState() {
   isPlanLoading = true;
   if (planBadge) {
-    planBadge.textContent = "Loading...";
+    planBadge.textContent = "Loading…";
     planBadge.setAttribute("data-plan-loading", "true");
   }
   if (upgradeHint) {
@@ -204,7 +204,7 @@ function updatePlanUI() {
     advancedArea.hidden = currentPlan === "starter";
   }
   if (planBadge) {
-    planBadge.textContent = PLAN_LABELS[currentPlan] || "Loading...";
+    planBadge.textContent = PLAN_LABELS[currentPlan] || "Loading…";
   }
 }
 

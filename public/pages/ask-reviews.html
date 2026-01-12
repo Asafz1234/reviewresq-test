@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>
+    document.documentElement.classList.add('rr-plan-pending');
+    document.documentElement.classList.add('rr-data-pending');
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ReviewResQ – Ask for reviews</title>
@@ -41,7 +45,7 @@
       <header class="topbar">
         <div class="topbar-title">Ask for reviews</div>
         <div class="topbar-right">
-          <span class="badge" data-plan-label>Loading...</span>
+          <span class="badge" data-plan-label data-rr-plan-text>Loading…</span>
           <a class="btn btn-outline" href="/account.html">Account &amp; billing</a>
           <button class="btn btn-link" type="button" onclick="window.location.href='/auth.html'">Log out</button>
         </div>
