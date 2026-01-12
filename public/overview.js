@@ -1,6 +1,6 @@
 import { onSession, fetchAllReviews, calculateMetrics, buildRatingBreakdown, buildTimeline } from "./dashboard-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
-import { getCachedPlan, setCachedPlan } from "./session-data.js";
+import { getCachedPlan, getEffectivePlan, setCachedPlan } from "./session-data.js";
 
 const statElements = {
   totalReviews: document.querySelector('[data-metric="total-reviews"]'),
@@ -61,7 +61,11 @@ function renderBusinessCard(profile, subscription) {
   if (businessElements.category) {
     businessElements.category.textContent = profile?.category || profile?.businessType || "Business";
   }
-  const resolvedPlan = subscription?.planId || subscription?.planTier || getCachedPlan();
+  const resolvedPlan =
+    subscription?.planId ||
+    subscription?.planTier ||
+    getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }) ||
+    getCachedPlan();
   applyPlan(resolvedPlan);
   if (businessElements.status) {
     businessElements.status.textContent = profile?.status || "Live";
@@ -112,7 +116,7 @@ function renderTimeline(timeline = []) {
 
 setLoadingState();
 
-const cachedPlan = getCachedPlan();
+const cachedPlan = getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }) || getCachedPlan();
 if (cachedPlan) {
   applyPlan(cachedPlan);
 } else {

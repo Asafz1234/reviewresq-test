@@ -4,6 +4,7 @@ import {
   isStarterPlan,
   currentEntitlements,
   getCachedPlan,
+  getEffectivePlan,
 } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
@@ -55,11 +56,12 @@ const globalNavAccessState = (() => {
   if (!window.__navAccessState) {
     window.__navAccessState = {
       initialized: false,
-      currentPlan: "starter",
-      currentEntitlementState: currentEntitlements(),
+      currentPlan: null,
+      currentEntitlementState: null,
       navObserver: null,
       navElement: null,
       version: window.__NAV_ACCESS_VERSION || "unversioned",
+      planPending: false,
     };
   }
   return window.__navAccessState;
@@ -68,11 +70,12 @@ const globalNavAccessState = (() => {
 const navState =
   globalNavAccessState || {
     initialized: false,
-    currentPlan: "starter",
-    currentEntitlementState: currentEntitlements(),
+    currentPlan: null,
+    currentEntitlementState: null,
     navObserver: null,
     navElement: null,
     version: "unscoped",
+    planPending: false,
   };
 
 function ensureWindowNavAccess() {
@@ -83,12 +86,14 @@ function ensureWindowNavAccess() {
       entitlements: null,
       version: navState.version,
       ready: false,
+      planPending: false,
     };
   } else {
     window.navAccess.plan ??= null;
     window.navAccess.entitlements ??= null;
     window.navAccess.version ??= navState.version;
     window.navAccess.ready ??= false;
+    window.navAccess.planPending ??= false;
   }
 
   return window.navAccess;
@@ -163,6 +168,7 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
 
   try {
     navState.currentPlan = normalizePlan(planId || "starter");
+    navState.planPending = false;
     navState.currentEntitlementState = currentEntitlements(navState.currentPlan);
     const navAccess = ensureWindowNavAccess();
     if (navAccess) {
@@ -170,6 +176,7 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
       navAccess.entitlements = navState.currentEntitlementState;
       navAccess.version = navState.version;
       navAccess.ready = true;
+      navAccess.planPending = false;
     }
     const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
     const planIsStarter = isStarterPlan(navState.currentPlan);
@@ -227,6 +234,7 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
           detail: {
             planId: navState.currentPlan,
             entitlements: navState.currentEntitlementState,
+            pending: false,
           },
         })
       );
@@ -261,6 +269,40 @@ function renderPlanLoadingState() {
   });
 }
 
+function applyNavPendingState() {
+  navState.currentPlan = null;
+  navState.planPending = true;
+  navState.currentEntitlementState = null;
+  const navAccess = ensureWindowNavAccess();
+  if (navAccess) {
+    navAccess.plan = null;
+    navAccess.entitlements = null;
+    navAccess.ready = false;
+    navAccess.planPending = true;
+  }
+  renderPlanLoadingState();
+
+  const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
+  navTabs.forEach((tab) => {
+    const route = (tab.dataset.route || tab.getAttribute("href") || "").toLowerCase();
+    const resolvedHref = resolveNavHref(route, tab.getAttribute("href"));
+    if (resolvedHref) {
+      tab.setAttribute("href", resolvedHref);
+    }
+    const normalizedRoute = normalizeRouteFromHref(route);
+    const shouldHide = STARTER_REMOVED_ROUTES.includes(normalizedRoute);
+    if (shouldHide) {
+      setTabVisibility(tab, true);
+      return;
+    }
+    tab.style.display = "";
+    tab.setAttribute("aria-hidden", "false");
+    tab.dataset.navBlocked = "false";
+  });
+
+  unifySettingsNav();
+}
+
 function renderUpgradeGuard(reason = "") {
   const main = document.querySelector("main.page-container") || document.querySelector("main");
   if (!main) return;
@@ -287,6 +329,7 @@ function renderUpgradeGuard(reason = "") {
 }
 
 function guardCurrentPage() {
+  if (navState.planPending || !navState.currentEntitlementState) return;
   const pathRoute = normalizeRouteFromHref(window.location.pathname || "");
   const allowed = getEntitlementForRoute(pathRoute, navState.currentEntitlementState);
   if (allowed) return;
@@ -383,22 +426,14 @@ export function initNavPlanFilter() {
   if (navState.initialized) return;
   navState.initialized = true;
 
-  const navAccess = ensureWindowNavAccess();
-
-  const cachedPlan = getCachedSubscription()?.planId || getCachedPlan();
+  const cachedPlan =
+    getCachedSubscription()?.planId || getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }) || getCachedPlan();
   if (cachedPlan) {
     applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
     unifySettingsNav();
     guardCurrentPage();
   } else {
-    navState.currentPlan = null;
-    navState.currentEntitlementState = null;
-    if (navAccess) {
-      navAccess.plan = null;
-      navAccess.entitlements = null;
-      navAccess.ready = false;
-    }
-    renderPlanLoadingState();
+    applyNavPendingState();
   }
 
   const maxAttempts = 5;
@@ -418,9 +453,11 @@ export function initNavPlanFilter() {
   observeWithRetry();
 
   listenForUser(({ subscription }) => {
-    const planId = subscription?.planId || "starter";
-    const forceRemoval = isStarterPlan(planId);
-    applyNavPlanFilter(planId, { forceRemove: forceRemoval });
+    const planId = subscription?.planId;
+    const forceRemoval = planId ? isStarterPlan(planId) : false;
+    if (planId) {
+      applyNavPlanFilter(planId, { forceRemove: forceRemoval });
+    }
     guardCurrentPage();
   });
 

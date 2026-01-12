@@ -15,6 +15,7 @@ import {
   formatDate,
   initialsFromName,
   getCachedPlan,
+  getEffectivePlan,
   setCachedPlan,
   getCachedSubscription,
 } from "./session-data.js";
@@ -56,6 +57,7 @@ const PLAN_WARNING_ID = "rr-plan-warning";
 const PLAN_LOADING_ID = "rr-plan-loading";
 const PLAN_RETRY_LIMIT = 3;
 const PLAN_RETRY_BASE_DELAY_MS = 800;
+const PLAN_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
 const DEBUG = (() => {
   try {
     return localStorage.getItem("rrDebug") === "1";
@@ -305,7 +307,10 @@ function planRank(planId = "starter") {
 }
 
 function applyPlan(planId) {
-  if (!planId) return;
+  if (!planId) {
+    renderPlanLoadingState();
+    return;
+  }
   applyPlanGating(planId);
   clearPlanLoadingState();
 }
@@ -313,7 +318,7 @@ function applyPlan(planId) {
 function setPlanWithSource(planId, source) {
   planSource = source;
   applyPlan(planId);
-  if (source === "fresh") {
+  if (source === "fresh" && planId) {
     setCachedPlan(planId);
   }
   debugLog("plan set", { plan: normalizePlan(planId), source });
@@ -373,7 +378,11 @@ function ensureAllowedSourceFilter() {
   }
 }
 
-function applyPlanGating(planId = "starter") {
+function applyPlanGating(planId) {
+  if (!planId) {
+    renderPlanLoadingState();
+    return;
+  }
   const normalizedPlan = normalizePlan(planId);
   const activeRank = planRank(normalizedPlan);
   const isGrowth = activeRank >= planRank("growth");
@@ -1025,7 +1034,8 @@ function startCustomerFeed(uid) {
 
 function initCustomers() {
   debugLog("init start");
-  const initialCachedPlan = getCachedPlan() || getCachedSubscription()?.planId;
+  const initialCachedPlan =
+    getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
   if (initialCachedPlan) {
     setPlanWithSource(initialCachedPlan, "cached");
   } else {
@@ -1033,7 +1043,8 @@ function initCustomers() {
   }
   listenForUser(({ user, subscription }) => {
     businessId = user.uid;
-    const cachedPlan = getCachedPlan() || getCachedSubscription()?.planId;
+    const cachedPlan =
+      getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
     const incomingPlan = normalizePlan(subscription?.planId || "");
     const hasIncomingPlan = Boolean(subscription?.planId);
     if (hasIncomingPlan) {
