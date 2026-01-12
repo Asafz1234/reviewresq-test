@@ -170,6 +170,9 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
     navState.currentPlan = normalizePlan(planId || "starter");
     navState.planPending = false;
     navState.currentEntitlementState = currentEntitlements(navState.currentPlan);
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.remove("rr-plan-pending");
+    }
     const navAccess = ensureWindowNavAccess();
     if (navAccess) {
       navAccess.plan = navState.currentPlan;
@@ -273,6 +276,9 @@ function applyNavPendingState() {
   navState.currentPlan = null;
   navState.planPending = true;
   navState.currentEntitlementState = null;
+  if (typeof document !== "undefined") {
+    document.documentElement.classList.add("rr-plan-pending");
+  }
   const navAccess = ensureWindowNavAccess();
   if (navAccess) {
     navAccess.plan = null;

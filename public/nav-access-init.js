@@ -1,3 +1,7 @@
-import { initNavPlanFilter } from "./nav-access-versioned.js";
+if (typeof document !== "undefined") {
+  document.documentElement.classList.add("rr-plan-pending");
+}
 
-initNavPlanFilter();
+import("./nav-access-versioned.js").then(({ initNavPlanFilter }) => {
+  initNavPlanFilter();
+});
