@@ -17,7 +17,7 @@
           console.error("[google-oauth] error from Google redirect", error);
         }
 
-        const destination = `/google-reviews.html?oauth=google&code=${encodeURIComponent(
+        const destination = `/google-reviews?oauth=google&code=${encodeURIComponent(
           code,
         )}&state=${encodeURIComponent(state)}`;
 

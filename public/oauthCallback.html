@@ -69,7 +69,7 @@
         if (!payload?.ok) {
           throw new Error(payload?.message || "Unable to finish Google OAuth.");
         }
-        const destination = payload?.returnTo || "/google-reviews.html";
+        const destination = payload?.returnTo || "/google-reviews";
         window.location.href = `${destination}?connected=1`;
       } catch (err) {
         console.error("[google-oauth] callback error", err);
@@ -78,7 +78,7 @@
     }
 
     retryBtn?.addEventListener("click", () => {
-      window.location.href = "/google-reviews.html";
+      window.location.href = "/google-reviews";
     });
 
     exchangeCode();
