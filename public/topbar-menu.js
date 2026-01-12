@@ -23,14 +23,31 @@ const PLAN_CLASS = {
 
 function applyPlanBadge(planId) {
   if (!planBadge) return;
+  if (!planId) {
+    renderPlanBadgeLoading();
+    return;
+  }
   const safePlan = PLAN_DETAILS[planId] ? planId : normalizePlan(planId);
+  if (!safePlan) {
+    renderPlanBadgeLoading();
+    return;
+  }
   const label = PLAN_DETAILS[safePlan]?.label || PLAN_LABELS.starter;
   planBadge.textContent = label;
   planBadge.setAttribute("data-plan", safePlan);
+  planBadge.removeAttribute("data-plan-loading");
   planBadge.href = planBadge.getAttribute("href") || "/account.html";
 
   planBadge.classList.remove(...Object.values(PLAN_CLASS));
   planBadge.classList.add(PLAN_CLASS[safePlan]);
+}
+
+function renderPlanBadgeLoading() {
+  if (!planBadge) return;
+  planBadge.textContent = "Loading...";
+  planBadge.setAttribute("data-plan", "loading");
+  planBadge.setAttribute("data-plan-loading", "true");
+  planBadge.classList.remove(...Object.values(PLAN_CLASS));
 }
 
 function syncNavAccessPlan(planId) {
@@ -121,7 +138,7 @@ async function hydrateTopbar() {
   if (subscription) {
     applyPlanBadge(subscription.planId);
   } else {
-    applyPlanBadge("starter");
+    renderPlanBadgeLoading();
   }
 
   if (profile) {
@@ -130,14 +147,22 @@ async function hydrateTopbar() {
 }
 
 listenForUser(async ({ subscription, profile }) => {
-  const planId = subscription?.planId || "starter";
-  syncNavAccessPlan(planId);
+  const planId = subscription?.planId;
+  if (planId) {
+    syncNavAccessPlan(planId);
+  } else {
+    renderPlanBadgeLoading();
+  }
   setProfileAvatar(profile?.businessName || profile?.name || "");
 });
 
 window.addEventListener("navaccess:planApplied", (event) => {
-  const planId = event.detail?.planId || "starter";
-  applyPlanBadge(planId);
+  const planId = event.detail?.planId;
+  if (planId) {
+    applyPlanBadge(planId);
+  } else {
+    renderPlanBadgeLoading();
+  }
 });
 
 connectProfileMenu();
@@ -150,8 +175,12 @@ planBadge?.addEventListener("click", (e) => {
 
 export async function refreshTopbarSubscription() {
   const subscription = await refreshSubscription();
-  const planId = subscription?.planId || "starter";
-  applyPlanBadge(planId);
+  const planId = subscription?.planId;
+  if (planId) {
+    applyPlanBadge(planId);
+  } else {
+    renderPlanBadgeLoading();
+  }
 }
 
 export { applyPlanBadge };
