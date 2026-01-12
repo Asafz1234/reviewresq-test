@@ -76,12 +76,34 @@
         "source": "/pages/portal.html",
         "destination": "/portal",
         "type": 301
+      },
+      {
+        "source": "/overview.html",
+        "destination": "/overview",
+        "type": 301
+      },
+      {
+        "source": "/overview/",
+        "destination": "/overview",
+        "type": 301
+      },
+      {
+        "source": "/pages/overview.html",
+        "destination": "/overview",
+        "type": 301
+      },
+      {
+        "source": "/pages/overview",
+        "destination": "/overview",
+        "type": 301
       }
     ],
     "rewrites": [
       { "source": "/r/**", "destination": "/pages/portal.html" },
       { "source": "/portal", "destination": "/pages/portal.html" },
       { "source": "/portal/**", "destination": "/pages/portal.html" },
+      { "source": "/overview", "destination": "/overview.html" },
+      { "source": "/overview/**", "destination": "/overview.html" },
       { "source": "/ask-reviews", "destination": "/pages/ask-reviews.html" },
       { "source": "/ask-reviews/**", "destination": "/pages/ask-reviews.html" },
       { "source": "/customers", "destination": "/customers.html" },
