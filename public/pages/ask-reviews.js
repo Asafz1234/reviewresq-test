@@ -145,10 +145,8 @@ function debugLog(...args) {
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
-const initialPlan =
-  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
 let businessId = null;
-let plan = initialPlan ? normalizePlan(initialPlan) : null;
+let plan = null;
 let customers = [];
 let unsubscribe = null;
 let outboundUnsub = null;
@@ -164,7 +162,7 @@ let bulkUploadBaseRows = [];
 let bulkUploadFileMeta = null;
 let lastBulkRun = null;
 let lastSingleLink = null;
-let planSource = "fresh";
+let planSource = "pending";
 let planRetryCount = 0;
 let planRetryTimer = null;
 let navNormalized = false;
@@ -388,7 +386,7 @@ function applyPlan(planId) {
   }
   plan = normalizePlan(planId);
   if (planBadge) {
-    planBadge.textContent = PLAN_LABELS[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
+    planBadge.textContent = PLAN_LABELS[plan] || "Loading...";
   }
   if (bulkSection) {
     bulkSection.hidden = plan === "starter";
@@ -397,8 +395,13 @@ function applyPlan(planId) {
 }
 
 function setPlanWithSource(planId, source) {
+  const normalized = normalizePlan(planId || "");
+  if (normalized && normalized === plan && !document.documentElement.classList.contains("rr-plan-pending")) {
+    planSource = source;
+    return;
+  }
   planSource = source;
-  applyPlan(planId);
+  applyPlan(normalized);
   if (source === "fresh" && planId) {
     setCachedPlan(planId);
   }
@@ -1836,39 +1839,47 @@ function attachEvents() {
 
 function initApp() {
   debugLog("init start");
-  const initialCachedPlan =
-    getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
-  if (initialCachedPlan) {
-    setPlanWithSource(initialCachedPlan, "cached");
-  } else {
+  let initialResolved = false;
+  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then(({ planId, source }) => {
+    initialResolved = true;
+    if (planId) {
+      setPlanWithSource(planId, source);
+      return;
+    }
     renderPlanLoadingState();
-  }
+  });
+  Promise.resolve().then(() => {
+    if (!initialResolved) {
+      renderPlanLoadingState();
+    }
+  });
   listenForUser(({ user, profile, subscription, branding }) => {
     if (!user) return;
     currentUser = user;
     businessId = user.uid;
-    const cachedPlan =
-      getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
-    const incomingPlan = normalizePlan(subscription?.planId || subscription?.planTier || "");
-    const hasIncomingPlan = Boolean(subscription?.planId || subscription?.planTier);
-    if (hasIncomingPlan) {
-      if (cachedPlan && incomingPlan === "starter" && cachedPlan !== "starter") {
+    getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((cachedPlanResult) => {
+      const cachedPlan = cachedPlanResult?.planId || getCachedSubscription()?.planId;
+      const incomingPlan = normalizePlan(subscription?.planId || subscription?.planTier || "");
+      const hasIncomingPlan = Boolean(subscription?.planId || subscription?.planTier);
+      if (hasIncomingPlan) {
+        if (cachedPlan && incomingPlan === "starter" && cachedPlan !== "starter") {
+          setPlanWithSource(cachedPlan, "cached");
+          setPlanWarningVisible(true);
+          schedulePlanRetry();
+        } else {
+          setPlanWithSource(incomingPlan, "fresh");
+          setPlanWarningVisible(false);
+        }
+      } else if (cachedPlan) {
         setPlanWithSource(cachedPlan, "cached");
         setPlanWarningVisible(true);
         schedulePlanRetry();
       } else {
-        setPlanWithSource(incomingPlan || "starter", "fresh");
-        setPlanWarningVisible(false);
+        renderPlanLoadingState();
+        setPlanWarningVisible(true);
+        schedulePlanRetry();
       }
-    } else if (cachedPlan) {
-      setPlanWithSource(cachedPlan, "cached");
-      setPlanWarningVisible(true);
-      schedulePlanRetry();
-    } else {
-      renderPlanLoadingState();
-      setPlanWarningVisible(true);
-      schedulePlanRetry();
-    }
+    });
     const brandingDetails = branding || deriveBranding(profile || {});
     applyBrandingGate(brandingDetails);
     attachEvents();
