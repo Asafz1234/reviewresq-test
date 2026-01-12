@@ -56,12 +56,12 @@ function applyPlan(planId) {
     return;
   }
   const normalized = normalizePlan(planId);
-  businessElements.plan.textContent = PLAN_LABELS[normalized] || "Starter";
+  businessElements.plan.textContent = PLAN_LABELS[normalized] || "Loading...";
   businessElements.plan.removeAttribute("data-plan-loading");
   setCachedPlan(normalized);
 }
 
-function renderBusinessCard(profile, subscription) {
+async function renderBusinessCard(profile, subscription) {
   if (businessElements.name) {
     businessElements.name.textContent =
       profile?.name || profile?.businessName || "Your business";
@@ -69,10 +69,11 @@ function renderBusinessCard(profile, subscription) {
   if (businessElements.category) {
     businessElements.category.textContent = profile?.category || profile?.businessType || "Business";
   }
+  const cachedPlanResult = await getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 });
   const resolvedPlan =
     subscription?.planId ||
     subscription?.planTier ||
-    getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }) ||
+    cachedPlanResult?.planId ||
     getCachedPlan();
   applyPlan(resolvedPlan);
   if (businessElements.status) {
@@ -124,17 +125,25 @@ function renderTimeline(timeline = []) {
 
 setLoadingState();
 
-const cachedPlan = getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }) || getCachedPlan();
-if (cachedPlan) {
-  applyPlan(cachedPlan);
-} else {
-  renderPlanLoadingState();
-}
+let initialResolved = false;
+getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }).then(({ planId }) => {
+  initialResolved = true;
+  if (planId) {
+    applyPlan(planId);
+  } else {
+    renderPlanLoadingState();
+  }
+});
+Promise.resolve().then(() => {
+  if (!initialResolved) {
+    renderPlanLoadingState();
+  }
+});
 
 onSession(async ({ user, profile, subscription }) => {
   if (!user) return;
   setLoadingState();
-  renderBusinessCard(profile, subscription);
+  await renderBusinessCard(profile, subscription);
   try {
     const reviews = await fetchAllReviews(user.uid);
     const metrics = calculateMetrics(reviews);

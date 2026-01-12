@@ -152,7 +152,7 @@ function setTabVisibility(tab, hidden) {
   tab.setAttribute("aria-hidden", hidden ? "true" : "false");
 }
 
-export function applyNavPlanFilter(planId = "starter", { forceRemove = false } = {}) {
+export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
   const resumeNavObserver = () => {
     if (navState.navObserver && navState.navElement) {
       navState.navObserver.observe(navState.navElement, {
@@ -167,12 +167,14 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
   }
 
   try {
-    navState.currentPlan = normalizePlan(planId || "starter");
+    if (!planId) return;
+    if (typeof window !== "undefined") {
+      if (window.__rrPlanAppliedOnce) return;
+      window.__rrPlanAppliedOnce = true;
+    }
+    navState.currentPlan = normalizePlan(planId);
     navState.planPending = false;
     navState.currentEntitlementState = currentEntitlements(navState.currentPlan);
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.remove("rr-plan-pending");
-    }
     const navAccess = ensureWindowNavAccess();
     if (navAccess) {
       navAccess.plan = navState.currentPlan;
@@ -186,7 +188,7 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
     const enforceRemoval = forceRemove || planIsStarter;
 
     const normalizedPlan = normalizePlan(navState.currentPlan);
-    const planLabel = PLAN_LABELS[normalizedPlan] || PLAN_LABELS.starter;
+    const planLabel = PLAN_LABELS[normalizedPlan] || normalizedPlan || "Loading...";
     document.querySelectorAll("[data-plan-badge]").forEach((badge) => {
       badge.textContent = planLabel;
       badge.setAttribute("data-plan", normalizedPlan);
@@ -230,6 +232,10 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
     }
 
     unifySettingsNav();
+
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.remove("rr-plan-pending");
+    }
 
     if (typeof window !== "undefined") {
       window.dispatchEvent(
@@ -432,15 +438,26 @@ export function initNavPlanFilter() {
   if (navState.initialized) return;
   navState.initialized = true;
 
-  const cachedPlan =
-    getCachedSubscription()?.planId || getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }) || getCachedPlan();
+  const cachedPlan = getCachedSubscription()?.planId;
   if (cachedPlan) {
     applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
     unifySettingsNav();
     guardCurrentPage();
-  } else {
-    applyNavPendingState();
   }
+
+  let planResolved = false;
+  getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }).then(({ planId }) => {
+    planResolved = true;
+    if (!planId) return;
+    applyNavPlanFilter(planId, { forceRemove: isStarterPlan(planId) });
+    guardCurrentPage();
+  });
+
+  Promise.resolve().then(() => {
+    if (!planResolved && !navState.currentPlan) {
+      applyNavPendingState();
+    }
+  });
 
   const maxAttempts = 5;
   const observeWithRetry = (attempt = 0) => {

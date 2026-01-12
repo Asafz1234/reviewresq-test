@@ -29,6 +29,11 @@ let cachedSubscription = null;
 let cachedBusiness = null;
 let cachedUser = null;
 
+let planPromise = null;
+let planPromiseResolve = null;
+let planPromiseReject = null;
+let planResolved = null;
+
 function resolveLogo(profile = {}) {
   return (
     profile.branding?.logoUrl ||
@@ -130,6 +135,14 @@ function debugPlanCache(message, data = {}) {
   console.log("[plan-cache]", message, data);
 }
 
+function getCacheAgeMs(cache, maxAgeMs) {
+  if (!cache?.timestamp || !Number.isFinite(cache.timestamp)) return null;
+  const ageMs = Date.now() - cache.timestamp;
+  if (!Number.isFinite(ageMs)) return null;
+  if (Number.isFinite(maxAgeMs) && ageMs > maxAgeMs) return null;
+  return ageMs;
+}
+
 function readPlanCache() {
   if (typeof window === "undefined") return null;
   try {
@@ -165,6 +178,11 @@ export function setCachedPlan(planId) {
   if (!planId || typeof window === "undefined") return;
   try {
     const normalized = normalizePlan(planId);
+    const existing = readPlanCache();
+    if (existing?.planId && existing.planId === normalized) {
+      debugPlanCache("write-skip", { planId: normalized });
+      return;
+    }
     const payload = {
       planId: normalized,
       [PLAN_CACHE_TS_KEY]: Date.now(),
@@ -176,19 +194,54 @@ export function setCachedPlan(planId) {
   }
 }
 
-export function getEffectivePlan({ maxAgeMs = 5 * 60 * 1000 } = {}) {
-  const cache = readPlanCache();
-  if (!cache?.planId || !cache.timestamp) {
-    debugPlanCache("effective-miss", { reason: "missing" });
-    return null;
+function resolvePlanPromise(planId, source = "auth") {
+  const normalized = normalizePlan(planId || "");
+  if (!normalized) return null;
+  const payload = { planId: normalized, source };
+  planResolved = payload;
+  if (planPromiseResolve) {
+    planPromiseResolve(payload);
+    planPromiseResolve = null;
+    planPromiseReject = null;
   }
-  const ageMs = Date.now() - cache.timestamp;
-  if (ageMs > maxAgeMs) {
-    debugPlanCache("effective-expired", { planId: cache.planId, ageMs, maxAgeMs });
-    return null;
+  planPromise = Promise.resolve(payload);
+  debugPlanCache("resolved", payload);
+  return payload;
+}
+
+function ensurePlanPromise() {
+  if (!planPromise) {
+    planPromise = new Promise((resolve, reject) => {
+      planPromiseResolve = resolve;
+      planPromiseReject = reject;
+    });
   }
-  debugPlanCache("effective-hit", { planId: cache.planId, ageMs, maxAgeMs });
-  return cache.planId;
+  return planPromise;
+}
+
+export function getEffectivePlan({ forceRefresh = false, maxAgeMs = 5 * 60 * 1000 } = {}) {
+  if (!forceRefresh && planResolved?.planId) {
+    debugPlanCache("effective-resolved", planResolved);
+    return Promise.resolve(planResolved);
+  }
+
+  const cache = !forceRefresh ? readPlanCache() : null;
+  const cacheAgeMs = getCacheAgeMs(cache, maxAgeMs);
+  if (cache?.planId && cacheAgeMs !== null) {
+    const payload = resolvePlanPromise(cache.planId, "cache");
+    debugPlanCache("effective-hit", { planId: payload.planId, ageMs: cacheAgeMs, maxAgeMs });
+    return Promise.resolve(payload);
+  }
+
+  if (forceRefresh) {
+    planPromise = null;
+    planPromiseResolve = null;
+    planPromiseReject = null;
+    planResolved = null;
+  }
+
+  debugPlanCache("effective-pending", { forceRefresh });
+  return ensurePlanPromise();
 }
 
 export function listenForUser(callback) {
@@ -216,7 +269,7 @@ export function listenForUser(callback) {
     cachedSubscription = { ...cachedSubscription, planId: resolvedPlan };
     cachedBusiness = { ...cachedBusiness, plan: resolvedPlan };
     setCachedPlan(resolvedPlan);
-    debugPlanCache("resolved", { planId: resolvedPlan });
+    resolvePlanPromise(resolvedPlan, "auth");
 
     const brandingState = deriveBranding(cachedProfile || {});
     cachedProfile = { ...cachedProfile, brandingComplete: brandingState.complete, brandingState };
@@ -270,6 +323,7 @@ export async function refreshSubscription() {
   }
   if (cachedSubscription?.planId) {
     setCachedPlan(cachedSubscription.planId);
+    resolvePlanPromise(cachedSubscription.planId, "subscription");
   }
   return cachedSubscription;
 }
@@ -283,6 +337,7 @@ export async function refreshBusiness() {
   }
   if (cachedBusiness?.plan) {
     setCachedPlan(cachedBusiness.plan);
+    resolvePlanPromise(cachedBusiness.plan, "business");
   }
   return cachedBusiness;
 }
@@ -295,6 +350,7 @@ export async function updateBusinessPlan(planId = "starter") {
   cachedBusiness = { ...(cachedBusiness || { id: cachedUser.uid }), plan: normalizedPlan };
   cachedSubscription = { ...(cachedSubscription || {}), planId: normalizedPlan };
   setCachedPlan(normalizedPlan);
+  resolvePlanPromise(normalizedPlan, "update");
   return normalizedPlan;
 }
 

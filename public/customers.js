@@ -97,7 +97,8 @@ let allowBulkActions = true;
 const inviteToastId = "customers-toast";
 let addCustomerModalController = null;
 let eventsBound = false;
-let planSource = "fresh";
+let planSource = "pending";
+let currentPlan = null;
 let planRetryCount = 0;
 let planRetryTimer = null;
 let navNormalized = false;
@@ -319,13 +320,19 @@ function applyPlan(planId) {
     renderPlanLoadingState();
     return;
   }
-  applyPlanGating(planId);
+  currentPlan = normalizePlan(planId);
+  applyPlanGating(currentPlan);
   clearPlanLoadingState();
 }
 
 function setPlanWithSource(planId, source) {
+  const normalized = normalizePlan(planId || "");
+  if (normalized && normalized === currentPlan && document.documentElement.classList.contains("rr-plan-pending") === false) {
+    planSource = source;
+    return;
+  }
   planSource = source;
-  applyPlan(planId);
+  applyPlan(normalized);
   if (source === "fresh" && planId) {
     setCachedPlan(planId);
   }
@@ -1043,37 +1050,45 @@ function startCustomerFeed(uid) {
 
 function initCustomers() {
   debugLog("init start");
-  const initialCachedPlan =
-    getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
-  if (initialCachedPlan) {
-    setPlanWithSource(initialCachedPlan, "cached");
-  } else {
+  let initialResolved = false;
+  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then(({ planId, source }) => {
+    initialResolved = true;
+    if (planId) {
+      setPlanWithSource(planId, source);
+      return;
+    }
     renderPlanLoadingState();
-  }
+  });
+  Promise.resolve().then(() => {
+    if (!initialResolved) {
+      renderPlanLoadingState();
+    }
+  });
   listenForUser(({ user, subscription }) => {
     businessId = user.uid;
-    const cachedPlan =
-      getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
-    const incomingPlan = normalizePlan(subscription?.planId || "");
-    const hasIncomingPlan = Boolean(subscription?.planId);
-    if (hasIncomingPlan) {
-      if (cachedPlan && incomingPlan === "starter" && cachedPlan !== "starter") {
+    getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((cachedPlanResult) => {
+      const cachedPlan = cachedPlanResult?.planId || getCachedSubscription()?.planId;
+      const incomingPlan = normalizePlan(subscription?.planId || "");
+      const hasIncomingPlan = Boolean(subscription?.planId);
+      if (hasIncomingPlan) {
+        if (cachedPlan && incomingPlan === "starter" && cachedPlan !== "starter") {
+          setPlanWithSource(cachedPlan, "cached");
+          setPlanWarningVisible(true);
+          schedulePlanRetry();
+        } else {
+          setPlanWithSource(incomingPlan, "fresh");
+          setPlanWarningVisible(false);
+        }
+      } else if (cachedPlan) {
         setPlanWithSource(cachedPlan, "cached");
         setPlanWarningVisible(true);
         schedulePlanRetry();
       } else {
-        setPlanWithSource(incomingPlan || "starter", "fresh");
-        setPlanWarningVisible(false);
+        renderPlanLoadingState();
+        setPlanWarningVisible(true);
+        schedulePlanRetry();
       }
-    } else if (cachedPlan) {
-      setPlanWithSource(cachedPlan, "cached");
-      setPlanWarningVisible(true);
-      schedulePlanRetry();
-    } else {
-      renderPlanLoadingState();
-      setPlanWarningVisible(true);
-      schedulePlanRetry();
-    }
+    });
     startCustomerFeed(user.uid);
     attachEvents();
     navNormalized = true;

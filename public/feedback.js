@@ -63,13 +63,12 @@ function debugLog(...args) {
 }
 
 const feedbackCache = new Map();
-const initialPlan = getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
-let currentPlan = initialPlan ? normalizePlan(initialPlan) : null;
-let isPlanLoading = !initialPlan && !getCachedSubscription()?.planId;
+let currentPlan = null;
+let isPlanLoading = true;
 let currentBusinessId = null;
 let activeFeedbackId = null;
 let allFeedback = [];
-let planSource = "fresh";
+let planSource = "pending";
 let planRetryCount = 0;
 let planRetryTimer = null;
 let planWarningBanner = null;
@@ -155,8 +154,13 @@ function applyPlan(planId) {
 }
 
 function setPlanWithSource(planId, source) {
+  const normalized = normalizePlan(planId || "");
+  if (normalized && normalized === currentPlan && !isPlanLoading) {
+    planSource = source;
+    return;
+  }
   planSource = source;
-  applyPlan(planId);
+  applyPlan(normalized);
   if (source === "fresh" && planId) {
     setCachedPlan(currentPlan);
   }
@@ -200,7 +204,7 @@ function updatePlanUI() {
     advancedArea.hidden = currentPlan === "starter";
   }
   if (planBadge) {
-    planBadge.textContent = PLAN_LABELS[currentPlan] || PLAN_LABELS.starter;
+    planBadge.textContent = PLAN_LABELS[currentPlan] || "Loading...";
   }
 }
 
@@ -511,17 +515,25 @@ function applyFilters() {
 
 if (shouldInit) {
   debugLog("init start");
-  if (initialPlan) {
-    planSource = "cached";
-    applyPlan(initialPlan);
-  } else if (isPlanLoading) {
+  let initialResolved = false;
+  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then(({ planId, source }) => {
+    initialResolved = true;
+    if (planId) {
+      setPlanWithSource(planId, source);
+      return;
+    }
     renderPlanLoadingState();
-  }
+  });
+  Promise.resolve().then(() => {
+    if (!initialResolved) {
+      renderPlanLoadingState();
+    }
+  });
   onSession(async ({ user, subscription, profile }) => {
     if (!user) return;
     currentBusinessId = profile?.id || user.uid;
-    const cachedPlan =
-      getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
+    const cachedPlanResult = await getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS });
+    const cachedPlan = cachedPlanResult?.planId || getCachedSubscription()?.planId;
     const incomingPlan = normalizePlan(subscription?.planId || "");
     const hasIncomingPlan = Boolean(subscription?.planId);
     if (hasIncomingPlan) {
@@ -530,7 +542,7 @@ if (shouldInit) {
         setPlanWarningVisible(true);
         schedulePlanRetry();
       } else {
-        setPlanWithSource(incomingPlan || "starter", "fresh");
+        setPlanWithSource(incomingPlan, "fresh");
         setPlanWarningVisible(false);
       }
     } else if (cachedPlan) {
