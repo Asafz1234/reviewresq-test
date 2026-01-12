@@ -1,6 +1,6 @@
 import { onSession, fetchAllReviews, calculateMetrics, buildRatingBreakdown, buildTimeline } from "./dashboard-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
-import { getCachedPlan, getEffectivePlan, setCachedPlan } from "./session-data.js";
+import { getCachedPlan, getEffectivePlanPromise, setCachedPlan } from "./session-data.js";
 
 const statElements = {
   totalReviews: document.querySelector('[data-metric="total-reviews"]'),
@@ -69,7 +69,7 @@ async function renderBusinessCard(profile, subscription) {
   if (businessElements.category) {
     businessElements.category.textContent = profile?.category || profile?.businessType || "Business";
   }
-  const cachedPlanResult = await getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 });
+  const cachedPlanResult = await getEffectivePlanPromise({ maxAgeMs: 5 * 60 * 1000 });
   const resolvedPlan =
     subscription?.planId ||
     subscription?.planTier ||
@@ -126,7 +126,7 @@ function renderTimeline(timeline = []) {
 setLoadingState();
 
 let initialResolved = false;
-getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }).then((planResult = {}) => {
+getEffectivePlanPromise({ maxAgeMs: 5 * 60 * 1000 }).then((planResult = {}) => {
   initialResolved = true;
   const planId = planResult?.planId;
   if (planId) {

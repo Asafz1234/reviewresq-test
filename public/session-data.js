@@ -226,7 +226,10 @@ export function setCachedPlan(planId) {
 function resolvePlanPromise(planId, source = "auth") {
   hydratePlanState();
   const normalized = normalizePlan(planId || "");
-  if (!normalized) return null;
+  if (!normalized) {
+    debugPlanCache("resolve-skip", { source });
+    return null;
+  }
   const payload = { planId: normalized, source };
   planResolved = payload;
   if (planPromiseResolve) {
@@ -263,12 +266,14 @@ export function getEffectivePlan({ forceRefresh = false, maxAgeMs = 5 * 60 * 100
   const cacheAgeMs = getCacheAgeMs(cache, maxAgeMs);
   if (cache?.planId && cacheAgeMs !== null) {
     const payload = resolvePlanPromise(cache.planId, "cache");
-    debugPlanCache("effective-hit", {
-      planId: payload?.planId,
-      ageMs: cacheAgeMs,
-      maxAgeMs,
-    });
-    return Promise.resolve(payload);
+    if (payload?.planId) {
+      debugPlanCache("effective-hit", {
+        planId: payload.planId,
+        ageMs: cacheAgeMs,
+        maxAgeMs,
+      });
+      return Promise.resolve(payload);
+    }
   }
 
   if (forceRefresh) {
@@ -281,6 +286,17 @@ export function getEffectivePlan({ forceRefresh = false, maxAgeMs = 5 * 60 * 100
 
   debugPlanCache("effective-pending", { forceRefresh });
   return Promise.resolve(ensurePlanPromise());
+}
+
+export function getEffectivePlanPromise(options = {}) {
+  const resolved = getEffectivePlan(options);
+  if (resolved && typeof resolved.then === "function") {
+    return resolved.then((payload) => {
+      if (payload?.planId) return payload;
+      return ensurePlanPromise();
+    });
+  }
+  return ensurePlanPromise();
 }
 
 export function listenForUser(callback) {

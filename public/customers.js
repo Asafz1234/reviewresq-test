@@ -15,7 +15,7 @@ import {
   formatDate,
   initialsFromName,
   getCachedPlan,
-  getEffectivePlan,
+  getEffectivePlanPromise,
   setCachedPlan,
   getCachedSubscription,
 } from "./session-data.js";
@@ -1051,7 +1051,7 @@ function startCustomerFeed(uid) {
 function initCustomers() {
   debugLog("init start");
   let initialResolved = false;
-  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((planResult = {}) => {
+  getEffectivePlanPromise({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((planResult = {}) => {
     initialResolved = true;
     const planId = planResult?.planId;
     const source = planResult?.source;
@@ -1068,7 +1068,7 @@ function initCustomers() {
   });
   listenForUser(({ user, subscription }) => {
     businessId = user.uid;
-    getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((cachedPlanResult = {}) => {
+    getEffectivePlanPromise({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((cachedPlanResult = {}) => {
       const cachedPlan = cachedPlanResult?.planId || getCachedSubscription()?.planId;
       const incomingPlan = normalizePlan(subscription?.planId || "");
       const hasIncomingPlan = Boolean(subscription?.planId);

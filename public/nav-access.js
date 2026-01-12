@@ -4,7 +4,7 @@ import {
   isStarterPlan,
   currentEntitlements,
   getCachedPlan,
-  getEffectivePlan,
+  getEffectivePlanPromise,
 } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
@@ -430,7 +430,7 @@ export function initNavPlanFilter() {
   }
 
   let planResolved = false;
-  getEffectivePlan({ maxAgeMs: 5 * 60 * 1000 }).then((planResult = {}) => {
+  getEffectivePlanPromise({ maxAgeMs: 5 * 60 * 1000 }).then((planResult = {}) => {
     planResolved = true;
     const planId = planResult?.planId;
     if (!planId) return;

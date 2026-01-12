@@ -4,7 +4,7 @@ import {
   formatDate,
   refreshSubscription,
   getCachedPlan,
-  getEffectivePlan,
+  getEffectivePlanPromise,
   setCachedPlan,
   getCachedSubscription,
 } from "./session-data.js";
@@ -516,7 +516,7 @@ function applyFilters() {
 if (shouldInit) {
   debugLog("init start");
   let initialResolved = false;
-  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((planResult = {}) => {
+  getEffectivePlanPromise({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((planResult = {}) => {
     initialResolved = true;
     const planId = planResult?.planId;
     const source = planResult?.source;
@@ -534,7 +534,7 @@ if (shouldInit) {
   onSession(async ({ user, subscription, profile }) => {
     if (!user) return;
     currentBusinessId = profile?.id || user.uid;
-    const cachedPlanResult = await getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS });
+    const cachedPlanResult = await getEffectivePlanPromise({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS });
     const cachedPlan = cachedPlanResult?.planId || getCachedSubscription()?.planId;
     const incomingPlan = normalizePlan(subscription?.planId || "");
     const hasIncomingPlan = Boolean(subscription?.planId);
