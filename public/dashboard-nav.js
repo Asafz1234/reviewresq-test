@@ -49,13 +49,17 @@ const NAV_SECTIONS = [
   }
 
   function renderNav() {
-    const plan = (window.navAccess?.plan || 'starter').toLowerCase();
-    const isStarter = plan === 'starter';
+    const resolvedPlan = (window.navAccess?.plan || '').toLowerCase();
+    const isPending = window.navAccess?.planPending || !resolvedPlan;
+    const isStarter = !isPending && resolvedPlan === 'starter';
+    const hideDisallowed = isPending || isStarter;
     const fragment = document.createDocumentFragment();
 
     NAV_SECTIONS.forEach((section) => {
       // Starter plan hides Campaigns in nav (feature still exists).
-      const visibleItems = section.items.filter((item) => !isStarter || !item.disallowStarter);
+      const visibleItems = section.items.filter(
+        (item) => !hideDisallowed || !item.disallowStarter
+      );
       if (!visibleItems.length) return;
 
       if (section.id === 'main') {
@@ -83,7 +87,7 @@ const NAV_SECTIONS = [
 
     nav.innerHTML = '';
     nav.appendChild(fragment);
-    lastRenderedPlan = plan;
+    lastRenderedPlan = resolvedPlan || 'pending';
   }
 
   function deriveRoute() {
@@ -141,7 +145,7 @@ const NAV_SECTIONS = [
   markActiveRoute();
 
   window.addEventListener('navaccess:planApplied', () => {
-    const nextPlan = (window.navAccess?.plan || 'starter').toLowerCase();
+    const nextPlan = (window.navAccess?.plan || '').toLowerCase() || 'pending';
     if (nextPlan !== lastRenderedPlan) {
       renderNav();
     }

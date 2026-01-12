@@ -15,6 +15,7 @@ import {
   listenForUser,
   refreshSubscription,
   getCachedPlan,
+  getEffectivePlan,
   setCachedPlan,
   getCachedSubscription,
 } from "../session-data.js";
@@ -112,6 +113,7 @@ const PLAN_WARNING_ID = "rr-plan-warning";
 const PLAN_LOADING_ID = "rr-plan-loading";
 const PLAN_RETRY_LIMIT = 3;
 const PLAN_RETRY_BASE_DELAY_MS = 800;
+const PLAN_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
 const DEBUG = (() => {
   try {
     return localStorage.getItem("rrDebug") === "1";
@@ -128,9 +130,10 @@ function debugLog(...args) {
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
-const initialPlan = getCachedPlan() || getCachedSubscription()?.planId;
+const initialPlan =
+  getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
 let businessId = null;
-let plan = normalizePlan(initialPlan || "starter");
+let plan = initialPlan ? normalizePlan(initialPlan) : null;
 let customers = [];
 let unsubscribe = null;
 let outboundUnsub = null;
@@ -364,8 +367,11 @@ function isValidPhone(value = "") {
 }
 
 function applyPlan(planId) {
-  if (!planId) return;
-  plan = normalizePlan(planId || "starter");
+  if (!planId) {
+    renderPlanLoadingState();
+    return;
+  }
+  plan = normalizePlan(planId);
   if (planBadge) {
     planBadge.textContent = PLAN_LABELS[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   }
@@ -378,7 +384,7 @@ function applyPlan(planId) {
 function setPlanWithSource(planId, source) {
   planSource = source;
   applyPlan(planId);
-  if (source === "fresh") {
+  if (source === "fresh" && planId) {
     setCachedPlan(planId);
   }
   debugLog("plan set", { plan, source });
@@ -1218,7 +1224,7 @@ function renderBulkUploadResults(results = []) {
 }
 
 async function handleBulkUploadSend() {
-  if (!businessId || !bulkSection || plan === "starter") return;
+  if (!businessId || !bulkSection || !plan || plan === "starter") return;
   if (!requireBrandingOrNotify()) return;
 
   const channel = bulkUploadChannelSelect?.value || "email";
@@ -1483,7 +1489,7 @@ function closeBulkExistingChannelPanel() {
 }
 
 async function handleBulkExistingConfirm() {
-  if (!businessId || !bulkSection || plan === "starter") return;
+  if (!businessId || !bulkSection || !plan || plan === "starter") return;
   if (!requireBrandingOrNotify()) return;
 
   const selected = getSelectedCustomers();
@@ -1654,7 +1660,7 @@ function updateBulkAddPreview() {
 }
 
 async function handleBulkAddSend() {
-  if (!businessId || !bulkSection || plan === "starter") return;
+  if (!businessId || !bulkSection || !plan || plan === "starter") return;
   if (!requireBrandingOrNotify()) return;
 
   const channel = bulkAddChannelSelect?.value || "email";
@@ -1809,7 +1815,8 @@ function attachEvents() {
 
 function initApp() {
   debugLog("init start");
-  const initialCachedPlan = getCachedPlan() || getCachedSubscription()?.planId;
+  const initialCachedPlan =
+    getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
   if (initialCachedPlan) {
     setPlanWithSource(initialCachedPlan, "cached");
   } else {
@@ -1819,7 +1826,8 @@ function initApp() {
     if (!user) return;
     currentUser = user;
     businessId = user.uid;
-    const cachedPlan = getCachedPlan() || getCachedSubscription()?.planId;
+    const cachedPlan =
+      getEffectivePlan({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }) || getCachedSubscription()?.planId;
     const incomingPlan = normalizePlan(subscription?.planId || subscription?.planTier || "");
     const hasIncomingPlan = Boolean(subscription?.planId || subscription?.planTier);
     if (hasIncomingPlan) {
