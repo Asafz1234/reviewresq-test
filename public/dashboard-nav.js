@@ -6,7 +6,7 @@ const NAV_SECTIONS = [
       { route: 'ask-reviews', icon: '✉️', label: 'Ask for reviews', href: 'ask-reviews.html' },
       { route: 'inbox', icon: '💬', label: 'Customer Feedback', href: 'feedback.html' },
       { route: 'google-reviews', icon: '★', label: 'Google Reviews', href: 'pages/google-reviews.html' },
-      { route: 'customers', icon: '👥', label: 'Customers', href: 'customers.html' },
+      { route: 'customers', icon: '👥', label: 'Customers', href: '/customers' },
       { route: 'funnel', icon: '↗', label: 'Review Funnel', href: 'funnel-settings.html', disallowStarter: true },
       { route: 'links', icon: '🔗', label: 'Review Links', href: 'links.html', disallowStarter: true },
       { route: 'automations', icon: '⚙️', label: 'Automations', href: 'automations.html', disallowStarter: true },

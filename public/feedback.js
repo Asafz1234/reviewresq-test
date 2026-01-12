@@ -1,6 +1,13 @@
 import { db, doc, updateDoc } from "./firebase-config.js";
 import { onSession, fetchAllReviews, describeReview } from "./dashboard-data.js";
-import { currentPlanTier, formatDate, refreshSubscription } from "./session-data.js";
+import {
+  currentPlanTier,
+  formatDate,
+  refreshSubscription,
+  getCachedPlan,
+  setCachedPlan,
+  getCachedSubscription,
+} from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
 const shouldInit = typeof window === "undefined" || !window.__rrFeedbackInit;
@@ -28,8 +35,8 @@ const planBadge = document.querySelector(".topbar-right .badge");
 const toastId = "feedback-toast";
 const dateFilter = document.querySelector(".filter-row select");
 const searchInput = document.querySelector('.filter-row input[type="search"]');
-const PLAN_CACHE_KEY = "rrPlanCache";
 const PLAN_WARNING_ID = "rr-plan-warning";
+const PLAN_LOADING_ID = "rr-plan-loading";
 const PLAN_RETRY_LIMIT = 3;
 const PLAN_RETRY_BASE_DELAY_MS = 800;
 const DEBUG = (() => {
@@ -47,7 +54,9 @@ function debugLog(...args) {
 }
 
 const feedbackCache = new Map();
-let currentPlan = readCachedPlan() || normalizePlan(currentPlanTier());
+const initialPlan = getCachedPlan() || getCachedSubscription()?.planId;
+let currentPlan = normalizePlan(initialPlan || currentPlanTier() || "starter");
+let isPlanLoading = !initialPlan && !getCachedSubscription()?.planId;
 let currentBusinessId = null;
 let activeFeedbackId = null;
 let allFeedback = [];
@@ -56,25 +65,6 @@ let planRetryCount = 0;
 let planRetryTimer = null;
 let planWarningBanner = null;
 let listenerCount = 0;
-
-function readCachedPlan() {
-  try {
-    const cached = localStorage.getItem(PLAN_CACHE_KEY);
-    return cached ? normalizePlan(cached) : null;
-  } catch (err) {
-    debugLog("unable to read cached plan", err);
-    return null;
-  }
-}
-
-function writeCachedPlan(value) {
-  if (!value) return;
-  try {
-    localStorage.setItem(PLAN_CACHE_KEY, normalizePlan(value));
-  } catch (err) {
-    debugLog("unable to cache plan", err);
-  }
-}
 
 function ensurePlanWarningBanner() {
   if (planWarningBanner) return planWarningBanner;
@@ -100,12 +90,63 @@ function setPlanWarningVisible(visible) {
   banner.style.display = visible ? "block" : "none";
 }
 
+function ensurePlanLoadingNotice() {
+  let notice = document.getElementById(PLAN_LOADING_ID);
+  if (notice) return notice;
+  notice = document.createElement("div");
+  notice.id = PLAN_LOADING_ID;
+  notice.className = "card muted-card";
+  notice.style.margin = "12px 0";
+  notice.innerHTML = `
+    <p class="card-title">Loading plan access…</p>
+    <p class="card-subtitle text-muted">Checking your subscription details.</p>
+  `;
+  const parent = document.querySelector(".page-shell");
+  if (parent) {
+    parent.prepend(notice);
+  } else {
+    document.body.prepend(notice);
+  }
+  return notice;
+}
+
+function renderPlanLoadingState() {
+  isPlanLoading = true;
+  if (planBadge) {
+    planBadge.textContent = "Loading...";
+    planBadge.setAttribute("data-plan-loading", "true");
+  }
+  if (upgradeHint) {
+    upgradeHint.hidden = true;
+  }
+  if (advancedArea) {
+    advancedArea.hidden = true;
+  }
+  const notice = ensurePlanLoadingNotice();
+  notice.style.display = "block";
+}
+
+function clearPlanLoadingState() {
+  isPlanLoading = false;
+  const notice = document.getElementById(PLAN_LOADING_ID);
+  if (notice) notice.style.display = "none";
+  if (planBadge) {
+    planBadge.removeAttribute("data-plan-loading");
+  }
+}
+
+function applyPlan(planId) {
+  if (!planId) return;
+  currentPlan = normalizePlan(planId || "starter");
+  clearPlanLoadingState();
+  updatePlanUI();
+}
+
 function setPlanWithSource(planId, source) {
   planSource = source;
-  currentPlan = normalizePlan(planId || "starter");
-  updatePlanUI();
+  applyPlan(planId);
   if (source === "fresh") {
-    writeCachedPlan(currentPlan);
+    setCachedPlan(currentPlan);
   }
   debugLog("plan set", { plan: currentPlan, source });
 }
@@ -119,7 +160,7 @@ function schedulePlanRetry() {
     try {
       const refreshed = await refreshSubscription();
       const refreshedPlan = normalizePlan(refreshed?.planId || "");
-      const cachedPlan = readCachedPlan();
+      const cachedPlan = getCachedPlan();
       if (refreshedPlan && (refreshedPlan !== "starter" || !cachedPlan)) {
         setPlanWithSource(refreshedPlan, "fresh");
         setPlanWarningVisible(false);
@@ -135,6 +176,7 @@ function schedulePlanRetry() {
 }
 
 function updatePlanUI() {
+  if (isPlanLoading) return;
   if (upgradeHint) {
     upgradeHint.hidden = currentPlan !== "starter";
   }
@@ -453,10 +495,16 @@ function applyFilters() {
 
 if (shouldInit) {
   debugLog("init start");
+  if (initialPlan) {
+    planSource = "cached";
+    applyPlan(initialPlan);
+  } else if (isPlanLoading) {
+    renderPlanLoadingState();
+  }
   onSession(async ({ user, subscription, profile }) => {
     if (!user) return;
     currentBusinessId = profile?.id || user.uid;
-    const cachedPlan = readCachedPlan();
+    const cachedPlan = getCachedPlan() || getCachedSubscription()?.planId;
     const incomingPlan = normalizePlan(subscription?.planId || "");
     const hasIncomingPlan = Boolean(subscription?.planId);
     if (hasIncomingPlan) {
@@ -473,6 +521,7 @@ if (shouldInit) {
       setPlanWarningVisible(true);
       schedulePlanRetry();
     } else {
+      renderPlanLoadingState();
       setPlanWarningVisible(true);
       schedulePlanRetry();
     }

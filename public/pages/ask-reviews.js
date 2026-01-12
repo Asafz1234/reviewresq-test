@@ -10,7 +10,14 @@ import {
   serverTimestamp,
 } from "../firebase-config.js";
 import { functions, httpsCallable } from "../firebase-config.js";
-import { deriveBranding, listenForUser, refreshSubscription } from "../session-data.js";
+import {
+  deriveBranding,
+  listenForUser,
+  refreshSubscription,
+  getCachedPlan,
+  setCachedPlan,
+  getCachedSubscription,
+} from "../session-data.js";
 import { PLAN_LABELS, normalizePlan } from "../plan-capabilities.js";
 import {
   parseCustomerFile,
@@ -101,8 +108,8 @@ const BRANDING_REQUIRED_MESSAGE =
 const BRANDING_REDIRECT_NOTICE_KEY = "brandingRedirectNotice";
 const CUSTOMERS_ROUTE = "/customers";
 const FEEDBACK_ROUTE = "/feedback";
-const PLAN_CACHE_KEY = "rrPlanCache";
 const PLAN_WARNING_ID = "rr-plan-warning";
+const PLAN_LOADING_ID = "rr-plan-loading";
 const PLAN_RETRY_LIMIT = 3;
 const PLAN_RETRY_BASE_DELAY_MS = 800;
 const DEBUG = (() => {
@@ -121,8 +128,9 @@ function debugLog(...args) {
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
+const initialPlan = getCachedPlan() || getCachedSubscription()?.planId;
 let businessId = null;
-let plan = readCachedPlan() || "starter";
+let plan = normalizePlan(initialPlan || "starter");
 let customers = [];
 let unsubscribe = null;
 let outboundUnsub = null;
@@ -184,25 +192,6 @@ function splitHref(href = "") {
   return { path, suffix };
 }
 
-function readCachedPlan() {
-  try {
-    const cached = localStorage.getItem(PLAN_CACHE_KEY);
-    return cached ? normalizePlan(cached) : null;
-  } catch (err) {
-    debugLog("unable to read cached plan", err);
-    return null;
-  }
-}
-
-function writeCachedPlan(value) {
-  if (!value) return;
-  try {
-    localStorage.setItem(PLAN_CACHE_KEY, normalizePlan(value));
-  } catch (err) {
-    debugLog("unable to cache plan", err);
-  }
-}
-
 function ensurePlanWarningBanner() {
   if (planWarningBanner) return planWarningBanner;
   planWarningBanner = document.getElementById(PLAN_WARNING_ID);
@@ -225,6 +214,52 @@ function ensurePlanWarningBanner() {
 function setPlanWarningVisible(visible) {
   const banner = ensurePlanWarningBanner();
   banner.style.display = visible ? "block" : "none";
+}
+
+function ensurePlanLoadingNotice() {
+  let notice = document.getElementById(PLAN_LOADING_ID);
+  if (notice) return notice;
+  notice = document.createElement("div");
+  notice.id = PLAN_LOADING_ID;
+  notice.className = "card muted-card";
+  notice.style.margin = "12px 0";
+  notice.innerHTML = `
+    <p class="card-title">Loading plan access…</p>
+    <p class="card-subtitle text-muted">Checking your subscription details.</p>
+  `;
+  const parent = bulkSection?.parentElement || document.querySelector(".page-shell");
+  if (parent && bulkSection && parent.contains(bulkSection)) {
+    parent.insertBefore(notice, bulkSection);
+  } else if (parent) {
+    parent.prepend(notice);
+  } else {
+    document.body.prepend(notice);
+  }
+  return notice;
+}
+
+function renderPlanLoadingState() {
+  if (planBadge) {
+    planBadge.textContent = "Loading...";
+    planBadge.setAttribute("data-plan-loading", "true");
+  }
+  if (bulkSection) {
+    bulkSection.hidden = true;
+    bulkSection.setAttribute("aria-busy", "true");
+  }
+  const notice = ensurePlanLoadingNotice();
+  notice.style.display = "block";
+}
+
+function clearPlanLoadingState() {
+  const notice = document.getElementById(PLAN_LOADING_ID);
+  if (notice) notice.style.display = "none";
+  if (planBadge) {
+    planBadge.removeAttribute("data-plan-loading");
+  }
+  if (bulkSection) {
+    bulkSection.removeAttribute("aria-busy");
+  }
 }
 
 function normalizeRouteHref(href = "") {
@@ -328,7 +363,8 @@ function isValidPhone(value = "") {
   return digits.length === 11 && digits.startsWith("1");
 }
 
-function setPlan(planId) {
+function applyPlan(planId) {
+  if (!planId) return;
   plan = normalizePlan(planId || "starter");
   if (planBadge) {
     planBadge.textContent = PLAN_LABELS[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
@@ -336,13 +372,14 @@ function setPlan(planId) {
   if (bulkSection) {
     bulkSection.hidden = plan === "starter";
   }
+  clearPlanLoadingState();
 }
 
 function setPlanWithSource(planId, source) {
   planSource = source;
-  setPlan(planId);
+  applyPlan(planId);
   if (source === "fresh") {
-    writeCachedPlan(planId);
+    setCachedPlan(planId);
   }
   debugLog("plan set", { plan, source });
 }
@@ -357,7 +394,7 @@ function schedulePlanRetry() {
     try {
       const refreshed = await refreshSubscription();
       const refreshedPlan = normalizePlan(refreshed?.planId || "");
-      const cachedPlan = readCachedPlan();
+      const cachedPlan = getCachedPlan();
       if (refreshedPlan && (refreshedPlan !== "starter" || !cachedPlan)) {
         setPlanWithSource(refreshedPlan, "fresh");
         setPlanWarningVisible(false);
@@ -1772,11 +1809,17 @@ function attachEvents() {
 
 function initApp() {
   debugLog("init start");
+  const initialCachedPlan = getCachedPlan() || getCachedSubscription()?.planId;
+  if (initialCachedPlan) {
+    setPlanWithSource(initialCachedPlan, "cached");
+  } else {
+    renderPlanLoadingState();
+  }
   listenForUser(({ user, profile, subscription, branding }) => {
     if (!user) return;
     currentUser = user;
     businessId = user.uid;
-    const cachedPlan = readCachedPlan();
+    const cachedPlan = getCachedPlan() || getCachedSubscription()?.planId;
     const incomingPlan = normalizePlan(subscription?.planId || subscription?.planTier || "");
     const hasIncomingPlan = Boolean(subscription?.planId || subscription?.planTier);
     if (hasIncomingPlan) {
@@ -1793,6 +1836,7 @@ function initApp() {
       setPlanWarningVisible(true);
       schedulePlanRetry();
     } else {
+      renderPlanLoadingState();
       setPlanWarningVisible(true);
       schedulePlanRetry();
     }
