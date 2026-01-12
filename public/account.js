@@ -9,6 +9,14 @@ const paymentMethod = document.getElementById("paymentMethod");
 const billingEmail = document.getElementById("billingEmail");
 const upgradeButton = document.getElementById("upgradeButton");
 const growthEnabledBadge = document.getElementById("growthEnabledBadge");
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 
 let currentPlan = "starter";
 
@@ -70,4 +78,5 @@ upgradeButton?.addEventListener("click", async () => {
 
 listenForUser(({ subscription, business }) => {
   renderPlanSummary(business?.plan || subscription?.planId || "starter", subscription);
+  signalPageDataReady();
 });

@@ -22,6 +22,14 @@ const statusFilter = document.getElementById("statusFilter");
 const dateFilter = document.getElementById("dateFilter");
 const threadListEl = document.getElementById("threadList");
 const detailEl = document.getElementById("threadDetail");
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 
 let threads = [];
 let filteredThreads = [];
@@ -621,8 +629,12 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   currentUserId = user.uid;
-  await loadThreads(user.uid);
-  wireFilters();
+  try {
+    await loadThreads(user.uid);
+    wireFilters();
+  } finally {
+    signalPageDataReady();
+  }
 });
 
 listenForUser(({ subscription }) => {

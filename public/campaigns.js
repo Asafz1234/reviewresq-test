@@ -34,6 +34,14 @@ const sendBulkBtn = document.getElementById("sendBulkBtn");
 const sendResults = document.getElementById("sendResults");
 const planNotice = document.getElementById("campaignPlanNotice");
 const planBadge = document.getElementById("planBadge");
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 
 let businessId = null;
 let customers = [];
@@ -194,6 +202,7 @@ async function loadCampaigns() {
   campaignUnsubscribe = onSnapshot(q, (snap) => {
     const rows = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     renderCampaigns(rows);
+    signalPageDataReady();
   });
 }
 
@@ -313,6 +322,7 @@ function init() {
 
     if (isStarterPlan(plan)) {
       renderCampaignsUpgradeGate();
+      signalPageDataReady();
       return;
     }
 

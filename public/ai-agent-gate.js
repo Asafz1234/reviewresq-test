@@ -1,5 +1,14 @@
 import { listenForUser, isStarterPlan } from "./session-data.js";
 
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
+
 function removeAiNavTabs() {
   const tabs = Array.from(document.querySelectorAll('.nav-tab[data-route="ai-agent"]'));
   tabs.forEach((tab) => tab.remove());
@@ -30,10 +39,11 @@ function renderAiUpgradeGate() {
 function guardAiPages() {
   listenForUser(({ subscription }) => {
     const planId = subscription?.planId;
-    if (!isStarterPlan(planId)) return;
-
-    removeAiNavTabs();
-    renderAiUpgradeGate();
+    if (isStarterPlan(planId)) {
+      removeAiNavTabs();
+      renderAiUpgradeGate();
+    }
+    signalPageDataReady();
   });
 }
 

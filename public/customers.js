@@ -50,6 +50,14 @@ const addCustomerNotes = document.getElementById("addCustomerNotes");
 const addCustomerSuccess = document.getElementById("addCustomerSuccess");
 const addCustomerError = document.getElementById("addCustomerError");
 const addCustomerSubmit = document.getElementById("addCustomerSubmit");
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 
 const CUSTOMERS_ROUTE = "/customers";
 const FEEDBACK_ROUTE = "/feedback";
@@ -1013,6 +1021,7 @@ function startCustomerFeed(uid) {
   unsubscribe = onSnapshot(q, (snapshot) => {
     customers = snapshot.docs.map(normalizeCustomer);
     applyFilters();
+    signalPageDataReady();
     debugLog("customer feed update", { count: customers.length });
     if (deepLinkedCustomerId && !selectedCustomerId) {
       const deepLinkedCustomer = customers.find((c) => c.id === deepLinkedCustomerId);

@@ -17,6 +17,14 @@ const stepList = document.getElementById("flowSteps");
 const addStepBtn = document.getElementById("addStep");
 const flowStatus = document.getElementById("flowStatus");
 const flowsTableBody = document.getElementById("flowsTableBody");
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 
 let businessId = null;
 let steps = [];
@@ -92,6 +100,7 @@ async function loadFlows() {
   onSnapshot(q, (snap) => {
     const rows = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     renderFlows(rows);
+    signalPageDataReady();
   });
 }
 

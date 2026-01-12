@@ -72,6 +72,14 @@ const ui = {
 };
 
 const toastId = "feedback-toast";
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 
 let businessId = null;
 let currentPlan = "starter";
@@ -452,5 +460,7 @@ onSession(async ({ user }) => {
     const message = err?.message || "We couldn't load your funnel right now. Please try again.";
     setSaveHint(message, "error");
     showToast(message, true);
+  } finally {
+    signalPageDataReady();
   }
 });

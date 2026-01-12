@@ -35,6 +35,14 @@ const toggleDiagnosticsButton = document.getElementById("toggleDiagnostics");
 const statusMessage = document.getElementById("statusMessage");
 const setupNotice = document.getElementById("setupNotice");
 const setupStatus = document.getElementById("setupStatus");
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 
 const previewBusinessName = document.getElementById("previewBusinessName");
 const previewSenderName = document.getElementById("previewSenderName");
@@ -612,5 +620,9 @@ onAuthStateChanged(auth, async (user) => {
   currentUserId = user.uid;
   wireEvents();
   consumeRedirectNotice();
-  await loadBranding(user.uid);
+  try {
+    await loadBranding(user.uid);
+  } finally {
+    signalPageDataReady();
+  }
 });

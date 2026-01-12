@@ -71,6 +71,14 @@ if (document.readyState === "loading") {
 }
 
 const toastId = "feedback-toast";
+const signalPageDataReady = (() => {
+  let sent = false;
+  return () => {
+    if (sent) return;
+    sent = true;
+    window.__rrPageDataReady?.();
+  };
+})();
 let sessionState = { user: null, profile: null, subscription: null };
 let changeListenerAttached = false;
 let activeLocationId = null;
@@ -767,6 +775,10 @@ onSession(async ({ user, profile, subscription }) => {
       changeListenerAttached = true;
     }
   }
-  await loadManualConnectionFromFirestore();
-  await loadGoogleData();
+  try {
+    await loadManualConnectionFromFirestore();
+    await loadGoogleData();
+  } finally {
+    signalPageDataReady();
+  }
 });
