@@ -1,5 +1,6 @@
 import { onSession, fetchAllReviews, calculateMetrics, buildRatingBreakdown, buildTimeline } from "./dashboard-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
+import { getCachedPlan, setCachedPlan } from "./session-data.js";
 
 const statElements = {
   totalReviews: document.querySelector('[data-metric="total-reviews"]'),
@@ -33,6 +34,25 @@ function setLoadingState() {
   }
 }
 
+function renderPlanLoadingState() {
+  if (businessElements.plan) {
+    businessElements.plan.textContent = "Loading...";
+    businessElements.plan.setAttribute("data-plan-loading", "true");
+  }
+}
+
+function applyPlan(planId) {
+  if (!businessElements.plan) return;
+  if (!planId) {
+    renderPlanLoadingState();
+    return;
+  }
+  const normalized = normalizePlan(planId);
+  businessElements.plan.textContent = PLAN_LABELS[normalized] || "Starter";
+  businessElements.plan.removeAttribute("data-plan-loading");
+  setCachedPlan(normalized);
+}
+
 function renderBusinessCard(profile, subscription) {
   if (businessElements.name) {
     businessElements.name.textContent =
@@ -41,10 +61,8 @@ function renderBusinessCard(profile, subscription) {
   if (businessElements.category) {
     businessElements.category.textContent = profile?.category || profile?.businessType || "Business";
   }
-  if (businessElements.plan) {
-    const normalized = normalizePlan(subscription?.planId || subscription?.planTier || "starter");
-    businessElements.plan.textContent = PLAN_LABELS[normalized] || "Starter";
-  }
+  const resolvedPlan = subscription?.planId || subscription?.planTier || getCachedPlan();
+  applyPlan(resolvedPlan);
   if (businessElements.status) {
     businessElements.status.textContent = profile?.status || "Live";
   }
@@ -93,6 +111,13 @@ function renderTimeline(timeline = []) {
 }
 
 setLoadingState();
+
+const cachedPlan = getCachedPlan();
+if (cachedPlan) {
+  applyPlan(cachedPlan);
+} else {
+  renderPlanLoadingState();
+}
 
 onSession(async ({ user, profile, subscription }) => {
   if (!user) return;

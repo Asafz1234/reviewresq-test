@@ -3,6 +3,7 @@ import {
   getCachedSubscription,
   isStarterPlan,
   currentEntitlements,
+  getCachedPlan,
 } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
@@ -33,7 +34,7 @@ const ROUTE_PATHS = {
   inbox: "/feedback.html",
   feedback: "/feedback.html",
   "google-reviews": "/pages/google-reviews.html",
-  customers: "/customers.html",
+  customers: "/customers",
   funnel: "/funnel-settings.html",
   links: "/links.html",
   automations: "/automations.html",
@@ -179,6 +180,7 @@ export function applyNavPlanFilter(planId = "starter", { forceRemove = false } =
     document.querySelectorAll("[data-plan-badge]").forEach((badge) => {
       badge.textContent = planLabel;
       badge.setAttribute("data-plan", normalizedPlan);
+      badge.removeAttribute("data-plan-loading");
     });
 
     navTabs.forEach((tab) => {
@@ -240,6 +242,7 @@ function ensureNavObserver() {
   if (!nav) return false;
 
   navState.navObserver = new MutationObserver(() => {
+    if (!navState.currentPlan) return;
     const enforceRemoval = isStarterPlan(navState.currentPlan);
     applyNavPlanFilter(navState.currentPlan, { forceRemove: enforceRemoval });
   });
@@ -248,6 +251,14 @@ function ensureNavObserver() {
 
   navState.navObserver.observe(nav, { childList: true, subtree: true });
   return true;
+}
+
+function renderPlanLoadingState() {
+  document.querySelectorAll("[data-plan-badge]").forEach((badge) => {
+    badge.textContent = "Loading...";
+    badge.setAttribute("data-plan", "loading");
+    badge.setAttribute("data-plan-loading", "true");
+  });
 }
 
 function renderUpgradeGuard(reason = "") {
@@ -374,17 +385,30 @@ export function initNavPlanFilter() {
 
   const navAccess = ensureWindowNavAccess();
 
-  const cachedPlan = getCachedSubscription()?.planId || "starter";
-  applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
-  unifySettingsNav();
-  guardCurrentPage();
+  const cachedPlan = getCachedSubscription()?.planId || getCachedPlan();
+  if (cachedPlan) {
+    applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
+    unifySettingsNav();
+    guardCurrentPage();
+  } else {
+    navState.currentPlan = null;
+    navState.currentEntitlementState = null;
+    if (navAccess) {
+      navAccess.plan = null;
+      navAccess.entitlements = null;
+      navAccess.ready = false;
+    }
+    renderPlanLoadingState();
+  }
 
   const maxAttempts = 5;
   const observeWithRetry = (attempt = 0) => {
     const attached = ensureNavObserver();
     if (attached) {
-      applyNavPlanFilter(navState.currentPlan, { forceRemove: isStarterPlan(navState.currentPlan) });
-      guardCurrentPage();
+      if (navState.currentPlan) {
+        applyNavPlanFilter(navState.currentPlan, { forceRemove: isStarterPlan(navState.currentPlan) });
+        guardCurrentPage();
+      }
     }
     if (!attached && attempt < maxAttempts) {
       setTimeout(() => observeWithRetry(attempt + 1), 200);

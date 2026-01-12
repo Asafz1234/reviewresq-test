@@ -33,6 +33,16 @@
         "type": 301
       },
       {
+        "source": "/pages/customers.html",
+        "destination": "/customers",
+        "type": 301
+      },
+      {
+        "source": "/pages/customers",
+        "destination": "/customers",
+        "type": 301
+      },
+      {
         "source": "/customers/",
         "destination": "/customers",
         "type": 301
