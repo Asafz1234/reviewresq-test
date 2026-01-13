@@ -4,7 +4,7 @@ import {
   getPlanBootstrapPromise,
 } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
-import { hydratePlanCache, subscribePlan } from "./plan-store.js";
+import { getCachedPlanSync, hydratePlanCache, subscribePlan } from "./plan-store.js";
 
 const ROUTE_KEYS = {
   dashboard: "overview",
@@ -110,6 +110,18 @@ function logNavPlanApplied(planId) {
   window.__rrNavPlanAppliedLogged = true;
 }
 
+function logNavPlanAttempt(planId, source) {
+  if (!isDevEnv) return;
+  console.debug("[rr] nav plan set attempt", { planId, source });
+}
+
+function shouldIgnoreStarterDowngrade(nextPlan, source) {
+  if (!nextPlan) return false;
+  if (nextPlan !== "starter") return false;
+  if (!navState.currentPlan || navState.currentPlan === "starter") return false;
+  return !["billing", "subscription", "business", "update", "auth"].includes(source);
+}
+
 function normalizeRouteFromHref(href = "") {
   const lowerHref = String(href || "").toLowerCase();
 
@@ -161,7 +173,7 @@ function setTabVisibility(tab, hidden) {
   tab.setAttribute("aria-hidden", hidden ? "true" : "false");
 }
 
-export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
+export function applyNavPlanFilter(planId, { forceRemove = false, source } = {}) {
   const resumeNavObserver = () => {
     if (navState.navObserver && navState.navElement) {
       navState.navObserver.observe(navState.navElement, {
@@ -178,6 +190,17 @@ export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
   try {
     if (!planId) return;
     const nextPlan = normalizePlan(planId);
+    logNavPlanAttempt(nextPlan, source);
+    if (shouldIgnoreStarterDowngrade(nextPlan, source)) {
+      if (isDevEnv) {
+        console.debug("[rr] nav plan downgrade blocked", {
+          attemptedPlan: nextPlan,
+          currentPlan: navState.currentPlan,
+          source,
+        });
+      }
+      return;
+    }
     if (navState.currentPlan === nextPlan) return;
     navState.currentPlan = nextPlan;
     navState.planPending = false;
@@ -243,6 +266,7 @@ export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
 
     if (typeof document !== "undefined") {
       document.documentElement.classList.remove("rr-plan-pending");
+      document.documentElement.dataset.planReady = "true";
       if (isDevEnv) {
         console.debug("[rr] ui shown (resolved)", navState.currentPlan);
       }
@@ -278,6 +302,7 @@ function applyNavPendingState() {
   navState.currentEntitlementState = null;
   if (typeof document !== "undefined") {
     document.documentElement.classList.add("rr-plan-pending");
+    document.documentElement.dataset.planReady = "false";
     if (isDevEnv) {
       console.debug("[rr] ui hidden (pending)");
     }
@@ -419,26 +444,37 @@ export function initNavPlanFilter() {
   }
   navState.initialized = true;
 
-  const cachedState = hydratePlanCache();
+  const cachedState = getCachedPlanSync();
   const cachedPlan = cachedState?.planId;
   if (cachedPlan) {
-    applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
+    applyNavPlanFilter(cachedPlan, {
+      forceRemove: isStarterPlan(cachedPlan),
+      source: cachedState?.source,
+    });
     guardCurrentPage();
   } else {
     applyNavPendingState();
   }
 
+  hydratePlanCache();
+
   subscribePlan((state) => {
     const nextPlan = state?.planId;
     if (!nextPlan) return;
-    applyNavPlanFilter(nextPlan, { forceRemove: isStarterPlan(nextPlan) });
+    applyNavPlanFilter(nextPlan, {
+      forceRemove: isStarterPlan(nextPlan),
+      source: state?.source,
+    });
     guardCurrentPage();
   });
 
   getPlanBootstrapPromise().then((planResult = {}) => {
     const planId = planResult?.planId;
     if (!planId) return;
-    applyNavPlanFilter(planId, { forceRemove: isStarterPlan(planId) });
+    applyNavPlanFilter(planId, {
+      forceRemove: isStarterPlan(planId),
+      source: planResult?.source || "bootstrap",
+    });
     guardCurrentPage();
   });
 }

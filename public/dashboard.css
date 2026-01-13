@@ -1834,6 +1834,11 @@ html.rr-plan-pending #planBadge {
   visibility: hidden;
 }
 
+html[data-plan-ready="false"] [data-plan-badge],
+html[data-plan-ready="false"] #planBadge {
+  visibility: hidden;
+}
+
 html.rr-plan-pending [data-rr-plan-text]::after,
 html.rr-data-pending [data-rr-plan-text]::after,
 html.rr-plan-pending [data-plan-badge]::after,

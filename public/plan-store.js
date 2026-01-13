@@ -4,6 +4,10 @@ const PLAN_CACHE_PREFIX = "rrPlanCache";
 const PLAN_CACHE_LAST_KEY = `${PLAN_CACHE_PREFIX}:last`;
 const DEFAULT_PLAN_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
+const isDevEnv =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
 const globalStore = (() => {
   if (typeof window === "undefined") return null;
   if (!window.__rrPlanStore) {
@@ -51,7 +55,9 @@ function readCache(businessId, maxAgeMs = DEFAULT_PLAN_MAX_AGE_MS) {
     }
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    const planId = normalizePlan(parsed?.planId ?? parsed?.plan);
+    const rawPlan = parsed?.planId ?? parsed?.plan;
+    if (!rawPlan) return null;
+    const planId = normalizePlan(rawPlan);
     if (!planId) return null;
     const timestamp = Number(parsed?.timestamp ?? parsed?.ts ?? null);
     if (Number.isFinite(timestamp) && maxAgeMs && Date.now() - timestamp > maxAgeMs) {
@@ -86,6 +92,18 @@ function writeCache(planId, businessId) {
   }
 }
 
+function logPlanDebug(message, data = {}) {
+  if (!isDevEnv) return;
+  console.debug(`[rr][plan-store] ${message}`, data);
+}
+
+function logFirstPlanSource(planId, source) {
+  if (!isDevEnv || typeof window === "undefined") return;
+  if (window.__rrPlanFirstSourceLogged) return;
+  console.debug(`[rr] plan first source=${source}`, { planId });
+  window.__rrPlanFirstSourceLogged = true;
+}
+
 function notify() {
   const snapshot = { ...store.state };
   store.listeners.forEach((listener) => {
@@ -99,6 +117,14 @@ function notify() {
 
 export function getPlanSnapshot() {
   return { ...store.state };
+}
+
+export function getCachedPlanSync(businessId) {
+  const cached = readCache(businessId);
+  if (!cached?.planId) return null;
+  logPlanDebug("cache-read", { planId: cached.planId, businessId: cached.businessId });
+  logFirstPlanSource(cached.planId, "cache");
+  return { ...cached, source: "cache" };
 }
 
 export function subscribePlan(listener) {
@@ -120,16 +146,37 @@ export function hydratePlanCache({ businessId, maxAgeMs } = {}) {
     businessId: cached.businessId || businessId || null,
     updatedAt: cached.timestamp || Date.now(),
   };
+  logPlanDebug("cache-hydrate", { planId: cached.planId, businessId: cached.businessId });
+  logFirstPlanSource(cached.planId, "cache");
   notify();
   return { ...store.state };
 }
 
-export function setPlan(planId, { source = "manual", businessId } = {}) {
+function shouldAllowStarterDowngrade(source, allowDowngrade = false) {
+  if (allowDowngrade) return true;
+  return ["billing", "subscription", "business", "update", "auth"].includes(source);
+}
+
+export function setPlan(planId, { source = "manual", businessId, allowDowngrade = false } = {}) {
   const normalized = normalizePlan(planId);
   if (!normalized) return { ...store.state };
+  if (
+    normalized === "starter" &&
+    store.state.planId &&
+    store.state.planId !== "starter" &&
+    !shouldAllowStarterDowngrade(source, allowDowngrade)
+  ) {
+    logPlanDebug("starter-downgrade-blocked", {
+      attemptedPlan: normalized,
+      currentPlan: store.state.planId,
+      source,
+    });
+    return { ...store.state };
+  }
   if (store.state.planId === normalized && store.state.businessId === businessId) {
     return { ...store.state };
   }
+  logPlanDebug("set-plan", { planId: normalized, source, businessId });
   store.state = {
     ...store.state,
     planId: normalized,
@@ -139,6 +186,7 @@ export function setPlan(planId, { source = "manual", businessId } = {}) {
     updatedAt: Date.now(),
   };
   writeCache(normalized, businessId || store.state.businessId);
+  logFirstPlanSource(normalized, source);
   notify();
   return { ...store.state };
 }
