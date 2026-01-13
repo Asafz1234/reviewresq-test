@@ -13,7 +13,6 @@ import {
   serverTimestamp,
   setDoc,
 } from "../firebase-config.js";
-import { normalizePlan } from "../plan-capabilities.js";
 
 const buildId = window.__REVIEWRESQ_BUILD_ID || "dev";
 const allowDebugBadges =
@@ -97,13 +96,16 @@ function resolveConnectBusinessName(place = {}) {
 }
 
 function planLabel(plan) {
+  if (!plan) return "Loading…";
   switch (plan) {
     case "growth":
       return "Growth";
     case "pro_ai":
       return "Pro AI Suite";
-    default:
+    case "starter":
       return "Starter";
+    default:
+      return "Loading…";
   }
 }
 
@@ -116,6 +118,15 @@ function planLocationLimit(plan) {
     default:
       return 1;
   }
+}
+
+function resolvePlanId(planId) {
+  const raw = String(planId ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw.includes("pro") || raw.includes("advanced")) return "pro_ai";
+  if (raw.includes("growth")) return "growth";
+  if (raw.includes("starter")) return "starter";
+  return null;
 }
 
 function deriveConnectedLocations(profile = {}) {
@@ -480,9 +491,9 @@ function renderReviews(items = []) {
   });
 }
 
-function renderLocationSelector(locations = [], plan = "starter") {
+function renderLocationSelector(locations = [], plan = null) {
   if (!pageHeaderActions) return;
-  const normalizedPlan = normalizePlan(plan);
+  const normalizedPlan = plan || resolvePlanId(plan);
   const shouldShowSelector =
     (normalizedPlan === "growth" && locations.length >= 2) ||
     (normalizedPlan === "pro_ai" && locations.length >= 2);
@@ -591,11 +602,11 @@ async function renderNoProfileNotice(locations = [], { manualConnected = false }
   noProfileNoticeContainer.style.display = "block";
 }
 
-function renderUpsell(planId = "starter") {
+function renderUpsell(planId) {
   if (!upsellContainer) return;
   upsellContainer.innerHTML = "";
-  const plan = normalizePlan(planId);
-  if (plan === "starter") return;
+  const plan = resolvePlanId(planId);
+  if (!plan || plan === "starter") return;
   const card = document.createElement("section");
   card.className = "card growth-upsell";
   card.innerHTML = `
@@ -681,14 +692,20 @@ async function persistManualGoogleLink(manualResponse = {}) {
 async function renderConnectCard() {
   const { renderGoogleConnect } = await getGoogleConnectModule();
   toggleViews(false);
-  renderGoogleConnect(connectContainer, {
+  const resolvedPlan = resolvePlanId(sessionState.subscription?.planId);
+  const connectConfig = {
     title: "Connect your Google Reviews",
     subtitle: "Securely connect businesses you own or manage on Google.",
     helperText: "Start typing your business name as it appears on Google.",
     defaultQuery: sessionState.profile?.businessName || "",
     onConnect: persistGoogleSelection,
     onManualConnect: persistManualGoogleLink,
-    planId: normalizePlan(sessionState.subscription?.planId || "starter"),
+  };
+  if (resolvedPlan) {
+    connectConfig.planId = resolvedPlan;
+  }
+  renderGoogleConnect(connectContainer, {
+    ...connectConfig,
   });
   applyManualValuesToForm();
   renderConnectStatus({
@@ -698,7 +715,7 @@ async function renderConnectCard() {
 }
 
 async function loadGoogleData() {
-  const plan = normalizePlan(sessionState.subscription?.planId || "starter");
+  const plan = resolvePlanId(sessionState.subscription?.planId);
   const profileWithManual = augmentProfileWithManual(sessionState.profile);
   const locations = deriveConnectedLocations(profileWithManual || {});
   if (!activeLocationId) {
@@ -762,7 +779,7 @@ onSession(async ({ user, profile, subscription }) => {
   sessionState = { user, profile, subscription };
   if (!user) return;
   removeDebugBadges();
-  const plan = normalizePlan(subscription?.planId || "starter");
+  const plan = resolvePlanId(subscription?.planId);
   if (planBadge) {
     planBadge.textContent = planLabel(plan);
   }

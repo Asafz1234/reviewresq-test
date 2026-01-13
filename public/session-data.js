@@ -47,6 +47,20 @@ let planPromiseResolve = globalPlanState?.planPromiseResolve ?? null;
 let planPromiseReject = globalPlanState?.planPromiseReject ?? null;
 let planResolved = globalPlanState?.planResolved ?? null;
 
+function normalizePlanId(planId) {
+  if (planId === null || planId === undefined) return null;
+  const raw = String(planId).trim();
+  if (!raw) return null;
+  const lowered = raw.toLowerCase();
+  const knownToken =
+    lowered.includes("starter") ||
+    lowered.includes("growth") ||
+    lowered.includes("pro") ||
+    lowered.includes("advanced");
+  if (!knownToken) return null;
+  return normalizePlan(raw);
+}
+
 function syncPlanState() {
   if (!globalPlanState) return;
   globalPlanState.planPromise = planPromise;
@@ -118,8 +132,10 @@ async function fetchProfile(uid) {
 async function fetchBusiness(uid) {
   const ref = doc(db, "businesses", uid);
   const snap = await getDoc(ref);
-  if (!snap.exists()) return { id: uid, plan: "starter" };
-  return { id: uid, ...snap.data() };
+  if (!snap.exists()) return { id: uid };
+  const data = snap.data() || {};
+  const normalizedPlan = normalizePlanId(data.plan);
+  return { id: uid, ...data, plan: normalizedPlan };
 }
 
 function shouldBypassBrandingGate() {
@@ -145,9 +161,11 @@ async function fetchSubscription(uid) {
   const ref = doc(db, "subscriptions", uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
-    return { planId: "starter", status: "active", price: PLAN_DETAILS.starter.priceMonthly };
+    return { planId: null, status: "inactive" };
   }
-  return { planId: normalizePlan(snap.data().planId || "starter"), status: "active", ...snap.data() };
+  const data = snap.data() || {};
+  const normalizedPlan = normalizePlanId(data.planId);
+  return { ...data, planId: normalizedPlan, status: data.status || "active" };
 }
 
 function isPlanDebugEnabled() {
@@ -179,7 +197,7 @@ function readPlanCache() {
     if (!cached) return null;
     try {
       const parsed = JSON.parse(cached);
-      const planId = normalizePlan(parsed?.planId || parsed?.plan || "");
+      const planId = normalizePlanId(parsed?.planId ?? parsed?.plan);
       if (!planId) return null;
       const timestamp = Number(parsed?.[PLAN_CACHE_TS_KEY] ?? parsed?.ts ?? parsed?.timestamp);
       return {
@@ -187,7 +205,7 @@ function readPlanCache() {
         timestamp: Number.isFinite(timestamp) ? timestamp : null,
       };
     } catch (err) {
-      const planId = normalizePlan(cached);
+      const planId = normalizePlanId(cached);
       return planId ? { planId, timestamp: null } : null;
     }
   } catch (err) {
@@ -225,10 +243,14 @@ export function setCachedPlan(planId) {
 
 function resolvePlanPromise(planId, source = "auth") {
   hydratePlanState();
-  const normalized = normalizePlan(planId || "");
+  const normalized = normalizePlanId(planId);
   if (!normalized) {
     debugPlanCache("resolve-skip", { source });
     return null;
+  }
+  if (planResolved?.planId && planResolved.planId === normalized) {
+    debugPlanCache("resolve-skip-same", { source, planId: normalized });
+    return planResolved;
   }
   const payload = { planId: normalized, source };
   planResolved = payload;
@@ -317,14 +339,16 @@ export function listenForUser(callback) {
     }
 
     if (!cachedBusiness) {
-      cachedBusiness = (await fetchBusiness(user.uid)) || { id: user.uid, plan: "starter" };
+      cachedBusiness = (await fetchBusiness(user.uid)) || { id: user.uid };
     }
 
-    const resolvedPlan = normalizePlan(cachedBusiness?.plan || cachedSubscription?.planId || "starter");
-    cachedSubscription = { ...cachedSubscription, planId: resolvedPlan };
-    cachedBusiness = { ...cachedBusiness, plan: resolvedPlan };
-    setCachedPlan(resolvedPlan);
-    resolvePlanPromise(resolvedPlan, "auth");
+    const resolvedPlan = normalizePlanId(cachedBusiness?.plan || cachedSubscription?.planId);
+    if (resolvedPlan) {
+      cachedSubscription = { ...cachedSubscription, planId: resolvedPlan };
+      cachedBusiness = { ...cachedBusiness, plan: resolvedPlan };
+      setCachedPlan(resolvedPlan);
+      resolvePlanPromise(resolvedPlan, "auth");
+    }
 
     const brandingState = deriveBranding(cachedProfile || {});
     cachedProfile = { ...cachedProfile, brandingComplete: brandingState.complete, brandingState };
@@ -350,12 +374,12 @@ export function getCachedProfile() {
 
 export function getCachedSubscription() {
   if (!cachedSubscription) return null;
-  return { ...cachedSubscription, planId: normalizePlan(cachedSubscription.planId) };
+  return { ...cachedSubscription, planId: normalizePlanId(cachedSubscription.planId) };
 }
 
 export function getCachedBusiness() {
   if (!cachedBusiness) return null;
-  return { ...cachedBusiness, plan: normalizePlan(cachedBusiness.plan) };
+  return { ...cachedBusiness, plan: normalizePlanId(cachedBusiness.plan) };
 }
 
 export function getCachedUser() {
@@ -373,33 +397,34 @@ export async function refreshProfile() {
 export async function refreshSubscription() {
   if (!cachedUser) return null;
   cachedSubscription = await fetchSubscription(cachedUser.uid);
-  if (cachedBusiness?.plan) {
-    cachedSubscription = { ...cachedSubscription, planId: normalizePlan(cachedBusiness.plan) };
-  }
-  if (cachedSubscription?.planId) {
-    setCachedPlan(cachedSubscription.planId);
-    resolvePlanPromise(cachedSubscription.planId, "subscription");
+  const normalizedPlan = normalizePlanId(cachedBusiness?.plan || cachedSubscription?.planId);
+  if (normalizedPlan) {
+    cachedSubscription = { ...cachedSubscription, planId: normalizedPlan };
+    setCachedPlan(normalizedPlan);
+    resolvePlanPromise(normalizedPlan, "subscription");
   }
   return cachedSubscription;
 }
 
 export async function refreshBusiness() {
   if (!cachedUser) return null;
-  cachedBusiness = (await fetchBusiness(cachedUser.uid)) || { id: cachedUser.uid, plan: "starter" };
-  cachedBusiness = { ...cachedBusiness, plan: normalizePlan(cachedBusiness.plan) };
-  if (cachedSubscription) {
-    cachedSubscription = { ...cachedSubscription, planId: cachedBusiness.plan };
+  cachedBusiness = (await fetchBusiness(cachedUser.uid)) || { id: cachedUser.uid };
+  const normalizedPlan = normalizePlanId(cachedBusiness.plan);
+  cachedBusiness = { ...cachedBusiness, plan: normalizedPlan };
+  if (cachedSubscription && normalizedPlan) {
+    cachedSubscription = { ...cachedSubscription, planId: normalizedPlan };
   }
-  if (cachedBusiness?.plan) {
-    setCachedPlan(cachedBusiness.plan);
-    resolvePlanPromise(cachedBusiness.plan, "business");
+  if (normalizedPlan) {
+    setCachedPlan(normalizedPlan);
+    resolvePlanPromise(normalizedPlan, "business");
   }
   return cachedBusiness;
 }
 
-export async function updateBusinessPlan(planId = "starter") {
+export async function updateBusinessPlan(planId) {
   if (!cachedUser) return null;
-  const normalizedPlan = normalizePlan(planId);
+  const normalizedPlan = normalizePlanId(planId);
+  if (!normalizedPlan) return null;
   const ref = doc(db, "businesses", cachedUser.uid);
   await setDoc(ref, { plan: normalizedPlan }, { merge: true });
   cachedBusiness = { ...(cachedBusiness || { id: cachedUser.uid }), plan: normalizedPlan };

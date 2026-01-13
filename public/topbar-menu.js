@@ -7,7 +7,7 @@ import {
   getCachedSubscription,
   refreshSubscription,
 } from "./session-data.js";
-import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
+import { PLAN_LABELS } from "./plan-capabilities.js";
 import { applyNavPlanFilter } from "./nav-access-versioned.js";
 
 const planBadge = document.getElementById("planBadge");
@@ -23,23 +23,19 @@ const PLAN_CLASS = {
 
 function applyPlanBadge(planId) {
   if (!planBadge) return;
-  if (!planId) {
+  const resolvedPlan = resolvePlanId(planId);
+  if (!resolvedPlan) {
     renderPlanBadgeLoading();
     return;
   }
-  const safePlan = PLAN_DETAILS[planId] ? planId : normalizePlan(planId);
-  if (!safePlan) {
-    renderPlanBadgeLoading();
-    return;
-  }
-  const label = PLAN_DETAILS[safePlan]?.label || PLAN_LABELS.starter;
+  const label = PLAN_DETAILS[resolvedPlan]?.label || PLAN_LABELS[resolvedPlan] || "Loading…";
   planBadge.textContent = label;
-  planBadge.setAttribute("data-plan", safePlan);
+  planBadge.setAttribute("data-plan", resolvedPlan);
   planBadge.removeAttribute("data-plan-loading");
   planBadge.href = planBadge.getAttribute("href") || "/account.html";
 
   planBadge.classList.remove(...Object.values(PLAN_CLASS));
-  planBadge.classList.add(PLAN_CLASS[safePlan]);
+  planBadge.classList.add(PLAN_CLASS[resolvedPlan]);
 }
 
 function renderPlanBadgeLoading() {
@@ -50,10 +46,21 @@ function renderPlanBadgeLoading() {
   planBadge.classList.remove(...Object.values(PLAN_CLASS));
 }
 
+function resolvePlanId(planId) {
+  const raw = String(planId ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw.includes("pro") || raw.includes("advanced")) return "growth";
+  if (raw.includes("growth")) return "growth";
+  if (raw.includes("starter")) return "starter";
+  return null;
+}
+
 function syncNavAccessPlan(planId) {
-  const normalizedPlan = normalizePlan(planId);
+  const normalizedPlan = resolvePlanId(planId);
   applyPlanBadge(normalizedPlan);
-  applyNavPlanFilter(normalizedPlan);
+  if (normalizedPlan) {
+    applyNavPlanFilter(normalizedPlan);
+  }
 }
 
 function buildProfileMenu() {
@@ -135,11 +142,7 @@ async function hydrateTopbar() {
   const subscription = getCachedSubscription();
   const profile = getCachedProfile();
 
-  if (subscription) {
-    applyPlanBadge(subscription.planId);
-  } else {
-    renderPlanBadgeLoading();
-  }
+  applyPlanBadge(subscription?.planId);
 
   if (profile) {
     setProfileAvatar(profile.businessName || profile.name || "");
@@ -147,12 +150,7 @@ async function hydrateTopbar() {
 }
 
 listenForUser(async ({ subscription, profile }) => {
-  const planId = subscription?.planId;
-  if (planId) {
-    syncNavAccessPlan(planId);
-  } else {
-    renderPlanBadgeLoading();
-  }
+  syncNavAccessPlan(subscription?.planId);
   setProfileAvatar(profile?.businessName || profile?.name || "");
 });
 
@@ -175,12 +173,7 @@ planBadge?.addEventListener("click", (e) => {
 
 export async function refreshTopbarSubscription() {
   const subscription = await refreshSubscription();
-  const planId = subscription?.planId;
-  if (planId) {
-    applyPlanBadge(planId);
-  } else {
-    renderPlanBadgeLoading();
-  }
+  applyPlanBadge(subscription?.planId);
 }
 
 export { applyPlanBadge };
