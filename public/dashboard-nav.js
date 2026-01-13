@@ -8,7 +8,7 @@ const NAV_SECTIONS = [
       { route: 'google-reviews', icon: '★', label: 'Google Reviews', href: '/google-reviews' },
       { route: 'customers', icon: '👥', label: 'Customers', href: '/customers' },
       { route: 'funnel', icon: '↗', label: 'Review Funnel', href: 'funnel-settings.html', disallowStarter: true },
-      { route: 'links', icon: '🔗', label: 'Review Links', href: 'links.html', disallowStarter: true },
+      { route: 'links', icon: '🔗', label: 'Review Links', href: '/links', disallowStarter: true },
       { route: 'automations', icon: '⚙️', label: 'Automations', href: 'automations.html', disallowStarter: true },
       { route: 'ai-suite', icon: '✨', label: 'AI Suite', href: 'ai-suite.html', disallowStarter: true },
       { route: 'team', icon: '🧑‍🤝‍🧑', label: 'Team & Roles', href: 'team.html', disallowStarter: true },
