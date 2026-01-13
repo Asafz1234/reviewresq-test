@@ -34,7 +34,7 @@ const ROUTE_PATHS = {
   "google-reviews": "/google-reviews",
   customers: "/customers",
   funnel: "/funnel-settings.html",
-  links: "/links.html",
+  links: "/links",
   automations: "/automations.html",
   "ai-agent": "/ai-suite.html",
   "ai-suite": "/ai-suite.html",

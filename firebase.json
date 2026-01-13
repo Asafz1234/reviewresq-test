@@ -78,6 +78,16 @@
         "type": 301
       },
       {
+        "source": "/links.html",
+        "destination": "/links",
+        "type": 301
+      },
+      {
+        "source": "/links/",
+        "destination": "/links",
+        "type": 301
+      },
+      {
         "source": "/ask-reviews.html",
         "destination": "/ask-reviews",
         "type": 301
@@ -134,6 +144,8 @@
       { "source": "/ask-reviews/**", "destination": "/pages/ask-reviews.html" },
       { "source": "/customers", "destination": "/customers.html" },
       { "source": "/customers/**", "destination": "/customers.html" },
+      { "source": "/links", "destination": "/links.html" },
+      { "source": "/links/**", "destination": "/links.html" },
       { "source": "/feedback", "destination": "/feedback.html" },
       { "source": "/feedback/**", "destination": "/feedback.html" },
       { "source": "/google-reviews", "destination": "/pages/google-reviews.html" },
