@@ -8,7 +8,7 @@ import {
   refreshSubscription,
 } from "./session-data.js";
 import { PLAN_LABELS } from "./plan-capabilities.js";
-import { hydratePlanCache, subscribePlan } from "./plan-store.js";
+import { getCachedPlanSync, hydratePlanCache, subscribePlan } from "./plan-store.js";
 
 const planBadge = document.getElementById("planBadge");
 const topbarRight = document.querySelector(".topbar-right");
@@ -24,11 +24,32 @@ const PLAN_CLASS = {
 let currentPlanBadge = null;
 let planUnsubscribe = null;
 
-function applyPlanBadge(planId) {
+const isDevEnv =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+function shouldIgnoreStarterDowngrade(nextPlan, source) {
+  if (!nextPlan) return false;
+  if (nextPlan !== "starter") return false;
+  if (!currentPlanBadge || currentPlanBadge === "starter") return false;
+  return !["billing", "subscription", "business", "update", "auth"].includes(source);
+}
+
+function applyPlanBadge(planId, { source } = {}) {
   if (!planBadge) return;
   const resolvedPlan = resolvePlanId(planId);
   if (!resolvedPlan) {
     renderPlanBadgeLoading();
+    return;
+  }
+  if (shouldIgnoreStarterDowngrade(resolvedPlan, source)) {
+    if (isDevEnv) {
+      console.debug("[rr] topbar plan downgrade blocked", {
+        attemptedPlan: resolvedPlan,
+        currentPlan: currentPlanBadge,
+        source,
+      });
+    }
     return;
   }
   if (resolvedPlan === currentPlanBadge) return;
@@ -38,6 +59,9 @@ function applyPlanBadge(planId) {
   planBadge.setAttribute("data-plan", resolvedPlan);
   planBadge.removeAttribute("data-plan-loading");
   planBadge.href = planBadge.getAttribute("href") || "/account.html";
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.planReady = "true";
+  }
 
   planBadge.classList.remove(...Object.values(PLAN_CLASS));
   planBadge.classList.add(PLAN_CLASS[resolvedPlan]);
@@ -50,6 +74,9 @@ function renderPlanBadgeLoading() {
   planBadge.setAttribute("data-plan", "loading");
   planBadge.setAttribute("data-plan-loading", "true");
   planBadge.classList.remove(...Object.values(PLAN_CLASS));
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.planReady = "false";
+  }
 }
 
 function resolvePlanId(planId) {
@@ -138,12 +165,13 @@ function connectProfileMenu() {
 
 function connectPlanStore() {
   if (planUnsubscribe) return;
-  const cachedState = hydratePlanCache();
+  const cachedState = getCachedPlanSync();
   if (cachedState?.planId) {
-    applyPlanBadge(cachedState.planId);
+    applyPlanBadge(cachedState.planId, { source: cachedState.source });
   }
+  hydratePlanCache();
   planUnsubscribe = subscribePlan((state) => {
-    applyPlanBadge(state?.planId);
+    applyPlanBadge(state?.planId, { source: state?.source });
   });
 }
 
@@ -152,7 +180,7 @@ async function hydrateTopbar() {
   renderPlanBadgeLoading();
   connectPlanStore();
   getPlanBootstrapPromise().then((planResult) => {
-    applyPlanBadge(planResult?.planId);
+    applyPlanBadge(planResult?.planId, { source: planResult?.source || "bootstrap" });
   });
 
   if (profile) {
@@ -175,7 +203,7 @@ planBadge?.addEventListener("click", (e) => {
 export async function refreshTopbarSubscription() {
   await refreshSubscription();
   const planResult = await getPlanBootstrapPromise();
-  applyPlanBadge(planResult?.planId);
+  applyPlanBadge(planResult?.planId, { source: planResult?.source || "bootstrap" });
 }
 
 export { applyPlanBadge };
