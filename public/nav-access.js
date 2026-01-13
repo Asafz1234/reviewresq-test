@@ -1,10 +1,9 @@
 import {
   listenForUser,
-  getCachedSubscription,
   isStarterPlan,
   currentEntitlements,
-  getCachedPlan,
-  getEffectivePlanPromise,
+  getPlanBootstrapPromise,
+  hasPlanBootstrapResolved,
 } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
@@ -435,26 +434,15 @@ export function initNavPlanFilter() {
   }
   navState.initialized = true;
 
-  const cachedPlan = getCachedPlan() || getCachedSubscription()?.planId;
-  if (cachedPlan && cachedPlan !== "starter") {
-    applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
-    unifySettingsNav();
-    guardCurrentPage();
+  if (!hasPlanBootstrapResolved()) {
+    applyNavPendingState();
   }
 
-  let planResolved = false;
-  getEffectivePlanPromise({ maxAgeMs: 5 * 60 * 1000 }).then((planResult = {}) => {
-    planResolved = true;
+  getPlanBootstrapPromise().then((planResult = {}) => {
     const planId = planResult?.planId;
     if (!planId) return;
     applyNavPlanFilter(planId, { forceRemove: isStarterPlan(planId) });
     guardCurrentPage();
-  });
-
-  Promise.resolve().then(() => {
-    if (!planResolved && !navState.currentPlan) {
-      applyNavPendingState();
-    }
   });
 
   const maxAttempts = 5;

@@ -37,6 +37,9 @@ const globalPlanState = (() => {
       planPromiseResolve: null,
       planPromiseReject: null,
       planResolved: null,
+      planBootstrapPromise: null,
+      planBootstrapResolve: null,
+      planBootstrapResolved: null,
     };
   }
   return window.__rrPlanState;
@@ -46,6 +49,9 @@ let planPromise = globalPlanState?.planPromise ?? null;
 let planPromiseResolve = globalPlanState?.planPromiseResolve ?? null;
 let planPromiseReject = globalPlanState?.planPromiseReject ?? null;
 let planResolved = globalPlanState?.planResolved ?? null;
+let planBootstrapPromise = globalPlanState?.planBootstrapPromise ?? null;
+let planBootstrapResolve = globalPlanState?.planBootstrapResolve ?? null;
+let planBootstrapResolved = globalPlanState?.planBootstrapResolved ?? null;
 
 function normalizePlanId(planId) {
   if (planId === null || planId === undefined) return null;
@@ -67,6 +73,9 @@ function syncPlanState() {
   globalPlanState.planPromiseResolve = planPromiseResolve;
   globalPlanState.planPromiseReject = planPromiseReject;
   globalPlanState.planResolved = planResolved;
+  globalPlanState.planBootstrapPromise = planBootstrapPromise;
+  globalPlanState.planBootstrapResolve = planBootstrapResolve;
+  globalPlanState.planBootstrapResolved = planBootstrapResolved;
 }
 
 function hydratePlanState() {
@@ -75,6 +84,9 @@ function hydratePlanState() {
   planPromiseResolve ??= globalPlanState.planPromiseResolve ?? null;
   planPromiseReject ??= globalPlanState.planPromiseReject ?? null;
   planResolved ??= globalPlanState.planResolved ?? null;
+  planBootstrapPromise ??= globalPlanState.planBootstrapPromise ?? null;
+  planBootstrapResolve ??= globalPlanState.planBootstrapResolve ?? null;
+  planBootstrapResolved ??= globalPlanState.planBootstrapResolved ?? null;
 }
 
 function resolveLogo(profile = {}) {
@@ -260,6 +272,14 @@ function resolvePlanPromise(planId, source = "auth") {
     planPromiseReject = null;
   }
   planPromise = Promise.resolve(payload);
+  if (source !== "cache") {
+    planBootstrapResolved = payload;
+    if (planBootstrapResolve) {
+      planBootstrapResolve(payload);
+      planBootstrapResolve = null;
+    }
+    planBootstrapPromise = Promise.resolve(payload);
+  }
   syncPlanState();
   debugPlanCache("resolved", payload);
   return payload;
@@ -275,6 +295,17 @@ function ensurePlanPromise() {
     syncPlanState();
   }
   return planPromise;
+}
+
+function ensurePlanBootstrapPromise() {
+  hydratePlanState();
+  if (!planBootstrapPromise) {
+    planBootstrapPromise = new Promise((resolve) => {
+      planBootstrapResolve = resolve;
+    });
+    syncPlanState();
+  }
+  return planBootstrapPromise;
 }
 
 export function getEffectivePlan({ forceRefresh = false, maxAgeMs = 5 * 60 * 1000 } = {}) {
@@ -319,6 +350,19 @@ export function getEffectivePlanPromise(options = {}) {
     });
   }
   return ensurePlanPromise();
+}
+
+export function getPlanBootstrapPromise() {
+  hydratePlanState();
+  if (planBootstrapResolved?.planId) {
+    return Promise.resolve(planBootstrapResolved);
+  }
+  return ensurePlanBootstrapPromise();
+}
+
+export function hasPlanBootstrapResolved() {
+  hydratePlanState();
+  return Boolean(planBootstrapResolved?.planId);
 }
 
 export function listenForUser(callback) {

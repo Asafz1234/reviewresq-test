@@ -4,7 +4,8 @@ import {
   listenForUser,
   initialsFromName,
   getCachedProfile,
-  getCachedSubscription,
+  getPlanBootstrapPromise,
+  hasPlanBootstrapResolved,
   refreshSubscription,
 } from "./session-data.js";
 import { PLAN_LABELS } from "./plan-capabilities.js";
@@ -21,6 +22,8 @@ const PLAN_CLASS = {
   growth: "plan-chip--growth",
 };
 
+let currentPlanBadge = null;
+
 function applyPlanBadge(planId) {
   if (!planBadge) return;
   const resolvedPlan = resolvePlanId(planId);
@@ -28,6 +31,8 @@ function applyPlanBadge(planId) {
     renderPlanBadgeLoading();
     return;
   }
+  if (resolvedPlan === currentPlanBadge) return;
+  currentPlanBadge = resolvedPlan;
   const label = PLAN_DETAILS[resolvedPlan]?.label || PLAN_LABELS[resolvedPlan] || "Loading…";
   planBadge.textContent = label;
   planBadge.setAttribute("data-plan", resolvedPlan);
@@ -40,6 +45,7 @@ function applyPlanBadge(planId) {
 
 function renderPlanBadgeLoading() {
   if (!planBadge) return;
+  currentPlanBadge = null;
   planBadge.textContent = "Loading…";
   planBadge.setAttribute("data-plan", "loading");
   planBadge.setAttribute("data-plan-loading", "true");
@@ -139,10 +145,15 @@ function connectProfileMenu() {
 }
 
 async function hydrateTopbar() {
-  const subscription = getCachedSubscription();
   const profile = getCachedProfile();
 
-  applyPlanBadge(subscription?.planId);
+  if (!hasPlanBootstrapResolved()) {
+    renderPlanBadgeLoading();
+  }
+
+  getPlanBootstrapPromise().then((planResult) => {
+    applyPlanBadge(planResult?.planId);
+  });
 
   if (profile) {
     setProfileAvatar(profile.businessName || profile.name || "");
