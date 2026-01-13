@@ -438,7 +438,7 @@ export function initNavPlanFilter() {
   navState.initialized = true;
 
   const cachedPlan = getCachedPlan() || getCachedSubscription()?.planId;
-  if (cachedPlan) {
+  if (cachedPlan && cachedPlan !== "starter") {
     applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
     unifySettingsNav();
     guardCurrentPage();
