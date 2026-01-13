@@ -5,7 +5,7 @@ import {
   setDoc,
   serverTimestamp,
 } from "./firebase-config.js";
-import { listenForUser, currentEntitlements } from "./session-data.js";
+import { listenForUser, currentEntitlements, getPlanBootstrapPromise } from "./session-data.js";
 import { showUpgradeModal } from "./plan-lock.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
@@ -40,7 +40,7 @@ let businessId = null;
 let currentUserId = "";
 let currentUserEmail = "";
 let brandingSupportEmail = "";
-let planId = "starter";
+let planId = null;
 let prefs = {
   newPrivateFeedback: false,
   newGoogleReview: false,
@@ -98,7 +98,8 @@ function renderPrefs() {
 }
 
 function resolvePlanTier() {
-  const normalized = normalizePlan(planId || "starter");
+  if (!planId) return null;
+  const normalized = normalizePlan(planId);
   if (String(planId || "").toLowerCase().includes("starter")) return "starter";
   if (normalized === "starter") return "starter";
   if (normalized === "pro_ai") return "pro_ai";
@@ -106,6 +107,7 @@ function resolvePlanTier() {
 }
 
 function isToggleAllowed(key) {
+  if (!planId) return false;
   const entitlements = currentEntitlements(planId);
   const matrix = entitlements?.alerts || {};
   const requiresAI = AI_SPECIFIC_TOGGLES.has(key);
@@ -114,6 +116,16 @@ function isToggleAllowed(key) {
 }
 
 function applyPlanEntitlements() {
+  if (!planId) {
+    Object.entries(toggles).forEach(([key, el]) => {
+      if (!el) return;
+      el.disabled = true;
+      el.checked = false;
+      const hintEl = upgradeHints[key];
+      if (hintEl) hintEl.textContent = "";
+    });
+    return;
+  }
   Object.entries(toggles).forEach(([key, el]) => {
     if (!el) return;
     const allowed = isToggleAllowed(key);
@@ -287,13 +299,16 @@ function bindRecipientsSave() {
 function init() {
   Object.keys(toggles).forEach(bindToggle);
   bindRecipientsSave();
+  getPlanBootstrapPromise().then((planResult = {}) => {
+    planId = planResult?.planId || null;
+    applyPlanEntitlements();
+  });
 
-  listenForUser(({ user, subscription, branding }) => {
+  listenForUser(({ user, branding }) => {
     businessId = user?.uid;
     currentUserId = user?.uid || "";
     currentUserEmail = user?.email || "";
     brandingSupportEmail = branding?.supportEmail || "";
-    planId = subscription?.planId || "starter";
     setStatus("Loading alert preferences...");
     loadPrefs();
   });

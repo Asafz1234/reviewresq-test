@@ -5,8 +5,6 @@ import {
   initialsFromName,
   getCachedProfile,
   getPlanBootstrapPromise,
-  hasPlanBootstrapResolved,
-  getPlanBootstrapResolved,
   refreshSubscription,
 } from "./session-data.js";
 import { PLAN_LABELS } from "./plan-capabilities.js";
@@ -138,14 +136,7 @@ function connectProfileMenu() {
 
 async function hydrateTopbar() {
   const profile = getCachedProfile();
-  const resolvedBootstrap = getPlanBootstrapResolved();
-
-  if (resolvedBootstrap?.planId) {
-    applyPlanBadge(resolvedBootstrap.planId);
-  } else if (!hasPlanBootstrapResolved()) {
-    renderPlanBadgeLoading();
-  }
-
+  renderPlanBadgeLoading();
   getPlanBootstrapPromise().then((planResult) => {
     applyPlanBadge(planResult?.planId);
   });
@@ -157,15 +148,6 @@ async function hydrateTopbar() {
 
 listenForUser(async ({ profile }) => {
   setProfileAvatar(profile?.businessName || profile?.name || "");
-});
-
-window.addEventListener("navaccess:planApplied", (event) => {
-  const planId = event.detail?.planId;
-  if (planId) {
-    applyPlanBadge(planId);
-  } else {
-    renderPlanBadgeLoading();
-  }
 });
 
 connectProfileMenu();

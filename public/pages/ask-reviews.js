@@ -15,7 +15,7 @@ import {
   listenForUser,
   refreshSubscription,
   getCachedPlan,
-  getEffectivePlanPromise,
+  getPlanBootstrapPromise,
   setCachedPlan,
   getCachedSubscription,
 } from "../session-data.js";
@@ -1839,49 +1839,20 @@ function attachEvents() {
 
 function initApp() {
   debugLog("init start");
-  let initialResolved = false;
-  getEffectivePlanPromise({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((planResult = {}) => {
-    initialResolved = true;
+  renderPlanLoadingState();
+  getPlanBootstrapPromise().then((planResult = {}) => {
     const planId = planResult?.planId;
-    const source = planResult?.source;
     if (planId) {
-      setPlanWithSource(planId, source);
+      setPlanWithSource(planId, "bootstrap");
+      setPlanWarningVisible(false);
       return;
     }
     renderPlanLoadingState();
   });
-  Promise.resolve().then(() => {
-    if (!initialResolved) {
-      renderPlanLoadingState();
-    }
-  });
-  listenForUser(({ user, profile, subscription, branding }) => {
+  listenForUser(({ user, profile, branding }) => {
     if (!user) return;
     currentUser = user;
     businessId = user.uid;
-    getEffectivePlanPromise({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((cachedPlanResult = {}) => {
-      const cachedPlan = cachedPlanResult?.planId || getCachedSubscription()?.planId;
-      const incomingPlan = normalizePlan(subscription?.planId || subscription?.planTier || "");
-      const hasIncomingPlan = Boolean(subscription?.planId || subscription?.planTier);
-      if (hasIncomingPlan) {
-        if (cachedPlan && incomingPlan === "starter" && cachedPlan !== "starter") {
-          setPlanWithSource(cachedPlan, "cached");
-          setPlanWarningVisible(true);
-          schedulePlanRetry();
-        } else {
-          setPlanWithSource(incomingPlan, "fresh");
-          setPlanWarningVisible(false);
-        }
-      } else if (cachedPlan) {
-        setPlanWithSource(cachedPlan, "cached");
-        setPlanWarningVisible(true);
-        schedulePlanRetry();
-      } else {
-        renderPlanLoadingState();
-        setPlanWarningVisible(true);
-        schedulePlanRetry();
-      }
-    });
     const brandingDetails = branding || deriveBranding(profile || {});
     applyBrandingGate(brandingDetails);
     attachEvents();

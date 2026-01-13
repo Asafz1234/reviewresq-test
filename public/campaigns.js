@@ -9,7 +9,12 @@ import {
   httpsCallable,
   functions,
 } from "./firebase-config.js";
-import { listenForUser, currentPlanTier, hasPlanFeature, isStarterPlan } from "./session-data.js";
+import {
+  listenForUser,
+  hasPlanFeature,
+  isStarterPlan,
+  getPlanBootstrapPromise,
+} from "./session-data.js";
 import { PLAN_LABELS } from "./plan-capabilities.js";
 
 const form = document.getElementById("campaignForm");
@@ -67,10 +72,18 @@ function renderCampaignsUpgradeGate() {
   `;
 }
 
-function syncPlanState(plan = "starter") {
+function syncPlanState(plan) {
+  if (!plan) {
+    if (planBadge) {
+      planBadge.textContent = "Loading…";
+      planBadge.setAttribute("data-plan-loading", "true");
+    }
+    return;
+  }
   allowManualCampaigns = hasPlanFeature("campaigns_manual");
   if (planBadge) {
     planBadge.textContent = PLAN_LABELS[plan] || planBadge.textContent;
+    planBadge.removeAttribute("data-plan-loading");
   }
 
   const controls = [
@@ -314,19 +327,31 @@ async function sendBulk() {
 }
 
 function init() {
-  listenForUser(async (session) => {
-    if (!session) return;
-    businessId = session.user.uid;
-    const plan = currentPlanTier();
-    syncPlanState(plan);
+  let resolvedPlanId = null;
+  syncPlanState(null);
+  getPlanBootstrapPromise().then((planResult = {}) => {
+    const planId = planResult?.planId || null;
+    resolvedPlanId = planId;
+    if (!planId) return;
+    syncPlanState(planId);
 
-    if (isStarterPlan(plan)) {
+    if (isStarterPlan(planId)) {
       renderCampaignsUpgradeGate();
       signalPageDataReady();
       return;
     }
 
-    loadCampaigns();
+    if (businessId) {
+      loadCampaigns();
+    }
+  });
+
+  listenForUser(async (session) => {
+    if (!session) return;
+    businessId = session.user.uid;
+    if (resolvedPlanId && !isStarterPlan(resolvedPlanId)) {
+      loadCampaigns();
+    }
   });
 
   previewCampaignBtn?.addEventListener("click", handlePreviewAudience);

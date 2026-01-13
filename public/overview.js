@@ -1,6 +1,6 @@
 import { onSession, fetchAllReviews, calculateMetrics, buildRatingBreakdown, buildTimeline } from "./dashboard-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
-import { getCachedPlan, getEffectivePlanPromise, setCachedPlan } from "./session-data.js";
+import { getPlanBootstrapPromise } from "./session-data.js";
 
 const statElements = {
   totalReviews: document.querySelector('[data-metric="total-reviews"]'),
@@ -58,10 +58,9 @@ function applyPlan(planId) {
   const normalized = normalizePlan(planId);
   businessElements.plan.textContent = PLAN_LABELS[normalized] || "Loading…";
   businessElements.plan.removeAttribute("data-plan-loading");
-  setCachedPlan(normalized);
 }
 
-async function renderBusinessCard(profile, subscription) {
+async function renderBusinessCard(profile) {
   if (businessElements.name) {
     businessElements.name.textContent =
       profile?.name || profile?.businessName || "Your business";
@@ -69,13 +68,8 @@ async function renderBusinessCard(profile, subscription) {
   if (businessElements.category) {
     businessElements.category.textContent = profile?.category || profile?.businessType || "Business";
   }
-  const cachedPlanResult = await getEffectivePlanPromise({ maxAgeMs: 5 * 60 * 1000 });
-  const resolvedPlan =
-    subscription?.planId ||
-    subscription?.planTier ||
-    cachedPlanResult?.planId ||
-    getCachedPlan();
-  applyPlan(resolvedPlan);
+  const planResult = await getPlanBootstrapPromise();
+  applyPlan(planResult?.planId);
   if (businessElements.status) {
     businessElements.status.textContent = profile?.status || "Live";
   }
@@ -126,7 +120,7 @@ function renderTimeline(timeline = []) {
 setLoadingState();
 
 let initialResolved = false;
-getEffectivePlanPromise({ maxAgeMs: 5 * 60 * 1000 }).then((planResult = {}) => {
+getPlanBootstrapPromise().then((planResult = {}) => {
   initialResolved = true;
   const planId = planResult?.planId;
   if (planId) {
@@ -144,7 +138,7 @@ Promise.resolve().then(() => {
 onSession(async ({ user, profile, subscription }) => {
   if (!user) return;
   setLoadingState();
-  await renderBusinessCard(profile, subscription);
+  await renderBusinessCard(profile);
   try {
     const reviews = await fetchAllReviews(user.uid);
     const metrics = calculateMetrics(reviews);

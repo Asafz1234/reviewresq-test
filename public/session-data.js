@@ -42,9 +42,9 @@ function logBootstrapPending() {
 
 function logBootstrapResolved(planId) {
   if (!isDevEnv || typeof window === "undefined") return;
-  if (window.__rrBootstrapResolvedLogged === planId) return;
-  console.debug(`[rr] bootstrap resolved: ${planId}`);
-  window.__rrBootstrapResolvedLogged = planId;
+  if (window.__rrBootstrapResolvedLogged) return;
+  console.debug(`[rr] bootstrap resolved ${planId}`);
+  window.__rrBootstrapResolvedLogged = true;
 }
 
 const globalPlanState = (() => {
@@ -506,11 +506,12 @@ export async function updateBusinessPlan(planId) {
 export function currentPlanTier() {
   if (cachedBusiness?.plan) return normalizePlan(cachedBusiness.plan);
   if (cachedSubscription?.planId) return normalizePlan(cachedSubscription.planId);
-  return "starter";
+  return null;
 }
 
 export function currentEntitlements(planId = null) {
-  const resolvedPlan = planId || cachedBusiness?.plan || cachedSubscription?.planId || "starter";
+  const resolvedPlan = planId || cachedBusiness?.plan || cachedSubscription?.planId;
+  if (!resolvedPlan) return null;
   return getPlanEntitlements(resolvedPlan);
 }
 
@@ -527,7 +528,9 @@ export function isStarterPlan(planId) {
 }
 
 export function hasPlanFeature(feature) {
-  return hasFeature(currentPlanTier(), feature);
+  const planId = currentPlanTier();
+  if (!planId) return false;
+  return hasFeature(planId, feature);
 }
 
 export function initialsFromName(name = "") {

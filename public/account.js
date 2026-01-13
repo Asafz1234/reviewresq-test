@@ -1,4 +1,9 @@
-import { listenForUser, PLAN_DETAILS, updateBusinessPlan } from "./session-data.js";
+import {
+  listenForUser,
+  PLAN_DETAILS,
+  updateBusinessPlan,
+  getPlanBootstrapPromise,
+} from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 import { applyNavPlanFilter } from "./nav-access-versioned.js";
 
@@ -18,17 +23,41 @@ const signalPageDataReady = (() => {
   };
 })();
 
-let currentPlan = "starter";
+let currentPlan = null;
 
 function renderPlanSummary(planId, subscription) {
-  const normalizedPlan = normalizePlan(planId);
-  currentPlan = normalizedPlan;
-  const planDetails = PLAN_DETAILS[normalizedPlan] || PLAN_DETAILS.starter;
-  const label = PLAN_LABELS[normalizedPlan] || PLAN_LABELS.starter;
-  const price = planDetails?.priceMonthly ?? PLAN_DETAILS.starter.priceMonthly;
+  if (!planId) {
+    currentPlan = null;
+    if (planSummary) {
+      planSummary.textContent = "Loading…";
+    }
+    if (upgradeButton) {
+      upgradeButton.textContent = "Loading…";
+      upgradeButton.disabled = true;
+      upgradeButton.setAttribute("aria-disabled", "true");
+    }
+  } else {
+    const normalizedPlan = normalizePlan(planId);
+    currentPlan = normalizedPlan;
+    const planDetails = PLAN_DETAILS[normalizedPlan] || PLAN_DETAILS.starter;
+    const label = PLAN_LABELS[normalizedPlan] || PLAN_LABELS.starter;
+    const price = planDetails?.priceMonthly ?? PLAN_DETAILS.starter.priceMonthly;
 
-  if (planSummary) {
-    planSummary.textContent = `${label} plan · $${price}/month`;
+    if (planSummary) {
+      planSummary.textContent = `${label} plan · $${price}/month`;
+    }
+
+    if (normalizedPlan === "growth") {
+      upgradeButton.textContent = "Growth enabled";
+      upgradeButton.disabled = true;
+      upgradeButton.setAttribute("aria-disabled", "true");
+      if (growthEnabledBadge) growthEnabledBadge.style.display = "inline-flex";
+    } else {
+      upgradeButton.textContent = "Upgrade to Growth";
+      upgradeButton.disabled = false;
+      upgradeButton.removeAttribute("aria-disabled");
+      if (growthEnabledBadge) growthEnabledBadge.style.display = "none";
+    }
   }
   if (planStatus) {
     planStatus.textContent = (subscription?.status || "active").toString();
@@ -47,18 +76,6 @@ function renderPlanSummary(planId, subscription) {
   if (billingEmail) {
     billingEmail.textContent = subscription?.billingEmail || "billing@reviewresq.com";
   }
-
-  if (normalizedPlan === "growth") {
-    upgradeButton.textContent = "Growth enabled";
-    upgradeButton.disabled = true;
-    upgradeButton.setAttribute("aria-disabled", "true");
-    if (growthEnabledBadge) growthEnabledBadge.style.display = "inline-flex";
-  } else {
-    upgradeButton.textContent = "Upgrade to Growth";
-    upgradeButton.disabled = false;
-    upgradeButton.removeAttribute("aria-disabled");
-    if (growthEnabledBadge) growthEnabledBadge.style.display = "none";
-  }
 }
 
 upgradeButton?.addEventListener("click", async () => {
@@ -76,7 +93,13 @@ upgradeButton?.addEventListener("click", async () => {
   }
 });
 
-listenForUser(({ subscription, business }) => {
-  renderPlanSummary(business?.plan || subscription?.planId || "starter", subscription);
+const sessionPromise = new Promise((resolve) => {
+  listenForUser(({ subscription, business }) => {
+    resolve({ subscription, business });
+  });
+});
+
+Promise.all([getPlanBootstrapPromise(), sessionPromise]).then(([planResult, session]) => {
+  renderPlanSummary(planResult?.planId || null, session.subscription);
   signalPageDataReady();
 });

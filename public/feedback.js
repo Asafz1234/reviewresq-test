@@ -4,7 +4,7 @@ import {
   formatDate,
   refreshSubscription,
   getCachedPlan,
-  getEffectivePlanPromise,
+  getPlanBootstrapPromise,
   setCachedPlan,
   getCachedSubscription,
 } from "./session-data.js";
@@ -515,47 +515,19 @@ function applyFilters() {
 
 if (shouldInit) {
   debugLog("init start");
-  let initialResolved = false;
-  getEffectivePlanPromise({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS }).then((planResult = {}) => {
-    initialResolved = true;
+  renderPlanLoadingState();
+  getPlanBootstrapPromise().then((planResult = {}) => {
     const planId = planResult?.planId;
-    const source = planResult?.source;
     if (planId) {
-      setPlanWithSource(planId, source);
+      setPlanWithSource(planId, "bootstrap");
+      setPlanWarningVisible(false);
       return;
     }
     renderPlanLoadingState();
   });
-  Promise.resolve().then(() => {
-    if (!initialResolved) {
-      renderPlanLoadingState();
-    }
-  });
-  onSession(async ({ user, subscription, profile }) => {
+  onSession(async ({ user, profile }) => {
     if (!user) return;
     currentBusinessId = profile?.id || user.uid;
-    const cachedPlanResult = await getEffectivePlanPromise({ maxAgeMs: PLAN_CACHE_MAX_AGE_MS });
-    const cachedPlan = cachedPlanResult?.planId || getCachedSubscription()?.planId;
-    const incomingPlan = normalizePlan(subscription?.planId || "");
-    const hasIncomingPlan = Boolean(subscription?.planId);
-    if (hasIncomingPlan) {
-      if (cachedPlan && incomingPlan === "starter" && cachedPlan !== "starter") {
-        setPlanWithSource(cachedPlan, "cached");
-        setPlanWarningVisible(true);
-        schedulePlanRetry();
-      } else {
-        setPlanWithSource(incomingPlan, "fresh");
-        setPlanWarningVisible(false);
-      }
-    } else if (cachedPlan) {
-      setPlanWithSource(cachedPlan, "cached");
-      setPlanWarningVisible(true);
-      schedulePlanRetry();
-    } else {
-      renderPlanLoadingState();
-      setPlanWarningVisible(true);
-      schedulePlanRetry();
-    }
     if (tbody) {
       tbody.innerHTML = `<tr><td colspan="6">Loading...</td></tr>`;
     }
