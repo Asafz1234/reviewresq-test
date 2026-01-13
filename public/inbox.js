@@ -14,8 +14,12 @@ import {
   doc,
   onSnapshot,
 } from "./firebase-config.js";
-import { listenForUser, formatDate, initialsFromName, hasPlanFeature } from "./session-data.js";
-import { applyPlanBadge } from "./topbar-menu.js";
+import {
+  formatDate,
+  initialsFromName,
+  hasPlanFeature,
+  getPlanBootstrapPromise,
+} from "./session-data.js";
 import { lockUI } from "./plan-lock.js";
 
 const statusFilter = document.getElementById("statusFilter");
@@ -35,7 +39,7 @@ let threads = [];
 let filteredThreads = [];
 let selectedThreadId = null;
 let currentUserId = null;
-let currentPlanTier = "starter";
+let currentPlanTier = null;
 const aiConversationListeners = new Map();
 
 const STATUS_LABELS = {
@@ -477,7 +481,9 @@ function renderThreadDetail(thread) {
   }
   replyBox.append(textarea, actionRow);
 
-  lockUI(currentPlanTier, replyBox);
+  if (currentPlanTier) {
+    lockUI(currentPlanTier, replyBox);
+  }
 
   detailEl.append(header, convo, replyBox);
 }
@@ -637,7 +643,9 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-listenForUser(({ subscription }) => {
-  currentPlanTier = subscription?.planId || "starter";
-  applyPlanBadge(currentPlanTier);
+getPlanBootstrapPromise().then((planResult) => {
+  currentPlanTier = planResult?.planId || null;
+  if (currentPlanTier && detailEl) {
+    lockUI(currentPlanTier, detailEl);
+  }
 });

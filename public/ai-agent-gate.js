@@ -1,4 +1,4 @@
-import { listenForUser, isStarterPlan } from "./session-data.js";
+import { listenForUser, isStarterPlan, getPlanBootstrapPromise } from "./session-data.js";
 
 const signalPageDataReady = (() => {
   let sent = false;
@@ -37,14 +37,15 @@ function renderAiUpgradeGate() {
 }
 
 function guardAiPages() {
-  listenForUser(({ subscription }) => {
-    const planId = subscription?.planId;
+  getPlanBootstrapPromise().then((planResult = {}) => {
+    const planId = planResult?.planId;
     if (isStarterPlan(planId)) {
       removeAiNavTabs();
       renderAiUpgradeGate();
     }
     signalPageDataReady();
   });
+  listenForUser(() => {});
 }
 
 guardAiPages();

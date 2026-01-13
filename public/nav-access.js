@@ -2,8 +2,6 @@ import {
   isStarterPlan,
   currentEntitlements,
   getPlanBootstrapPromise,
-  hasPlanBootstrapResolved,
-  getPlanBootstrapResolved,
 } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
@@ -104,6 +102,13 @@ function ensureWindowNavAccess() {
 
 ensureWindowNavAccess();
 
+function logNavPlanApplied(planId) {
+  if (!isDevEnv || typeof window === "undefined") return;
+  if (window.__rrNavPlanAppliedLogged) return;
+  console.debug(`[rr] nav plan applied ${planId}`);
+  window.__rrNavPlanAppliedLogged = true;
+}
+
 function normalizeRouteFromHref(href = "") {
   const lowerHref = String(href || "").toLowerCase();
 
@@ -176,6 +181,7 @@ export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
     navState.currentPlan = nextPlan;
     navState.planPending = false;
     navState.currentEntitlementState = currentEntitlements(navState.currentPlan);
+    logNavPlanApplied(navState.currentPlan);
     const navAccess = ensureWindowNavAccess();
     if (navAccess) {
       navAccess.plan = navState.currentPlan;
@@ -241,11 +247,6 @@ export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
       }
     }
 
-    if (typeof window !== "undefined" && isDevEnv && !window.__rrPlanLogged) {
-      console.debug("[rr] plan resolved", navState.currentPlan);
-      window.__rrPlanLogged = true;
-    }
-
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("navaccess:planApplied", {
@@ -260,23 +261,6 @@ export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
   } finally {
     resumeNavObserver();
   }
-}
-
-function ensureNavObserver() {
-  if (navState.navObserver || typeof MutationObserver === "undefined") return true;
-  const nav = document.querySelector(".global-nav");
-  if (!nav) return false;
-
-  navState.navObserver = new MutationObserver(() => {
-    if (!navState.currentPlan) return;
-    const enforceRemoval = isStarterPlan(navState.currentPlan);
-    applyNavPlanFilter(navState.currentPlan, { forceRemove: enforceRemoval });
-  });
-
-  navState.navElement = nav;
-
-  navState.navObserver.observe(nav, { childList: true, subtree: true });
-  return true;
 }
 
 function renderPlanLoadingState() {
@@ -434,15 +418,7 @@ export function initNavPlanFilter() {
   }
   navState.initialized = true;
 
-  const resolvedBootstrap = getPlanBootstrapResolved();
-  if (resolvedBootstrap?.planId) {
-    applyNavPlanFilter(resolvedBootstrap.planId, {
-      forceRemove: isStarterPlan(resolvedBootstrap.planId),
-    });
-    guardCurrentPage();
-  } else if (!hasPlanBootstrapResolved()) {
-    applyNavPendingState();
-  }
+  applyNavPendingState();
 
   getPlanBootstrapPromise().then((planResult = {}) => {
     const planId = planResult?.planId;
@@ -450,22 +426,4 @@ export function initNavPlanFilter() {
     applyNavPlanFilter(planId, { forceRemove: isStarterPlan(planId) });
     guardCurrentPage();
   });
-
-  const maxAttempts = 5;
-  const observeWithRetry = (attempt = 0) => {
-    const attached = ensureNavObserver();
-    if (attached) {
-      if (navState.currentPlan) {
-        applyNavPlanFilter(navState.currentPlan, { forceRemove: isStarterPlan(navState.currentPlan) });
-        guardCurrentPage();
-      }
-    }
-    if (!attached && attempt < maxAttempts) {
-      setTimeout(() => observeWithRetry(attempt + 1), 200);
-    }
-  };
-
-  observeWithRetry();
-
-  console.debug("[navAccess] ready", { plan: window.navAccess?.plan });
 }
