@@ -20,6 +20,19 @@
   />
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" type="image/png" href="/logo.png" />
+  <script>
+    (() => {
+      const { pathname, search, hash } = window.location;
+      const normalizedPath = pathname.replace(/\/+$/, "") || "/";
+      const routeMap = {
+        "/dashboard": "/dashboard.html",
+      };
+      const target = routeMap[normalizedPath];
+      if (target) {
+        window.location.replace(`${target}${search}${hash}`);
+      }
+    })();
+  </script>
 </head>
 <body class="page">
   <header class="topbar">
