@@ -243,7 +243,7 @@ export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
     if (typeof document !== "undefined") {
       document.documentElement.classList.remove("rr-plan-pending");
       if (isDevEnv) {
-        console.debug("[rr] plan pending end");
+        console.debug("[rr] ui shown (resolved)", navState.currentPlan);
       }
     }
 
@@ -278,7 +278,7 @@ function applyNavPendingState() {
   if (typeof document !== "undefined") {
     document.documentElement.classList.add("rr-plan-pending");
     if (isDevEnv) {
-      console.debug("[rr] plan pending start");
+      console.debug("[rr] ui hidden (pending)");
     }
   }
   const navAccess = ensureWindowNavAccess();

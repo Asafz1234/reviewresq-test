@@ -2363,6 +2363,16 @@ html.rr-data-pending .plan-chip {
   position: relative;
 }
 
+html.rr-plan-pending .global-nav {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+html.rr-plan-pending [data-plan-badge],
+html.rr-plan-pending #planBadge {
+  visibility: hidden;
+}
+
 html.rr-plan-pending [data-rr-plan-text]::after,
 html.rr-data-pending [data-rr-plan-text]::after,
 html.rr-plan-pending [data-plan-badge]::after,

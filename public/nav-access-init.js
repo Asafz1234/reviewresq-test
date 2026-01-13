@@ -6,7 +6,7 @@ if (typeof document !== "undefined") {
   document.documentElement.classList.add("rr-plan-pending");
   document.documentElement.classList.add("rr-data-pending");
   if (isDevEnv) {
-    console.debug("[rr] plan pending start");
+    console.debug("[rr] ui hidden (pending)");
     console.debug("[rr] data pending start");
   }
   setTimeout(() => {
