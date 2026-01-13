@@ -32,7 +32,7 @@ function applyPlanBadge(planId) {
     renderPlanBadgeLoading();
     return;
   }
-  const label = PLAN_DETAILS[safePlan]?.label || PLAN_LABELS.starter;
+  const label = PLAN_DETAILS[safePlan]?.label || PLAN_LABELS[safePlan] || "Loading…";
   planBadge.textContent = label;
   planBadge.setAttribute("data-plan", safePlan);
   planBadge.removeAttribute("data-plan-loading");
@@ -135,7 +135,7 @@ async function hydrateTopbar() {
   const subscription = getCachedSubscription();
   const profile = getCachedProfile();
 
-  if (subscription) {
+  if (subscription?.planId && subscription.planId !== "starter") {
     applyPlanBadge(subscription.planId);
   } else {
     renderPlanBadgeLoading();

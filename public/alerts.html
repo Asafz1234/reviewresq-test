@@ -5,6 +5,14 @@
     document.documentElement.classList.add('rr-plan-pending');
     document.documentElement.classList.add('rr-data-pending');
   </script>
+  <style>
+    html.rr-plan-pending [data-rr-plan-text],
+    html.rr-data-pending [data-rr-plan-text] { visibility: hidden; }
+    html.rr-plan-pending .rr-plan-badge,
+    html.rr-data-pending .rr-plan-badge { visibility: hidden; }
+    html.rr-plan-pending [data-plan-gated],
+    html.rr-data-pending [data-plan-gated] { display:none !important; }
+  </style>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ReviewResQ – Alerts & Notifications</title>
