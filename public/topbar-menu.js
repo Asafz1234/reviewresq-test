@@ -8,6 +8,7 @@ import {
   refreshSubscription,
 } from "./session-data.js";
 import { PLAN_LABELS } from "./plan-capabilities.js";
+import { hydratePlanCache, subscribePlan } from "./plan-store.js";
 
 const planBadge = document.getElementById("planBadge");
 const topbarRight = document.querySelector(".topbar-right");
@@ -21,6 +22,7 @@ const PLAN_CLASS = {
 };
 
 let currentPlanBadge = null;
+let planUnsubscribe = null;
 
 function applyPlanBadge(planId) {
   if (!planBadge) return;
@@ -134,9 +136,21 @@ function connectProfileMenu() {
   });
 }
 
+function connectPlanStore() {
+  if (planUnsubscribe) return;
+  const cachedState = hydratePlanCache();
+  if (cachedState?.planId) {
+    applyPlanBadge(cachedState.planId);
+  }
+  planUnsubscribe = subscribePlan((state) => {
+    applyPlanBadge(state?.planId);
+  });
+}
+
 async function hydrateTopbar() {
   const profile = getCachedProfile();
   renderPlanBadgeLoading();
+  connectPlanStore();
   getPlanBootstrapPromise().then((planResult) => {
     applyPlanBadge(planResult?.planId);
   });

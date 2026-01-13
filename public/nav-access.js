@@ -4,6 +4,7 @@ import {
   getPlanBootstrapPromise,
 } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
+import { hydratePlanCache, subscribePlan } from "./plan-store.js";
 
 const ROUTE_KEYS = {
   dashboard: "overview",
@@ -418,7 +419,21 @@ export function initNavPlanFilter() {
   }
   navState.initialized = true;
 
-  applyNavPendingState();
+  const cachedState = hydratePlanCache();
+  const cachedPlan = cachedState?.planId;
+  if (cachedPlan) {
+    applyNavPlanFilter(cachedPlan, { forceRemove: isStarterPlan(cachedPlan) });
+    guardCurrentPage();
+  } else {
+    applyNavPendingState();
+  }
+
+  subscribePlan((state) => {
+    const nextPlan = state?.planId;
+    if (!nextPlan) return;
+    applyNavPlanFilter(nextPlan, { forceRemove: isStarterPlan(nextPlan) });
+    guardCurrentPage();
+  });
 
   getPlanBootstrapPromise().then((planResult = {}) => {
     const planId = planResult?.planId;

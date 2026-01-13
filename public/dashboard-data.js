@@ -1,9 +1,29 @@
-import { collection, db, getDocs, query, where } from "./firebase-config.js";
+import { collection, db, getDocs, query, where, orderBy, limit, startAfter } from "./firebase-config.js";
 import { listenForUser } from "./session-data.js";
 import { fetchFeedbackForBusiness } from "./feedback-store.js";
 
+const REVIEWS_CACHE_TTL_MS = 60 * 1000;
+const reviewsCache = new Map();
+const reviewsInflight = new Map();
+const isDevEnv =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
 export function onSession(callback) {
   return listenForUser(callback);
+}
+
+function withTiming(label, fn) {
+  if (isDevEnv) {
+    console.time(label);
+  }
+  return Promise.resolve()
+    .then(fn)
+    .finally(() => {
+      if (isDevEnv) {
+        console.timeEnd(label);
+      }
+    });
 }
 
 function normalizeTimestamp(raw) {
@@ -30,7 +50,7 @@ function normalizeStatus(raw = {}) {
   return (raw.status || "open").toString().toLowerCase();
 }
 
-async function collect(queryBuilder) {
+async function collect(queryBuilder, fallbackBuilder = null) {
   const results = [];
   try {
     const snap = await queryBuilder();
@@ -38,22 +58,80 @@ async function collect(queryBuilder) {
       results.push({ id: docSnap.id, ...docSnap.data() });
     });
   } catch (err) {
+    if (fallbackBuilder) {
+      console.warn("[dashboard-data] fetch failed, trying fallback", err);
+      return collect(fallbackBuilder, null);
+    }
     console.warn("[dashboard-data] fetch failed", err);
   }
   return results;
 }
 
-export async function fetchAllReviews(businessId) {
-  if (!businessId) return [];
-  const feedback = await fetchFeedbackForBusiness(businessId, { includeLegacy: true, logDebug: true });
-  const googleReviews = await collect(() =>
-    getDocs(query(collection(db, "googleReviews"), where("businessId", "==", businessId)))
-  );
+function readCache(cacheKey) {
+  const cached = reviewsCache.get(cacheKey);
+  if (!cached) return null;
+  if (Date.now() - cached.timestamp > REVIEWS_CACHE_TTL_MS) {
+    reviewsCache.delete(cacheKey);
+    return null;
+  }
+  return cached.data;
+}
 
-  return [
-    ...feedback.map((item) => ({ ...item, source: item.source || "feedback" })),
-    ...googleReviews.map((item) => ({ ...item, source: "google" })),
-  ];
+function writeCache(cacheKey, data) {
+  reviewsCache.set(cacheKey, { data, timestamp: Date.now() });
+}
+
+function buildGoogleQuery({ businessId, pageSize, startAfterValue, orderField }) {
+  const constraints = [where("businessId", "==", businessId), orderBy(orderField, "desc")];
+  if (startAfterValue !== null && startAfterValue !== undefined) {
+    constraints.push(startAfter(startAfterValue));
+  }
+  constraints.push(limit(pageSize));
+  return query(collection(db, "googleReviews"), ...constraints);
+}
+
+export async function fetchAllReviews(
+  businessId,
+  { pageSize = 200, startAfterValue = null } = {}
+) {
+  if (!businessId) return [];
+  const cacheKey = JSON.stringify({ businessId, pageSize, startAfterValue });
+  const cached = readCache(cacheKey);
+  if (cached) return cached;
+  if (reviewsInflight.has(cacheKey)) return reviewsInflight.get(cacheKey);
+
+  const fetchPromise = (async () => {
+    const feedback = await fetchFeedbackForBusiness(businessId, {
+      includeLegacy: true,
+      logDebug: isDevEnv,
+      pageSize,
+      startAfterMs: null,
+    });
+    const googleReviews = await collect(
+      () =>
+        withTiming("[dashboard-data] google reviews fetch", () =>
+          getDocs(buildGoogleQuery({ businessId, pageSize, startAfterValue, orderField: "createdAt" }))
+        ),
+      () =>
+        withTiming("[dashboard-data] google reviews fallback", () =>
+          getDocs(buildGoogleQuery({ businessId, pageSize, startAfterValue, orderField: "timestamp" }))
+        )
+    );
+
+    const merged = [
+      ...feedback.map((item) => ({ ...item, source: item.source || "feedback" })),
+      ...googleReviews.map((item) => ({ ...item, source: "google" })),
+    ];
+    writeCache(cacheKey, merged);
+    return merged;
+  })();
+
+  reviewsInflight.set(cacheKey, fetchPromise);
+  try {
+    return await fetchPromise;
+  } finally {
+    reviewsInflight.delete(cacheKey);
+  }
 }
 
 export function calculateMetrics(reviews = []) {
@@ -129,4 +207,3 @@ export function describeReview(review = {}) {
   );
   return { ...review, displayName: name, rating, message, createdAt };
 }
-
