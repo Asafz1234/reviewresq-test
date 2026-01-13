@@ -29,6 +29,24 @@ let cachedSubscription = null;
 let cachedBusiness = null;
 let cachedUser = null;
 
+const isDevEnv =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+function logBootstrapPending() {
+  if (!isDevEnv || typeof window === "undefined") return;
+  if (window.__rrBootstrapPendingLogged) return;
+  console.debug("[rr] bootstrap pending");
+  window.__rrBootstrapPendingLogged = true;
+}
+
+function logBootstrapResolved(planId) {
+  if (!isDevEnv || typeof window === "undefined") return;
+  if (window.__rrBootstrapResolvedLogged === planId) return;
+  console.debug(`[rr] bootstrap resolved: ${planId}`);
+  window.__rrBootstrapResolvedLogged = planId;
+}
+
 const globalPlanState = (() => {
   if (typeof window === "undefined") return null;
   if (!window.__rrPlanState) {
@@ -279,6 +297,7 @@ function resolvePlanPromise(planId, source = "auth") {
       planBootstrapResolve = null;
     }
     planBootstrapPromise = Promise.resolve(payload);
+    logBootstrapResolved(payload.planId);
   }
   syncPlanState();
   debugPlanCache("resolved", payload);
@@ -303,6 +322,7 @@ function ensurePlanBootstrapPromise() {
     planBootstrapPromise = new Promise((resolve) => {
       planBootstrapResolve = resolve;
     });
+    logBootstrapPending();
     syncPlanState();
   }
   return planBootstrapPromise;
@@ -363,6 +383,11 @@ export function getPlanBootstrapPromise() {
 export function hasPlanBootstrapResolved() {
   hydratePlanState();
   return Boolean(planBootstrapResolved?.planId);
+}
+
+export function getPlanBootstrapResolved() {
+  hydratePlanState();
+  return planBootstrapResolved;
 }
 
 export function listenForUser(callback) {
