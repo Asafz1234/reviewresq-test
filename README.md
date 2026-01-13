@@ -21,6 +21,17 @@ firebase deploy --only functions
 
 For local emulation, create a `.env` file in the project root with the same variable names so that `process.env` resolves them during development.
 
+## Plan cache + dashboard performance notes
+
+- The sidebar/topbar now hydrate the last known plan from a shared plan store backed by `localStorage` (keyed by business id) to avoid plan flashes between tabs. Background plan refreshes still update the UI once resolved.
+- Dashboard review pulls now use in-memory caching (60s TTL), limits/paginates Firestore reads, and add dev-only `console.time` instrumentation around each fetch.
+
+To validate:
+
+- Navigate between several dashboard tabs quickly; the plan badge and gated items should not revert to Starter.
+- Hard refresh a dashboard page; the plan should show as Loading or cached, then reconcile without a Starter flash.
+- In dev, check the console for `[feedback]` and `[dashboard-data]` timing logs to confirm fewer repeated fetches.
+
 ### Verification
 
 Deploying Functions should no longer prompt for `SENDGRID_SENDER`; the value is sourced from the Cloud Secret Manager secrets `SENDGRID_API_KEY` and `SENDGRID_SENDER` that must exist before deployment.

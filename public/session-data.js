@@ -12,6 +12,7 @@ import {
   hasFeature,
   getPlanEntitlements,
 } from "./plan-capabilities.js";
+import { setPlan as setPlanStore, hydratePlanCache } from "./plan-store.js";
 
 const DEFAULT_BRAND_COLOR = "#2563EB";
 const DEFAULT_SUPPORT_EMAIL = "support@reviewresq.com";
@@ -21,7 +22,8 @@ export const PLAN_DETAILS = {
   growth: { label: PLAN_LABELS.growth, priceMonthly: 99 },
 };
 
-const PLAN_CACHE_KEY = "rrPlanCache";
+const PLAN_CACHE_PREFIX = "rrPlanCache";
+const PLAN_CACHE_LAST_KEY = `${PLAN_CACHE_PREFIX}:last`;
 const PLAN_CACHE_TS_KEY = "timestamp";
 
 let cachedProfile = null;
@@ -220,10 +222,16 @@ function getCacheAgeMs(cache, maxAgeMs) {
   return ageMs;
 }
 
-function readPlanCache() {
+function getPlanCacheKey(businessId) {
+  if (businessId) return `${PLAN_CACHE_PREFIX}:${businessId}`;
+  return PLAN_CACHE_LAST_KEY;
+}
+
+function readPlanCache(businessId = cachedUser?.uid) {
   if (typeof window === "undefined") return null;
   try {
-    const cached = localStorage.getItem(PLAN_CACHE_KEY);
+    const cacheKey = getPlanCacheKey(businessId);
+    const cached = localStorage.getItem(cacheKey);
     if (!cached) return null;
     try {
       const parsed = JSON.parse(cached);
@@ -244,27 +252,31 @@ function readPlanCache() {
   }
 }
 
-export function getCachedPlan() {
-  const cache = readPlanCache();
+export function getCachedPlan(businessId = cachedUser?.uid) {
+  const cache = readPlanCache(businessId) || readPlanCache();
   if (!cache?.planId) return null;
   debugPlanCache("read", { planId: cache.planId, timestamp: cache.timestamp });
   return cache.planId;
 }
 
-export function setCachedPlan(planId) {
+export function setCachedPlan(planId, businessId = cachedUser?.uid) {
   if (!planId || typeof window === "undefined") return;
   try {
     const normalized = normalizePlan(planId);
-    const existing = readPlanCache();
+    const existing = readPlanCache(businessId) || readPlanCache();
     if (existing?.planId && existing.planId === normalized) {
       debugPlanCache("write-skip", { planId: normalized });
       return;
     }
     const payload = {
       planId: normalized,
+      businessId: businessId || null,
       [PLAN_CACHE_TS_KEY]: Date.now(),
     };
-    localStorage.setItem(PLAN_CACHE_KEY, JSON.stringify(payload));
+    if (businessId) {
+      localStorage.setItem(getPlanCacheKey(businessId), JSON.stringify(payload));
+    }
+    localStorage.setItem(PLAN_CACHE_LAST_KEY, JSON.stringify(payload));
     debugPlanCache("write", payload);
   } catch (err) {
     console.warn("[session-data] unable to cache plan", err);
@@ -301,6 +313,9 @@ function resolvePlanPromise(planId, source = "auth") {
   }
   syncPlanState();
   debugPlanCache("resolved", payload);
+  if (normalized) {
+    setPlanStore(normalized, { source, businessId: cachedUser?.uid });
+  }
   return payload;
 }
 
@@ -398,6 +413,7 @@ export function listenForUser(callback) {
     }
 
     cachedUser = user;
+    hydratePlanCache({ businessId: user.uid });
 
     if (!cachedProfile) {
       cachedProfile = (await fetchProfile(user.uid)) || { id: user.uid };
