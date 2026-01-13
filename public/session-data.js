@@ -248,6 +248,10 @@ function resolvePlanPromise(planId, source = "auth") {
     debugPlanCache("resolve-skip", { source });
     return null;
   }
+  if (planResolved?.planId && planResolved.planId === normalized) {
+    debugPlanCache("resolve-skip-same", { source, planId: normalized });
+    return planResolved;
+  }
   const payload = { planId: normalized, source };
   planResolved = payload;
   if (planPromiseResolve) {

@@ -172,11 +172,9 @@ export function applyNavPlanFilter(planId, { forceRemove = false } = {}) {
 
   try {
     if (!planId) return;
-    if (typeof window !== "undefined") {
-      if (window.__rrPlanApplied) return;
-      window.__rrPlanApplied = true;
-    }
-    navState.currentPlan = normalizePlan(planId);
+    const nextPlan = normalizePlan(planId);
+    if (navState.currentPlan === nextPlan) return;
+    navState.currentPlan = nextPlan;
     navState.planPending = false;
     navState.currentEntitlementState = currentEntitlements(navState.currentPlan);
     const navAccess = ensureWindowNavAccess();
