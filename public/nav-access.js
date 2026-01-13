@@ -1,9 +1,9 @@
 import {
-  listenForUser,
   isStarterPlan,
   currentEntitlements,
   getPlanBootstrapPromise,
   hasPlanBootstrapResolved,
+  getPlanBootstrapResolved,
 } from "./session-data.js";
 import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
 
@@ -434,7 +434,13 @@ export function initNavPlanFilter() {
   }
   navState.initialized = true;
 
-  if (!hasPlanBootstrapResolved()) {
+  const resolvedBootstrap = getPlanBootstrapResolved();
+  if (resolvedBootstrap?.planId) {
+    applyNavPlanFilter(resolvedBootstrap.planId, {
+      forceRemove: isStarterPlan(resolvedBootstrap.planId),
+    });
+    guardCurrentPage();
+  } else if (!hasPlanBootstrapResolved()) {
     applyNavPendingState();
   }
 
@@ -460,15 +466,6 @@ export function initNavPlanFilter() {
   };
 
   observeWithRetry();
-
-  listenForUser(({ subscription }) => {
-    const planId = subscription?.planId;
-    const forceRemoval = planId ? isStarterPlan(planId) : false;
-    if (planId) {
-      applyNavPlanFilter(planId, { forceRemove: forceRemoval });
-    }
-    guardCurrentPage();
-  });
 
   console.debug("[navAccess] ready", { plan: window.navAccess?.plan });
 }

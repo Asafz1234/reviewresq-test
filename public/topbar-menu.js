@@ -6,10 +6,10 @@ import {
   getCachedProfile,
   getPlanBootstrapPromise,
   hasPlanBootstrapResolved,
+  getPlanBootstrapResolved,
   refreshSubscription,
 } from "./session-data.js";
 import { PLAN_LABELS } from "./plan-capabilities.js";
-import { applyNavPlanFilter } from "./nav-access-versioned.js";
 
 const planBadge = document.getElementById("planBadge");
 const topbarRight = document.querySelector(".topbar-right");
@@ -59,14 +59,6 @@ function resolvePlanId(planId) {
   if (raw.includes("growth")) return "growth";
   if (raw.includes("starter")) return "starter";
   return null;
-}
-
-function syncNavAccessPlan(planId) {
-  const normalizedPlan = resolvePlanId(planId);
-  applyPlanBadge(normalizedPlan);
-  if (normalizedPlan) {
-    applyNavPlanFilter(normalizedPlan);
-  }
 }
 
 function buildProfileMenu() {
@@ -146,8 +138,11 @@ function connectProfileMenu() {
 
 async function hydrateTopbar() {
   const profile = getCachedProfile();
+  const resolvedBootstrap = getPlanBootstrapResolved();
 
-  if (!hasPlanBootstrapResolved()) {
+  if (resolvedBootstrap?.planId) {
+    applyPlanBadge(resolvedBootstrap.planId);
+  } else if (!hasPlanBootstrapResolved()) {
     renderPlanBadgeLoading();
   }
 
@@ -160,8 +155,7 @@ async function hydrateTopbar() {
   }
 }
 
-listenForUser(async ({ subscription, profile }) => {
-  syncNavAccessPlan(subscription?.planId);
+listenForUser(async ({ profile }) => {
   setProfileAvatar(profile?.businessName || profile?.name || "");
 });
 
@@ -183,8 +177,9 @@ planBadge?.addEventListener("click", (e) => {
 });
 
 export async function refreshTopbarSubscription() {
-  const subscription = await refreshSubscription();
-  applyPlanBadge(subscription?.planId);
+  await refreshSubscription();
+  const planResult = await getPlanBootstrapPromise();
+  applyPlanBadge(planResult?.planId);
 }
 
 export { applyPlanBadge };
