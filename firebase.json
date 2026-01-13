@@ -160,7 +160,8 @@
       { "source": "/api/sendgrid/events", "function": "sendgridEvents" },
       { "source": "/api/resolveInviteToken", "function": "resolveInviteToken" },
       { "source": "/api/submitPortalFeedback", "function": "submitPortalFeedback" },
-      { "source": "/api/recordReviewLinkClick", "function": "recordReviewLinkClick" }
+      { "source": "/api/recordReviewLinkClick", "function": "recordReviewLinkClick" },
+      { "source": "**", "destination": "/index.html" }
     ]
   }
 }
