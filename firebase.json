@@ -48,16 +48,6 @@
         "type": 301
       },
       {
-        "source": "/pages/ask-reviews.html",
-        "destination": "/ask-reviews",
-        "type": 301
-      },
-      {
-        "source": "/pages/ask-reviews",
-        "destination": "/ask-reviews",
-        "type": 301
-      },
-      {
         "source": "/ask-reviews.html",
         "destination": "/ask-reviews",
         "type": 301
@@ -110,6 +100,8 @@
       { "source": "/customers/**", "destination": "/customers.html" },
       { "source": "/feedback", "destination": "/feedback.html" },
       { "source": "/feedback/**", "destination": "/feedback.html" },
+      { "source": "/google-reviews", "destination": "/pages/google-reviews.html" },
+      { "source": "/google-reviews/**", "destination": "/pages/google-reviews.html" },
       { "source": "/google-reviews.html", "destination": "/pages/google-reviews.html" },
       { "source": "/googleAuthGetConfigV2", "function": "googleAuthGetConfigV2" },
       { "source": "/googleAuthCreateStateV2", "function": "googleAuthCreateStateV2" },

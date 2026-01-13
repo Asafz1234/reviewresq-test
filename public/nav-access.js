@@ -34,7 +34,7 @@ const ROUTE_PATHS = {
   "ask-reviews": "/ask-reviews",
   inbox: "/feedback.html",
   feedback: "/feedback.html",
-  "google-reviews": "/pages/google-reviews.html",
+  "google-reviews": "/google-reviews",
   customers: "/customers",
   funnel: "/funnel-settings.html",
   links: "/links.html",

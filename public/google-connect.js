@@ -350,7 +350,7 @@ function ensureOAuthClickHandler() {
   }
 }
 
-async function startGoogleOAuth({ returnTo = "/google-reviews.html" } = {}) {
+async function startGoogleOAuth({ returnTo = "/google-reviews" } = {}) {
   const btn = resolveOAuthButton();
   const statusEl = document.querySelector("[data-google-oauth-status]");
   const resultsEl = document.querySelector("[data-google-oauth-results]");
