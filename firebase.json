@@ -1,167 +1,19 @@
 {
-  "functions": {
-    "source": "functions"
-  },
   "hosting": {
-    "target": "prod",
     "public": "public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "redirects": [
-      {
-        "source": "/pages/feedback.html",
-        "destination": "/feedback",
-        "type": 301
-      },
-      {
-        "source": "/pages/feedback",
-        "destination": "/feedback",
-        "type": 301
-      },
-      {
-        "source": "/pages/ask-reviews",
-        "destination": "/ask-reviews",
-        "type": 301
-      },
-      {
-        "source": "/pages/ask-reviews/",
-        "destination": "/ask-reviews",
-        "type": 301
-      },
-      {
-        "source": "/s4reviews",
-        "destination": "/ask-reviews",
-        "type": 301
-      },
-      {
-        "source": "/s4reviews/",
-        "destination": "/ask-reviews",
-        "type": 301
-      },
-      {
-        "source": "/feedback.html",
-        "destination": "/feedback",
-        "type": 301
-      },
-      {
-        "source": "/feedback/",
-        "destination": "/feedback",
-        "type": 301
-      },
-      {
-        "source": "/customers.html",
-        "destination": "/customers",
-        "type": 301
-      },
-      {
-        "source": "/pages/customers.html",
-        "destination": "/customers",
-        "type": 301
-      },
-      {
-        "source": "/pages/customers",
-        "destination": "/customers",
-        "type": 301
-      },
-      {
-        "source": "/pages/google-reviews",
-        "destination": "/google-reviews",
-        "type": 301
-      },
-      {
-        "source": "/pages/google-reviews/",
-        "destination": "/google-reviews",
-        "type": 301
-      },
-      {
-        "source": "/customers/",
-        "destination": "/customers",
-        "type": 301
-      },
-      {
-        "source": "/links.html",
-        "destination": "/links",
-        "type": 301
-      },
-      {
-        "source": "/links/",
-        "destination": "/links",
-        "type": 301
-      },
-      {
-        "source": "/ask-reviews.html",
-        "destination": "/ask-reviews",
-        "type": 301
-      },
-      {
-        "source": "/ask-reviews/",
-        "destination": "/ask-reviews",
-        "type": 301
-      },
-      {
-        "source": "/portal.html",
-        "destination": "/portal",
-        "type": 301
-      },
-      {
-        "source": "/pages/portal.html",
-        "destination": "/portal",
-        "type": 301
-      },
-      {
-        "source": "/overview.html",
-        "destination": "/overview",
-        "type": 301
-      },
-      {
-        "source": "/pages/overview.html",
-        "destination": "/overview",
-        "type": 301
-      },
-      {
-        "source": "/overview/",
-        "destination": "/overview",
-        "type": 301
-      },
-      {
-        "source": "/pages/overview",
-        "destination": "/overview",
-        "type": 301
-      }
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
     ],
     "rewrites": [
-      { "source": "/r/**", "destination": "/pages/portal.html" },
-      { "source": "/portal", "destination": "/pages/portal.html" },
-      { "source": "/portal/**", "destination": "/pages/portal.html" },
-      { "source": "/overview", "destination": "/overview.html" },
-      { "source": "/overview/**", "destination": "/overview.html" },
-      { "source": "/pages/ask-reviews", "destination": "/pages/ask-reviews.html" },
-      { "source": "/pages/ask-reviews/**", "destination": "/pages/ask-reviews.html" },
-      { "source": "/s4reviews", "destination": "/pages/ask-reviews.html" },
-      { "source": "/s4reviews/**", "destination": "/pages/ask-reviews.html" },
-      { "source": "/pages/google-reviews", "destination": "/pages/google-reviews.html" },
-      { "source": "/pages/google-reviews/**", "destination": "/pages/google-reviews.html" },
-      { "source": "/ask-reviews", "destination": "/pages/ask-reviews.html" },
-      { "source": "/ask-reviews/**", "destination": "/pages/ask-reviews.html" },
-      { "source": "/customers", "destination": "/customers.html" },
-      { "source": "/customers/**", "destination": "/customers.html" },
-      { "source": "/links", "destination": "/links.html" },
-      { "source": "/links/**", "destination": "/links.html" },
-      { "source": "/feedback", "destination": "/feedback.html" },
-      { "source": "/feedback/**", "destination": "/feedback.html" },
-      { "source": "/google-reviews", "destination": "/pages/google-reviews.html" },
-      { "source": "/google-reviews/**", "destination": "/pages/google-reviews.html" },
-      { "source": "/google-reviews.html", "destination": "/pages/google-reviews.html" },
-      { "source": "/googleAuthGetConfigV2", "function": "googleAuthGetConfigV2" },
-      { "source": "/googleAuthCreateStateV2", "function": "googleAuthCreateStateV2" },
-      { "source": "/googlePlacesSearch", "function": "googlePlacesSearch" },
-      { "source": "/googlePlacesSearch2", "function": "googlePlacesSearch2" },
-      { "source": "/api/sendReviewRequestEmail", "function": "sendReviewRequestEmailHttp" },
-      { "source": "/api/createInviteToken", "function": "createInviteTokenHttp" },
-      { "source": "/api/sendgrid/events", "function": "sendgridEvents" },
-      { "source": "/api/resolveInviteToken", "function": "resolveInviteToken" },
-      { "source": "/api/submitPortalFeedback", "function": "submitPortalFeedback" },
-      { "source": "/api/recordReviewLinkClick", "function": "recordReviewLinkClick" },
-      { "source": "**", "destination": "/index.html" }
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ]
+  },
+  "functions": {
+    "source": "functions"
   }
 }

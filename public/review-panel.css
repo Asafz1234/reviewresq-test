@@ -1,0 +1,151 @@
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #F9FAFB;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.review-panel-container {
+  width: 100%;
+  max-width: 420px;
+  background-color: #FFFFFF;
+  border-radius: 1.5rem;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid #E5E7EB;
+}
+
+.panel-header {
+  margin-bottom: 2rem;
+}
+
+.business-logo {
+  max-width: 100px;
+  max-height: 100px;
+  object-fit: contain;
+  margin-bottom: 1rem;
+  border-radius: 0.75rem;
+}
+
+.business-name {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.prompt {
+  font-size: 1rem;
+  color: #4B5563;
+  margin-bottom: 1.5rem;
+}
+
+.stars-container {
+  display: flex;
+  gap: 0.75rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.star {
+  font-size: 2.5rem;
+  color: #D1D5DB; /* Lighter grey for inactive */
+  transition: color 0.2s, transform 0.2s;
+  line-height: 1;
+}
+
+.star:hover {
+  transform: scale(1.15);
+}
+
+.star.active {
+  color: #FBBF24; /* Gold color */
+}
+
+.step-container {
+  width: 100%;
+}
+
+.headline {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.feedback-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.875rem 1.5rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.btn-primary {
+  background-color: #10B981; /* A friendly green */
+  color: white;
+  box-shadow: 0 4px 6px -1px rgb(16 185 129 / 0.3), 0 2px 4px -2px rgb(16 185 129 / 0.3);
+}
+
+.btn-primary:hover {
+  background-color: #059669;
+  box-shadow: 0 10px 15px -3px rgb(16 185 129 / 0.4), 0 4px 6px -4px rgb(16 185 129 / 0.4);
+}
+
+.review-footer {
+  margin-top: 2rem;
+  font-size: 0.875rem;
+  color: #6B7280;
+}
+
+.review-footer a {
+  color: #4F46E5;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.review-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Spinner for loading state */
+.spinner {
+  border: 4px solid #E5E7EB;
+  border-top: 4px solid #4F46E5;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

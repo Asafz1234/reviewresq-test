@@ -1,81 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>
-    document.documentElement.classList.add('rr-plan-pending');
-    document.documentElement.classList.add('rr-data-pending');
-  </script>
-  <style>
-    html.rr-plan-pending [data-rr-plan-text],
-    html.rr-data-pending [data-rr-plan-text] { visibility: hidden; }
-    html.rr-plan-pending .rr-plan-badge,
-    html.rr-data-pending .rr-plan-badge { visibility: hidden; }
-    html.rr-plan-pending [data-plan-gated],
-    html.rr-data-pending [data-plan-gated] { display:none !important; }
-  </style>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewResQ – Review Links</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="dashboard.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Link</title>
+    <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">RR</div>
-        <div class="brand-name">ReviewResQ</div>
-      </div>
-      <nav class="global-nav" aria-label="Dashboard navigation">
-        <a class="nav-tab" data-route="dashboard" href="dashboard.html"><span class="nav-icon">🏠</span><span>Overview</span></a>
-        <a class="nav-tab" data-route="ask-reviews" href="/ask-reviews"><span class="nav-icon">✉️</span><span>Ask for reviews</span></a>
-        <a class="nav-tab" data-route="inbox" href="feedback.html"><span class="nav-icon">💬</span><span>Customer Feedback</span></a>
-        <a class="nav-tab" data-route="google-reviews" href="/google-reviews"><span class="nav-icon">★</span><span>Google Reviews</span></a>
-        <a class="nav-tab" data-route="customers" href="/customers"><span class="nav-icon">👥</span><span>Customers</span></a>
-        <a class="nav-tab" data-route="funnel" href="funnel-settings.html"><span class="nav-icon">↗</span><span>Review Funnel</span></a>
-        <a class="nav-tab" data-route="links" href="/links"><span class="nav-icon">🔗</span><span>Review Links</span></a>
-        <a class="nav-tab" data-route="alerts" href="alerts.html"><span class="nav-icon">🔔</span><span>Alerts &amp; Notifications</span></a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html"><span class="nav-icon">🤖</span><span>AI Phone Agent</span></a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html#pro-suite"><span class="nav-icon">⚡</span><span>Pro AI Suite</span></a>
-        <a class="nav-tab" data-route="business-settings" href="business-settings.html"><span class="nav-icon">🎨</span><span>Business Settings</span></a>
-        <a class="nav-tab" data-route="account" href="account.html"><span class="nav-icon">💳</span><span>Account &amp; Billing</span></a>
-      </nav>
-    </aside>
-
-    <div class="main">
-      <header class="topbar">
-        <div class="topbar-title">Review links</div>
-        <div class="topbar-right">
-          <span class="badge" data-plan-badge data-rr-plan-text>Loading…</span>
-          <a class="btn btn-outline" href="account.html">Account &amp; billing</a>
-          <button class="btn btn-link" type="button" onclick="window.location.href='auth.html'">Log out</button>
-        </div>
-      </header>
-
-      <div class="page-shell">
-        <header class="page-header">
-          <p class="page-title">Review Links</p>
-          <p class="page-subtitle">Shareable ReviewResQ links to collect feedback and public reviews.</p>
-        </header>
-
-        <section class="card">
-          <p class="card-title">Public funnel link</p>
-          <div class="input-row">
-            <input class="input" type="text" data-funnel-link value="—" readonly />
-            <div class="button-row">
-              <button class="btn btn-outline" type="button" data-copy="portal">Copy link</button>
-              <button class="btn btn-primary" type="button" data-download-qr disabled>Download QR code</button>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="global-nav"></div>
+        </aside>
+        <div class="main">
+            <header class="topbar">
+                <div classs="topbar-title">Review Link</div>
+            </header>
+            <div class="page-shell">
+                <h1>Review Link Page</h1>
+                <p>This page is under construction.</p>
             </div>
-          </div>
-        </section>
-      </div>
+        </div>
     </div>
-  </div>
-  <div class="toast" id="copyToast" role="status" aria-live="polite" aria-atomic="true"></div>
-  <script type="module" src="nav-access-init.js"></script>
-  <script type="module" src="links.js"></script>
-  <script src="dashboard-nav.js"></script>
+    <script type="module" src="nav-access-init.js"></script>
+    <script src="dashboard-nav.js" defer></script>
 </body>
 </html>

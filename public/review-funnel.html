@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Funnel | ReviewResQ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="dashboard.css">
+    
+    <style>
+        /* LAYOUT FIXES (Same as Google Reviews) */
+        html, body { height: 100%; margin: 0; overflow: hidden; }
+        .dashboard-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+        .sidebar { width: 260px; background-color: #111827; color: white; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid #374151; }
+        .sidebar-header { padding: 20px; font-size: 1.25rem; font-weight: bold; border-bottom: 1px solid #1f2937; }
+        .nav-links { list-style: none; padding: 0; margin: 20px 0; flex-grow: 1; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: #9ca3af; text-decoration: none; transition: all 0.2s; }
+        .nav-link:hover, .nav-link.active { background-color: #1f2937; color: white; border-left: 4px solid #3b82f6; }
+        .nav-icon { width: 20px; text-align: center; }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; background: #f3f4f6; }
+        .topbar { height: 64px; background: white; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; }
+        .content-scroll { flex-grow: 1; overflow-y: auto; padding: 24px; }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><i class="fas fa-star text-primary me-2"></i>ReviewResQ</div>
+            <ul class="nav-links">
+                <li><a href="/overview" class="nav-link"><i class="fas fa-home nav-icon"></i> Overview</a></li>
+                <li><a href="/ask-reviews" class="nav-link"><i class="fas fa-paper-plane nav-icon"></i> Ask for Reviews</a></li>
+                <li><a href="/customer-feedback" class="nav-link"><i class="fas fa-comments nav-icon"></i> Customer Feedback</a></li>
+                <li><a href="/google-reviews" class="nav-link"><i class="fas fa-star nav-icon"></i> Google Reviews</a></li>
+                <li><a href="/customers" class="nav-link"><i class="fas fa-users nav-icon"></i> Customers</a></li>
+                <li><a href="/review-funnel" class="nav-link active"><i class="fas fa-filter nav-icon"></i> Review Funnel</a></li>
+                <li><a href="/settings" class="nav-link"><i class="fas fa-cog nav-icon"></i> Settings</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <header class="topbar">
+                <div class="fw-bold text-secondary">Review Funnel Settings</div>
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill">Starter Plan</span>
+            </header>
+            
+            <div class="content-scroll">
+                <div class="container-fluid" style="max-width: 1000px;">
+                    <div class="row">
+                        <div class="col-md-7">
+                            <div class="card shadow-sm border-0 mb-4">
+                                <div class="card-header bg-white py-3"><h5 class="mb-0">Funnel Configuration</h5></div>
+                                <div class="card-body">
+                                    <form id="funnel-form">
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">Minimum Star Rating for Public Review</label>
+                                            <select class="form-select" id="minRating">
+                                                <option value="5">5 Stars Only (Strict)</option>
+                                                <option value="4" selected>4 Stars & Up (Recommended)</option>
+                                                <option value="3">3 Stars & Up</option>
+                                            </select>
+                                            <div class="form-text">Customers rating below this will be sent to a private feedback form.</div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Happy Customer Message</label>
+                                            <textarea class="form-control" id="positiveMsg" rows="2">Thanks! We'd love if you shared your experience on Google.</textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Unhappy Customer Message</label>
+                                            <textarea class="form-control" id="negativeMsg" rows="2">Thank you. Please tell us how we can improve.</textarea>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save Settings</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-5">
+                            <div class="card shadow-sm border-0 bg-light">
+                                <div class="card-body text-center p-4">
+                                    <h6 class="text-muted mb-3">LIVE PREVIEW</h6>
+                                    <div style="background:white; border-radius:16px; padding:30px; border:1px solid #e5e7eb; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+                                        <div style="width:60px; height:60px; background:#f3f4f6; border-radius:50%; margin:0 auto 15px;"></div>
+                                        <h5>How was your experience?</h5>
+                                        <div class="my-3 text-warning fs-4">
+                                            <i class="far fa-star"></i><i class="far fa-star"></i><i class="far fa-star"></i><i class="far fa-star"></i><i class="far fa-star"></i>
+                                        </div>
+                                        <p class="small text-muted">Powered by ReviewResQ</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="review-funnel.js"></script>
+</body>
+</html>

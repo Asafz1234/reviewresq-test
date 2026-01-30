@@ -1,118 +1,158 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>
-    document.documentElement.classList.add('rr-plan-pending');
-  </script>
-  <script>
-    document.documentElement.classList.add('rr-plan-pending');
-    document.documentElement.classList.add('rr-data-pending');
-  </script>
-  <style>
-    html.rr-plan-pending [data-rr-plan-text],
-    html.rr-data-pending [data-rr-plan-text] { visibility: hidden; }
-    html.rr-plan-pending .rr-plan-badge,
-    html.rr-data-pending .rr-plan-badge { visibility: hidden; }
-    html.rr-plan-pending [data-plan-gated],
-    html.rr-data-pending [data-plan-gated] { display:none !important; }
-  </style>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewResQ – Account & Billing</title>
-  <link
-    rel="icon"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
-  />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
-  <link rel="stylesheet" href="dashboard.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account & Billing - ReviewResQ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="nav-access-init.js"></script>
+  <script type="module" src="session-data.js"></script>
+  <script src="dashboard-nav.js" defer></script>
+  
+  <style>
+    /* Sidebar component styles */
+    .nav-tab {
+      display: flex;
+      align-items: center;
+      padding: 0.6rem 1rem;
+      color: #475569; /* Slate-600 */
+      text-decoration: none;
+      border-radius: 0.5rem;
+      transition: all 0.2s;
+      margin-bottom: 0.25rem;
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+    .nav-tab:hover {
+      background-color: #F1F5F9; /* Slate-100 */
+      color: #0F172A; /* Slate-900 */
+    }
+    .nav-tab.active {
+      background-color: #EFF6FF; /* Blue-50 */
+      color: #2563EB; /* Blue-600 */
+    }
+    .nav-icon {
+      margin-right: 0.75rem;
+      font-size: 1.1rem;
+      width: 1.5rem;
+      text-align: center;
+    }
+    .nav-section__label {
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #94A3B8; /* Slate-400 */
+      margin: 1.5rem 0 0.5rem 0.75rem;
+      letter-spacing: 0.05em;
+    }
+  </style>
 </head>
-<body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">RR</div>
-        <div class="brand-name">ReviewResQ</div>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased">
+  
+  <div class="min-h-screen flex bg-slate-50">
+    
+    <aside class="fixed top-0 left-0 h-screen w-64 min-w-[16rem] bg-white border-r border-slate-200 flex flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+      <div class="h-16 flex items-center px-6 border-b border-slate-50 mb-2">
+        <div class="flex items-center gap-2 font-bold text-xl text-slate-800 tracking-tight">
+          <span class="text-blue-600 text-2xl">R</span> ReviewResQ
+        </div>
       </div>
-      <nav class="global-nav" aria-label="Dashboard navigation"></nav>
+      
+      <nav class="global-nav flex-1 overflow-y-auto py-2 px-3 flex flex-col">
+        </nav>
+      
+      <div class="p-4 border-t border-slate-100 bg-slate-50/50">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-sm shadow-blue-200">U</div>
+            <div class="text-xs">
+                <p class="font-semibold text-slate-700" id="user-name">User</p>
+                <p class="text-slate-500">View Profile</p>
+            </div>
+        </div>
+      </div>
     </aside>
 
-    <div class="main">
-      <header class="topbar">
-        <div class="topbar-title">Account &amp; Billing</div>
-        <div class="topbar-right">
-          <span class="badge" data-plan-badge data-rr-plan-text>Loading…</span>
-          <button class="btn btn-link" type="button" onclick="window.location.href='auth.html'">Log out</button>
+    <main class="flex-1 ml-64 p-10">
+      
+      <header class="flex justify-between items-start mb-12">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Account & Billing</h1>
+            <p class="text-slate-500 mt-2 text-lg">Manage your subscription plan and billing details.</p>
+        </div>
+        <div class="flex items-center gap-3">
+           <span id="user-plan-badge" class="invisible px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider shadow-sm">Loading...</span>
         </div>
       </header>
 
-      <div class="page-shell">
-        <header class="page-header">
-          <p class="page-title">Account &amp; Billing</p>
-          <p class="page-subtitle">Manage your plan details and billing info.</p>
-        </header>
-
-        <section class="card plan-summary">
-          <div class="card-header">
-            <div>
-              <p class="card-title">Plan summary</p>
-              <p class="card-subtitle" id="planSummary">Loading plan…</p>
-              <div class="badge-row">
-                <span class="badge badge-success" id="planStatus">Active</span>
-                <span class="badge" id="planRenewal">Next renewal: —</span>
-                <span class="badge badge-success" id="growthEnabledBadge" style="display:none;">Growth enabled</span>
-              </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start max-w-7xl">
+            
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <h3 class="text-xl font-bold text-slate-900">Starter</h3>
+                <p class="text-slate-500 text-sm mt-1 font-medium">For new businesses.</p>
+                <div class="my-6">
+                    <span class="text-5xl font-extrabold text-slate-900 tracking-tight">$0</span><span class="text-slate-500 font-medium">/mo</span>
+                </div>
+                <button onclick="window.switchPlan('starter')" class="w-full py-3 px-4 border border-slate-200 bg-white text-slate-700 font-semibold rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all mb-8 shadow-sm">Switch to Starter</button>
+                
+                <div class="space-y-5">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">INCLUDED</p>
+                    <ul class="space-y-3">
+                        <li class="flex items-start text-sm text-slate-600"><span class="mr-3 text-green-500 font-bold">✓</span> 50 Review Requests</li>
+                        <li class="flex items-start text-sm text-slate-600"><span class="mr-3 text-green-500 font-bold">✓</span> Google Integration</li>
+                        <li class="flex items-start text-sm text-slate-600"><span class="mr-3 text-green-500 font-bold">✓</span> Basic Widget</li>
+                    </ul>
+                    <div class="border-t border-slate-100 my-2"></div>
+                    <ul class="space-y-3 opacity-50">
+                        <li class="flex items-start text-sm text-slate-400"><span class="mr-3">✕</span> SMS Campaigns</li>
+                        <li class="flex items-start text-sm text-slate-400"><span class="mr-3">✕</span> Automations</li>
+                        <li class="flex items-start text-sm text-slate-400"><span class="mr-3">✕</span> Team Access</li>
+                    </ul>
+                </div>
             </div>
-            <div class="button-row">
-              <button class="btn btn-primary" type="button" id="upgradeButton">Upgrade to Growth</button>
+
+            <div class="bg-white rounded-2xl shadow-2xl border-2 border-blue-600 p-8 flex flex-col relative overflow-hidden transform scale-105 z-10 ring-4 ring-blue-50">
+                <div class="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl tracking-wider">POPULAR</div>
+                <h3 class="text-xl font-bold text-slate-900">Growth</h3>
+                <p class="text-blue-600 text-sm mt-1 font-medium">Scale fast with automation.</p>
+                <div class="my-6">
+                    <span class="text-5xl font-extrabold text-slate-900 tracking-tight">$49</span><span class="text-slate-500 font-medium">/mo</span>
+                </div>
+                <button onclick="window.switchPlan('growth')" class="w-full py-3 px-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 mb-8 hover:scale-[1.02]">Upgrade to Growth</button>
+                
+                <div class="space-y-5">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">EVERYTHING IN STARTER, PLUS:</p>
+                    <ul class="space-y-3">
+                        <li class="flex items-start text-sm text-slate-700 font-medium"><span class="mr-3 text-blue-600 font-bold">✓</span> Unlimited Requests</li>
+                        <li class="flex items-start text-sm text-slate-700 font-medium"><span class="mr-3 text-blue-600 font-bold">✓</span> SMS & Email Campaigns</li>
+                        <li class="flex items-start text-sm text-slate-700 font-medium"><span class="mr-3 text-blue-600 font-bold">✓</span> <strong>Automations</strong></li>
+                        <li class="flex items-start text-sm text-slate-700 font-medium"><span class="mr-3 text-blue-600 font-bold">✓</span> Review Funnel</li>
+                        <li class="flex items-start text-sm text-slate-700 font-medium"><span class="mr-3 text-blue-600 font-bold">✓</span> 3 Team Members</li>
+                    </ul>
+                </div>
             </div>
-          </div>
-        </section>
 
-        <section class="card">
-          <p class="card-title">Payment method</p>
-          <div class="stacked">
-            <p class="strong" id="paymentMethod">Card on file</p>
-            <p class="card-subtitle" id="billingEmail">billing@reviewresq.com</p>
-          </div>
-          <div class="button-row">
-            <button class="btn btn-outline" type="button">Update card</button>
-          </div>
-        </section>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <h3 class="text-xl font-bold text-slate-900">AI Suite</h3>
+                <p class="text-slate-500 text-sm mt-1 font-medium">Full AI power.</p>
+                <div class="my-6">
+                    <span class="text-5xl font-extrabold text-slate-900 tracking-tight">$99</span><span class="text-slate-500 font-medium">/mo</span>
+                </div>
+                <button onclick="window.switchPlan('ai-suite')" class="w-full py-3 px-4 border border-purple-200 text-purple-700 bg-purple-50 font-bold rounded-xl hover:bg-purple-100 transition-all mb-8 shadow-sm">Unlock AI Suite</button>
+                
+                <div class="space-y-5">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">EVERYTHING IN GROWTH, PLUS:</p>
+                    <ul class="space-y-3">
+                        <li class="flex items-start text-sm text-slate-600"><span class="mr-3 text-purple-500">✦</span> AI Auto-Reply</li>
+                        <li class="flex items-start text-sm text-slate-600"><span class="mr-3 text-purple-500">✦</span> Sentiment Analysis</li>
+                        <li class="flex items-start text-sm text-slate-600"><span class="mr-3 text-purple-500">✦</span> Competitor Tracking</li>
+                        <li class="flex items-start text-sm text-slate-600"><span class="mr-3 text-purple-500">✦</span> Priority Support</li>
+                    </ul>
+                </div>
+            </div>
 
-        <section class="card">
-          <p class="card-title">Invoices</p>
-          <div class="table-wrapper">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Invoice</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="invoiceTable">
-                <tr>
-                  <td>—</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td><span class="badge">No invoices yet</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
       </div>
-    </div>
+    </main>
   </div>
-
   <script type="module" src="account.js"></script>
-  <script type="module" src="nav-access-init.js"></script>
-  <script src="dashboard-nav.js"></script>
 </body>
 </html>

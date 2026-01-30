@@ -1,13 +1,5 @@
 {
   "projects": {
-    "default": "reviewresq-app",
-    "prod": "reviewresq-app"
-  },
-  "targets": {
-    "reviewresq-app": {
-      "hosting": {
-        "prod": ["reviewresq"]
-      }
-    }
+    "default": "reviewresq-app"
   }
 }

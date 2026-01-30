@@ -1,26 +1,32 @@
-<!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; url=account.html" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewResQ – Account & Billing</title>
+  <title>Billing & Plans - ReviewResQ</title>
   <link rel="stylesheet" href="dashboard.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="app-shell">
-    <main class="page-shell">
-      <section class="card">
-        <p class="card-title">Redirecting…</p>
-        <p class="card-subtitle">Taking you to Account &amp; Billing.</p>
-        <div class="button-row" style="justify-content:flex-start;">
-          <a class="btn btn-primary" href="account.html">Go to Account &amp; Billing</a>
-        </div>
-      </section>
+    <aside class="sidebar"></aside>
+    <main class="main">
+      <div class="topbar">
+        <button class="topbar-toggler">☰</button>
+        <div class="plan-label">Starter Plan</div>
+      </div>
+
+      <div class="header-with-action">
+        <h1>Billing & Plans</h1>
+      </div>
+
+      <div id="billing-content">
+        <!-- Billing content will be injected here -->
+      </div>
+
     </main>
   </div>
-  <script>
-    window.location.replace("account.html");
-  </script>
+
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="dashboard-nav.js"></script>
 </body>
 </html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leave a Review</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="review-panel.css" />
+</head>
+<body>
+
+  <div id="loader" class="review-panel-container">
+      <div class="spinner"></div>
+  </div>
+
+  <div id="review-panel" class="review-panel-container" style="display: none;">
+    <header class="panel-header">
+      <img id="business-logo" src="" alt="Business Logo" class="business-logo" style="display: none;" />
+      <h1 id="business-name" class="business-name"></h1>
+    </header>
+
+    <main id="step-initial">
+      <p id="initial-prompt" class="prompt">Please rate your experience</p>
+      <div id="star-rating-container" class="stars-container">
+        <!-- Stars will be injected by JS -->
+      </div>
+    </main>
+
+    <section id="step-happy" class="step-container" style="display: none;">
+      <h2 id="happy-headline" class="headline"></h2>
+      <p id="happy-prompt" class="prompt"></p>
+      <a href="#" id="google-review-btn" class="btn btn-primary" target="_blank" rel="noopener noreferrer"></a>
+    </section>
+
+    <section id="step-unhappy" class="step-container" style="display: none;">
+      <h2 id="unhappy-headline" class="headline"></h2>
+      <p id="unhappy-prompt" class="prompt"></p>
+      <form id="feedback-form">
+        <textarea id="feedback-message" class="feedback-textarea" rows="4" required placeholder="Your feedback..."></textarea>
+        <button type="submit" id="submit-feedback-btn" class="btn btn-primary">Submit Feedback</button>
+      </form>
+    </section>
+
+    <section id="step-final" class="step-container" style="display: none;">
+      <h2 class="headline">Thank you!</h2>
+      <p class="prompt">We appreciate your feedback.</p>
+    </section>
+
+     <div id="error-state" style="display: none;">
+        <h2 class="headline">Sorry, something went wrong.</h2>
+        <p class="prompt">This review link is either invalid or no longer active.</p>
+     </div>
+  </div>
+
+  <footer class="review-footer">
+    Powered by <a href="https://reviewresq.com" target="_blank">ReviewResQ</a>
+  </footer>
+
+  <script type="module" src="./firebase-config.js"></script>
+  <script type="module" src="./review-panel.js"></script>
+</body>
+</html>

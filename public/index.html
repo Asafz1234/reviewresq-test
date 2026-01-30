@@ -1,335 +1,293 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewResQ – Turn your happy customers into Google reviews</title>
-  <meta
-    name="description"
-    content="ReviewResQ gives local businesses a smart review funnel with Google routing, private feedback, AI insights, and automated follow-ups."
-  />
-  <link
-    rel="icon"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
-  />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="icon" type="image/png" href="/logo.png" />
-  <script>
-    (() => {
-      const { pathname, search, hash } = window.location;
-      const normalizedPath = pathname.replace(/\/+$/, "") || "/";
-      const routeMap = {
-        "/dashboard": "/dashboard.html",
-      };
-      const target = routeMap[normalizedPath];
-      if (target) {
-        window.location.replace(`${target}${search}${hash}`);
-      }
-    })();
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReviewResQ - The Future of Customer Reputation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0B0F19; color: white; }
+        .gradient-text {
+            background: linear-gradient(to right, #ffffff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+   <style>
+     .btn-signup, .nav-cta, a[href*="signup"] { display: none !important; }
+   </style>
 </head>
-<body class="page">
-  <header class="topbar">
-    <div class="shell topbar__inner">
-      <a class="brand" href="#top">
-        <img src="/logo.png" alt="ReviewResQ" class="brand__logo" />
-        <div class="brand__text">
-          <span class="brand__name">ReviewResQ</span>
-          <span class="brand__tagline">Premium review funnels</span>
+<body class="bg-[#0B0F19] text-white h-screen flex flex-col">
+
+    <nav class="border-b border-gray-800 bg-[#0B0F19]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-20 items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 w-8 h-8 rounded flex items-center justify-center shrink-0">
+                        <i class="fas fa-star text-white text-xs">R</i>
+                    </div>
+                    <span class="text-xl font-bold tracking-tight">ReviewResQ</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button class="login-btn text-gray-300 hover:text-white font-medium text-sm">Login</button>
+                    <button class="login-btn bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 font-medium text-sm">Start Free Trial</button>
+                </div>
+            </div>
         </div>
-      </a>
-      <button class="nav-toggle" aria-expanded="false" aria-label="Toggle navigation">
-        <span></span><span></span><span></span>
-      </button>
-      <nav class="nav" aria-label="Primary">
-        <a href="#how">How it works</a>
-        <a href="#features">Features</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#social-proof">Customers</a>
-        <a class="nav__cta" href="/auth.html">Login</a>
-      </nav>
+    </nav>
+
+    <main class="flex-grow flex items-center justify-center relative overflow-hidden px-4">
+        <div class="relative max-w-4xl mx-auto text-center z-10">
+            <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight">
+                The Future of <br />
+                <span class="gradient-text">Customer Reputation</span>
+            </h1>
+            <p class="mt-4 text-xl text-gray-400 max-w-2xl mx-auto mb-10">
+                Turn customer feedback into your most powerful growth engine.
+            </p>
+            <div class="flex justify-center gap-4">
+                <button class="login-btn bg-white text-black px-8 py-4 rounded-lg font-bold hover:bg-gray-100">Get Started Free</button>
+            </div>
+        </div>
+    </main>
+
+    <div id="auth-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true" id="modal-backdrop"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            
+            <div class="inline-block align-bottom bg-gray-900 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-gray-700">
+                <div class="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-2xl leading-6 font-bold text-white mb-4" id="modal-title">Welcome Back</h3>
+                            
+                            <div id="auth-error" class="hidden bg-red-900/50 border border-red-500 text-red-200 px-4 py-2 rounded mb-4 text-sm"></div>
+
+                            <div class="flex space-x-4 border-b border-gray-700 mb-6">
+                                <button id="tab-login" class="pb-2 text-blue-500 border-b-2 border-blue-500 font-medium text-sm focus:outline-none">Log In</button>
+                                <button id="tab-signup" class="pb-2 text-gray-400 font-medium text-sm hover:text-gray-200 focus:outline-none">Sign Up</button>
+                            </div>
+
+                            <form id="auth-form" class="space-y-4">
+                                <div>
+                                    <label for="email" class="block text-sm font-medium text-gray-300">Email address</label>
+                                    <input type="email" id="email" required class="mt-1 block w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between">
+                                        <label for="password" class="block text-sm font-medium text-gray-300">Password</label>
+                                        <a href="#" id="forgot-password" class="text-sm text-blue-400 hover:text-blue-300">Forgot password?</a>
+                                    </div>
+                                    <input type="password" id="password" required class="mt-1 block w-full bg-gray-800 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                </div>
+                                <button type="submit" id="submit-btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    Sign In
+                                </button>
+                            </form>
+
+                            <div class="relative my-6">
+                                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-600"></div></div>
+                                <div class="relative flex justify-center text-sm"><span class="px-2 bg-gray-900 text-gray-400">Or continue with</span></div>
+                            </div>
+
+                            <button id="google-btn" class="w-full flex justify-center items-center py-2 px-4 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-white bg-gray-800 hover:bg-gray-700 focus:outline-none">
+                                <img class="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google">
+                                Google
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-800 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" id="close-modal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-600 shadow-sm px-4 py-2 bg-transparent text-base font-medium text-gray-300 hover:text-white focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-  </header>
 
-  <main id="top">
-    <section class="hero section">
-      <div class="shell hero__layout">
-        <div class="hero__text">
-          <p class="eyebrow">AI for reviews &amp; leads</p>
-          <h1>Turn happy customers into public reviews — and leads into booked jobs.</h1>
-          <p class="lead">
-            ReviewResQ is an AI-powered platform that automates review requests, replies to your Google reviews, and follows up
-            with leads until they convert.
-          </p>
-          <div class="actions">
-            <a class="btn btn--primary" href="/auth.html">Get started free</a>
-            <a class="btn btn--outline" href="/demo.html">Watch 2-minute demo</a>
-          </div>
-          <div class="hero__supporting">
-            <p class="eyebrow" style="margin-bottom: 0;">Who it’s for</p>
-            <p>Built for local service businesses: Handymen, plumbers, cleaners, roofers, movers, med spas, dentists, and more.</p>
-          </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { 
+            getAuth, 
+            GoogleAuthProvider, 
+            signInWithPopup, 
+            signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, 
+            sendPasswordResetEmail,
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { firebaseConfig } from '/firebase-config.js';
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // --- DOM Elements ---
+        const modal = document.getElementById('auth-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const form = document.getElementById('auth-form');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const submitBtn = document.getElementById('submit-btn');
+        const googleBtn = document.getElementById('google-btn');
+        const authError = document.getElementById('auth-error');
+        const tabLogin = document.getElementById('tab-login');
+        const tabSignup = document.getElementById('tab-signup');
+        const forgotPass = document.getElementById('forgot-password');
+        
+        let isLoginMode = true;
+
+        // --- Auth State ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                window.location.href = '/dashboard.html';
+            }
+        });
+
+        // --- Modal Control ---
+        const openModal = () => modal.classList.remove('hidden');
+        const closeModal = () => modal.classList.add('hidden');
+        
+        document.querySelectorAll('.login-trigger, .login-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                openModal();
+            });
+        });
+        document.getElementById('close-modal').addEventListener('click', closeModal);
+        document.getElementById('modal-backdrop').addEventListener('click', closeModal);
+
+        // --- Switch Tabs ---
+        function switchTab(login) {
+            isLoginMode = login;
+            authError.classList.add('hidden');
+            form.reset();
+            
+            if (login) {
+                modalTitle.textContent = "Welcome Back";
+                submitBtn.textContent = "Sign In";
+                tabLogin.classList.add('text-blue-500', 'border-blue-500');
+                tabLogin.classList.remove('text-gray-400');
+                tabSignup.classList.remove('text-blue-500', 'border-blue-500');
+                tabSignup.classList.add('text-gray-400');
+                forgotPass.classList.remove('hidden');
+            } else {
+                modalTitle.textContent = "Create Account";
+                submitBtn.textContent = "Sign Up Free";
+                tabSignup.classList.add('text-blue-500', 'border-blue-500');
+                tabSignup.classList.remove('text-gray-400');
+                tabLogin.classList.remove('text-blue-500', 'border-blue-500');
+                tabLogin.classList.add('text-gray-400');
+                forgotPass.classList.add('hidden');
+            }
+        }
+
+        tabLogin.addEventListener('click', () => switchTab(true));
+        tabSignup.addEventListener('click', () => switchTab(false));
+
+        // --- Submit Handler ---
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            authError.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Processing...";
+
+            try {
+                if (isLoginMode) {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } else {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                }
+                // Redirect happens via onAuthStateChanged
+            } catch (error) {
+                authError.textContent = error.message.replace('Firebase: ', '');
+                authError.classList.remove('hidden');
+                submitBtn.disabled = false;
+                submitBtn.textContent = isLoginMode ? "Sign In" : "Sign Up Free";
+            }
+        });
+
+        // --- Google Handler ---
+        googleBtn.addEventListener('click', async () => {
+            try {
+                await signInWithPopup(auth, new GoogleAuthProvider());
+            } catch (error) {
+                authError.textContent = error.message;
+                authError.classList.remove('hidden');
+            }
+        });
+
+        // --- Forgot Password ---
+        forgotPass.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const email = emailInput.value;
+            if (!email) {
+                authError.textContent = "Please enter your email address first.";
+                authError.classList.remove('hidden');
+                return;
+            }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert("Password reset email sent to " + email);
+            } catch (error) {
+                authError.textContent = error.message;
+                authError.classList.remove('hidden');
+            }
+        });
+    </script>
+    <div id="review-funnel-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+        <div style="max-width:500px; padding:20px;">
+            <h1 style="color:#333; margin-bottom:10px;">How was your experience?</h1>
+            <p style="color:#666; margin-bottom:30px;">Please rate us to help us improve.</p>
+            
+            <div style="font-size:50px; cursor:pointer; margin-bottom:30px;">
+                <span onclick="handleRating(1)" onmouseover="highlightStars(1)">★</span>
+                <span onclick="handleRating(2)" onmouseover="highlightStars(2)">★</span>
+                <span onclick="handleRating(3)" onmouseover="highlightStars(3)">★</span>
+                <span onclick="handleRating(4)" onmouseover="highlightStars(4)">★</span>
+                <span onclick="handleRating(5)" onmouseover="highlightStars(5)">★</span>
+            </div>
+    
+            <div id="internal-feedback-form" style="display:none; text-align:left;">
+                <p style="font-weight:bold; color:#d9534f;">We're sorry to hear that. What went wrong?</p>
+                <textarea id="feedback-text" style="width:100%; height:100px; padding:10px; margin-bottom:10px; border:1px solid #ccc; border-radius:5px;"></textarea>
+                <button onclick="submitInternalFeedback()" style="width:100%; padding:10px; background:#333; color:white; border:none; border-radius:5px;">Send Feedback</button>
+            </div>
         </div>
-        <div class="hero__visual" aria-hidden="true">
-          <div class="mockup">
-            <div class="mockup__header">
-              <div class="mockup__dots"></div>
-              <span class="mockup__label">Dashboard preview</span>
-            </div>
-            <div class="mockup__body">
-              <div class="stat-card">
-                <div>
-                  <p class="stat-card__label">Google rating boost</p>
-                  <p class="stat-card__value">+0.7★</p>
-                  <p class="stat-card__meta">vs. last 30 days</p>
-                </div>
-                <span class="pill pill--success">Live</span>
-              </div>
-              <div class="stat-card stat-card--accent">
-                <div>
-                  <p class="stat-card__label">Positive to Google</p>
-                  <p class="stat-card__value">92%</p>
-                  <p class="stat-card__meta">Smart routing</p>
-                </div>
-                <span class="pill">Optimized</span>
-              </div>
-              <div class="feedback-card">
-                <div class="feedback-card__top">
-                  <span class="pill">AI summary</span>
-                  <span class="pill pill--success">New</span>
-                </div>
-                <p class="feedback-card__text">
-                  “Service was fast and friendly. Booking on mobile was easy and I'll recommend you to friends.”
-                </p>
-                <div class="feedback-card__footer">
-                  <span>Follow-up scheduled</span>
-                  <span class="arrow">→</span>
-                </div>
-              </div>
-            </div>
-            <div class="mockup__glow"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="engines">
-      <div class="shell section__header">
-        <div>
-          <p class="eyebrow">One AI, two growth engines</p>
-          <h2>Reviews and leads, handled for you.</h2>
-          <p class="section__lead">Automate the customer journey from review invites to lead follow-up without more work for your team.</p>
-        </div>
-      </div>
-      <div class="shell feature-columns">
-        <article class="card feature">
-          <div class="icon icon--blue" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20c4.418 0 8-3.582 8-8s-3.582-8-8-8S4 7.582 4 12s3.582 8 8 8z"/><path d="M10 9l5 3-5 3V9z"/></svg>
-          </div>
-          <h3>AI Review Funnel</h3>
-          <p>Send review invites automatically after each job. Route unhappy customers to a private AI Agent and turn happy customers into 5-star Google reviews.</p>
-        </article>
-        <article class="card feature">
-          <div class="icon icon--green" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 9h8"/><path d="M8 13h5"/><path d="M8 17h3"/></svg>
-          </div>
-          <h3>AI Lead Follow-up</h3>
-          <p>Capture leads in one place. AI sends friendly follow-ups by SMS or email so you stop chasing people — let the system do it.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="section" id="features">
-      <div class="shell section__header">
-        <div>
-          <p class="eyebrow">Feature breakdown</p>
-          <h2>Everything you need to automate reviews and follow-ups</h2>
-          <p class="section__lead">From branded portals to AI replies, ReviewResQ keeps feedback organized and customers impressed.</p>
-        </div>
-      </div>
-      <div class="shell feature-grid">
-        <article class="card feature">
-          <div class="icon icon--blue" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 9h10"/><path d="M7 12h6"/></svg>
-          </div>
-          <h3>Review Portal &amp; Automations</h3>
-          <p>Branded portal that separates happy from unhappy customers. Automated invites and reminders trigger on job completion with smart timing for better response rates.</p>
-        </article>
-        <article class="card feature">
-          <div class="icon icon--green" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 10l9 5 9-5"/><path d="M3 14l9 5 9-5"/></svg>
-          </div>
-          <h3>AI Agent for unhappy customers</h3>
-          <p>AI answers low-star feedback in private, asks questions, apologizes, and offers solutions to turn angry customers into saved relationships.</p>
-        </article>
-        <article class="card feature">
-          <div class="icon icon--purple" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s8-4 8-10V5l-8-3-8 3v5c0 6 8 10 8 10z"/><path d="M9 9h6"/><path d="M9 12h3"/></svg>
-          </div>
-          <h3>AI Auto-Reply to Google Reviews</h3>
-          <p>Connect your Google Business Profile and sync new reviews automatically. AI drafts or sends personalized owner replies in seconds with tone controls and approval options.</p>
-        </article>
-        <article class="card feature">
-          <div class="icon icon--orange" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/><path d="M9 4v16"/></svg>
-          </div>
-          <h3>AI CRM for Leads</h3>
-          <p>Add leads manually or import from CSV, see every conversation in a single timeline, and let AI run 3-step follow-up sequences with quiet hours and max-message controls.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="section" id="pricing">
-      <div class="shell section__header">
-        <div>
-          <p class="eyebrow">Pricing</p>
-          <h2>Choose the plan that fits your business</h2>
-          <p class="section__lead">Upgrade or cancel anytime. No contracts, no setup fees.</p>
-        </div>
-      </div>
-      <div class="shell pricing">
-        <article class="card pricing__card">
-          <div class="pricing__head">
-            <div class="plan-meta">
-              <p class="eyebrow">🟦 Starter Plan</p>
-              <h3>Get more reviews, simply.</h3>
-              <p class="pricing__desc">Simple review funnel without heavy AI, perfect for small local businesses.</p>
-            </div>
-            <div class="pricing__price">$39<span>/mo</span></div>
-          </div>
-          <ul class="pricing__list">
-            <li>Review portal (happy/unhappy split)</li>
-            <li>Unlimited manual review requests (SMS / email)</li>
-            <li>Basic dashboard &amp; analytics</li>
-            <li>Rating breakdown &amp; trends</li>
-            <li>Inbox for feedback from the portal</li>
-            <li>Single business location</li>
-            <li>Email support</li>
-          </ul>
-          <div class="pricing__footer">
-            <div class="pricing__tagline">Get more reviews, simply.</div>
-            <a class="btn btn--primary" href="/auth.html">Get started</a>
-          </div>
-        </article>
-
-        <article class="card pricing__card pricing__card--highlight">
-          <div class="pricing__badge">Most Popular</div>
-          <div class="pricing__head">
-            <div class="plan-meta">
-              <p class="eyebrow">🟩 Growth Plan</p>
-              <h3>Automate your review engine.</h3>
-              <p class="pricing__desc">Fully automated review invites with AI handling of negative feedback.</p>
-            </div>
-            <div class="pricing__price">$99<span>/mo</span></div>
-          </div>
-          <ul class="pricing__list">
-            <li>Everything in Starter</li>
-            <li>Automated review invites (triggered on “job complete”)</li>
-            <li>Automatic reminders after no response</li>
-            <li>AI Insights (sentiment analytics, mood score, trends)</li>
-            <li>AI Agent to handle negative feedback in private</li>
-            <li>AI Agent dashboard</li>
-            <li>Alerts &amp; notifications</li>
-            <li>1 connected Google Business location (sync into dashboard)</li>
-            <li>Standard support</li>
-          </ul>
-          <div class="pricing__footer">
-            <div>
-              <div class="pricing__tagline">Automate your review engine.</div>
-              <div class="pricing__hint">Best for growing businesses.</div>
-            </div>
-            <a class="btn btn--primary" href="/auth.html">Upgrade to Growth</a>
-          </div>
-        </article>
-
-        <article class="card pricing__card pricing__card--pro">
-          <div class="pricing__head">
-            <div class="plan-meta">
-              <p class="eyebrow">🟧 Pro AI Suite</p>
-              <h3>Full AI for reviews &amp; leads.</h3>
-              <p class="pricing__desc">AI replies to every review and follows up with leads until they convert.</p>
-            </div>
-            <div class="pricing__price">$149<span>/mo</span></div>
-          </div>
-          <ul class="pricing__list">
-            <li>Everything in Growth</li>
-            <li>AI Auto-Reply to Google Reviews</li>
-            <li>AI generates and posts owner replies (auto/draft/approval)</li>
-            <li>AI CRM Mini – Leads dashboard &amp; timeline</li>
-            <li>AI-generated follow-up via SMS/email</li>
-            <li>Multi-step sequences (1h / 24h / 72h)</li>
-            <li>Quiet hours &amp; max-messages settings</li>
-            <li>Multi-location support (up to X locations)</li>
-            <li>Priority support (chat / fast email)</li>
-          </ul>
-          <div class="pricing__footer">
-            <div>
-              <div class="pricing__tagline">Full AI for reviews &amp; leads.</div>
-              <div class="pricing__hint">For serious businesses that want AI everywhere.</div>
-            </div>
-            <a class="btn btn--primary" href="/auth.html">Go Pro AI</a>
-          </div>
-        </article>
-      </div>
-    </section>
-    <section class="section" id="faq">
-      <div class="shell section__header">
-        <div>
-          <p class="eyebrow">FAQ</p>
-          <h2>Answers before you get started</h2>
-          <p class="section__lead">Quick details on cancellations, downgrades, Google connections, and data safety.</p>
-        </div>
-      </div>
-      <div class="shell faq">
-        <article class="faq-item">
-          <h3>Can I cancel anytime?</h3>
-          <p>Yes. When you cancel, your subscription stays active until the end of the current billing period. We don’t issue partial refunds for unused days.</p>
-        </article>
-        <article class="faq-item">
-          <h3>What happens if I downgrade?</h3>
-          <p>Downgrades take effect at the next renewal date. Until then, you keep all features from your current plan.</p>
-        </article>
-        <article class="faq-item">
-          <h3>Do I need a Google account?</h3>
-          <p>For AI Auto-Reply to Google Reviews, you’ll connect your Google Business Profile with one click via Google login.</p>
-        </article>
-        <article class="faq-item">
-          <h3>Is my customer data safe?</h3>
-          <p>Yes. Your data is encrypted in transit and at rest. We never sell or share your customer information.</p>
-        </article>
-      </div>
-    </section>
-  </main>
-
-  <footer class="footer">
-    <div class="shell footer__inner">
-      <div class="footer__brand">
-        <img src="/logo.png" alt="ReviewResQ" class="brand__logo" />
-        <p>© ReviewResQ</p>
-      </div>
-      <div class="footer__links">
-        <a href="/terms.html">Terms</a>
-        <a href="/privacy.html">Privacy</a>
-        <a href="/contact.html">Contact</a>
-        <a href="/auth.html">Login</a>
-      </div>
     </div>
-  </footer>
-
-  <script>
-    const navToggle = document.querySelector('.nav-toggle');
-    const nav = document.querySelector('.nav');
-    navToggle.addEventListener('click', () => {
-      const isOpen = navToggle.getAttribute('aria-expanded') === 'true';
-      navToggle.setAttribute('aria-expanded', !isOpen);
-      nav.classList.toggle('open');
-    });
-  </script>
+    <script>
+        // 1. Check if user came from email (URL params)
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const businessId = urlParams.get('businessId');
+            
+            if (businessId) {
+                // HIDE LOGIN, SHOW FUNNEL
+                document.body.children[0].style.display = 'none'; // Hide main site wrapper (assuming it's first)
+                document.getElementById('review-funnel-overlay').style.display = 'flex';
+            }
+        };
+    
+        // 2. Star Logic
+        function handleRating(stars) {
+            if (stars >= 4) {
+                // POSITIVE: Redirect to Google (Placeholder for now)
+                alert("Redirecting to Google Reviews... (This will be dynamic later)");
+                // window.location.href = "https://g.page/YOUR_BUSINESS_LINK"; 
+            } else {
+                // NEGATIVE: Show internal form
+                document.getElementById('internal-feedback-form').style.display = 'block';
+            }
+        }
+    
+        // 3. Simple Star Highlight Visuals
+        function highlightStars(count) {
+            // (Optional: visual logic to color stars gold on hover)
+        }
+    </script>
 </body>
 </html>

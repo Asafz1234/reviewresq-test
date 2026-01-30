@@ -1,105 +1,85 @@
-import {
-  listenForUser,
-  PLAN_DETAILS,
-  updateBusinessPlan,
-  getPlanBootstrapPromise,
-} from "./session-data.js";
-import { PLAN_LABELS, normalizePlan } from "./plan-capabilities.js";
-import { applyNavPlanFilter } from "./nav-access-versioned.js";
+import { setPlan } from "./plan-store.js";
 
-const planSummary = document.getElementById("planSummary");
-const planStatus = document.getElementById("planStatus");
-const planRenewal = document.getElementById("planRenewal");
-const paymentMethod = document.getElementById("paymentMethod");
-const billingEmail = document.getElementById("billingEmail");
-const upgradeButton = document.getElementById("upgradeButton");
-const growthEnabledBadge = document.getElementById("growthEnabledBadge");
-const signalPageDataReady = (() => {
-  let sent = false;
-  return () => {
-    if (sent) return;
-    sent = true;
-    window.__rrPageDataReady?.();
-  };
-})();
+// Global Switch Function
+window.switchPlan = async (newPlan) => {
+    console.log(`[Billing] Manually switching to: ${newPlan}`);
+    
+    // 1. Force Local Storage
+    localStorage.setItem('rr_simulated_plan', newPlan);
+    
+    // 2. Update Visuals Immediately (Don't wait for reload)
+    updateButtons(newPlan);
+    
+    // 3. Update Store logic
+    setPlan(newPlan, { source: 'manual_billing_test' });
 
-let currentPlan = null;
+    // 4. Reload to apply changes across the app
+    setTimeout(() => {
+        window.location.reload();
+    }, 300);
+};
 
-function renderPlanSummary(planId, subscription) {
-  if (!planId) {
-    currentPlan = null;
-    if (planSummary) {
-      planSummary.textContent = "Loading…";
+window.resetSimulation = () => {
+    localStorage.removeItem('rr_simulated_plan');
+    window.location.reload();
+};
+
+function updateButtons(activePlanId) {
+    if (!activePlanId) return;
+    const currentPlan = activePlanId.toLowerCase();
+    
+    console.log("[AccountUI] Updating buttons. Active:", currentPlan);
+
+    const buttons = {
+        'starter': "button[onclick*='starter']",
+        'growth': "button[onclick*='growth']",
+        'ai-suite': "button[onclick*='ai-suite']"
+    };
+
+    // Reset ALL buttons to "Available" state
+    Object.values(buttons).forEach(selector => {
+        const btn = document.querySelector(selector);
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('bg-gray-300', 'text-gray-600', 'cursor-not-allowed', 'opacity-50');
+            
+            // Restore original styles & text
+            if (selector.includes('starter')) {
+                btn.innerText = "Switch to Starter";
+                btn.classList.add('border', 'border-slate-300', 'text-slate-700', 'hover:bg-slate-50');
+            }
+            if (selector.includes('growth')) {
+                btn.innerText = "Upgrade to Growth";
+                btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+            }
+            if (selector.includes('ai')) {
+                btn.innerText = "Unlock AI Suite";
+                btn.classList.add('border', 'border-purple-200', 'text-purple-700', 'hover:bg-purple-50');
+            }
+        }
+    });
+
+    // Disable ONLY the active button
+    const activeBtnSelector = buttons[currentPlan];
+    const activeBtn = document.querySelector(activeBtnSelector);
+    
+    if (activeBtn) {
+        activeBtn.disabled = true;
+        activeBtn.innerText = "Current Plan";
+        // Strip coloring and make it gray
+        activeBtn.className = "w-full py-3 px-4 bg-gray-200 text-gray-500 font-bold rounded-xl cursor-not-allowed mb-8";
     }
-    if (upgradeButton) {
-      upgradeButton.textContent = "Loading…";
-      upgradeButton.disabled = true;
-      upgradeButton.setAttribute("aria-disabled", "true");
-    }
-  } else {
-    const normalizedPlan = normalizePlan(planId);
-    currentPlan = normalizedPlan;
-    const planDetails = PLAN_DETAILS[normalizedPlan] || PLAN_DETAILS.starter;
-    const label = PLAN_LABELS[normalizedPlan] || PLAN_LABELS.starter;
-    const price = planDetails?.priceMonthly ?? PLAN_DETAILS.starter.priceMonthly;
-
-    if (planSummary) {
-      planSummary.textContent = `${label} plan · $${price}/month`;
-    }
-
-    if (normalizedPlan === "growth") {
-      upgradeButton.textContent = "Growth enabled";
-      upgradeButton.disabled = true;
-      upgradeButton.setAttribute("aria-disabled", "true");
-      if (growthEnabledBadge) growthEnabledBadge.style.display = "inline-flex";
-    } else {
-      upgradeButton.textContent = "Upgrade to Growth";
-      upgradeButton.disabled = false;
-      upgradeButton.removeAttribute("aria-disabled");
-      if (growthEnabledBadge) growthEnabledBadge.style.display = "none";
-    }
-  }
-  if (planStatus) {
-    planStatus.textContent = (subscription?.status || "active").toString();
-  }
-  if (planRenewal) {
-    const periodEnd = subscription?.currentPeriodEnd?.toDate
-      ? subscription.currentPeriodEnd.toDate()
-      : subscription?.currentPeriodEnd;
-    planRenewal.textContent = subscription?.currentPeriodEnd
-      ? `Next renewal: ${new Date(periodEnd).toLocaleDateString()}`
-      : "Next renewal: —";
-  }
-  if (paymentMethod) {
-    paymentMethod.textContent = subscription?.paymentMethod || "Card on file";
-  }
-  if (billingEmail) {
-    billingEmail.textContent = subscription?.billingEmail || "billing@reviewresq.com";
-  }
 }
 
-upgradeButton?.addEventListener("click", async () => {
-  if (currentPlan === "growth") return;
-  upgradeButton.disabled = true;
-  upgradeButton.textContent = "Upgrading...";
-  try {
-    const updatedPlan = await updateBusinessPlan("growth");
-    renderPlanSummary(updatedPlan, {});
-    applyNavPlanFilter(updatedPlan, { forceRemove: false });
-  } catch (error) {
-    console.error("Failed to upgrade plan", error);
-    upgradeButton.disabled = false;
-    upgradeButton.textContent = "Upgrade to Growth";
-  }
-});
-
-const sessionPromise = new Promise((resolve) => {
-  listenForUser(({ subscription, business }) => {
-    resolve({ subscription, business });
-  });
-});
-
-Promise.all([getPlanBootstrapPromise(), sessionPromise]).then(([planResult, session]) => {
-  renderPlanSummary(planResult?.planId || null, session.subscription);
-  signalPageDataReady();
+// Run immediately on load using the Simulation Source of Truth
+document.addEventListener('DOMContentLoaded', () => {
+    const sim = localStorage.getItem('rr_simulated_plan');
+    // If simulation exists, use it. Otherwise, wait for store/cache.
+    if (sim) {
+        updateButtons(sim);
+    } else {
+        // Fallback to reading the attribute set by nav-access-init
+        const attrPlan = document.documentElement.getAttribute('data-user-plan');
+        if (attrPlan) updateButtons(attrPlan);
+    }
 });

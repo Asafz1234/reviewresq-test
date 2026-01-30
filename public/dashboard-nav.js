@@ -1,154 +1,62 @@
-const NAV_SECTIONS = [
-  {
-    id: 'main',
-    items: [
-      { route: 'dashboard', icon: '🏠', label: 'Overview', href: 'dashboard.html' },
-      { route: 'ask-reviews', icon: '✉️', label: 'Ask for reviews', href: '/ask-reviews' },
-      { route: 'inbox', icon: '💬', label: 'Customer Feedback', href: 'feedback.html' },
-      { route: 'google-reviews', icon: '★', label: 'Google Reviews', href: '/google-reviews' },
-      { route: 'customers', icon: '👥', label: 'Customers', href: '/customers' },
-      { route: 'funnel', icon: '↗', label: 'Review Funnel', href: 'funnel-settings.html', disallowStarter: true },
-      { route: 'links', icon: '🔗', label: 'Review Links', href: '/links', disallowStarter: true },
-      { route: 'automations', icon: '⚙️', label: 'Automations', href: 'automations.html', disallowStarter: true },
-      { route: 'ai-suite', icon: '✨', label: 'AI Suite', href: 'ai-suite.html', disallowStarter: true },
-      { route: 'team', icon: '🧑‍🤝‍🧑', label: 'Team & Roles', href: 'team.html', disallowStarter: true },
-    ],
-  },
-  {
-    id: 'settings',
-    items: [
-      { route: 'account', icon: '💳', label: 'Account & Billing', href: 'account.html' },
-      { route: 'business-settings', icon: '🎨', label: 'Business Settings', href: 'business-settings.html' },
-    ],
-  },
-];
+import { auth } from './firebase-config.js';
+import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-(function () {
-  const nav = document.querySelector('.global-nav');
-  if (!nav) return;
-
-  const { pathname, hash } = window.location;
-  let lastRenderedPlan = null;
-
-  function createTab({ route, icon, label, href }) {
-    const tab = document.createElement('a');
-    tab.className = 'nav-tab';
-    tab.dataset.route = route;
-    tab.href = href;
-
-    const iconSpan = document.createElement('span');
-    iconSpan.className = 'nav-icon';
-    iconSpan.setAttribute('aria-hidden', 'true');
-    iconSpan.textContent = icon;
-
-    const labelSpan = document.createElement('span');
-    labelSpan.textContent = label;
-
-    tab.append(iconSpan, labelSpan);
-    return tab;
-  }
-
-  function renderNav() {
-    const resolvedPlan = (window.navAccess?.plan || '').toLowerCase();
-    const isPending = window.navAccess?.planPending || !resolvedPlan;
-    const isStarter = !isPending && resolvedPlan === 'starter';
-    const hideDisallowed = isPending || isStarter;
-    const fragment = document.createDocumentFragment();
-
-    NAV_SECTIONS.forEach((section) => {
-      // Starter plan hides Campaigns in nav (feature still exists).
-      const visibleItems = section.items.filter(
-        (item) => !hideDisallowed || !item.disallowStarter
-      );
-      if (!visibleItems.length) return;
-
-      if (section.id === 'main') {
-        visibleItems.forEach((item) => fragment.appendChild(createTab(item)));
-        return;
-      }
-
-      const wrapper = document.createElement('div');
-      wrapper.className = 'nav-section nav-section--settings';
-      wrapper.dataset.navSection = section.id;
-
-      const heading = document.createElement('p');
-      heading.className = 'nav-section__label';
-      heading.textContent = 'Settings';
-      wrapper.appendChild(heading);
-
-      const list = document.createElement('div');
-      list.className = 'nav-section__items';
-      list.dataset.navSectionItems = section.id;
-
-      visibleItems.forEach((item) => list.appendChild(createTab(item)));
-      wrapper.appendChild(list);
-      fragment.appendChild(wrapper);
-    });
-
-    nav.innerHTML = '';
-    nav.appendChild(fragment);
-    lastRenderedPlan = resolvedPlan || 'pending';
-  }
-
-  function deriveRoute() {
-    if (hash && hash.toLowerCase().includes('inbox')) return 'inbox';
-    if (hash && hash.toLowerCase().includes('overview')) return 'overview';
-    if (hash && hash.toLowerCase().includes('dashboard')) return 'dashboard';
-    if (hash && hash.toLowerCase().includes('google-reviews')) return 'google-reviews';
-    if (hash && hash.toLowerCase().includes('leads')) return 'leads';
-    if (hash && hash.toLowerCase().includes('customers')) return 'customers';
-    if (hash && hash.toLowerCase().includes('ask-reviews')) return 'ask-reviews';
-    if (hash && hash.toLowerCase().includes('campaigns')) return 'campaigns';
-    if (hash && hash.toLowerCase().includes('business-settings')) return 'settings';
-    if (hash && hash.toLowerCase().includes('account')) return 'settings';
-    if (hash && hash.toLowerCase().includes('alerts')) return 'settings';
-    if (hash && hash.toLowerCase().includes('links')) return 'links';
-    if (hash && hash.toLowerCase().includes('funnel')) return 'funnel';
-
-    if (pathname.includes('dashboard.html') || pathname.endsWith('dashboard')) return 'dashboard';
-    if (pathname.includes('overview')) return 'overview';
-    if (pathname.includes('ask-reviews')) return 'ask-reviews';
-    if (pathname.includes('feedback')) return 'inbox';
-    if (pathname.includes('inbox')) return 'inbox';
-    if (pathname.includes('automations')) return 'automations';
-    if (pathname.includes('links')) return 'links';
-    if (pathname.includes('funnel')) return 'funnel';
-    if (pathname.includes('ai-suite')) return 'ai-suite';
-    if (pathname.includes('team')) return 'team';
-    if (pathname.includes('google-reviews')) return 'google-reviews';
-    if (pathname.includes('customers')) return 'customers';
-    if (pathname.includes('business-settings')) return 'settings';
-    if (pathname.includes('settings')) return 'settings';
-    if (pathname.includes('account') || pathname.includes('billing')) return 'settings';
-    return 'overview';
-  }
-
-  function markActiveRoute() {
-    const activeRoute = deriveRoute();
-    const links = nav.querySelectorAll('[data-route]');
-    links.forEach((link) => {
-      const route = link.getAttribute('data-route');
-      const isSettingsChild =
-        activeRoute === 'settings' &&
-        ['account', 'billing', 'business-settings', 'alerts', 'settings'].includes(route);
-      const isActive = route === activeRoute || isSettingsChild;
-      link.classList.toggle('active', isActive);
-      if (isActive) {
-        link.setAttribute('aria-current', 'page');
-      } else {
-        link.removeAttribute('aria-current');
-      }
-    });
-  }
-
-  renderNav();
-  markActiveRoute();
-
-  window.addEventListener('navaccess:planApplied', () => {
-    const nextPlan = (window.navAccess?.plan || '').toLowerCase() || 'pending';
-    if (nextPlan !== lastRenderedPlan) {
-      renderNav();
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+        renderSidebar(sidebar);
+        
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                const avatar = document.getElementById('nav-user-avatar');
+                const name = document.getElementById('nav-user-name');
+                if (avatar) avatar.textContent = user.email ? user.email.charAt(0).toUpperCase() : 'U';
+                if (name) name.textContent = user.email ? user.email : 'User';
+            }
+        });
     }
-    markActiveRoute();
-  });
-})();
+});
+
+function renderSidebar(container) {
+    const path = window.location.pathname.toLowerCase();
+    const isActive = (route) => (path.includes(route) ? 'active bg-dark' : '');
+
+   container.innerHTML = `
+        <div class="sidebar-header p-3 fw-bold border-bottom border-secondary">
+            <i class="fas fa-star text-primary me-2"></i>ReviewResQ
+        </div>
+        <ul class="nav-links list-unstyled p-0 m-0 my-3 flex-grow-1">
+            <li><a href="/dashboard.html" class="nav-link text-white-50 p-3 text-decoration-none d-flex align-items-center ${isActive('dashboard') || isActive('overview')}"><i class="fas fa-home nav-icon me-3" style="width:20px;text-align:center;"></i> Overview</a></li>
+            <li><a href="/ask-reviews.html" class="nav-link text-white-50 p-3 text-decoration-none d-flex align-items-center ${isActive('ask-reviews')}"><i class="fas fa-paper-plane nav-icon me-3" style="width:20px;text-align:center;"></i> Ask for Reviews</a></li>
+            <li><a href="/customer-feedback.html" class="nav-link text-white-50 p-3 text-decoration-none d-flex align-items-center ${isActive('customer-feedback')}"><i class="fas fa-comments nav-icon me-3" style="width:20px;text-align:center;"></i> Customer Feedback</a></li>
+            <li><a href="/google-reviews.html" class="nav-link text-white-50 p-3 text-decoration-none d-flex align-items-center ${isActive('google-reviews')}"><i class="fas fa-star nav-icon me-3" style="width:20px;text-align:center;"></i> Google Reviews</a></li>
+            <li><a href="/customers.html" class="nav-link text-white-50 p-3 text-decoration-none d-flex align-items-center ${isActive('customers')}"><i class="fas fa-users nav-icon me-3" style="width:20px;text-align:center;"></i> Customers</a></li>
+            <li><a href="/review-funnel.html" class="nav-link text-white-50 p-3 text-decoration-none d-flex align-items-center ${isActive('review-funnel')}"><i class="fas fa-filter nav-icon me-3" style="width:20px;text-align:center;"></i> Review Funnel</a></li>
+            <li><a href="/settings.html" class="nav-link text-white-50 p-3 text-decoration-none d-flex align-items-center ${isActive('settings')}"><i class="fas fa-cog nav-icon me-3" style="width:20px;text-align:center;"></i> Settings</a></li>
+        </ul>
+        
+        <div class="mt-auto border-top border-secondary p-3">
+             <div class="d-flex align-items-center gap-3">
+                 <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white fw-bold" style="width: 32px; height: 32px;" id="nav-user-avatar">U</div>
+                 <div class="flex-grow-1 overflow-hidden">
+                     <p class="mb-0 small text-white text-truncate fw-bold" id="nav-user-name">User</p>
+                 </div>
+                 <button id="nav-logout-btn" class="btn btn-link text-secondary p-0" title="Log Out">
+                     <i class="fas fa-sign-out-alt"></i>
+                 </button>
+             </div>
+        </div>
+   `;
+
+    const logoutBtn = document.getElementById('nav-logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                window.location.href = '/index.html';
+            } catch (error) {
+                console.error("Logout failed", error);
+            }
+        });
+    }
+}

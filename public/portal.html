@@ -1,0 +1,66 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ReviewResQ • Feedback Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+  <div id="portal" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-lg mx-auto">
+    <div id="portalStatus" class="hidden items-center justify-center">
+      <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16"></div>
+      <p class="ml-4 text-lg font-semibold text-gray-700">Loading portal...</p>
+    </div>
+
+    <div id="portalContent">
+      <div class="text-center mb-6">
+        <img id="businessLogo" class="h-16 w-16 mx-auto rounded-full shadow-md" alt="Business Logo">
+        <h1 id="businessName" class="text-3xl font-bold text-gray-800 mt-4"></h1>
+        <p id="portalHeadline" class="text-gray-600 mt-2"></p>
+      </div>
+
+      <div id="ratingSection" class="mb-6">
+        <p class="text-center text-gray-500 mb-4">Rate your experience</p>
+        <div class="star-rating">
+          <input type="radio" id="star5" name="rating" value="5" /><label for="star5">&#9733;</label>
+          <input type="radio" id="star4" name="rating" value="4" /><label for="star4">&#9733;</label>
+          <input type="radio" id="star3" name="rating" value="3" /><label for="star3">&#9733;</label>
+          <input type="radio" id="star2" name="rating" value="2" /><label for="star2">&#9733;</label>
+          <input type="radio" id="star1" name="rating" value="1" /><label for="star1">&#9733;</label>
+        </div>
+      </div>
+
+      <div id="feedbackSection" class="hidden">
+        <div id="lowRatingContent" class="hidden">
+          <p class="text-center text-gray-600 mb-4">We're sorry to hear that. Please let us know what happened.</p>
+          <textarea id="feedbackMessage" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="4" placeholder="Your feedback is important to us..."></textarea>
+        </div>
+
+        <div id="highRatingContent" class="hidden">
+          <p class="text-center text-gray-600 mb-4">Thank you for the positive feedback! We'd love for you to share your experience on Google.</p>
+          <a id="googleReviewLink" href="#" target="_blank" class="block w-full bg-blue-600 text-white text-center py-3 rounded-md font-semibold hover:bg-blue-700 transition-colors">Leave a Google Review</a>
+        </div>
+
+        <div id="contactSection" class="mt-4">
+          <input id="customerName" type="text" class="w-full p-3 border border-gray-300 rounded-md mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Your Name (optional)">
+          <input id="customerEmail" type="email" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Your Email (for follow-up)">
+        </div>
+
+        <button id="submitButton" class="w-full bg-green-500 text-white py-3 rounded-md font-semibold hover:bg-green-600 transition-colors mt-6">Submit</button>
+      </div>
+
+      <div id="thankYouMessage" class="hidden text-center py-8">
+        <h2 class="text-2xl font-bold text-gray-800">Thank You!</h2>
+        <p class="text-gray-600 mt-2">We appreciate your feedback.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="portal.js"></script>
+</body>
+</html>

@@ -1,254 +1,193 @@
-// auth.js – לוגיקה של Login / Create Account / Forgot Password
-
+// Import specific auth functions directly from the Firebase SDK
 import {
-  auth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-} from "./firebase-config.js";
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    sendPasswordResetEmail,
+    onAuthStateChanged,
+    updateProfile
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+// Import the initialized auth instance from our config
+import { auth } from "./firebase-config.js";
 
-/* ---------------------------
-   עזרת UI – הודעה כללית למעלה
----------------------------- */
+// --- UI Helper Functions ---
 const globalMsg = document.getElementById("global-message");
 
-function showGlobalError(msg) {
-  globalMsg.textContent = msg;
-  globalMsg.className = "global-message visible error";
+function showGlobalError(message) {
+  globalMsg.textContent = message;
+  globalMsg.className = "block my-4 text-center text-sm p-3 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20";
 }
 
-function showGlobalSuccess(msg) {
-  globalMsg.textContent = msg;
-  globalMsg.className = "global-message visible success";
+function showGlobalSuccess(message) {
+  globalMsg.textContent = message;
+  globalMsg.className = "block my-4 text-center text-sm p-3 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20";
 }
 
-function clearGlobalMessage() {
-  globalMsg.textContent = "";
-  globalMsg.className = "global-message";
+function setFieldError(fieldId, message) {
+    const errorEl = document.getElementById(`${fieldId}-error`);
+    if (errorEl) {
+        errorEl.textContent = message;
+    }
 }
 
-/* ---------------------------
-   עזרת UI – שגיאות בשדות
----------------------------- */
-function clearAllErrors() {
-  document.querySelectorAll(".field-error").forEach((el) => (el.textContent = ""));
-  document.querySelectorAll("input").forEach((i) => i.classList.remove("error"));
+function clearMessages() {
+    globalMsg.textContent = '';
+    globalMsg.className = 'hidden my-4 text-center text-sm p-3 rounded-lg';
+    document.querySelectorAll('.text-red-400').forEach(el => el.textContent = '');
 }
 
-// Password strength validator
-function isStrongPassword(password) {
-  const strongPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
-  return strongPattern.test(password);
-}
-
-function fieldError(id, msg) {
-  const input = document.getElementById(id);
-  const errorDiv = document.getElementById(id + "-error");
-  if (input) input.classList.add("error");
-  if (errorDiv) errorDiv.textContent = msg;
-}
-
-/* ---------------------------
-   TAB SWITCHING (Login / Signup / Forgot)
----------------------------- */
-const tabs = document.querySelectorAll(".auth-tab");
-const panels = document.querySelectorAll(".auth-panel");
-
-function clearTabState() {
-  tabs.forEach((t) => t.classList.remove("active"));
-  panels.forEach((p) => p.classList.remove("active"));
-}
-
-tabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    clearTabState();
-    clearAllErrors();
-    clearGlobalMessage();
-
-    tab.classList.add("active");
-    const target = tab.dataset.target;
-    const panel = document.getElementById(target + "-panel");
-    if (panel) panel.classList.add("active");
-  });
+// --- Auth State Observer ---
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        // If user is logged in and on the auth page, redirect to dashboard
+        if (window.location.pathname.includes('auth.html') || window.location.pathname === '/') {
+            console.log("User is already logged in. Redirecting to dashboard.");
+            window.location.href = "/dashboard.html";
+        }
+    } else {
+        // User is signed out
+        console.log("User is signed out.");
+    }
 });
 
-/* ---------------------------
-   LOGIN
----------------------------- */
+// --- Login Logic ---
 const loginForm = document.getElementById("login-form");
-const loginSubmitBtn = document.getElementById("login-submit");
-
 if (loginForm) {
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    clearAllErrors();
-    clearGlobalMessage();
-
+    clearMessages();
+    const loginSubmitBtn = document.getElementById("login-submit");
     const email = document.getElementById("login-email").value.trim();
     const password = document.getElementById("login-password").value.trim();
 
     if (!email) {
-      return fieldError("login-email", "Email is required.");
+        setFieldError('login-email', 'Email address is required.');
+        return;
     }
     if (!password) {
-      return fieldError("login-password", "Password is required.");
+        setFieldError('login-password', 'Password is required.');
+        return;
     }
 
+    loginSubmitBtn.disabled = true;
+    loginSubmitBtn.textContent = 'Logging in...';
+
     try {
-      loginSubmitBtn.disabled = true;
-
       await signInWithEmailAndPassword(auth, email, password);
-
-      showGlobalSuccess("Logged in! Redirecting…");
+      showGlobalSuccess("Success! Redirecting to your dashboard...");
       setTimeout(() => {
         window.location.href = "/dashboard.html";
-      }, 700);
-    } catch (err) {
-      console.error("Login error:", err);
-
-      switch (err.code) {
-        case "auth/invalid-credential":
-        case "auth/wrong-password":
-          showGlobalError("Incorrect email or password.");
-          break;
-        case "auth/user-not-found":
-          showGlobalError("No account found with this email.");
-          break;
-        case "auth/too-many-requests":
-          showGlobalError(
-            "Too many attempts. Please wait a minute and try again."
-          );
-          break;
-        case "auth/invalid-email":
-          fieldError("login-email", "Please enter a valid email address.");
-          break;
-        default:
-          showGlobalError("Login failed. Please try again.");
+      }, 1000);
+    } catch (error) {
+      console.error("Authentication Error:", error.code, error.message);
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+          showGlobalError("Invalid email or password. Please try again.");
+      } else if (error.code === 'auth/invalid-email') {
+          setFieldError('login-email', 'Please enter a valid email address.');
+      } else if (error.code === 'auth/too-many-requests') {
+          showGlobalError("Access to this account has been temporarily disabled due to many failed login attempts. You can immediately restore it by resetting your password or you can try again later.");
+      } else {
+          showGlobalError("An unexpected error occurred. Please try again later.");
       }
     } finally {
       loginSubmitBtn.disabled = false;
+      loginSubmitBtn.textContent = 'Log In';
     }
   });
 }
 
-/* ---------------------------
-   SIGNUP (Create Account)
----------------------------- */
+// --- Signup Logic ---
 const signupForm = document.getElementById("signup-form");
-const signupSubmitBtn = document.getElementById("signup-submit");
-
 if (signupForm) {
-  signupForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    clearAllErrors();
-    clearGlobalMessage();
+    signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearMessages();
+        const signupSubmitBtn = document.getElementById("signup-submit");
+        const name = document.getElementById('signup-name').value.trim();
+        const email = document.getElementById('signup-email').value.trim();
+        const password = document.getElementById('signup-password').value.trim();
 
-    const name = document.getElementById("signup-name").value.trim();
-    const email = document.getElementById("signup-email").value.trim();
-    const phone = document.getElementById("signup-phone").value.trim();
-    const password = document.getElementById("signup-password").value.trim();
+        if (!name) {
+            setFieldError('signup-name', 'Your name is required.');
+            return;
+        }
+        if (!email) {
+            setFieldError('signup-email', 'A valid email is required.');
+            return;
+        }
+        if (password.length < 8) {
+            setFieldError('signup-password', 'Password must be at least 8 characters.');
+            return;
+        }
 
-    // ולידציה בסיסית בצד לקוח
-    if (!name) return fieldError("signup-name", "Full name is required.");
-    if (!email) return fieldError("signup-email", "Email is required.");
-    if (!phone) return fieldError("signup-phone", "Phone is required.");
-    if (!isStrongPassword(password)) {
-      alert(
-        "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
-      );
-      return fieldError(
-        "signup-password",
-        "Enter a strong password (8+ chars, upper+lowercase, number, special)."
-      );
-    }
+        signupSubmitBtn.disabled = true;
+        signupSubmitBtn.textContent = 'Creating Account...';
 
-    try {
-      signupSubmitBtn.disabled = true;
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            // After creating the user, update their profile with the name
+            await updateProfile(userCredential.user, {
+                displayName: name
+            });
+            
+            showGlobalSuccess("Account created! Redirecting...");
+            // Redirect to onboarding or dashboard, wherever the business setup happens.
+            // For now, let's assume dashboard handles it if the business doc doesn't exist.
+            setTimeout(() => {
+                window.location.href = "/dashboard.html"; 
+            }, 1000);
 
-      // יצירת המשתמש ב-Auth בלבד
-      await createUserWithEmailAndPassword(auth, email, password);
-
-      // אם הצליח – הודעה ברורה והפניה לאונבורדינג
-      showGlobalSuccess("Account created! Let’s set up your business…");
-      setTimeout(() => {
-        window.location.href = "/onboarding.html";
-      }, 800);
-    } catch (err) {
-      console.error("Signup error:", err);
-
-      // פה אנחנו מטפלים בשגיאות של הלקוח – כדי שהוא יבין מה לתקן
-      switch (err.code) {
-        case "auth/email-already-in-use":
-          showGlobalError("This email already has an account. Try logging in.");
-          fieldError("signup-email", "This email is already in use.");
-          break;
-        case "auth/invalid-email":
-          fieldError("signup-email", "Please enter a valid email address.");
-          break;
-        case "auth/weak-password":
-          fieldError(
-            "signup-password",
-            "Password must be at least 6 characters."
-          );
-          break;
-        case "auth/operation-not-allowed":
-          showGlobalError(
-            "Email/password sign-up is disabled for this project. Please contact support."
-          );
-          break;
-        default:
-          // כל שגיאה לא צפויה אחרת
-          showGlobalError("Something went wrong. Please try again.");
-      }
-    } finally {
-      signupSubmitBtn.disabled = false;
-    }
-  });
+        } catch (error) {
+            console.error("Signup Error:", error.code, error.message);
+            if (error.code === 'auth/email-already-in-use') {
+                showGlobalError("An account with this email already exists. Please log in.");
+                setFieldError('signup-email', 'Email already in use.');
+            } else if (error.code === 'auth/invalid-email') {
+                setFieldError('signup-email', 'Please provide a valid email address.');
+            } else if (error.code === 'auth/weak-password') {
+                setFieldError('signup-password', 'Password is too weak. Please choose a stronger one.');
+            } else {
+                showGlobalError("Couldn't create an account. Please try again.");
+            }
+        } finally {
+            signupSubmitBtn.disabled = false;
+            signupSubmitBtn.textContent = 'Create Account';
+        }
+    });
 }
 
-/* ---------------------------
-   FORGOT PASSWORD
----------------------------- */
+
+// --- Forgot Password Logic ---
 const forgotForm = document.getElementById("forgot-form");
-const forgotSubmitBtn = document.getElementById("forgot-submit");
-
 if (forgotForm) {
-  forgotForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    clearAllErrors();
-    clearGlobalMessage();
+    forgotForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearMessages();
+        const forgotSubmitBtn = document.getElementById("forgot-submit");
+        const email = document.getElementById('forgot-email').value.trim();
 
-    const email = document.getElementById("forgot-email").value.trim();
+        if (!email) {
+            setFieldError('forgot-email', 'Please enter your email address.');
+            return;
+        }
 
-    if (!email) {
-      return fieldError("forgot-email", "Email is required.");
-    }
+        forgotSubmitBtn.disabled = true;
+        forgotSubmitBtn.textContent = 'Sending...';
 
-    try {
-      forgotSubmitBtn.disabled = true;
-
-      await sendPasswordResetEmail(auth, email);
-
-      showGlobalSuccess(
-        "Reset link sent! Check your inbox (and spam folder)."
-      );
-    } catch (err) {
-      console.error("Forgot password error:", err);
-
-      switch (err.code) {
-        case "auth/user-not-found":
-          showGlobalError(
-            "No account found with this email. Did you sign up with a different address?"
-          );
-          break;
-        case "auth/invalid-email":
-          fieldError("forgot-email", "Please enter a valid email address.");
-          break;
-        default:
-          showGlobalError("Couldn't send reset link. Please try again.");
-      }
-    } finally {
-      forgotSubmitBtn.disabled = false;
-    }
-  });
+        try {
+            await sendPasswordResetEmail(auth, email);
+            showGlobalSuccess("Password reset email sent! Check your inbox.");
+        } catch (error) {
+            console.error("Password Reset Error:", error.code, error.message);
+            if (error.code === 'auth/user-not-found') {
+                showGlobalError("No account found with this email address.");
+            } else if (error.code === 'auth/invalid-email') {
+                setFieldError('forgot-email', 'The email address is not valid.');
+            } else {
+                showGlobalError("An error occurred while trying to send the reset email.");
+            }
+        } finally {
+            forgotSubmitBtn.disabled = false;
+            forgotSubmitBtn.textContent = 'Send Reset Link';
+        }
+    });
 }

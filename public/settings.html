@@ -1,217 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>
-    document.documentElement.classList.add('rr-plan-pending');
-    document.documentElement.classList.add('rr-data-pending');
-  </script>
-  <style>
-    html.rr-plan-pending [data-rr-plan-text],
-    html.rr-data-pending [data-rr-plan-text] { visibility: hidden; }
-    html.rr-plan-pending .rr-plan-badge,
-    html.rr-data-pending .rr-plan-badge { visibility: hidden; }
-    html.rr-plan-pending [data-plan-gated],
-    html.rr-data-pending [data-plan-gated] { display:none !important; }
-  </style>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewResQ – Settings</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="dashboard.css" />
-  <style>
-    .settings-tabs {
-      display: flex;
-      gap: 8px;
-      border-bottom: 1px solid #e5e7eb;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
-    .settings-tab {
-      border: none;
-      background: transparent;
-      padding: 10px 14px;
-      font-weight: 600;
-      color: #374151;
-      cursor: pointer;
-      border-radius: 6px 6px 0 0;
-    }
-    .settings-tab[aria-selected="true"] {
-      background: #eef2ff;
-      color: #111827;
-    }
-    .settings-panel {
-      display: none;
-    }
-    .settings-panel.active {
-      display: block;
-    }
-    .embedded-frame {
-      width: 100%;
-      min-height: 900px;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      overflow: hidden;
-      background: #fff;
-    }
-    .embedded-frame iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings | ReviewResQ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <style>
+        /* LAYOUT FIXES (Standardized) */
+        html, body { height: 100%; margin: 0; overflow: hidden; }
+        .dashboard-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+        .sidebar { width: 260px; background-color: #111827; color: white; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid #374151; }
+        .sidebar-header { padding: 20px; font-size: 1.25rem; font-weight: bold; border-bottom: 1px solid #1f2937; }
+        .nav-links { list-style: none; padding: 0; margin: 20px 0; flex-grow: 1; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: #9ca3af; text-decoration: none; transition: all 0.2s; }
+        .nav-link:hover, .nav-link.active { background-color: #1f2937; color: white; border-left: 4px solid #3b82f6; }
+        .nav-icon { width: 20px; text-align: center; }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; background: #f3f4f6; }
+        .topbar { height: 64px; background: white; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; }
+        .content-scroll { flex-grow: 1; overflow-y: auto; padding: 24px; }
+    </style>
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">RR</div>
-        <div class="brand-name">ReviewResQ</div>
-      </div>
-      <nav class="global-nav" aria-label="Dashboard navigation">
-        <a class="nav-tab" data-route="dashboard" href="dashboard.html"><span class="nav-icon">🏠</span><span>Overview</span></a>
-        <a class="nav-tab" data-route="ask-reviews" href="/ask-reviews"><span class="nav-icon">✉️</span><span>Ask for reviews</span></a>
-        <a class="nav-tab" data-route="inbox" href="feedback.html"><span class="nav-icon">💬</span><span>Customer Feedback</span></a>
-        <a class="nav-tab" data-route="google-reviews" href="/google-reviews"><span class="nav-icon">★</span><span>Google Reviews</span></a>
-        <a class="nav-tab" data-route="customers" href="/customers"><span class="nav-icon">👥</span><span>Customers</span></a>
-        <a class="nav-tab" data-route="campaigns" href="campaigns.html"><span class="nav-icon">📢</span><span>Campaigns</span></a>
-        <a class="nav-tab" data-route="funnel" href="funnel-settings.html"><span class="nav-icon">↗</span><span>Review Funnel</span></a>
-        <a class="nav-tab" data-route="links" href="/links"><span class="nav-icon">🔗</span><span>Review Links</span></a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html"><span class="nav-icon">🤖</span><span>AI Phone Agent</span></a>
-        <a class="nav-tab" data-route="ai-agent" href="ai-agent.html#pro-suite"><span class="nav-icon">⚡</span><span>Pro AI Suite</span></a>
-        <a class="nav-tab" data-route="settings" href="settings.html"><span class="nav-icon">⚙️</span><span>Settings</span></a>
-      </nav>
-    </aside>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header"><i class="fas fa-star text-primary me-2"></i>ReviewResQ</div>
+            <ul class="nav-links">
+                <li><a href="/overview" class="nav-link"><i class="fas fa-home nav-icon"></i> Overview</a></li>
+                <li><a href="/ask-reviews" class="nav-link"><i class="fas fa-paper-plane nav-icon"></i> Ask for Reviews</a></li>
+                <li><a href="/customer-feedback" class="nav-link"><i class="fas fa-comments nav-icon"></i> Customer Feedback</a></li>
+                <li><a href="/google-reviews" class="nav-link"><i class="fas fa-star nav-icon"></i> Google Reviews</a></li>
+                <li><a href="/customers" class="nav-link"><i class="fas fa-users nav-icon"></i> Customers</a></li>
+                <li><a href="/review-funnel" class="nav-link"><i class="fas fa-filter nav-icon"></i> Review Funnel</a></li>
+                <li><a href="/settings" class="nav-link active"><i class="fas fa-cog nav-icon"></i> Settings</a></li>
+            </ul>
+             <div style="padding: 20px; border-top: 1px solid #1f2937;">
+                <div class="d-flex align-items-center gap-2 text-muted small">
+                    <i class="fas fa-sign-out-alt"></i> <span style="cursor:pointer" id="logout-btn-sidebar">Log Out</span>
+                </div>
+            </div>
+        </aside>
 
-    <div class="main">
-      <header class="topbar">
-        <div class="topbar-title">Settings</div>
-        <div class="topbar-right">
-          <a class="badge" id="planBadge" data-rr-plan-text href="account.html">Loading…</a>
-          <div class="profile" aria-haspopup="true" aria-expanded="false"></div>
+        <div class="main-content">
+            <header class="topbar">
+                <div class="fw-bold text-secondary">Account Settings</div>
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill">Starter Plan</span>
+            </header>
+            
+            <div class="content-scroll">
+                <div class="container-fluid" style="max-width: 800px;">
+                    
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-white py-3"><h5 class="mb-0">Profile Information</h5></div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Email Address</label>
+                                <input type="text" class="form-control" id="user-email" disabled value="Loading...">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">User ID</label>
+                                <input type="text" class="form-control font-monospace" id="user-uid" disabled value="...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Google Business Connection</h5>
+                            <span id="connection-badge" class="badge bg-secondary">Checking...</span>
+                        </div>
+                        <div class="card-body">
+                            <h5 id="business-name" class="card-title">No Business Connected</h5>
+                            <p class="card-text text-muted">Connect your Google Business Profile to sync reviews.</p>
+                            <div id="connection-actions">
+                                <a href="/google-reviews" class="btn btn-primary btn-sm">Connect Now</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-0 border-danger">
+                        <div class="card-body">
+                            <h5 class="text-danger">Sign Out</h5>
+                            <p class="text-muted small">Sign out of your account on this device.</p>
+                            <button id="logout-btn-main" class="btn btn-outline-danger">Log Out</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </div>
-      </header>
-
-      <div class="page-shell">
-        <header class="page-header">
-          <p class="page-title">Settings</p>
-          <p class="page-subtitle">Manage notifications, branding, and billing from one place.</p>
-        </header>
-
-        <div class="settings-tabs" role="tablist">
-          <button class="settings-tab" data-panel="notifications" role="tab" aria-selected="true">Alerts &amp; Notifications</button>
-          <button class="settings-tab" data-panel="business" role="tab" aria-selected="false">Business Settings</button>
-          <button class="settings-tab" data-panel="account" role="tab" aria-selected="false">Account &amp; Billing</button>
-        </div>
-
-        <section class="card settings-panel active" data-panel="notifications" role="tabpanel">
-          <div class="toggle-row">
-            <div>
-              <p class="strong">New private feedback</p>
-              <p class="card-subtitle">Send an email when a customer submits feedback.</p>
-              <p class="caption upgrade-hint" data-upgrade-hint="newPrivateFeedback"></p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" data-toggle="newPrivateFeedback" />
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row">
-            <div>
-              <p class="strong">New Google review</p>
-              <p class="card-subtitle">Notify me when a new Google review is posted.</p>
-              <p class="caption upgrade-hint" data-upgrade-hint="newGoogleReview"></p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" data-toggle="newGoogleReview" />
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row">
-            <div>
-              <p class="strong">Follow-up reminders</p>
-              <p class="card-subtitle">Remind me to reply when feedback has no response.</p>
-              <p class="caption upgrade-hint" data-upgrade-hint="followUpReminders"></p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" data-toggle="followUpReminders" />
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row">
-            <div>
-              <p class="strong">Weekly summary</p>
-              <p class="card-subtitle">Digest of reviews and sentiment changes.</p>
-              <p class="caption upgrade-hint" data-upgrade-hint="weeklySummary"></p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" data-toggle="weeklySummary" />
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <div class="form-row" style="margin-top: 16px;">
-            <label class="strong" for="alertRecipients">Email recipients</label>
-            <p class="card-subtitle">Enter one email per line. Defaults to your login email.</p>
-            <textarea id="alertRecipients" rows="3" class="input" placeholder="you@example.com&#10;support@reviewresq.com"></textarea>
-            <div class="button-row" style="justify-content:flex-start; margin-top: 8px;">
-              <button type="button" class="btn btn-primary" data-save-recipients>Save recipients</button>
-              <span class="caption" data-recipient-hint></span>
-            </div>
-          </div>
-
-          <p class="caption" data-alert-status role="status" aria-live="polite"></p>
-        </section>
-
-        <section class="settings-panel" data-panel="business" role="tabpanel">
-          <div class="card" style="padding: 0;">
-            <div class="embedded-frame" aria-label="Business settings">
-              <iframe src="business-settings.html" title="Business settings"></iframe>
-            </div>
-          </div>
-        </section>
-
-        <section class="settings-panel" data-panel="account" role="tabpanel">
-          <div class="card" style="padding: 0;">
-            <div class="embedded-frame" aria-label="Account and billing">
-              <iframe src="account.html" title="Account and billing"></iframe>
-            </div>
-          </div>
-        </section>
-      </div>
     </div>
-  </div>
-  <script type="module" src="nav-access-init.js"></script>
-  <script src="dashboard-nav.js"></script>
-  <script type="module" src="topbar-menu.js"></script>
-  <script type="module" src="alerts.js"></script>
-  <script>
-    const tabButtons = Array.from(document.querySelectorAll('.settings-tab'));
-    const panels = Array.from(document.querySelectorAll('.settings-panel'));
 
-    function showPanel(target) {
-      panels.forEach((panel) => {
-        const isActive = panel.dataset.panel === target;
-        panel.classList.toggle('active', isActive);
-      });
-      tabButtons.forEach((btn) => {
-        const isActive = btn.dataset.panel === target;
-        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-      });
-    }
-
-    function handleTabClick(event) {
-      const target = event.currentTarget?.dataset?.panel;
-      if (!target) return;
-      showPanel(target);
-      history.replaceState({}, '', `#${target}`);
-    }
-
-    tabButtons.forEach((btn) => btn.addEventListener('click', handleTabClick));
-
-    const initialPanel = window.location.hash?.replace('#', '') || 'notifications';
-    showPanel(initialPanel);
-  </script>
+    <script type="module" src="settings.js"></script>
 </body>
 </html>

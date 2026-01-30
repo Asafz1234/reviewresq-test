@@ -1,69 +1,149 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>
-    document.documentElement.classList.add('rr-plan-pending');
-    document.documentElement.classList.add('rr-data-pending');
-  </script>
-  <style>
-    html.rr-plan-pending [data-rr-plan-text],
-    html.rr-data-pending [data-rr-plan-text] { visibility: hidden; }
-    html.rr-plan-pending .rr-plan-badge,
-    html.rr-data-pending .rr-plan-badge { visibility: hidden; }
-    html.rr-plan-pending [data-plan-gated],
-    html.rr-data-pending [data-plan-gated] { display:none !important; }
-  </style>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ReviewResQ – Automations</title>
-  <link
-    rel="icon"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-size='32' text-anchor='middle' fill='white' font-family='Inter,%20Arial,%20sans-serif'%3ERR%3C/text%3E%3C/svg%3E"
-  />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
-  <link rel="stylesheet" href="dashboard.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Automations - ReviewResQ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="nav-access-init.js"></script>
+  <script type="module" src="session-data.js"></script>
+  <script src="dashboard-nav.js" defer></script>
 </head>
-<body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">RR</div>
-        <div class="brand-name">ReviewResQ</div>
+<body class="bg-gray-50 text-slate-900 font-sans antialiased">
+  <div class="flex h-screen overflow-hidden">
+    <aside class="w-64 flex-shrink-0 border-r border-slate-200 bg-white h-full fixed left-0 top-0 overflow-y-auto z-10">
+      <div class="p-6">
+        <div class="text-2xl font-bold text-blue-600 tracking-tight">ReviewResQ</div>
       </div>
-      <nav class="global-nav" aria-label="Dashboard navigation"></nav>
+      <nav class="global-nav mt-2 px-4 space-y-1"></nav>
     </aside>
 
-    <div class="main">
-      <header class="topbar">
-        <div class="topbar-title">Automations</div>
-        <div class="topbar-right">
-          <a class="btn btn-outline" href="account.html">Account &amp; billing</a>
+    <main class="flex-1 ml-64 h-full overflow-y-auto">
+      <header class="bg-white border-b border-slate-200 px-8 py-5 flex items-center justify-between sticky top-0 z-10">
+        <h1 class="text-xl font-bold text-slate-900">Automations</h1>
+        <div class="flex items-center gap-4">
+           <span id="user-plan-badge" class="invisible px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold uppercase tracking-wider">Loading...</span>
         </div>
       </header>
-
-      <main class="page-shell">
-        <header class="page-header">
-          <p class="page-title">Automations</p>
-          <p class="page-subtitle">Workflow builder and reminders.</p>
-        </header>
-
-        <section class="card">
-          <p class="card-title">Growth feature (Coming soon)</p>
-          <p class="card-subtitle">
-            Automations will let you schedule follow-ups, reminders, and smart routing in one place.
-          </p>
-        </section>
-      </main>
+      <section id="sec-automation" class="p-8 max-w-5xl mx-auto">
+        <div class="content-card">
+    <div class="card-header">
+        <h3 class="card-title">⚡ Autopilot Engine</h3>
+        <span class="plan-badge growth">PRO CONTROL</span>
     </div>
-  </div>
+    <p style="color:#64748b; margin-bottom:20px;">Fully automated workflows to manage reputation while you sleep.</p>
 
-  <script type="module" src="nav-access-init.js"></script>
-  <script type="module" src="page-ready.js"></script>
-  <script src="dashboard-nav.js"></script>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:20px;">
+        
+        <div class="auto-card" style="border:1px solid #e2e8f0; border-radius:12px; padding:20px; position:relative; overflow:hidden; transition:0.2s;">
+            <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:#6366f1;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:15px;">
+                <div>
+                    <div style="font-weight:bold; font-size:1.1rem; color:#1e293b;">Smart Follow-up</div>
+                    <div style="font-size:0.8rem; color:#6366f1; margin-top:2px;">Target: Non-openers</div>
+                </div>
+                <label class="switch" style="position:relative; display:inline-block; width:40px; height:20px;">
+                    <input type="checkbox" id="toggle-chaser" onchange="app.saveAutoSettings()">
+                    <span style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.4s; border-radius:20px;"></span>
+                    <span style="position:absolute; content:''; height:16px; width:16px; left:2px; bottom:2px; background-color:white; transition:.4s; border-radius:50%;"></span>
+                </label>
+            </div>
+            <p style="font-size:0.9rem; color:#64748b; line-height:1.5;">Boost conversion by 30%. Automatically nudges customers who missed the first invite.</p>
+            <div style="margin-top:20px; border-top:1px solid #f1f5f9; padding-top:15px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:0.8rem; font-weight:600; color:#475569;"><i class="fas fa-clock"></i> Delay: <span id="disp-chaser-delay">3 Days</span></div>
+                <button class="btn-secondary" style="padding:5px 12px; font-size:0.8rem;" onclick="app.openAutoConfig('chaser')"><i class="fas fa-cog"></i> Configure</button>
+            </div>
+        </div>
+
+        <div class="auto-card" style="border:1px solid #e2e8f0; border-radius:12px; padding:20px; position:relative; overflow:hidden;">
+            <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:#ef4444;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:15px;">
+                <div>
+                    <div style="font-weight:bold; font-size:1.1rem; color:#1e293b;">Negative Shield</div>
+                    <div style="font-size:0.8rem; color:#ef4444; margin-top:2px;">Target: 1-3 Stars</div>
+                </div>
+                <label class="switch" style="position:relative; display:inline-block; width:40px; height:20px;">
+                    <input type="checkbox" id="toggle-shield" onchange="app.saveAutoSettings()">
+                    <span style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.4s; border-radius:20px;"></span>
+                    <span style="position:absolute; content:''; height:16px; width:16px; left:2px; bottom:2px; background-color:white; transition:.4s; border-radius:50%;"></span>
+                </label>
+            </div>
+            <p style="font-size:0.9rem; color:#64748b; line-height:1.5;">Protect your reputation. Intercept bad reviews internally before they reach Google.</p>
+            <div style="margin-top:20px; border-top:1px solid #f1f5f9; padding-top:15px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:0.8rem; font-weight:600; color:#475569;"><i class="fas fa-bell"></i> Alert: <span id="disp-shield-alert">Admin SMS</span></div>
+                <button class="btn-secondary" style="padding:5px 12px; font-size:0.8rem;" onclick="app.openAutoConfig('shield')"><i class="fas fa-cog"></i> Configure</button>
+            </div>
+        </div>
+
+        <div class="auto-card" style="border:1px solid #e2e8f0; border-radius:12px; padding:20px; position:relative; overflow:hidden;">
+            <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:#10b981;"></div>
+            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:15px;">
+                <div>
+                    <div style="font-weight:bold; font-size:1.1rem; color:#1e293b;">Viral Loop</div>
+                    <div style="font-size:0.8rem; color:#10b981; margin-top:2px;">Target: 5 Stars</div>
+                </div>
+                <label class="switch" style="position:relative; display:inline-block; width:40px; height:20px;">
+                    <input type="checkbox" id="toggle-viral" onchange="app.saveAutoSettings()">
+                    <span style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.4s; border-radius:20px;"></span>
+                    <span style="position:absolute; content:''; height:16px; width:16px; left:2px; bottom:2px; background-color:white; transition:.4s; border-radius:50%;"></span>
+                </label>
+            </div>
+            <p style="font-size:0.9rem; color:#64748b; line-height:1.5;">Turn happy customers into repeat buyers. Send an automatic reward for 5-star reviews.</p>
+            <div style="margin-top:20px; border-top:1px solid #f1f5f9; padding-top:15px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:0.8rem; font-weight:600; color:#475569;"><i class="fas fa-gift"></i> Reward: <span id="disp-viral-reward">10% Off</span></div>
+                <button class="btn-secondary" style="padding:5px 12px; font-size:0.8rem;" onclick="app.openAutoConfig('viral')"><i class="fas fa-cog"></i> Configure</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="modal-auto-config" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center;">
+    <div style="background:white; padding:30px; border-radius:12px; width:400px; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+            <h3 id="modal-title" style="margin:0;">Settings</h3>
+            <button onclick="document.getElementById('modal-auto-config').style.display='none'" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+        </div>
+        
+        <div id="modal-body-chaser" style="display:none;">
+            <label style="display:block; margin-bottom:8px; font-weight:600;">Wait before sending (Days)</label>
+            <select id="cfg-chaser-delay" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:15px;">
+                <option value="1">1 Day</option>
+                <option value="2">2 Days</option>
+                <option value="3" selected>3 Days</option>
+                <option value="7">1 Week</option>
+            </select>
+            <label style="display:block; margin-bottom:8px; font-weight:600;">Message Template</label>
+            <textarea id="cfg-chaser-msg" rows="4" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px;">Hi [Name], just a friendly reminder to share your experience with us!</textarea>
+        </div>
+
+        <div id="modal-body-shield" style="display:none;">
+            <label style="display:block; margin-bottom:8px; font-weight:600;">Admin Alert Number</label>
+            <input type="text" id="cfg-shield-phone" placeholder="+1 555 000 0000" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:15px;">
+            <label style="display:block; margin-bottom:8px; font-weight:600;">Apology Message</label>
+            <textarea id="cfg-shield-msg" rows="4" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px;">We are so sorry to hear that. A manager will contact you within 1 hour.</textarea>
+        </div>
+
+        <div id="modal-body-viral" style="display:none;">
+            <label style="display:block; margin-bottom:8px; font-weight:600;">Discount Percentage</label>
+            <select id="cfg-viral-reward" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:15px;">
+                <option value="5%">5% Off</option>
+                <option value="10%" selected>10% Off</option>
+                <option value="20%">20% Off</option>
+            </select>
+            <label style="display:block; margin-bottom:8px; font-weight:600;">Coupon Code</label>
+            <input type="text" id="cfg-viral-code" value="THANKYOU2024" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
+        </div>
+
+        <button class="btn-primary" style="width:100%; margin-top:20px;" onclick="app.saveSpecificConfig()">Save Configuration</button>
+    </div>
+</div>
+
+<style>
+    input:checked + span { background-color: #10b981; }
+    input:checked + span:before { transform: translateX(20px); }
+    .auto-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+</style>
+      </section>
+    </main>
+  </div>
 </body>
 </html>
